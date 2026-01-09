@@ -235,7 +235,7 @@ const CreatePatient = () => {
         <Card title="🏥 Medical Information" className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Diabetes Type *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Diagnosis</label>
               <select
                 value={patientData.diabetesType}
                 onChange={(e) => setPatientData({ ...patientData, diabetesType: e.target.value })}

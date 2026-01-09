@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
+import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useQueueContext } from "../../contexts/QueueContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
+import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 
 const Consultations = () => {
   const navigate = useNavigate();
@@ -16,7 +18,10 @@ const Consultations = () => {
   const [showConsultationForm, setShowConsultationForm] = useState(false);
   const [consultationNotes, setConsultationNotes] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
-   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
+  const [showOrderLabModal, setShowOrderLabModal] = useState(false);
+
+  const [treatmentPlan, setTreatmentPlan] = useState("");
+  const { addTreatmentPlan, getLatestPlan } = useTreatmentPlanContext();
 
   // Get patients waiting for doctor
   const waitingPatients = getQueueByStatus("With Doctor");
@@ -28,6 +33,7 @@ const Consultations = () => {
     setShowConsultationForm(false);
     setConsultationNotes("");
     setDiagnosis("");
+    setTreatmentPlan("");
   };
 
   const handleStartConsultation = () => {
@@ -45,12 +51,36 @@ const Consultations = () => {
       return;
     }
 
+    if (!treatmentPlan.trim()) {
+      alert(
+        "Please enter a treatment plan before completing the consultation."
+      );
+      return;
+    }
+
+    // Save treatment plan
+    addTreatmentPlan({
+      uhid: selectedPatientFull.uhid,
+      patientName: selectedPatientFull.name,
+      doctorName: "Dr. Ahmed Hassan",
+      diagnosis: diagnosis,
+      plan: treatmentPlan,
+    });
+
     // Update queue status to "Completed"
     updateQueueStatus(selectedPatientFull.uhid, "Completed");
 
-    alert(
-      `Consultation completed for ${selectedPatientFull.name}!\n\nPatient has been moved to completed queue.`
-    );
+    // Show success notification
+    const successDiv = document.createElement("div");
+    successDiv.className =
+      "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce";
+    successDiv.innerHTML = `
+    <p class="font-bold">✅ Consultation Completed Successfully!</p>
+    <p class="text-sm mt-1">Patient: ${selectedPatientFull.name}</p>
+    <p class="text-sm">Treatment plan saved</p>
+   `;
+    document.body.appendChild(successDiv);
+    setTimeout(() => successDiv.remove(), 4000);
 
     // Reset
     setShowConsultationForm(false);
@@ -58,6 +88,7 @@ const Consultations = () => {
     setSelectedPatientFull(null);
     setConsultationNotes("");
     setDiagnosis("");
+    setTreatmentPlan("");
   };
 
   const handleNavigateWithPatient = (path) => {
@@ -198,7 +229,7 @@ const Consultations = () => {
                   {selectedPatientFull.chiefComplaint && (
                     <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
                       <p className="text-sm font-semibold text-gray-700 mb-1">
-                        Chief Complaint:
+                        Reason for visit:
                       </p>
                       <p className="text-gray-800">
                         {selectedPatientFull.chiefComplaint}
@@ -349,6 +380,79 @@ const Consultations = () => {
                 </div>
               </Card>
 
+              {/* Previous Treatment Plan */}
+              {/* Previous Treatment Plan */}
+              {(() => {
+                const previousPlan = getLatestPlan(selectedPatientFull.uhid);
+                if (previousPlan) {
+                  return (
+                    <Card title="📋 Previous Treatment Plan">
+                      <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <p className="text-sm font-bold text-gray-800">
+                              {previousPlan.diagnosis}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              📅{" "}
+                              {new Date(previousPlan.date).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )}{" "}
+                              • {previousPlan.time} • By{" "}
+                              {previousPlan.doctorName}
+                            </p>
+                          </div>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              previousPlan.status === "Active"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {previousPlan.status}
+                          </span>
+                        </div>
+                        <div className="bg-white rounded p-3 mt-3 mb-3">
+                          <p className="text-sm font-semibold text-gray-700 mb-2">
+                            Plan:
+                          </p>
+                          <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                            {previousPlan.plan}
+                          </pre>
+                        </div>
+
+                        {/* View All Plans Button */}
+                        <div className="flex justify-end">
+                          <Button
+                            variant="outline"
+                            className="text-sm"
+                            onClick={() =>
+                              navigate(
+                                `/doctor/patient-profile/${selectedPatientFull.uhid}`,
+                                {
+                                  state: {
+                                    fromConsultation: true,
+                                    activeTab: "treatment-plans",
+                                  },
+                                }
+                              )
+                            }
+                          >
+                            📋 View All Treatment Plans
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Consultation Form */}
               {showConsultationForm && (
                 <Card title="💬 Consultation">
@@ -383,6 +487,49 @@ const Consultations = () => {
                         placeholder="e.g., Type 2 Diabetes Mellitus - Poorly Controlled"
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
                       />
+                    </div>
+                    {/* Treatment Plan */}
+                    {/* <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Plan (Treatment Plan) *
+                      </label>
+                      <textarea
+                        value={treatmentPlan}
+                        onChange={(e) => setTreatmentPlan(e.target.value)}
+                        placeholder="Document treatment plan:
+                          - Medication changes (e.g., Increase Metformin to 1000mg twice daily, Add Glimepiride 2mg)
+                          - Monitoring instructions (e.g., Check SMBG daily, HbA1c repeat in 3 months)
+                          - Lifestyle modifications (e.g., Reduce carbs to 45-60g/meal, Walk 30min daily)
+                          - Follow-up schedule (e.g., Return in 4 weeks, phone check-in at 2 weeks)
+                          - Referrals (e.g., Ophthalmology for retinopathy screening)"
+                        rows="8"
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary font-mono text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Include: medication adjustments, monitoring plan,
+                        lifestyle changes, follow-up timeline, referrals
+                      </p>
+                    </div> */}
+                    {/* Treatment Plan */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Plan (Treatment Plan) * 🎤
+                      </label>
+                      <VoiceInput
+                        value={treatmentPlan}
+                        onChange={(e) => setTreatmentPlan(e.target.value)}
+                        placeholder="Document treatment plan:
+• Medication changes (e.g., Increase Metformin to 1000mg twice daily, Add Glimepiride 2mg)
+• Monitoring instructions (e.g., Check SMBG daily, HbA1c repeat in 3 months)
+• Lifestyle modifications (e.g., Reduce carbs to 45-60g/meal, Walk 30min daily)
+• Follow-up schedule (e.g., Return in 4 weeks, phone check-in at 2 weeks)
+• Referrals (e.g., Ophthalmology for retinopathy screening)"
+                        rows={8}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Include: medication adjustments, monitoring plan,
+                        lifestyle changes, follow-up timeline, referrals
+                      </p>
                     </div>
 
                     {/* Navigation Buttons to Other Pages */}
@@ -452,7 +599,7 @@ const Consultations = () => {
                         >
                           📄 Generate Report
                         </Button>
-                         <Button
+                        <Button
                           variant="outline"
                           onClick={() => setShowOrderLabModal(true)}
                           className="text-sm bg-purple-50 hover:bg-purple-100 border-purple-300"
@@ -486,15 +633,15 @@ const Consultations = () => {
           )}
         </div>
         {/* Order Lab Test Modal */}
-      {showOrderLabModal && selectedPatientFull && (
-        <OrderLabTestModal
-          patient={selectedPatientFull}
-          onClose={() => setShowOrderLabModal(false)}
-          onSuccess={() => {
-            console.log("Lab test ordered successfully");
-          }}
-        />
-      )}
+        {showOrderLabModal && selectedPatientFull && (
+          <OrderLabTestModal
+            patient={selectedPatientFull}
+            onClose={() => setShowOrderLabModal(false)}
+            onSuccess={() => {
+              console.log("Lab test ordered successfully");
+            }}
+          />
+        )}
       </div>
     </div>
   );

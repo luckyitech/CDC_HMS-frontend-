@@ -37,7 +37,7 @@ const DoctorLoginPage = () => {
   return (
     <LoginLayout>
       <Card title="Doctor Login">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-8">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {error}
@@ -70,14 +70,14 @@ const DoctorLoginPage = () => {
 
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
             <p className="font-semibold text-blue-900 mb-2">Demo Credentials:</p>
-            <p className="text-blue-700">📧 ahmed.hassan@cdc.com</p>
-            <p className="text-blue-700">🔑 Any password</p>
+            <p className="text-blue-700"> ahmed.hassan@cdc.com</p>
+            <p className="text-blue-700"> Any password</p>
           </div>
         </form>
         
         <button
           onClick={() => navigate('/')}
-          className="text-primary hover:underline mt-4 text-sm w-full text-center"
+          className="text-primary hover:underline mt-4 text-xl w-full text-center"
         >
           ← Back to portal selection
         </button>

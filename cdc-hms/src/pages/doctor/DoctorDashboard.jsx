@@ -50,8 +50,8 @@ const DoctorDashboard = () => {
           <p className="text-gray-600 mt-1">Welcome back, {currentUser?.name || 'Doctor'}</p>
         </div>
         <div className="flex gap-3">
-          <Button className="text-sm">📋 View Schedule</Button>
-          <Button variant="outline" className="text-sm">📊 Reports</Button>
+          {/* <Button className="text-sm">📋 View Schedule</Button> */}
+          {/* <Button variant="outline" className="text-sm">📊 Reports</Button> */}
         </div>
       </div>
 

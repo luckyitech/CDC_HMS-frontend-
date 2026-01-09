@@ -61,7 +61,7 @@ const MyPatients = () => {
           My Patients
         </h2>
         <Button onClick={() => navigate("/doctor/dashboard")}>
-          â† Back to Dashboard
+          Back to Dashboard
         </Button>
       </div>
 

@@ -111,12 +111,12 @@ const PatientSearch = () => {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          <Button 
+                          {/* <Button 
                             variant="outline" 
                             className="text-xs py-1 px-3"
                           >
                             View Details
-                          </Button>
+                          </Button> */}
                           {isInQueue(patient.uhid) ? (
                             <Button 
                               variant="secondary" 

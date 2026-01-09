@@ -25,6 +25,10 @@ const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
     { value: "Urine Analysis", label: "Urine Analysis", sample: "Urine" },
   ];
 
+  // const searchTestType = testTypes.filter((type)=>{
+  //   return 
+  // })
+
   const handleSubmit = () => {
     if (!selectedTest) {
       alert("Please select a test type");

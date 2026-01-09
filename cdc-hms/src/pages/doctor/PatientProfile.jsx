@@ -8,6 +8,10 @@ import { useUserContext } from "../../contexts/UserContext";
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
 import { useLabContext } from "../../contexts/LabContext";
+import LabTestDetailsModal from "../../components/lab/LabTestDetailsModal";
+import LabTestPrint from "../../components/lab/LabTestPrint";
+import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
+
 import {
   physicalExamSections,
   generateFindingsProse,
@@ -23,7 +27,9 @@ const PatientProfile = () => {
   const { uhid } = useParams();
   const location = useLocation();
   const fromConsultation = location.state?.fromConsultation;
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(
+    location.state?.activeTab || "overview"
+  );
   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
 
   const { getPatientByUHID, getBloodSugarReadings } = usePatientContext();
@@ -49,6 +55,7 @@ const PatientProfile = () => {
     { id: "physical-exam", name: "Physical Exam", icon: "🩺" },
     { id: "glycemic-charts", name: "Glycemic Charts", icon: "📈" },
     { id: "prescriptions", name: "Prescriptions", icon: "💊" },
+    { id: "treatment-plans", name: "Treatment Plans", icon: "📝" },
     { id: "reports", name: "Reports", icon: "📄" },
   ];
 
@@ -189,6 +196,9 @@ const PatientProfile = () => {
             patient={patient}
             getPrescriptionsByPatient={getPrescriptionsByPatient}
           />
+        )}
+        {activeTab === "treatment-plans" && (
+          <TreatmentPlansTab patient={patient} />
         )}
         {activeTab === "reports" && <ReportsTab patient={patient} />}
       </div>
@@ -1583,11 +1593,351 @@ const ViewPrescriptionModal = ({ prescription, onClose, onPrint }) => {
   );
 };
 
-// Replace the existing ReportsTab component
+const TreatmentPlansTab = ({ patient }) => {
+  const { getPlansByPatient } = useTreatmentPlanContext();
+  const treatmentPlans = getPlansByPatient(patient.uhid);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+
+  if (treatmentPlans.length === 0) {
+    return (
+      <Card>
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">📋</div>
+          <p className="text-gray-500 text-lg mb-2">
+            No Treatment Plans Available
+          </p>
+          <p className="text-gray-400 text-sm">
+            Treatment plans will appear here after consultations
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  const handlePrint = (plan) => {
+    setSelectedPlan(plan);
+    setShowPrintModal(true);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Statistics */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 text-white">
+          <p className="text-xs opacity-90">Total Plans</p>
+          <p className="text-3xl font-bold mt-1">{treatmentPlans.length}</p>
+        </div>
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 text-white">
+          <p className="text-xs opacity-90">Active</p>
+          <p className="text-3xl font-bold mt-1">
+            {treatmentPlans.filter((p) => p.status === "Active").length}
+          </p>
+        </div>
+        <div className="bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl shadow-lg p-4 text-white">
+          <p className="text-xs opacity-90">Completed</p>
+          <p className="text-3xl font-bold mt-1">
+            {treatmentPlans.filter((p) => p.status === "Completed").length}
+          </p>
+        </div>
+      </div>
+
+      {/* Treatment Plans List */}
+      <Card title="📋 Treatment Plan History">
+        <div className="space-y-4">
+          {treatmentPlans.map((plan, index) => (
+            <div
+              key={plan.id}
+              className={`p-4 sm:p-6 border-2 rounded-lg transition ${
+                index === 0
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-200 hover:border-primary"
+              }`}
+            >
+              {/* Plan Header */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4 pb-4 border-b">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    {index === 0 && (
+                      <span className="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">
+                        LATEST
+                      </span>
+                    )}
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        plan.status === "Active"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {plan.status}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-1">
+                    {plan.diagnosis}
+                  </h3>
+                  <div className="text-sm text-gray-600">
+                    <p>
+                      📅{" "}
+                      {new Date(plan.date).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })}{" "}
+                      • {plan.time}
+                    </p>
+                    <p className="mt-1">👨‍⚕️ {plan.doctorName}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="text-sm"
+                    onClick={() => handlePrint(plan)}
+                  >
+                    🖨️ Print
+                  </Button>
+                </div>
+              </div>
+
+              {/* Plan Content */}
+              <div className="bg-white rounded-lg p-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">
+                  Treatment Plan:
+                </p>
+                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                  {plan.plan}
+                </pre>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Print Modal */}
+      {showPrintModal && selectedPlan && (
+        <TreatmentPlanPrint
+          plan={selectedPlan}
+          patient={patient}
+          onClose={() => {
+            setShowPrintModal(false);
+            setSelectedPlan(null);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        {/* Header - Hide on print */}
+        <div className="sticky top-0 bg-white border-b-2 border-gray-200 p-6 flex justify-between items-center print:hidden">
+          <h3 className="text-2xl font-bold text-gray-800">Treatment Plan</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 font-semibold transition"
+            >
+              🖨️ Print
+            </button>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        {/* Print Content */}
+        <div className="p-8">
+          {/* Hospital Header */}
+          <div className="text-center mb-8 border-b-2 border-primary pb-4">
+            <h1 className="text-3xl font-bold text-primary">
+              CDC DIABETES CLINIC
+            </h1>
+            <p className="text-sm text-gray-600 mt-2">
+              Comprehensive Diabetes Centre • Excellence in Diabetes Care
+            </p>
+            <p className="text-sm text-gray-600">
+              Tel: +254 700 000 000 • Email: info@cdc-diabetes.com
+            </p>
+          </div>
+
+          {/* Document Title */}
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">TREATMENT PLAN</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Date:{" "}
+              {new Date(plan.date).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}{" "}
+              • {plan.time}
+            </p>
+          </div>
+
+          {/* Patient Information */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-bold text-gray-700 mb-3">
+              PATIENT INFORMATION
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-600">Name:</p>
+                <p className="font-semibold">{patient.name}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">UHID:</p>
+                <p className="font-semibold">{patient.uhid}</p>
+              </div>
+              <div>
+                <p className="text-gray-600">Age / Gender:</p>
+                <p className="font-semibold">
+                  {patient.age} years • {patient.gender}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-600">Diabetes Type:</p>
+                <p className="font-semibold">{patient.diabetesType}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Diagnosis */}
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-gray-700 mb-2">DIAGNOSIS</h3>
+            <p className="text-gray-800 p-3 bg-yellow-50 rounded border-l-4 border-yellow-500">
+              {plan.diagnosis}
+            </p>
+          </div>
+
+          {/* Treatment Plan */}
+          <div className="mb-6">
+            <h3 className="text-sm font-bold text-gray-700 mb-2">
+              TREATMENT PLAN
+            </h3>
+            <div className="p-4 bg-gray-50 rounded border-l-4 border-primary">
+              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                {plan.plan}
+              </pre>
+            </div>
+          </div>
+
+          {/* Doctor Information */}
+          <div className="mb-8 p-4 bg-blue-50 rounded-lg">
+            <h3 className="text-sm font-bold text-gray-700 mb-2">
+              TREATING PHYSICIAN
+            </h3>
+            <p className="text-gray-800 font-semibold">{plan.doctorName}</p>
+            <p className="text-sm text-gray-600 mt-1">Diabetes Specialist</p>
+          </div>
+
+          {/* Signature Section */}
+          <div className="grid grid-cols-2 gap-8 mt-12 pt-8 border-t-2 border-gray-300">
+            <div>
+              <div className="border-t-2 border-gray-400 pt-2">
+                <p className="text-sm font-semibold">Doctor's Signature</p>
+                <p className="text-xs text-gray-600 mt-1">{plan.doctorName}</p>
+              </div>
+            </div>
+            <div>
+              <div className="border-t-2 border-gray-400 pt-2">
+                <p className="text-sm font-semibold">Date</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {new Date(plan.date).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center mt-8 pt-4 border-t border-gray-300">
+            <p className="text-xs text-gray-500">
+              This treatment plan is confidential and intended for the patient
+              named above.
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              CDC Diabetes Clinic • Nairobi, Kenya
+            </p>
+          </div>
+        </div>
+
+        {/* Print Styles */}
+        <style>{`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .print\\:hidden {
+              display: none !important;
+            }
+            div[class*="fixed inset-0"] {
+              position: static !important;
+              background: white !important;
+            }
+            div[class*="fixed inset-0"] > div {
+              max-height: none !important;
+              box-shadow: none !important;
+            }
+            div[class*="fixed inset-0"] * {
+              visibility: visible;
+            }
+            @page {
+              margin: 1cm;
+            }
+          }
+        `}</style>
+      </div>
+    </div>
+  );
+};
+
+// ReportsTab component
 
 const ReportsTab = ({ patient }) => {
   const { getTestsByPatient } = useLabContext();
   const labTests = getTestsByPatient(patient.uhid);
+
+  const [selectedTest, setSelectedTest] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+
+  const handleViewFullReport = (test) => {
+    setSelectedTest(test);
+    setShowDetailsModal(true);
+  };
+
+  const handlePrint = (test) => {
+    setSelectedTest(test);
+    setShowPrintModal(true);
+  };
+
+  const handleEmail = (test) => {
+    // Show "Not implemented" message
+    const notificationDiv = document.createElement("div");
+    notificationDiv.className =
+      "fixed top-4 right-4 bg-blue-500 text-white px-6 py-4 rounded-lg shadow-lg z-50";
+    notificationDiv.innerHTML = `
+      <p class="font-bold">📧 Email Feature</p>
+      <p class="text-sm mt-1">Email functionality will be implemented with backend integration.</p>
+      <p class="text-sm">Test: ${test.testType} for ${test.patientName}</p>
+    `;
+    document.body.appendChild(notificationDiv);
+    setTimeout(() => notificationDiv.remove(), 4000);
+  };
 
   if (labTests.length === 0) {
     return (
@@ -1837,18 +2187,21 @@ const ReportsTab = ({ patient }) => {
                   <Button
                     variant="outline"
                     className="w-full lg:w-auto text-sm"
+                    onClick={() => handleViewFullReport(test)}
                   >
                     📄 View Full Report
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full lg:w-auto text-sm"
+                    onClick={() => handlePrint(test)}
                   >
                     🖨️ Print
                   </Button>
                   <Button
                     variant="outline"
                     className="w-full lg:w-auto text-sm"
+                    onClick={() => handleEmail(test)}
                   >
                     📧 Email
                   </Button>
@@ -1885,6 +2238,28 @@ const ReportsTab = ({ patient }) => {
           </div>
         </div>
       </Card>
+
+      {/* Lab Test Details Modal */}
+      {showDetailsModal && selectedTest && (
+        <LabTestDetailsModal
+          test={selectedTest}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedTest(null);
+          }}
+        />
+      )}
+
+      {/* Lab Test Print Modal */}
+      {showPrintModal && selectedTest && (
+        <LabTestPrint
+          test={selectedTest}
+          onClose={() => {
+            setShowPrintModal(false);
+            setSelectedTest(null);
+          }}
+        />
+      )}
     </div>
   );
 };

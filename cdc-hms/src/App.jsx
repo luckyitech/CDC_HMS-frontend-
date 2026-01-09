@@ -9,6 +9,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import { PhysicalExamProvider } from "./contexts/PhysicalExamContext";
 import { InitialAssessmentProvider } from "./contexts/InitialAssessmentContext";
 import { LabProvider } from "./contexts/LabContext";
+import { TreatmentPlanProvider } from "./contexts/TreatmentPlanContext";
 
 import StaffLoginPage from "./pages/auth/StaffLoginPage";
 import DoctorLoginPage from "./pages/auth/DoctorLoginPage";
@@ -70,6 +71,7 @@ function App() {
               <UserProvider>
                 <PatientProvider>
                   <PrescriptionProvider>
+                    <TreatmentPlanProvider>
                     <Routes>
                       {/* All your routes stay exactly the same */}
                       <Route path="/" element={<LoginPage />} />
@@ -208,6 +210,7 @@ function App() {
                         <Route path="reports" element={<Reports />} />
                       </Route>
                     </Routes>
+                    </TreatmentPlanProvider>
                   </PrescriptionProvider>
                 </PatientProvider>
               </UserProvider>

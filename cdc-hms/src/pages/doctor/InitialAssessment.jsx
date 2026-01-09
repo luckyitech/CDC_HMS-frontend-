@@ -282,7 +282,7 @@ const InitialAssessment = () => {
               </Card>
 
               {/* Presenting Complaints */}
-              <Card title="📋 Presenting Complaints">
+              <Card title="Presenting Complaints">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
                     <input
@@ -430,7 +430,7 @@ const InitialAssessment = () => {
               </Card>
 
               {/* Diabetic Complications */}
-              <Card title="⚕️ Diabetic Complications Screening">
+              <Card title="Diabetic Complications Screening">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -534,7 +534,7 @@ const InitialAssessment = () => {
               </Card>
 
               {/* Family History */}
-              <Card title="👨‍👩‍👧‍👦 Family History">
+              <Card title="Family History">
                 <textarea
                   value={assessmentData.familyHistory}
                   onChange={(e) =>
@@ -547,7 +547,7 @@ const InitialAssessment = () => {
               </Card>
 
               {/* Social History */}
-              <Card title="🚬 Social History">
+              <Card title=" Social History">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
