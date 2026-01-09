@@ -462,12 +462,19 @@ const Consultations = () => {
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Consultation Notes *
                       </label>
-                      <textarea
+                      {/* <textarea
                         value={consultationNotes}
                         onChange={(e) => setConsultationNotes(e.target.value)}
                         placeholder="Document history of present illness, physical examination findings, assessment, and treatment plan..."
                         rows="6"
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      /> */}
+                      <VoiceInput
+                        value={consultationNotes}
+                        onChange={(e) => setConsultationNotes(e.target.value)}
+                        placeholder="Document history of present illness, physical examination findings, assessment, and treatment plan..."
+                        rows={6}
+                        // className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Include: Patient's history, your examination findings,

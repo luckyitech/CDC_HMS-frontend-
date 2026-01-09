@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { physicalExamSections } from "./physicalExamData";
+import VoiceInput from "../../components/shared/VoiceInput";
 
 const PhysicalExamEntry = ({
   patientData,
@@ -347,7 +348,7 @@ const PhysicalExamEntry = ({
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Additional Notes
                       </label>
-                      <textarea
+                      {/* <textarea
                         value={examData[section.id]?.notes || ""}
                         onChange={(e) =>
                           handleNotesChange(section.id, e.target.value)
@@ -355,6 +356,14 @@ const PhysicalExamEntry = ({
                         placeholder="Enter any additional findings..."
                         rows="3"
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      /> */}
+                      <VoiceInput
+                      value={examData[section.id]?.notes || ""}
+                      onChange={(e) =>
+                          handleNotesChange(section.id, e.target.value)
+                        }
+                      placeholder="Enter any additional findings..."
+                      rows={3}  
                       />
                     </div>
                   )}

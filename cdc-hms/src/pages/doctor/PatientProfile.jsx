@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
+import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useUserContext } from "../../contexts/UserContext";
@@ -1281,13 +1282,21 @@ const NewPrescriptionForm = ({
         <label className="block text-gray-700 font-semibold mb-2 text-sm uppercase tracking-wide">
           Diagnosis *
         </label>
-        <textarea
+        {/* <textarea
           value={diagnosis}
           onChange={(e) => setDiagnosis(e.target.value)}
           placeholder="Enter diagnosis..."
           rows="2"
           className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
           required
+        /> */}
+        <VoiceInput
+          value={diagnosis}
+          onChange={(e) => setDiagnosis(e.target.value)}
+          placeholder="Enter diagnosis..."
+          rows={2}
+          // className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+          required ={true}
         />
       </div>
 

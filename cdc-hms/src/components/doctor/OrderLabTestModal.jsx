@@ -4,6 +4,7 @@ import { useState } from "react";
 import Button from "../shared/Button";
 import { useLabContext } from "../../contexts/LabContext";
 import { useUserContext } from "../../contexts/UserContext";
+import VoiceInput from "../shared/VoiceInput";
 
 const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
   const { addPendingTest } = useLabContext();
@@ -189,12 +190,19 @@ const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
             <label className="block text-sm font-bold text-gray-700 mb-2">
               Clinical Notes (Optional)
             </label>
-            <textarea
+            {/* <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any relevant clinical information, symptoms, or special instructions for the lab..."
               rows="4"
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+            /> */}
+            <VoiceInput
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any relevant clinical information, symptoms, or special instructions for the lab..."
+              rows={4}
+              // className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
             />
             <p className="text-xs text-gray-500 mt-1">
               Example: Patient reports dizziness, check for hypoglycemia

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
+import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
 import { useUserContext } from "../../contexts/UserContext";
@@ -417,7 +418,7 @@ const InitialAssessment = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Other Complaints
                   </label>
-                  <textarea
+                  {/* <textarea
                     value={assessmentData.otherComplaints}
                     onChange={(e) =>
                       handleInputChange("otherComplaints", e.target.value)
@@ -425,6 +426,15 @@ const InitialAssessment = () => {
                     placeholder="Describe any other complaints..."
                     rows="3"
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                  /> */}
+                  <VoiceInput
+                    value={assessmentData.otherComplaints}
+                    onChange={(e) =>
+                      handleInputChange("otherComplaints", e.target.value)
+                    }
+                    placeholder="Describe any other complaints..."
+                    rows={3}
+                    // className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
                   />
                 </div>
               </Card>
@@ -535,7 +545,16 @@ const InitialAssessment = () => {
 
               {/* Family History */}
               <Card title="Family History">
-                <textarea
+                {/* <textarea
+                  value={assessmentData.familyHistory}
+                  onChange={(e) =>
+                    handleInputChange("familyHistory", e.target.value)
+                  }
+                  placeholder="Enter family history of diabetes, cardiovascular disease, etc..."
+                  rows="4"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                /> */}
+                <VoiceInput
                   value={assessmentData.familyHistory}
                   onChange={(e) =>
                     handleInputChange("familyHistory", e.target.value)
@@ -602,7 +621,7 @@ const InitialAssessment = () => {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Exercise Plan
                     </label>
-                    <textarea
+                    {/* <textarea
                       value={assessmentData.exercisePlan}
                       onChange={(e) =>
                         handleInputChange("exercisePlan", e.target.value)
@@ -610,6 +629,15 @@ const InitialAssessment = () => {
                       placeholder="Describe current exercise routine..."
                       rows="3"
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                    /> */}
+                    <VoiceInput
+                      value={assessmentData.exercisePlan}
+                      onChange={(e) =>
+                        handleInputChange("exercisePlan", e.target.value)
+                      }
+                      placeholder="Describe current exercise routine..."
+                      rows={3}
+                      // className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
                     />
                   </div>
 

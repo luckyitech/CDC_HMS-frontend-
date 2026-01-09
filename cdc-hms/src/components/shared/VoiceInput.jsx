@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const VoiceInput = ({ value, onChange, placeholder, rows = 4 }) => {
+const VoiceInput = ({ value, onChange, placeholder, rows = 4, required = false }) => {
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState(null);
   const [isSupported, setIsSupported] = useState(true);
@@ -106,6 +106,7 @@ const VoiceInput = ({ value, onChange, placeholder, rows = 4 }) => {
         onChange={onChange}
         placeholder={placeholder}
         rows={rows}
+        required={required}
         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary font-mono text-sm pr-16"
       />
 
