@@ -1,10 +1,41 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
 import { useState } from "react";
+import {
+  LayoutDashboard,
+  Search,
+  ClipboardList,
+  Stethoscope,
+  UserPlus,
+  Users,
+  HeartPulse,
+  FileText,
+  Activity,
+  Pill,
+  Home,
+  Edit,
+  TrendingUp,
+  User,
+  Calendar,
+  Upload,
+  TestTube,
+  FileCheck,
+  AlertTriangle,
+  UserCog,
+  Settings,
+  Bell,
+  Menu,
+  X,
+  CheckCircle,
+  Info,
+  AlertCircle,
+} from "lucide-react";
+import logo from "../assets/cdc_web_logo1.svg";
 
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false); // NEW!
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const handleLogout = () => {
     navigate("/");
@@ -180,13 +211,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const getNotificationIcon = (type) => {
     switch (type) {
       case "alert":
-        return "🚨";
+        return <AlertCircle className="w-6 h-6 text-red-500" />;
       case "success":
-        return "✅";
+        return <CheckCircle className="w-6 h-6 text-green-500" />;
       case "info":
-        return "ℹ️";
+        return <Info className="w-6 h-6 text-blue-500" />;
       default:
-        return "🔔";
+        return <Bell className="w-6 h-6 text-gray-500" />;
     }
   };
 
@@ -207,7 +238,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
   const handleMarkAsRead = (notificationId) => {
     alert(`Notification ${notificationId} marked as read`);
-    // In real app, this would update the notification status via API
   };
 
   const handleMarkAllAsRead = () => {
@@ -217,56 +247,83 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
   const menuItems = {
     staff: [
-      { name: "Dashboard", path: "/staff/dashboard", icon: "📊" },
-      { name: "Patient Search", path: "/staff/patients", icon: "🔍" },
-      { name: "Queue Management", path: "/staff/queue", icon: "📋" },
-      { name: "Triage", path: "/staff/triage", icon: "🏥" },
-      { name: "Register Patient", path: "/staff/create-patient", icon: "➕" },
+      { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },
+      { name: "Patient Search", path: "/staff/patients", icon: Search },
+      { name: "Queue Management", path: "/staff/queue", icon: ClipboardList },
+      { name: "Triage", path: "/staff/triage", icon: Stethoscope },
+      {
+        name: "Register Patient",
+        path: "/staff/create-patient",
+        icon: UserPlus,
+      },
     ],
     doctor: [
-      { name: "Dashboard", path: "/doctor/dashboard", icon: "📊" },
-      { name: "My Patients", path: "/doctor/patients", icon: "👥" },
-      { name: "Consultations", path: "/doctor/consultations", icon: "⚕️" },
+      { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
+      { name: "My Patients", path: "/doctor/patients", icon: Users },
+      {
+        name: "Consultations",
+        path: "/doctor/consultations",
+        icon: HeartPulse,
+      },
       {
         name: "Initial Assessment",
         path: "/doctor/initial-assessment",
-        icon: "📋",
+        icon: ClipboardList,
       },
-      { name: "Physical Exam", path: "/doctor/physical-exam", icon: "🩺" },
-      { name: "Glycemic Charts", path: "/doctor/glycemic-charts", icon: "📈" },
-      { name: "Prescriptions", path: "/doctor/prescriptions", icon: "💊" },
-      { name: "Reports", path: "/doctor/reports", icon: "📋" },
+      {
+        name: "Physical Exam",
+        path: "/doctor/physical-exam",
+        icon: Stethoscope,
+      },
+      {
+        name: "Glycemic Charts",
+        path: "/doctor/glycemic-charts",
+        icon: Activity,
+      },
+      { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
+      { name: "Reports", path: "/doctor/reports", icon: FileText },
     ],
     patient: [
-      { name: "Home", path: "/patient/dashboard", icon: "🏠" },
-      { name: "Log Blood Sugar", path: "/patient/log-blood-sugar", icon: "📝" },
-      { name: "View Trends", path: "/patient/trends", icon: "📊" },
-      { name: "My Profile", path: "/patient/profile", icon: "👤" },
-      { name: "Prescriptions", path: "/patient/prescriptions", icon: "💊" },
+      { name: "Home", path: "/patient/dashboard", icon: Home },
+      { name: "Log Blood Sugar", path: "/patient/log-blood-sugar", icon: Edit },
+      { name: "View Trends", path: "/patient/trends", icon: TrendingUp },
+      { name: "My Profile", path: "/patient/profile", icon: User },
+      { name: "Prescriptions", path: "/patient/prescriptions", icon: Pill },
       {
         name: "Book Appointment",
         path: "/patient/book-appointment",
-        icon: "📅",
+        icon: Calendar,
       },
-      { name: "Upload Results", path: "/patient/upload-results", icon: "📤" },
+      { name: "Upload Results", path: "/patient/upload-results", icon: Upload },
     ],
     lab: [
-      { name: "Dashboard", path: "/lab/dashboard", icon: "📊" },
-      { name: "Pending Tests", path: "/lab/pending-tests", icon: "📋" },
-      { name: "Enter Results", path: "/lab/enter-results", icon: "✍️" },
-      { name: "Test History", path: "/lab/test-history", icon: "🔍" },
-      { name: "Generate Reports", path: "/lab/generate-reports", icon: "📄" },
-      { name: "Critical Alerts", path: "/lab/critical-alerts", icon: "🚨" },
+      { name: "Dashboard", path: "/lab/dashboard", icon: LayoutDashboard },
+      {
+        name: "Pending Tests",
+        path: "/lab/pending-tests",
+        icon: ClipboardList,
+      },
+      { name: "Enter Results", path: "/lab/enter-results", icon: Edit },
+      { name: "Test History", path: "/lab/test-history", icon: Search },
+      {
+        name: "Generate Reports",
+        path: "/lab/generate-reports",
+        icon: FileCheck,
+      },
+      {
+        name: "Critical Alerts",
+        path: "/lab/critical-alerts",
+        icon: AlertTriangle,
+      },
     ],
-
     admin: [
-      { name: "Dashboard", path: "/admin/dashboard", icon: "📊" },
-      { name: "Create Doctor", path: "/admin/create-doctor", icon: "👨‍⚕️" },
-      { name: "Create Staff", path: "/admin/create-staff", icon: "👥" },
-      { name: "Create Lab Tech", path: "/admin/create-lab", icon: "🔬" },
-      { name: "Create Patient", path: "/admin/create-patient", icon: "🏥" },
-      { name: "Manage Users", path: "/admin/manage-users", icon: "⚙️" },
-      { name: "System Settings", path: "/admin/settings", icon: "🔧" },
+      { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
+      { name: "Create Doctor", path: "/admin/create-doctor", icon: HeartPulse },
+      { name: "Create Staff", path: "/admin/create-staff", icon: Users },
+      { name: "Create Lab Tech", path: "/admin/create-lab", icon: TestTube },
+      { name: "Create Patient", path: "/admin/create-patient", icon: UserPlus },
+      { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
+      { name: "System Settings", path: "/admin/settings", icon: Settings },
     ],
   };
 
@@ -292,32 +349,78 @@ const MainLayout = ({ userRole = "Staff" }) => {
       `}
       >
         <div className="p-6 flex items-center justify-between border-b border-blue-500">
-          <div>
-            <h2 className="text-2xl font-bold">CDC HMS</h2>
-            <p className="text-xs text-blue-200 mt-1">{userRole} Portal</p>
+          {/* LEFT SIDE - Logo and Text */}
+          <div className="flex items-center gap-3">
+            {/* Logo */}
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg p-2">
+              <img
+                src={logo}
+                alt="CDC Logo"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            {/* Text */}
+            <div>
+              <h2 className="text-xl font-bold">CDC HMS</h2>
+              <p className="text-xs text-blue-200 mt-0.5">{userRole} Portal</p>
+            </div>
           </div>
+
+          {/* RIGHT SIDE - Close Button (Mobile) */}
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden text-white hover:bg-blue-700 p-2 rounded-lg"
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
 
         <nav className="mt-6">
-          {currentMenu.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => {
-                navigate(item.path);
-                setSidebarOpen(false);
-              }}
-              className="w-full flex items-center px-6 py-4 hover:bg-blue-700 transition-all duration-200 border-l-4 border-transparent hover:border-cyan-400"
-            >
-              <span className="text-3xl">{item.icon}</span>
-              <span className="ml-4 font-medium text-lg">{item.name}</span>
-            </button>
-          ))}
+          {currentMenu.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <button
+                key={item.path}
+                onClick={() => {
+                  navigate(item.path);
+                  setSidebarOpen(false);
+                }}
+                className={`
+                  w-full flex items-center px-6 py-4 
+                  transition-all duration-200 
+                  border-l-4 group
+                  ${
+                    isActive
+                      ? "bg-blue-700 border-cyan-400 text-white" // ← ACTIVE STATE
+                      : "border-transparent hover:bg-blue-700 hover:border-cyan-400" // ← INACTIVE STATE
+                  }
+                `}
+                // className="w-full flex items-center px-6 py-4 hover:bg-blue-700 transition-all duration-200 border-l-4 border-transparent hover:border-cyan-400 group"
+              >
+                <IconComponent
+                  size={24}
+                  strokeWidth={2}
+                  className={`
+                    transition-colors
+                    ${
+                      isActive
+                        ? "text-white" // ← ACTIVE ICON COLOR
+                        : "text-blue-200 group-hover:text-white" // ← INACTIVE ICON COLOR
+                    }
+                  `}
+                />
+                <span
+                  className={`
+                  ml-4 font-medium text-lg
+                  ${isActive ? "font-bold" : ""} 
+                `}
+                >
+                  {item.name}
+                </span>
+              </button>
+            );
+          })}
         </nav>
       </aside>
 
@@ -328,9 +431,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden text-2xl text-gray-700 hover:text-primary"
+            className="lg:hidden text-gray-700 hover:text-primary hover:bg-gray-100 p-2 rounded-lg transition"
           >
-            ☰
+            <Menu size={30} />
           </button>
 
           <h1 className="text-xl lg:text-3xl font-bold text-gray-800">
@@ -342,11 +445,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
             <div className="relative">
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative hover:scale-110 transition-transform"
+                className="relative hover:scale-110 transition-transform p-2 hover:bg-gray-100 rounded-lg"
               >
-                <span className="text-2xl lg:text-3xl">🔔</span>
+                <Bell size={24} className="text-gray-700" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center font-bold shadow-lg">
+                  <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center font-bold shadow-lg">
                     {unreadCount}
                   </span>
                 )}
@@ -377,7 +480,10 @@ const MainLayout = ({ userRole = "Staff" }) => {
                     <div className="flex-1 overflow-y-auto">
                       {notifications.length === 0 ? (
                         <div className="p-8 text-center">
-                          <p className="text-4xl mb-2">🔔</p>
+                          <Bell
+                            size={48}
+                            className="mx-auto text-gray-300 mb-2"
+                          />
                           <p className="text-gray-500">No notifications</p>
                         </div>
                       ) : (
@@ -392,9 +498,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
                               onClick={() => handleMarkAsRead(notif.id)}
                             >
                               <div className="flex items-start gap-3">
-                                <span className="text-2xl flex-shrink-0">
+                                <div className="flex-shrink-0 mt-1">
                                   {getNotificationIcon(notif.type)}
-                                </span>
+                                </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start justify-between gap-2">
                                     <p
