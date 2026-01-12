@@ -29,7 +29,7 @@ const LogBloodSugar = () => {
     beforeBedtime: "",
   });
 
-  const [notes, setNotes] = useState("");
+  // const [notes, setNotes] = useState("");
 
   const timeSlots = [
     {
@@ -96,7 +96,9 @@ const LogBloodSugar = () => {
 
   const handleSaveAll = () => {
     // eslint-disable-next-line no-unused-vars
-    const enteredReadings = Object.entries(readings).filter(([_, value]) => value !== '');
+    const enteredReadings = Object.entries(readings).filter(
+      ([_, value]) => value !== ""
+    );
     if (enteredReadings.length === 0) {
       alert("Please enter at least one reading");
       return;
@@ -261,12 +263,16 @@ const LogBloodSugar = () => {
                 >
                   {/* Header - Compact on mobile */}
                   <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                    <span className="text-xl sm:text-2xl lg:text-3xl">{slot.icon}</span>
+                    <span className="text-xl sm:text-2xl lg:text-3xl">
+                      {slot.icon}
+                    </span>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-800 text-xs sm:text-sm lg:text-base truncate">
                         {slot.label}
                       </p>
-                      <p className="text-[10px] sm:text-xs text-gray-500">{slot.time}</p>
+                      <p className="text-[10px] sm:text-xs text-gray-500">
+                        {slot.time}
+                      </p>
                     </div>
                   </div>
 
@@ -275,13 +281,19 @@ const LogBloodSugar = () => {
                     <input
                       type="text"
                       value={readings[slot.key]}
-                      onChange={(e) => handleReadingChange(slot.key, e.target.value)}
+                      onChange={(e) =>
+                        handleReadingChange(slot.key, e.target.value)
+                      }
                       placeholder="0"
-                      className={`w-20 sm:w-24 px-3 py-2 text-center text-lg sm:text-xl font-bold border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 ${getReadingColor(readings[slot.key])}`}
+                      className={`w-20 sm:w-24 px-3 py-2 text-center text-lg sm:text-xl font-bold border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 ${getReadingColor(
+                        readings[slot.key]
+                      )}`}
                       maxLength="3"
                     />
-                    <span className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">mg/dL</span>
-                    <Button 
+                    <span className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                      mg/dL
+                    </span>
+                    <Button
                       onClick={() => handleSave(slot.key)}
                       disabled={!readings[slot.key]}
                       className="text-xs sm:text-sm py-2 px-3 sm:px-4 ml-auto"
@@ -300,22 +312,43 @@ const LogBloodSugar = () => {
               ))}
 
               {/* Notes */}
-              <div className="mt-4 sm:mt-6">
-                <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
-                  📝 Notes (Optional)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add any notes about how you're feeling, meals, exercise, medication changes, etc."
-                  rows="4"
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                />
+              {/* Replace Notes Section - Around line 267 */}
+              <div className="mt-4 sm:mt-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
+                  <span>ℹ️</span>
+                  <span>Need Help or Have Questions?</span>
+                </h4>
+                <p className="text-sm text-gray-700 mb-3">
+                  If you have any concerns about your readings or need medical
+                  advice, please contact your healthcare team:
+                </p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600">📞</span>
+                    <span className="font-semibold">Emergency:</span>
+                    <span className="text-blue-600">+254 7xx xx xxx</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600">👨‍⚕️</span>
+                    <span className="font-semibold">Your Doctor:</span>
+                    <span className="text-blue-600">
+                      Book Appointment in Patient Portal
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600">💬</span>
+                    <span className="font-semibold">Non-urgent:</span>
+                    <span className="text-blue-600">info@cdc-diabetes.com</span>
+                  </div>
+                </div>
               </div>
 
               {/* Save All Button - Better mobile sizing */}
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6 pt-4 sm:pt-6 border-t">
-                <Button onClick={handleSaveAll} className="flex-1 w-full text-sm sm:text-base py-2 sm:py-3">
+                <Button
+                  onClick={handleSaveAll}
+                  className="flex-1 w-full text-sm sm:text-base py-2 sm:py-3"
+                >
                   💾 Save All Readings
                 </Button>
                 <Button

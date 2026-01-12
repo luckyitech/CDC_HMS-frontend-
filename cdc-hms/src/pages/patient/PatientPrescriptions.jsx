@@ -1,6 +1,39 @@
 import { useState } from 'react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import cdcLogo from '../../assets/cdc_web_logo1.svg';
+
+const PrescriptionWithWatermark = ({ children }) => {
+  return (
+    <div className="relative border-8 border-double" style={{ borderColor: 'rgba(59, 130, 246, 0.15)' }}>
+      {/* Top Border Watermark */}
+      <div className="absolute top-0 left-0 right-0 h-16 flex items-center justify-center gap-8 pointer-events-none bg-gradient-to-b from-blue-50 to-transparent" style={{ opacity: 0.6 }}>
+        <img src={cdcLogo} alt="CDC" className="w-12 h-12 object-contain" />
+        <span className="text-sm font-bold text-blue-600">CDC DIABETES CLINIC</span>
+        <img src={cdcLogo} alt="CDC" className="w-12 h-12 object-contain" />
+      </div>
+      
+      {/* Bottom Border Watermark */}
+      <div className="absolute bottom-0 left-0 right-0 h-16 flex items-center justify-center gap-8 pointer-events-none bg-gradient-to-t from-blue-50 to-transparent" style={{ opacity: 0.6 }}>
+        <span className="text-xs font-semibold text-blue-600">OFFICIAL PRESCRIPTION</span>
+        <img src={cdcLogo} alt="CDC" className="w-12 h-12 object-contain" />
+        <span className="text-xs font-semibold text-blue-600">CONFIDENTIAL</span>
+      </div>
+      
+      {/* Center Diagonal Watermark (subtle) */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+        <div className="transform -rotate-45" style={{ opacity: 0.04 }}>
+          <img src={cdcLogo} alt="CDC" className="w-96 h-96 object-contain" />
+        </div>
+      </div>
+      
+      {/* Content with padding for border */}
+      <div className="relative z-10 pt-16 pb-16">
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const PatientPrescriptions = () => {
   const [filter, setFilter] = useState('active');
@@ -153,8 +186,7 @@ const PatientPrescriptions = () => {
       {/* Info Banner */}
       <div className="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
         <p className="text-sm text-gray-700">
-          <strong>ℹ️ Note:</strong> All prescriptions issued by your doctors will appear here. 
-          You can download, print, or share them with your pharmacy.
+          <strong>ℹ️ Note:</strong>  prescriptions issued by your doctors will appear here. 
         </p>
       </div>
 
@@ -175,6 +207,7 @@ const PatientPrescriptions = () => {
         ) : (
           filteredPrescriptions.map((prescription) => (
             <Card key={prescription.id}>
+              <PrescriptionWithWatermark>
               {/* Prescription Header */}
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 pb-6 border-b-2 border-gray-200">
                 <div className="flex-1">
@@ -291,6 +324,7 @@ const PatientPrescriptions = () => {
                   <p className="text-sm text-gray-700">{prescription.notes}</p>
                 </div>
               )}
+              </PrescriptionWithWatermark>
             </Card>
           ))
         )}
