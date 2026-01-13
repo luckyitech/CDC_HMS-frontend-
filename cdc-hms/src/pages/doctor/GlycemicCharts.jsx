@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from '../../contexts/PatientContext';
@@ -286,153 +287,73 @@ const GlycemicCharts = () => {
 
             {/* Chart */}
             <div className="relative bg-white border-2 border-gray-300 rounded-lg p-8">
-              {/* Y-axis */}
-              <div className="absolute left-4 top-12 bottom-16 w-8 flex flex-col justify-between text-sm font-semibold text-gray-700">
-                <span>12</span>
-                <span>10</span>
-                <span>8</span>
-                <span>6</span>
-                <span>4</span>
-                <span>2</span>
-                <span>0</span>
-              </div>
-
-              {/* Y-axis label */}
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-sm font-bold text-gray-700 whitespace-nowrap">
-                Blood Sugar (mmol/L)
-              </div>
-
-              {/* Chart area */}
-              <div className="ml-12 overflow-x-auto">
-                <div className="relative flex" style={{ minWidth: 'max-content', height: '500px' }}>
-                  {/* Grid lines */}
-                  {[0, 2, 4, 6, 8, 10, 12].map((val, i) => (
-                    <div
-                      key={i}
-                      className="absolute w-full border-t border-gray-300"
-                      style={{ bottom: `${(val / 12) * 100}%` }}
-                    />
-                  ))}
-
-                  {/* Trend line - connecting After Lunch values */}
-                  <svg
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    style={{ zIndex: 10 }}
-                  >
-                    {bloodSugarData.length > 1 && (
-                      <path
-                        d={bloodSugarData
-                          .map((reading, index) => {
-                            // Calculate position of After Lunch bar (4th bar = index 3)
-                            const groupWidth = 7 * 24; // Approximate: 7 bars × 24px each
-                            const groupGap = 32; // mr-8 = 32px
-                            const barIndex = 3; // After Lunch is 4th bar (index 3)
-                            const barWidth = 24; // Approximate bar width
-                            
-                            const x = index * (groupWidth + groupGap) + (barIndex * barWidth) + (barWidth / 2);
-                            const chartHeight = 452; // Height of usable chart area
-                            const y = chartHeight - (reading.afterLunch / maxValue) * chartHeight;
-                            
-                            return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
-                          })
-                          .join(" ")}
-                        stroke="#dc2626"
-                        strokeWidth="3"
-                        fill="none"
-                      />
-                    )}
-                  </svg>
-
-                  {/* Bars - UPDATED TO 7 READINGS */}
-                  <div className="absolute inset-0 flex gap-8">
-                    {bloodSugarData.map((reading, dateIndex) => {
-                      const readings = [
-                        { key: "fasting", value: reading.fasting },
-                        { key: "afterBreakfast", value: reading.afterBreakfast },
-                        { key: "beforeLunch", value: reading.beforeLunch },
-                        { key: "afterLunch", value: reading.afterLunch },
-                        { key: "beforeDinner", value: reading.beforeDinner },
-                        { key: "afterDinner", value: reading.afterDinner },
-                        { key: "beforeBedtime", value: reading.beforeBedtime },
-                      ];
-
-                      return (
-                        <div
-                          key={dateIndex}
-                          className="flex flex-col items-center mr-8"
-                          style={{ flex: '0 0 auto' }}
-                        >
-                          {/* Bar group */}
-                          <div className="flex items-end" style={{ minHeight: '452px' }}>
-                            {readings.map((r, i) => {
-                              const chartHeight = 500;
-                              const paddingBottom = 48;
-                              const usableHeight = chartHeight - paddingBottom;
-                              const barHeight = (r.value / maxValue) * usableHeight;
-                              
-                              return (
-                                <div
-                                  key={i}
-                                  className="flex flex-col justify-end items-center relative"
-                                >
-                                  <div
-                                    className={`${getBarColor(
-                                      r.key
-                                    )} rounded-t-sm transition-all duration-300 relative group cursor-pointer hover:opacity-80`}
-                                    style={{
-                                      height: `${barHeight}px`,
-                                      minWidth: "20px",
-                                      maxWidth: "28px",
-                                    }}
-                                  >
-                                    {filterPeriod === "7days" && barHeight > 30 && (
-                                      <span className="text-[9px] text-white font-bold block text-center mt-1">
-                                        {r.value.toFixed(1)}
-                                      </span>
-                                    )}
-                                    {/* Tooltip */}
-                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity pointer-events-none z-10">
-                                      {r.value.toFixed(1)} mmol/L
-                                    </div>
-                                    
-                                    {/* Red dot on top of After Lunch bar */}
-                                    {r.key === "afterLunch" && (
-                                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg z-20"></div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          
-                          {/* Date label directly under this group */}
-                          <div className="mt-3 text-center">
-                            <div className="text-sm font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded">
-                              {new Date(reading.date).toLocaleDateString("en-US", {
-                                month: "numeric",
-                                day: "numeric",
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* X-axis labels - HIDDEN (dates now under each group) */}
-                  <div className="absolute bottom-0 w-full flex hidden">
-                    {bloodSugarData.map((reading, index) => (
-                      <div
-                        key={index}
-                        className="flex-1 text-center text-sm font-semibold text-gray-700"
-                      >
-                        {new Date(reading.date).toLocaleDateString("en-US", {
+              <div className="overflow-x-auto">
+                <div style={{ minWidth: `${bloodSugarData.length * 150}px`, height: '500px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart
+                      data={bloodSugarData.map(reading => ({
+                        date: new Date(reading.date).toLocaleDateString("en-US", {
                           month: "numeric",
                           day: "numeric",
-                        })}
-                      </div>
-                    ))}
-                  </div>
+                        }),
+                        fasting: reading.fasting,
+                        afterBreakfast: reading.afterBreakfast,
+                        beforeLunch: reading.beforeLunch,
+                        afterLunch: reading.afterLunch,
+                        beforeDinner: reading.beforeDinner,
+                        afterDinner: reading.afterDinner,
+                        beforeBedtime: reading.beforeBedtime,
+                      }))}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+                      <XAxis 
+                        dataKey="date" 
+                        stroke="#374151"
+                        style={{ fontSize: '14px', fontWeight: 'bold' }}
+                      />
+                      <YAxis 
+                        domain={[0, 12]}
+                        ticks={[0, 2, 4, 6, 8, 10, 12]}
+                        stroke="#374151"
+                        style={{ fontSize: '14px', fontWeight: 'bold' }}
+                        label={{ 
+                          value: 'Blood Sugar (mmol/L)', 
+                          angle: -90, 
+                          position: 'insideLeft',
+                          style: { fontSize: '14px', fontWeight: 'bold', fill: '#374151' }
+                        }}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#1f2937', 
+                          border: 'none', 
+                          borderRadius: '8px',
+                          color: '#fff'
+                        }}
+                        formatter={(value) => `${value.toFixed(1)} mmol/L`}
+                      />
+                      
+                      {/* Bars for each time slot */}
+                      <Bar dataKey="fasting" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="afterBreakfast" fill="#9ca3af" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="beforeLunch" fill="#eab308" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="afterLunch" fill="#dc2626" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="beforeDinner" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="afterDinner" fill="#1e3a8a" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="beforeBedtime" fill="#c2410c" radius={[4, 4, 0, 0]} />
+                      
+                      {/* Trend line for After Lunch */}
+                      <Line 
+                        type="monotone" 
+                        dataKey="afterLunch" 
+                        stroke="#dc2626" 
+                        strokeWidth={4}
+                        dot={{ fill: '#dc2626', stroke: '#fff', strokeWidth: 2, r: 6 }}
+                        activeDot={{ r: 8 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </div>
