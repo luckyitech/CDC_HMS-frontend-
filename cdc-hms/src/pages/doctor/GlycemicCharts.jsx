@@ -17,14 +17,14 @@ const GlycemicCharts = () => {
   const [filterPeriod, setFilterPeriod] = useState("7days");
 
   // Auto-select patient if coming from Consultations
-useEffect(() => {
-  if (patientUHID) {
-    const patient = getPatientByUHID(patientUHID);
-    if (patient) {
-      setSelectedPatient(patient);
+  useEffect(() => {
+    if (patientUHID) {
+      const patient = getPatientByUHID(patientUHID);
+      if (patient) {
+        setSelectedPatient(patient);
+      }
     }
-  }
-}, [patientUHID, getPatientByUHID]);
+  }, [patientUHID, getPatientByUHID]);
 
   // Mock patients
   const [patients] = useState([
@@ -51,119 +51,109 @@ useEffect(() => {
     },
   ]);
 
-  // Mock blood sugar data with 8 readings per day
+  // Mock blood sugar data with 7 readings per day (CORRECTED)
   const getBloodSugarData = (period) => {
     const baseData = {
       "7days": [
         {
           date: "2024-12-02",
           fasting: 6.5,
-          beforeBreakfast: 6.8,
-          twoHrsAfterBreakfast: 8.2,
+          afterBreakfast: 8.2,
           beforeLunch: 5.8,
-          twoHrsAfterLunch: 7.5,
+          afterLunch: 7.5,
           beforeDinner: 6.2,
-          twoHrsAfterDinner: 8.5,
+          afterDinner: 8.5,
           beforeBedtime: 7.0,
         },
         {
           date: "2024-12-03",
           fasting: 6.2,
-          beforeBreakfast: 6.5,
-          twoHrsAfterBreakfast: 7.8,
+          afterBreakfast: 7.8,
           beforeLunch: 5.5,
-          twoHrsAfterLunch: 7.2,
+          afterLunch: 7.2,
           beforeDinner: 6.0,
-          twoHrsAfterDinner: 8.2,
+          afterDinner: 8.2,
           beforeBedtime: 6.8,
         },
         {
           date: "2024-12-04",
           fasting: 7.0,
-          beforeBreakfast: 7.2,
-          twoHrsAfterBreakfast: 9.0,
+          afterBreakfast: 9.0,
           beforeLunch: 6.5,
-          twoHrsAfterLunch: 8.5,
+          afterLunch: 8.5,
           beforeDinner: 6.8,
-          twoHrsAfterDinner: 9.2,
+          afterDinner: 9.2,
           beforeBedtime: 7.5,
         },
         {
           date: "2024-12-05",
           fasting: 6.8,
-          beforeBreakfast: 7.0,
-          twoHrsAfterBreakfast: 8.6,
+          afterBreakfast: 8.6,
           beforeLunch: 6.2,
-          twoHrsAfterLunch: 8.0,
+          afterLunch: 8.0,
           beforeDinner: 6.5,
-          twoHrsAfterDinner: 8.8,
+          afterDinner: 8.8,
           beforeBedtime: 7.2,
         },
         {
           date: "2024-12-06",
           fasting: 6.4,
-          beforeBreakfast: 6.7,
-          twoHrsAfterBreakfast: 8.0,
+          afterBreakfast: 8.0,
           beforeLunch: 5.6,
-          twoHrsAfterLunch: 7.4,
+          afterLunch: 7.4,
           beforeDinner: 6.2,
-          twoHrsAfterDinner: 8.3,
+          afterDinner: 8.3,
           beforeBedtime: 6.9,
         },
         {
           date: "2024-12-07",
           fasting: 7.2,
-          beforeBreakfast: 7.4,
-          twoHrsAfterBreakfast: 9.2,
+          afterBreakfast: 9.2,
           beforeLunch: 6.8,
-          twoHrsAfterLunch: 8.8,
+          afterLunch: 8.8,
           beforeDinner: 7.0,
-          twoHrsAfterDinner: 9.5,
+          afterDinner: 9.5,
           beforeBedtime: 7.8,
         },
         {
           date: "2024-12-08",
           fasting: 6.9,
-          beforeBreakfast: 7.1,
-          twoHrsAfterBreakfast: 8.5,
+          afterBreakfast: 8.5,
           beforeLunch: 6.4,
-          twoHrsAfterLunch: 8.2,
+          afterLunch: 8.2,
           beforeDinner: 6.7,
-          twoHrsAfterDinner: 8.7,
+          afterDinner: 8.7,
           beforeBedtime: 7.3,
         },
       ],
       "14days": Array.from({ length: 14 }, (_, i) => ({
         date: new Date(2024, 10, 25 + i).toISOString().split("T")[0],
         fasting: 6.0 + Math.random() * 1.5,
-        beforeBreakfast: 6.3 + Math.random() * 1.5,
-        twoHrsAfterBreakfast: 7.5 + Math.random() * 2.0,
+        afterBreakfast: 7.5 + Math.random() * 2.0,
         beforeLunch: 5.5 + Math.random() * 1.5,
-        twoHrsAfterLunch: 7.0 + Math.random() * 2.0,
+        afterLunch: 7.0 + Math.random() * 2.0,
         beforeDinner: 6.0 + Math.random() * 1.5,
-        twoHrsAfterDinner: 8.0 + Math.random() * 2.0,
+        afterDinner: 8.0 + Math.random() * 2.0,
         beforeBedtime: 6.5 + Math.random() * 1.5,
       })),
       "30days": Array.from({ length: 30 }, (_, i) => ({
         date: new Date(2024, 10, 9 + i).toISOString().split("T")[0],
         fasting: 6.0 + Math.random() * 1.5,
-        beforeBreakfast: 6.3 + Math.random() * 1.5,
-        twoHrsAfterBreakfast: 7.5 + Math.random() * 2.0,
+        afterBreakfast: 7.5 + Math.random() * 2.0,
         beforeLunch: 5.5 + Math.random() * 1.5,
-        twoHrsAfterLunch: 7.0 + Math.random() * 2.0,
+        afterLunch: 7.0 + Math.random() * 2.0,
         beforeDinner: 6.0 + Math.random() * 1.5,
-        twoHrsAfterDinner: 8.0 + Math.random() * 2.0,
+        afterDinner: 8.0 + Math.random() * 2.0,
         beforeBedtime: 6.5 + Math.random() * 1.5,
       })),
       all: Array.from({ length: 90 }, (_, i) => ({
         date: new Date(2024, 8, 10 + i).toISOString().split("T")[0],
         fasting: 6.0 + Math.random() * 1.5,
-        beforeBreakfast: 6.3 + Math.random() * 1.5,
-        twoHrsAfterBreakfast: 7.5 + Math.random() * 2.0,
+        afterBreakfast: 7.5 + Math.random() * 2.0,
         beforeLunch: 5.5 + Math.random() * 1.5,
-        twoHrsAfterLunch: 7.0 + Math.random() * 2.0,
+        afterLunch: 7.0 + Math.random() * 2.0,
         beforeDinner: 6.0 + Math.random() * 1.5,
-        twoHrsAfterDinner: 8.0 + Math.random() * 2.0,
+        afterDinner: 8.0 + Math.random() * 2.0,
         beforeBedtime: 6.5 + Math.random() * 1.5,
       })),
     };
@@ -174,15 +164,20 @@ useEffect(() => {
 
   const maxValue = 12; // mmol/L scale matching PowerPoint
 
+  // Conversion helper: mg/dL to mmol/L
+  // Formula: mmol/L = mg/dL ÷ 18
+  // Example: 126 mg/dL = 7.0 mmol/L
+  // Note: Patient logs in mg/dL, chart displays in mmol/L
+  const convertToMmol = (mgdl) => mgdl / 18;
+
   const getBarColor = (reading) => {
     const colors = {
       fasting: "bg-blue-600",
-      beforeBreakfast: "bg-orange-500",
-      twoHrsAfterBreakfast: "bg-gray-400",
+      afterBreakfast: "bg-gray-400",
       beforeLunch: "bg-yellow-500",
-      twoHrsAfterLunch: "bg-red-600",
+      afterLunch: "bg-red-600",
       beforeDinner: "bg-green-600",
-      twoHrsAfterDinner: "bg-blue-900",
+      afterDinner: "bg-blue-900",
       beforeBedtime: "bg-orange-700",
     };
     return colors[reading] || "bg-gray-500";
@@ -249,23 +244,30 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap gap-6 mb-6 text-sm font-semibold">
+            {/* Legend - UPDATED TO 7 SLOTS */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm text-gray-600">
+                  <span className="font-semibold">Blood Sugar Levels (mmol/L)</span>
+                  <span className="ml-4 text-xs">• Target Range: 4-7 mmol/L (72-126 mg/dL)</span>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-6 text-sm font-semibold">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-blue-600 rounded"></div>
-                <span>Fasting</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-orange-500 rounded"></div>
-                <span>Before Breakfast</span>
+                <span>Fasting (Morning)</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-gray-400 rounded"></div>
-                <span>2h After Breakfast</span>
+                <span>After Breakfast</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-yellow-500 rounded"></div>
                 <span>Before Lunch</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-12 h-1 bg-red-600"></div>
+                <span className="font-bold">After Lunch (Trend Line)</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-green-600 rounded"></div>
@@ -273,16 +275,13 @@ useEffect(() => {
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-blue-900 rounded"></div>
-                <span>2h After Dinner</span>
+                <span>After Dinner</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 bg-orange-700 rounded"></div>
                 <span>Before Bedtime</span>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-12 h-1 bg-blue-500"></div>
-                <span className="font-bold">2h After Lunch</span>
-              </div>
+            </div>
             </div>
 
             {/* Chart */}
@@ -298,9 +297,14 @@ useEffect(() => {
                 <span>0</span>
               </div>
 
+              {/* Y-axis label */}
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-sm font-bold text-gray-700 whitespace-nowrap">
+                Blood Sugar (mmol/L)
+              </div>
+
               {/* Chart area */}
               <div className="ml-12 overflow-x-auto">
-                <div className="relative" style={{ minWidth: `${bloodSugarData.length * 180}px`, height: '600px' }}>
+                <div className="relative flex" style={{ minWidth: 'max-content', height: '500px' }}>
                   {/* Grid lines */}
                   {[0, 2, 4, 6, 8, 10, 12].map((val, i) => (
                     <div
@@ -310,110 +314,113 @@ useEffect(() => {
                     />
                   ))}
 
-                  {/* Trend line SVG */}
+                  {/* Trend line - connecting After Lunch values */}
                   <svg
-                    className="absolute inset-0 w-full h-full"
-                    style={{ zIndex: 5 }}
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                    style={{ zIndex: 10 }}
                   >
-                    <polyline
-                      points={bloodSugarData
-                        .map((reading, index) => {
-                          const x =
-                            ((index * 8 + 4.5) / (bloodSugarData.length * 8)) *
-                            100;
-                          const y =
-                            100 - (reading.twoHrsAfterLunch / maxValue) * 100;
-                          return `${x}%,${y}%`;
-                        })
-                        .join(" ")}
-                      fill="none"
-                      stroke="#3b82f6"
-                      strokeWidth="4"
-                    />
-                    {/* Data points */}
-                    {bloodSugarData.map((reading, index) => {
-                      const x =
-                        ((index * 8 + 4.5) / (bloodSugarData.length * 8)) * 100;
-                      const y =
-                        100 - (reading.twoHrsAfterLunch / maxValue) * 100;
-                      return (
-                        <circle
-                          key={index}
-                          cx={`${x}%`}
-                          cy={`${y}%`}
-                          r="5"
-                          fill="#3b82f6"
-                        />
-                      );
-                    })}
+                    {bloodSugarData.length > 1 && (
+                      <path
+                        d={bloodSugarData
+                          .map((reading, index) => {
+                            // Calculate position of After Lunch bar (4th bar = index 3)
+                            const groupWidth = 7 * 24; // Approximate: 7 bars × 24px each
+                            const groupGap = 32; // mr-8 = 32px
+                            const barIndex = 3; // After Lunch is 4th bar (index 3)
+                            const barWidth = 24; // Approximate bar width
+                            
+                            const x = index * (groupWidth + groupGap) + (barIndex * barWidth) + (barWidth / 2);
+                            const chartHeight = 452; // Height of usable chart area
+                            const y = chartHeight - (reading.afterLunch / maxValue) * chartHeight;
+                            
+                            return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+                          })
+                          .join(" ")}
+                        stroke="#dc2626"
+                        strokeWidth="3"
+                        fill="none"
+                      />
+                    )}
                   </svg>
 
-                  {/* Bars */}
-                  <div className="absolute inset-0 flex">
+                  {/* Bars - UPDATED TO 7 READINGS */}
+                  <div className="absolute inset-0 flex gap-8">
                     {bloodSugarData.map((reading, dateIndex) => {
                       const readings = [
                         { key: "fasting", value: reading.fasting },
-                        {
-                          key: "beforeBreakfast",
-                          value: reading.beforeBreakfast,
-                        },
-                        {
-                          key: "twoHrsAfterBreakfast",
-                          value: reading.twoHrsAfterBreakfast,
-                        },
+                        { key: "afterBreakfast", value: reading.afterBreakfast },
                         { key: "beforeLunch", value: reading.beforeLunch },
-                        {
-                          key: "twoHrsAfterLunch",
-                          value: reading.twoHrsAfterLunch,
-                        },
+                        { key: "afterLunch", value: reading.afterLunch },
                         { key: "beforeDinner", value: reading.beforeDinner },
-                        {
-                          key: "twoHrsAfterDinner",
-                          value: reading.twoHrsAfterDinner,
-                        },
+                        { key: "afterDinner", value: reading.afterDinner },
                         { key: "beforeBedtime", value: reading.beforeBedtime },
                       ];
 
                       return (
                         <div
                           key={dateIndex}
-                          className="flex-1 flex items-end pb-12"
+                          className="flex flex-col items-center mr-8"
+                          style={{ flex: '0 0 auto' }}
                         >
-                          {readings.map((r, i) => (
-                            <div
-                              key={i}
-                              className="flex-1 flex flex-col justify-end items-center px-1"
-                            >
-                              <div
-                                className={`w-full ${getBarColor(
-                                  r.key
-                                )} rounded-t-sm transition-all duration-300 relative group cursor-pointer hover:opacity-80`}
-                                style={{
-                                  height: `${(r.value / maxValue) * 85}%`, // Changed from 100% to 85% to account for padding
-                                  minHeight: "40px", // Minimum height so bars are always visible
-                                  minWidth: "20px",
-                                  maxWidth: "35px",
-                                }}
-                              >
-                                {filterPeriod === "7days" && (
-                                  <span className="text-[10px] text-white font-bold block text-center mt-1">
-                                    {r.value.toFixed(1)}
-                                  </span>
-                                )}
-                                {/* Tooltip */}
-                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity pointer-events-none">
-                                  {r.value.toFixed(1)} mmol/L
+                          {/* Bar group */}
+                          <div className="flex items-end" style={{ minHeight: '452px' }}>
+                            {readings.map((r, i) => {
+                              const chartHeight = 500;
+                              const paddingBottom = 48;
+                              const usableHeight = chartHeight - paddingBottom;
+                              const barHeight = (r.value / maxValue) * usableHeight;
+                              
+                              return (
+                                <div
+                                  key={i}
+                                  className="flex flex-col justify-end items-center relative"
+                                >
+                                  <div
+                                    className={`${getBarColor(
+                                      r.key
+                                    )} rounded-t-sm transition-all duration-300 relative group cursor-pointer hover:opacity-80`}
+                                    style={{
+                                      height: `${barHeight}px`,
+                                      minWidth: "20px",
+                                      maxWidth: "28px",
+                                    }}
+                                  >
+                                    {filterPeriod === "7days" && barHeight > 30 && (
+                                      <span className="text-[9px] text-white font-bold block text-center mt-1">
+                                        {r.value.toFixed(1)}
+                                      </span>
+                                    )}
+                                    {/* Tooltip */}
+                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity pointer-events-none z-10">
+                                      {r.value.toFixed(1)} mmol/L
+                                    </div>
+                                    
+                                    {/* Red dot on top of After Lunch bar */}
+                                    {r.key === "afterLunch" && (
+                                      <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-lg z-20"></div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* Date label directly under this group */}
+                          <div className="mt-3 text-center">
+                            <div className="text-sm font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded">
+                              {new Date(reading.date).toLocaleDateString("en-US", {
+                                month: "numeric",
+                                day: "numeric",
+                              })}
                             </div>
-                          ))}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
 
-                  {/* X-axis labels */}
-                  <div className="absolute bottom-0 w-full flex">
+                  {/* X-axis labels - HIDDEN (dates now under each group) */}
+                  <div className="absolute bottom-0 w-full flex hidden">
                     {bloodSugarData.map((reading, index) => (
                       <div
                         key={index}
@@ -430,59 +437,16 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Column Headers */}
-            <div className="mt-8 grid grid-cols-9 gap-2 text-xs font-semibold text-gray-700 text-center bg-gray-100 p-4 rounded-lg">
+            {/* Column Headers - UPDATED TO 7 SLOTS */}
+            <div className="mt-8 grid grid-cols-8 gap-2 text-xs font-semibold text-gray-700 text-center bg-gray-100 p-4 rounded-lg">
               <div>Date | Time</div>
-              <div>
-                Fasting / B. Breakfast
-                <br />
-                <span className="text-blue-600 cursor-pointer hover:underline">
-                  +See Trends
-                </span>
-              </div>
-              <div>
-                2 Hrs After B.Fast
-                <br />
-                <span className="text-blue-600 cursor-pointer hover:underline">
-                  +See Trends
-                </span>
-              </div>
-              <div>
-                B. Lunch
-                <br />
-                <span className="text-blue-600 cursor-pointer hover:underline">
-                  +See Trends
-                </span>
-              </div>
-              <div>
-                2 Hours After lunch
-                <br />
-                <span className="text-blue-600 cursor-pointer hover:underline">
-                  +See Trends
-                </span>
-              </div>
-              <div>
-                Before Dinner
-                <br />
-                <span className="text-blue-600 cursor-pointer hover:underline">
-                  +See Trends
-                </span>
-              </div>
-              <div>
-                2 hours After dinner
-                <br />
-                <span className="text-blue-600 cursor-pointer hover:underline">
-                  +See Trends
-                </span>
-              </div>
-              <div>
-                Before Bedtime
-                <br />
-                <span className="text-blue-600 cursor-pointer hover:underline">
-                  +See Trends
-                </span>
-              </div>
-              <div>Notes</div>
+              <div>Fasting (Morning)</div>
+              <div>After Breakfast</div>
+              <div>Before Lunch</div>
+              <div>After Lunch</div>
+              <div>Before Dinner</div>
+              <div>After Dinner</div>
+              <div>Before Bedtime</div>
             </div>
           </Card>
         </div>
