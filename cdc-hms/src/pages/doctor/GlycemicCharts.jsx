@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { CheckCircle, AlertTriangle, XCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from '../../contexts/PatientContext';
@@ -8,7 +9,7 @@ import { usePatientContext } from '../../contexts/PatientContext';
 const GlycemicCharts = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { getPatientByUHID } = usePatientContext();
+  const { getPatientByUHID, getBloodSugarReadings } = usePatientContext();
   
   // Get patient from navigation state
   const patientUHID = location.state?.patientUHID;
@@ -16,6 +17,7 @@ const GlycemicCharts = () => {
   
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [filterPeriod, setFilterPeriod] = useState("7days");
+  const [demoMode, setDemoMode] = useState(false); // Toggle for presentation
 
   // Auto-select patient if coming from Consultations
   useEffect(() => {
@@ -54,7 +56,9 @@ const GlycemicCharts = () => {
 
   // Mock blood sugar data with 7 readings per day (CORRECTED)
   const getBloodSugarData = (period) => {
-    const baseData = {
+    // If demo mode is ON, always use mock data (for presentation)
+    if (demoMode) {
+      const baseData = {
       "7days": [
         {
           date: "2024-12-02",
@@ -159,9 +163,117 @@ const GlycemicCharts = () => {
       })),
     };
     return baseData[period] || baseData["7days"];
+    }
+    
+    // Demo mode is OFF - use real patient data
+    const realReadings = selectedPatient ? getBloodSugarReadings(selectedPatient.uhid) : [];
+    
+    // If we have real data, use it (convert mg/dL to mmol/L)
+    if (realReadings && realReadings.length > 0) {
+      // Sort by date (newest first)
+      const sortedReadings = [...realReadings].sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      // Filter by period
+      let filteredReadings = sortedReadings;
+      const today = new Date();
+      
+      if (period === "7days") {
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        filteredReadings = sortedReadings.filter(r => new Date(r.date) >= sevenDaysAgo);
+      } else if (period === "14days") {
+        const fourteenDaysAgo = new Date(today);
+        fourteenDaysAgo.setDate(today.getDate() - 14);
+        filteredReadings = sortedReadings.filter(r => new Date(r.date) >= fourteenDaysAgo);
+      } else if (period === "30days") {
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        filteredReadings = sortedReadings.filter(r => new Date(r.date) >= thirtyDaysAgo);
+      }
+      
+      // Convert mg/dL to mmol/L and format for chart
+      return filteredReadings.reverse().map(reading => ({
+        date: reading.date,
+        fasting: reading.fasting ? reading.fasting / 18 : 0,
+        afterBreakfast: reading.afterBreakfast ? reading.afterBreakfast / 18 : 0,
+        beforeLunch: reading.beforeLunch ? reading.beforeLunch / 18 : 0,
+        afterLunch: reading.afterLunch ? reading.afterLunch / 18 : 0,
+        beforeDinner: reading.beforeDinner ? reading.beforeDinner / 18 : 0,
+        afterDinner: reading.afterDinner ? reading.afterDinner / 18 : 0,
+        beforeBedtime: reading.beforeBedtime ? reading.beforeBedtime / 18 : 0,
+      }));
+    }
+    
+    // No real data - return empty array
+    return [];
   };
 
   const bloodSugarData = selectedPatient ? getBloodSugarData(filterPeriod) : [];
+
+  // Calculate average blood sugar for different periods
+  const calculateAverages = () => {
+    if (!selectedPatient) return null;
+
+    const periods = [
+      { key: '7days', days: 7, label: '7-Day' },
+      { key: '14days', days: 14, label: '14-Day' },
+      { key: '30days', days: 30, label: '30-Day' },
+      { key: '90days', days: 90, label: '90-Day' }
+    ];
+
+    const averages = periods.map(period => {
+      const data = getBloodSugarData(period.key);
+      
+      if (!data || data.length === 0) {
+        return { ...period, average: null, status: 'No Data' };
+      }
+
+      // Calculate average of all readings (all time slots, all days)
+      let total = 0;
+      let count = 0;
+
+      data.forEach(day => {
+        // Sum all non-zero values for this day
+        Object.keys(day).forEach(key => {
+          if (key !== 'date' && day[key] > 0) {
+            total += day[key];
+            count++;
+          }
+        });
+      });
+
+      const average = count > 0 ? (total / count) : 0;
+      
+      // Determine status based on target range (4-7 mmol/L)
+      let status = 'Good';
+      let color = 'green';
+      if (average > 7) {
+        status = 'Above Target';
+        color = 'yellow';
+      }
+      if (average > 8.5) {
+        status = 'High';
+        color = 'red';
+      }
+      if (average < 4 && average > 0) {
+        status = 'Low';
+        color = 'orange';
+      }
+
+      return {
+        ...period,
+        average: average,
+        status: status,
+        color: color,
+        dataPoints: count,
+        daysLogged: data.length
+      };
+    });
+
+    return averages;
+  };
+
+  const averageStats = calculateAverages();
 
   const maxValue = 12; // mmol/L scale matching PowerPoint
 
@@ -222,6 +334,29 @@ const GlycemicCharts = () => {
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* Demo Mode Toggle */}
+          <Card>
+            <div className="flex items-center justify-between p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="demoMode"
+                  checked={demoMode}
+                  onChange={(e) => setDemoMode(e.target.checked)}
+                  className="w-5 h-5 text-primary rounded focus:ring-2 focus:ring-primary cursor-pointer"
+                />
+                <label htmlFor="demoMode" className="font-semibold text-gray-800 cursor-pointer flex items-center gap-2">
+                  📊 Use Demo Data (For Presentation)
+                </label>
+              </div>
+              {demoMode && (
+                <div className="px-4 py-2 bg-orange-500 text-white rounded-lg font-bold text-sm animate-pulse">
+                  🎬 DEMO MODE ACTIVE - Showing Sample Data
+                </div>
+              )}
+            </div>
+          </Card>
+
           {/* Header */}
           <Card>
             <div className="flex items-center justify-between mb-6">
@@ -244,6 +379,66 @@ const GlycemicCharts = () => {
                 ))}
               </div>
             </div>
+
+            {/* Summary Statistics Cards */}
+            {averageStats && (
+              <div className="mb-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {averageStats.map((stat) => (
+                  <div
+                    key={stat.key}
+                    className={`p-4 rounded-lg border-2 ${
+                      stat.color === 'green'
+                        ? 'bg-green-50 border-green-500'
+                        : stat.color === 'yellow'
+                        ? 'bg-yellow-50 border-yellow-500'
+                        : stat.color === 'red'
+                        ? 'bg-red-50 border-red-500'
+                        : stat.color === 'orange'
+                        ? 'bg-orange-50 border-orange-500'
+                        : 'bg-gray-50 border-gray-300'
+                    }`}
+                  >
+                    <div className="text-xs font-semibold text-gray-600 mb-1">
+                      {stat.label} Average
+                    </div>
+                    {stat.average !== null ? (
+                      <>
+                        <div className="text-3xl font-bold text-gray-800">
+                          {stat.average.toFixed(1)}
+                          <span className="text-sm font-normal text-gray-600 ml-1">
+                            mmol/L
+                          </span>
+                        </div>
+                        <div className={`text-xs font-semibold mt-1 flex items-center gap-1 ${
+                          stat.color === 'green'
+                            ? 'text-green-700'
+                            : stat.color === 'yellow'
+                            ? 'text-yellow-700'
+                            : stat.color === 'red'
+                            ? 'text-red-700'
+                            : stat.color === 'orange'
+                            ? 'text-orange-700'
+                            : 'text-gray-600'
+                        }`}>
+                          {stat.status === 'Good' && <CheckCircle className="w-3 h-3" />}
+                          {stat.status === 'Above Target' && <AlertTriangle className="w-3 h-3" />}
+                          {stat.status === 'High' && <XCircle className="w-3 h-3" />}
+                          {stat.status === 'Low' && <AlertTriangle className="w-3 h-3" />}
+                          {stat.status}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {stat.dataPoints} readings over {stat.daysLogged} days
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-sm text-gray-500 italic">
+                        No data available
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Legend - UPDATED TO 7 SLOTS */}
             <div className="mb-6">
