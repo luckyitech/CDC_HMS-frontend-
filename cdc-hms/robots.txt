@@ -1,0 +1,13 @@
+# Block all search engines from indexing this site
+User-agent: *
+Disallow: /
+
+# Block specific bots
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
