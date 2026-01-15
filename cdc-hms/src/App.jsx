@@ -10,6 +10,7 @@ import { PhysicalExamProvider } from "./contexts/PhysicalExamContext";
 import { InitialAssessmentProvider } from "./contexts/InitialAssessmentContext";
 import { LabProvider } from "./contexts/LabContext";
 import { TreatmentPlanProvider } from "./contexts/TreatmentPlanContext";
+import { AppointmentProvider } from './contexts/AppointmentContext';
 
 import StaffLoginPage from "./pages/auth/StaffLoginPage";
 import DoctorLoginPage from "./pages/auth/DoctorLoginPage";
@@ -68,6 +69,7 @@ function App() {
         <InitialAssessmentProvider>
           <PhysicalExamProvider>
             <QueueProvider>
+              <AppointmentProvider>
               <UserProvider>
                 <PatientProvider>
                   <PrescriptionProvider>
@@ -214,6 +216,7 @@ function App() {
                   </PrescriptionProvider>
                 </PatientProvider>
               </UserProvider>
+              </AppointmentProvider>
             </QueueProvider>
           </PhysicalExamProvider>
         </InitialAssessmentProvider>

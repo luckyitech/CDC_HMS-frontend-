@@ -1,17 +1,23 @@
 import { useState } from "react";
+import toast, { Toaster } from 'react-hot-toast';
+import { UserSquare2, CheckCircle2, AlertCircle } from 'lucide-react';
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useUserContext } from "../../contexts/UserContext";
+import { useAppointmentContext } from "../../contexts/AppointmentContext";
 
 const Triage = () => {
-  const { currentUser } = useUserContext();
+  const { currentUser, getDoctors } = useUserContext();
   const { getPatientByUHID, updatePatientVitals } = usePatientContext();
   const { getQueueByStatus, updateQueueStatus } = useQueueContext();
+  const { getTodayAppointment, checkInAppointment } = useAppointmentContext();
 
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [todayAppointment, setTodayAppointment] = useState(null);
+  const [assignedDoctor, setAssignedDoctor] = useState("");
   const [vitals, setVitals] = useState({
     bloodPressure: "",
     heartRate: "",
@@ -19,9 +25,9 @@ const Triage = () => {
     weight: "",
     height: "",
     oxygenSaturation: "",
-    rbs: "", // Random Blood Sugar
-    hba1c: "", // HbA1c
-    ketones: "", // Ketones
+    rbs: "",
+    hba1c: "",
+    ketones: "",
   });
   const [chiefComplaint, setChiefComplaint] = useState("");
 
@@ -29,7 +35,7 @@ const Triage = () => {
   const calculateBMI = () => {
     if (vitals.weight && vitals.height) {
       const weightKg = parseFloat(vitals.weight);
-      const heightM = parseFloat(vitals.height) / 100; // cm to meters
+      const heightM = parseFloat(vitals.height) / 100;
       const bmi = (weightKg / (heightM * heightM)).toFixed(1);
       return bmi;
     }
@@ -37,6 +43,9 @@ const Triage = () => {
   };
 
   const bmi = calculateBMI();
+
+  // Get all doctors for dropdown
+  const allDoctors = getDoctors();
 
   // Get patients waiting or in triage
   const waitingPatients = getQueueByStatus("Waiting");
@@ -46,7 +55,18 @@ const Triage = () => {
     const patient = getPatientByUHID(uhid);
     setSelectedPatient(patient);
 
-    // Update queue status to "In Triage"
+    // Check if patient has appointment today
+    const appointment = getTodayAppointment(uhid);
+    setTodayAppointment(appointment);
+
+    // Pre-select doctor if appointment exists
+    if (appointment) {
+      setAssignedDoctor(appointment.doctorId.toString());
+    } else {
+      setAssignedDoctor("");
+    }
+
+    // Update queue status to "In Triage" - ORIGINAL BEHAVIOR
     updateQueueStatus(uhid, "In Triage");
 
     // Reset form
@@ -67,6 +87,12 @@ const Triage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
+    // Validate doctor assignment
+    if (!assignedDoctor) {
+      toast.error("Please select a doctor to assign the patient to");
+      return;
+    }
+
     // Prepare triage data
     const triageData = {
       bp: vitals.bloodPressure,
@@ -82,33 +108,65 @@ const Triage = () => {
       chiefComplaint: chiefComplaint,
       lastTriageDate: new Date().toISOString(),
       triageBy: currentUser?.name || "Staff",
+      assignedDoctorId: parseInt(assignedDoctor),
+      assignedDoctorName: allDoctors.find(d => d.id === parseInt(assignedDoctor))?.name || '',
     };
 
     // Save vitals to patient record
     const result = updatePatientVitals(selectedPatient.uhid, triageData);
 
-    // Update queue status to "With Doctor"
+    // Update queue status to "With Doctor" - ORIGINAL BEHAVIOR
     updateQueueStatus(selectedPatient.uhid, "With Doctor");
 
+    // Check-in appointment if exists
+    if (todayAppointment) {
+      checkInAppointment(selectedPatient.uhid);
+    }
+
     if (result.success) {
-      alert(
-        `Triage completed for ${selectedPatient.name}!\n\nVitals recorded successfully.\nPatient moved to doctor's queue.`
+      const doctorName = allDoctors.find(d => d.id === parseInt(assignedDoctor))?.name;
+      
+      toast.success(
+        `Triage completed for ${selectedPatient.name}!`,
+        { duration: 3000 }
+      );
+
+      toast(
+        `Patient assigned to ${doctorName}`,
+        { duration: 3000, icon: '👨‍⚕️' }
       );
     }
 
     setSelectedPatient(null);
+    setTodayAppointment(null);
+    setAssignedDoctor("");
   };
 
   const handleCancel = () => {
     if (selectedPatient) {
-      // Move patient back to "Waiting"
+      // Move patient back to "Waiting" - ORIGINAL BEHAVIOR
       updateQueueStatus(selectedPatient.uhid, "Waiting");
       setSelectedPatient(null);
+      setTodayAppointment(null);
+      setAssignedDoctor("");
     }
   };
 
   return (
     <div>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#fff',
+            color: '#374151',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            borderRadius: '0.5rem',
+            padding: '16px',
+          },
+        }}
+      />
       <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">
         Triage
       </h2>
@@ -217,6 +275,88 @@ const Triage = () => {
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Appointment Status */}
+                  {todayAppointment ? (
+                    <div className="p-4 bg-green-50 border-2 border-green-500 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
+                        <div className="flex-1">
+                          <p className="font-bold text-green-800 mb-2">
+                            Patient has appointment today
+                          </p>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <p className="text-gray-600">Doctor</p>
+                              <p className="font-semibold text-gray-800">
+                                {todayAppointment.doctorName}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Time</p>
+                              <p className="font-semibold text-gray-800">
+                                {todayAppointment.timeSlot}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Type</p>
+                              <p className="font-semibold text-gray-800 capitalize">
+                                {todayAppointment.appointmentType.replace('-', ' ')}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-600">Reason</p>
+                              <p className="font-semibold text-gray-800">
+                                {todayAppointment.reason || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
+                        <div>
+                          <p className="font-bold text-blue-800">Walk-in Patient</p>
+                          <p className="text-sm text-blue-700">No appointment scheduled for today</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Assign to Doctor */}
+                  <div className="p-4 border-2 border-gray-300 rounded-lg bg-gray-50">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <UserSquare2 className="w-4 h-4" />
+                      Assign to Doctor *
+                      {todayAppointment && (
+                        <span className="text-xs text-green-600 font-normal">
+                          (Pre-selected from appointment)
+                        </span>
+                      )}
+                    </label>
+                    <select
+                      value={assignedDoctor}
+                      onChange={(e) => setAssignedDoctor(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary font-semibold"
+                      required
+                    >
+                      <option value="">Select a doctor...</option>
+                      {allDoctors.map((doctor) => (
+                        <option key={doctor.id} value={doctor.id}>
+                          {doctor.name} - {doctor.specialty || 'General Physician'}
+                        </option>
+                      ))}
+                    </select>
+                    {assignedDoctor && (
+                      <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Patient will be assigned to {allDoctors.find(d => d.id === parseInt(assignedDoctor))?.name}
+                      </p>
+                    )}
                   </div>
 
                   {/* Chief Complaint */}

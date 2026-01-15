@@ -1,8 +1,19 @@
 import { useState } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
+import { UserSquare2, Calendar as CalendarIcon, Clock, FileText, CheckCircle2 } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import { useAppointmentContext } from '../../contexts/AppointmentContext';
+import { useUserContext } from '../../contexts/UserContext';
 
 const BookAppointment = () => {
+  const { addAppointment } = useAppointmentContext();
+  const { getDoctors } = useUserContext();
+  
+  // TODO: Get from logged-in patient - For demo: CDC001 (John Doe)
+  const currentPatientUHID = "CDC001";
+  const currentPatientName = "John Doe";
+  
   const [step, setStep] = useState(1);
   const [bookingData, setBookingData] = useState({
     doctor: '',
@@ -13,12 +24,15 @@ const BookAppointment = () => {
     notes: '',
   });
 
-  // Mock data
-  const doctors = [
-    { id: 1, name: 'Dr. Ahmed Hassan', specialty: 'Endocrinologist', availability: 'Mon-Fri: 9AM-5PM', photo: null },
-    { id: 2, name: 'Dr. Sarah Kamau', specialty: 'Cardiologist', availability: 'Mon-Wed-Fri: 10AM-4PM', photo: null },
-    { id: 3, name: 'Dr. James Omondi', specialty: 'Diabetologist', availability: 'Tue-Thu: 8AM-3PM', photo: null },
-  ];
+  // Get doctors from UserContext
+  const allDoctors = getDoctors();
+  const doctors = allDoctors.map(doctor => ({
+    id: doctor.id,
+    name: doctor.name,
+    specialty: doctor.specialty || 'General Physician',
+    availability: 'Mon-Fri: 9AM-5PM',
+    photo: null
+  }));
 
   const appointmentTypes = [
     { value: 'follow-up', label: 'Follow-up Visit', icon: '🔄', description: 'Regular checkup with your doctor' },
@@ -64,17 +78,44 @@ const BookAppointment = () => {
   };
 
   const handleSubmit = () => {
-    alert('Appointment booked successfully! You will receive a confirmation SMS and email.');
-    // Reset form
-    setBookingData({
-      doctor: '',
-      date: '',
-      timeSlot: '',
-      appointmentType: '',
-      reason: '',
-      notes: '',
-    });
-    setStep(1);
+    const appointmentData = {
+      patientUHID: currentPatientUHID,
+      patientName: currentPatientName,
+      doctorId: parseInt(bookingData.doctor),
+      doctorName: selectedDoctor.name,
+      date: bookingData.date,
+      timeSlot: bookingData.timeSlot,
+      appointmentType: bookingData.appointmentType,
+      reason: bookingData.reason,
+      notes: bookingData.notes,
+    };
+
+    const result = addAppointment(appointmentData);
+
+    if (result.success) {
+      toast.success(
+        `Appointment booked for ${new Date(bookingData.date).toLocaleDateString()}!`,
+        {
+          duration: 4000,
+          style: { background: '#10b981', color: '#fff' }
+        }
+      );
+
+      toast('You will receive confirmation SMS and email', {
+        duration: 3000,
+        icon: '📧',
+      });
+
+      setBookingData({
+        doctor: '',
+        date: '',
+        timeSlot: '',
+        appointmentType: '',
+        reason: '',
+        notes: '',
+      });
+      setStep(1);
+    }
   };
 
   const selectedDoctor = doctors.find(d => d.id === parseInt(bookingData.doctor));
@@ -82,6 +123,19 @@ const BookAppointment = () => {
 
   return (
     <div>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#fff',
+            color: '#374151',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            borderRadius: '0.5rem',
+            padding: '16px',
+          },
+        }}
+      />
       <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">Book Appointment</h2>
 
       {/* Progress Steps */}
