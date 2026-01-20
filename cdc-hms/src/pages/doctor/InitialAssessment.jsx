@@ -169,7 +169,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
         {/* Patient Selection (only show if NOT from consultation) */}
         {!fromConsultation && (
           <div className="lg:col-span-1">
-            <Card title="ðŸ‘¥ Select Patient">
+            <Card title=" Select Patient">
               <div className="space-y-3">
                 {allPatients.map((patient) => (
                   <button
