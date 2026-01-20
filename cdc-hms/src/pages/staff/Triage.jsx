@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { UserSquare2, CheckCircle2, AlertCircle,UserCircle } from "lucide-react";
+import {
+  UserSquare2,
+  CheckCircle2,
+  AlertCircle,
+  UserCircle,
+} from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
@@ -31,6 +36,19 @@ const Triage = () => {
     ketones: "",
   });
   const [chiefComplaint, setChiefComplaint] = useState("");
+  // Auto-save triage data to localStorage
+  useEffect(() => {
+    if (selectedPatient) {
+      const triageKey = `triage_draft_${selectedPatient.uhid}`;
+      const draftData = {
+        vitals,
+        chiefComplaint,
+        assignedDoctor,
+        timestamp: new Date().toISOString(),
+      };
+      localStorage.setItem(triageKey, JSON.stringify(draftData));
+    }
+  }, [vitals, chiefComplaint, assignedDoctor, selectedPatient]);
 
   // Calculate BMI
   const calculateBMI = () => {
@@ -60,29 +78,53 @@ const Triage = () => {
     const appointment = getTodayAppointment(uhid);
     setTodayAppointment(appointment);
 
-    // Pre-select doctor if appointment exists
-    if (appointment) {
-      setAssignedDoctor(appointment.doctorId.toString());
-    } else {
-      setAssignedDoctor("");
-    }
-
-    // Update queue status to "In Triage" - ORIGINAL BEHAVIOR
+    // Update queue status to "In Triage"
     updateQueueStatus(uhid, "In Triage");
 
-    // Reset form
-    setVitals({
-      bloodPressure: "",
-      heartRate: "",
-      temperature: "",
-      weight: "",
-      height: "",
-      oxygenSaturation: "",
-      rbs: "",
-      hba1c: "",
-      ketones: "",
-    });
-    setChiefComplaint("");
+    // Check for saved draft data in localStorage
+    const triageKey = `triage_draft_${uhid}`;
+    const savedDraft = localStorage.getItem(triageKey);
+
+    if (savedDraft) {
+      // Restore saved data
+      const draftData = JSON.parse(savedDraft);
+      setVitals(draftData.vitals);
+      setChiefComplaint(draftData.chiefComplaint);
+      setAssignedDoctor(draftData.assignedDoctor || "");
+
+      // Show toast notification
+      toast.info("📋 Draft data restored from previous session", {
+        duration: 3000,
+        style: {
+          background: "#DBEAFE",
+          color: "#1E40AF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+    } else {
+      // No saved data - start fresh
+      // Pre-select doctor if appointment exists
+      if (appointment) {
+        setAssignedDoctor(appointment.doctorId.toString());
+      } else {
+        setAssignedDoctor("");
+      }
+
+      // Reset form
+      setVitals({
+        bloodPressure: "",
+        heartRate: "",
+        temperature: "",
+        weight: "",
+        height: "",
+        oxygenSaturation: "",
+        rbs: "",
+        hba1c: "",
+        ketones: "",
+      });
+      setChiefComplaint("");
+    }
   };
 
   const handleSubmit = (e) => {
@@ -237,6 +279,10 @@ const Triage = () => {
           padding: "16px",
         },
       });
+
+      // Clear the draft from localStorage
+      const triageKey = `triage_draft_${selectedPatient.uhid}`;
+      localStorage.removeItem(triageKey);
     }
 
     setSelectedPatient(null);
@@ -247,6 +293,10 @@ const Triage = () => {
   const handleCancel = () => {
     if (selectedPatient) {
       const patientName = selectedPatient.name;
+      
+      // Clear the draft from localStorage
+      const triageKey = `triage_draft_${selectedPatient.uhid}`;
+      localStorage.removeItem(triageKey);
 
       // Move patient back to "Waiting" - ORIGINAL BEHAVIOR
       updateQueueStatus(selectedPatient.uhid, "Waiting");
@@ -314,7 +364,7 @@ const Triage = () => {
                       {patient.name}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {patient.age} yrs â€¢ {patient.gender}
+                      {patient.age} yrs {patient.gender}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       Arrived: {patient.arrivalTime}
@@ -334,13 +384,19 @@ const Triage = () => {
             <Card title="In Triage" className="mt-4">
               <div className="space-y-2">
                 {inTriagePatients.map((patient) => (
-                  <div
+                  <button
                     key={patient.id}
-                    className="p-3 bg-blue-50 rounded-lg border border-blue-200"
+                    onClick={() => handleSelectPatient(patient.uhid)}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition ${
+                      selectedPatient?.uhid === patient.uhid
+                        ? "border-primary bg-blue-100"
+                        : "border-blue-200 bg-blue-50 hover:border-blue-400 hover:bg-blue-100"
+                    }`}
                   >
                     <p className="font-semibold text-sm">{patient.name}</p>
                     <p className="text-xs text-gray-600">{patient.uhid}</p>
-                  </div>
+                    <p className="text-xs text-blue-600 mt-1">Click to continue triage</p>
+                  </button>
                 ))}
               </div>
             </Card>
