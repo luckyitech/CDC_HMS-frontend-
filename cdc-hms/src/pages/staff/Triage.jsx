@@ -293,7 +293,7 @@ const Triage = () => {
   const handleCancel = () => {
     if (selectedPatient) {
       const patientName = selectedPatient.name;
-      
+
       // Clear the draft from localStorage
       const triageKey = `triage_draft_${selectedPatient.uhid}`;
       localStorage.removeItem(triageKey);
@@ -395,7 +395,9 @@ const Triage = () => {
                   >
                     <p className="font-semibold text-sm">{patient.name}</p>
                     <p className="text-xs text-gray-600">{patient.uhid}</p>
-                    <p className="text-xs text-blue-600 mt-1">Click to continue triage</p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Click to continue triage
+                    </p>
                   </button>
                 ))}
               </div>
@@ -586,56 +588,73 @@ const Triage = () => {
                       <Input
                         label="Heart Rate *"
                         type="number"
+                        min="0"
                         value={vitals.heartRate}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, heartRate: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Only allow positive numbers or empty string
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, heartRate: value });
+                          }
+                        }}
                         placeholder="bpm"
                       />
 
                       <Input
                         label="Temperature *"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.temperature}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, temperature: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, temperature: value });
+                          }
+                        }}
                         placeholder="°C"
-                        required
                       />
 
                       <Input
                         label="Oxygen Saturation"
                         type="number"
+                        min="0"
                         value={vitals.oxygenSaturation}
-                        onChange={(e) =>
-                          setVitals({
-                            ...vitals,
-                            oxygenSaturation: e.target.value,
-                          })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, oxygenSaturation: value });
+                          }
+                        }}
                         placeholder="%"
                       />
 
                       <Input
                         label="Weight"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.weight}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, weight: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, weight: value });
+                          }
+                        }}
                         placeholder="kg"
                       />
 
                       <Input
                         label="Height"
                         type="number"
+                        min="0"
                         value={vitals.height}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, height: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, height: value });
+                          }
+                        }}
                         placeholder="cm"
                       />
 
@@ -647,7 +666,7 @@ const Triage = () => {
                           </label>
                           <div className="px-4 py-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
                             <span className="text-lg font-bold text-blue-700">
-                              {bmi} kg/mÂ²
+                              {bmi} kg/m²
                             </span>
                             <span className="text-xs text-gray-600 ml-2">
                               {parseFloat(bmi) < 18.5
@@ -665,33 +684,45 @@ const Triage = () => {
                       <Input
                         label="RBS (Random Blood Sugar)"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.rbs}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, rbs: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, rbs: value });
+                          }
+                        }}
                         placeholder="mg/dL"
                       />
 
                       <Input
                         label="HbA1c"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.hba1c}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, hba1c: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, hba1c: value });
+                          }
+                        }}
                         placeholder="%"
                       />
 
                       <Input
                         label="Ketones"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.ketones}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, ketones: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, ketones: value });
+                          }
+                        }}
                         placeholder="mmol/L"
                       />
                     </div>
