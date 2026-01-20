@@ -1,26 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useUserContext } from '../../contexts/UserContext';
+import { useQueueContext } from '../../contexts/QueueContext';
+import { usePatientContext } from '../../contexts/PatientContext';
 
 const DoctorDashboard = () => {
+  const navigate = useNavigate();
   const { currentUser } = useUserContext();
+  const { getQueueByStatus, getQueueStats } = useQueueContext();
+  const { getPatientByUHID } = usePatientContext();
   
-  // Mock data
+  // Get all patients with "With Doctor" status
+  const withDoctorQueue = getQueueByStatus('With Doctor');
+  const queueStats = getQueueStats();
+  
+  // Calculate stats for current doctor
+  const myPatients = withDoctorQueue.filter(q => q.assignedDoctorId === currentUser?.id);
+  const completedToday = 0; // This would come from a completed queue or consultation records
+  
   const stats = [
-    { title: 'Today\'s Patients', value: '12', icon: '👥', gradient: 'from-blue-500 to-blue-600' },
-    { title: 'Waiting', value: '5', icon: '⏳', gradient: 'from-cyan-500 to-cyan-600' },
-    { title: 'Completed', value: '7', icon: '✅', gradient: 'from-green-500 to-green-600' },
-    { title: 'Follow-ups', value: '3', icon: '📅', gradient: 'from-purple-500 to-purple-600' },
+    { title: 'Today\'s Patients', value: myPatients.length.toString(), icon: '👥', gradient: 'from-blue-500 to-blue-600' },
+    { title: 'Waiting', value: myPatients.length.toString(), icon: '⏳', gradient: 'from-cyan-500 to-cyan-600' },
+    { title: 'Completed', value: completedToday.toString(), icon: '✅', gradient: 'from-green-500 to-green-600' },
+    { title: 'Total Queue', value: queueStats.withDoctor.toString(), icon: '📋', gradient: 'from-purple-500 to-purple-600' },
   ];
-
-  const [todayPatients] = useState([
-    { id: 1, uhid: 'CDC001', name: 'John Doe', age: 45, time: '09:00 AM', status: 'Completed', bloodSugar: '145 mg/dL' },
-    { id: 2, uhid: 'CDC002', name: 'Jane Smith', age: 52, time: '09:30 AM', status: 'Completed', bloodSugar: '132 mg/dL' },
-    { id: 3, uhid: 'CDC003', name: 'Ali Hassan', age: 38, time: '10:00 AM', status: 'In Progress', bloodSugar: '168 mg/dL' },
-    { id: 4, uhid: 'CDC005', name: 'Mary Johnson', age: 61, time: '10:30 AM', status: 'Waiting', bloodSugar: '152 mg/dL' },
-    { id: 5, uhid: 'CDC007', name: 'Grace Wanjiru', age: 47, time: '11:00 AM', status: 'Waiting', bloodSugar: '178 mg/dL' },
-  ]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -29,18 +34,16 @@ const DoctorDashboard = () => {
       case 'In Progress':
         return 'bg-blue-100 text-blue-700 border-blue-300';
       case 'Waiting':
+      case 'With Doctor':
         return 'bg-yellow-100 text-yellow-700 border-yellow-300';
       default:
         return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
-  const getBloodSugarColor = (value) => {
-    const numValue = parseInt(value);
-    if (numValue < 140) return 'text-green-600';
-    if (numValue < 180) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+  const handleStartConsultation = (uhid) => {
+  navigate(`/doctor/consultation/${uhid}`);
+};
 
   return (
     <div>
@@ -50,8 +53,9 @@ const DoctorDashboard = () => {
           <p className="text-gray-600 mt-1">Welcome back, {currentUser?.name || 'Doctor'}</p>
         </div>
         <div className="flex gap-3">
-          {/* <Button className="text-sm">📋 View Schedule</Button> */}
-          {/* <Button variant="outline" className="text-sm">📊 Reports</Button> */}
+          <Button onClick={() => navigate('/doctor/my-patients')}>
+            View My Patients
+          </Button>
         </div>
       </div>
 
@@ -68,57 +72,78 @@ const DoctorDashboard = () => {
         ))}
       </div>
 
-      {/* Today's Appointments */}
-      <Card title="📅 Today's Appointments">
+      {/* Today's Queue - All Patients */}
+      <Card title="📋 Today's Queue - All Patients With Doctor">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b-2 border-gray-200">
-              <tr>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase hidden md:table-cell">Age</th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase hidden lg:table-cell">Blood Sugar</th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {todayPatients.map((patient) => (
-                <tr key={patient.id} className="hover:bg-gray-50 transition">
-                  <td className="px-4 lg:px-6 py-4 text-sm font-semibold text-gray-700">{patient.time}</td>
-                  <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
-                  <td className="px-4 lg:px-6 py-4 text-sm font-medium">{patient.name}</td>
-                  <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{patient.age} yrs</td>
-                  <td className={`px-4 lg:px-6 py-4 text-sm font-semibold hidden lg:table-cell ${getBloodSugarColor(patient.bloodSugar)}`}>
-                    {patient.bloodSugar}
-                  </td>
-                  <td className="px-4 lg:px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(patient.status)}`}>
-                      {patient.status}
-                    </span>
-                  </td>
-                  <td className="px-4 lg:px-6 py-4">
-                    {patient.status === 'Waiting' && (
-                      <Button variant="primary" className="text-xs py-1 px-3">
-                        Start Consultation
-                      </Button>
-                    )}
-                    {patient.status === 'In Progress' && (
-                      <Button variant="secondary" className="text-xs py-1 px-3">
-                        Continue
-                      </Button>
-                    )}
-                    {patient.status === 'Completed' && (
-                      <Button variant="outline" className="text-xs py-1 px-3">
-                        View Notes
-                      </Button>
-                    )}
-                  </td>
+          {withDoctorQueue.length > 0 ? (
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <tr>
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase hidden md:table-cell">Age</th>
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Assigned To</th>
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {withDoctorQueue.map((queueItem) => {
+                  const patient = getPatientByUHID(queueItem.uhid);
+                  const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
+                  
+                  return (
+                    <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient ? 'bg-blue-50' : ''}`}>
+                      <td className="px-4 lg:px-6 py-4 text-sm font-semibold text-gray-700">{queueItem.arrivalTime}</td>
+                      <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{queueItem.uhid}</td>
+                      <td className="px-4 lg:px-6 py-4 text-sm font-medium">{queueItem.name}</td>
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{queueItem.age} yrs</td>
+                      <td className="px-4 lg:px-6 py-4">
+                        {isMyPatient ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-300">
+                            You
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300">
+                            {queueItem.assignedDoctorName || 'Unassigned'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(queueItem.status)}`}>
+                          {queueItem.status}
+                        </span>
+                      </td>
+                      <td className="px-4 lg:px-6 py-4">
+                        {isMyPatient ? (
+                          <Button 
+                            variant="primary" 
+                            className="text-xs py-1 px-3"
+                            onClick={() => handleStartConsultation(queueItem.uhid)}
+                          >
+                            Start Consultation
+                          </Button>
+                        ) : (
+                          <Button 
+                            variant="outline" 
+                            className="text-xs py-1 px-3 opacity-50 cursor-not-allowed"
+                            disabled
+                          >
+                            Assigned to {queueItem.assignedDoctorName?.split(' ')[1] || 'Other'}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No patients in queue currently</p>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -126,33 +151,47 @@ const DoctorDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
         <Card title="⚡ Quick Actions">
           <div className="space-y-3">
-            <button className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500">
-              <p className="font-semibold text-blue-700">📝 Write Prescription</p>
+            <button 
+              onClick={() => navigate('/doctor/my-patients')}
+              className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500"
+            >
+              <p className="font-semibold text-blue-700">👥 View All My Patients</p>
             </button>
-            <button className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition border-l-4 border-green-500">
-              <p className="font-semibold text-green-700">🔬 Order Lab Tests</p>
+            <button 
+              onClick={() => navigate('/doctor/prescriptions')}
+              className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition border-l-4 border-green-500"
+            >
+              <p className="font-semibold text-green-700">💊 My Prescriptions</p>
             </button>
-            <button className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition border-l-4 border-purple-500">
-              <p className="font-semibold text-purple-700">📅 Schedule Follow-up</p>
+            <button 
+              onClick={() => navigate('/doctor/reports')}
+              className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition border-l-4 border-purple-500"
+            >
+              <p className="font-semibold text-purple-700">📊 Generate Reports</p>
             </button>
           </div>
         </Card>
 
-        <Card title="🚨 Alerts" className="md:col-span-2">
-          <div className="space-y-3">
-            <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
-              <p className="font-semibold text-red-700">High Priority</p>
-              <p className="text-sm text-red-600 mt-1">Grace Wanjiru (CDC007) - Blood sugar 178 mg/dL</p>
+        <Card title="🚨 My Patients Alerts" className="md:col-span-2">
+          {myPatients.length > 0 ? (
+            <div className="space-y-3">
+              {myPatients.slice(0, 3).map((queueItem) => {
+                const patient = getPatientByUHID(queueItem.uhid);
+                return (
+                  <div key={queueItem.id} className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                    <p className="font-semibold text-blue-700">Patient Waiting</p>
+                    <p className="text-sm text-blue-600 mt-1">
+                      {queueItem.name} ({queueItem.uhid}) - Arrived at {queueItem.arrivalTime}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
-            <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg">
-              <p className="font-semibold text-yellow-700">Pending Lab Results</p>
-              <p className="text-sm text-yellow-600 mt-1">3 patients awaiting HbA1c results</p>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No patients assigned to you currently</p>
             </div>
-            <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
-              <p className="font-semibold text-blue-700">Follow-up Reminder</p>
-              <p className="text-sm text-blue-600 mt-1">John Doe due for 3-month review tomorrow</p>
-            </div>
-          </div>
+          )}
         </Card>
       </div>
     </div>

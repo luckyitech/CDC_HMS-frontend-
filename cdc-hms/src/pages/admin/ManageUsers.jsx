@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useNavigate } from 'react-router-dom';
+import {  SquarePen } from 'lucide-react';
 
 const ManageUsers = () => {
   const navigate = useNavigate();

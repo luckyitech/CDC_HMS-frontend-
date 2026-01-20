@@ -29,6 +29,7 @@ import StaffCreatePatient from "./pages/staff/CreatePatient";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import MyPatients from "./pages/doctor/MyPatients";
 import Consultations from "./pages/doctor/Consultations";
+import Consultation from "./pages/doctor/Consultation";
 import DoctorPrescriptions from "./pages/doctor/DoctorPrescriptions";
 import Reports from "./pages/doctor/Reports";
 import InitialAssessment from "./pages/doctor/InitialAssessment";
@@ -118,6 +119,10 @@ function App() {
                         <Route
                           path="consultations"
                           element={<Consultations />}
+                        />
+                        <Route
+                          path="consultation/:uhid"
+                          element={<Consultation />}
                         />
                         <Route
                           path="initial-assessment"

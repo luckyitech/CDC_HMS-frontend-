@@ -12,7 +12,7 @@ import { useAppointmentContext } from "../../contexts/AppointmentContext";
 const Triage = () => {
   const { currentUser, getDoctors } = useUserContext();
   const { getPatientByUHID, updatePatientVitals } = usePatientContext();
-  const { getQueueByStatus, updateQueueStatus } = useQueueContext();
+  const { getQueueByStatus, updateQueueStatus, assignDoctorToQueue } = useQueueContext();
   const { getTodayAppointment, checkInAppointment } = useAppointmentContext();
 
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -97,10 +97,10 @@ const Triage = () => {
     const triageData = {
       bp: vitals.bloodPressure,
       heartRate: vitals.heartRate + " bpm",
-      temperature: vitals.temperature + "°C",
+      temperature: vitals.temperature + "Â°C",
       weight: vitals.weight + " kg",
       height: vitals.height + " cm",
-      bmi: bmi ? bmi + " kg/m²" : "",
+      bmi: bmi ? bmi + " kg/mÂ²" : "",
       oxygenSaturation: vitals.oxygenSaturation + "%",
       rbs: vitals.rbs ? vitals.rbs + " mg/dL" : "",
       hba1c: vitals.hba1c ? vitals.hba1c + "%" : "",
@@ -117,6 +117,13 @@ const Triage = () => {
 
     // Update queue status to "With Doctor" - ORIGINAL BEHAVIOR
     updateQueueStatus(selectedPatient.uhid, "With Doctor");
+    
+    // Assign doctor to queue item
+    assignDoctorToQueue(
+      selectedPatient.uhid,
+      parseInt(assignedDoctor),
+      allDoctors.find(d => d.id === parseInt(assignedDoctor))?.name || ""
+    );
 
     // Check-in appointment if exists
     if (todayAppointment) {
@@ -133,7 +140,7 @@ const Triage = () => {
 
       toast(
         `Patient assigned to ${doctorName}`,
-        { duration: 3000, icon: '👨‍⚕️' }
+        { duration: 3000, icon: 'ðŸ‘¨â€âš•ï¸' }
       );
     }
 
@@ -199,7 +206,7 @@ const Triage = () => {
                       {patient.name}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {patient.age} yrs • {patient.gender}
+                      {patient.age} yrs â€¢ {patient.gender}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       Arrived: {patient.arrivalTime}
@@ -237,14 +244,14 @@ const Triage = () => {
           {!selectedPatient ? (
             <Card>
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">👈</div>
+                <div className="text-6xl mb-4">ðŸ‘ˆ</div>
                 <p className="text-gray-500 text-lg">
                   Select a patient to start triage
                 </p>
               </div>
             </Card>
           ) : (
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') e.preventDefault(); }}>
               <Card title={`Triage - ${selectedPatient.name}`}>
                 <div className="space-y-6">
                   {/* Patient Info */}
@@ -259,7 +266,7 @@ const Triage = () => {
                       <div>
                         <p className="text-sm text-gray-600">Age / Gender</p>
                         <p className="font-semibold">
-                          {selectedPatient.age} yrs • {selectedPatient.gender}
+                          {selectedPatient.age} yrs â€¢ {selectedPatient.gender}
                         </p>
                       </div>
                       <div>
@@ -459,7 +466,7 @@ const Triage = () => {
                           </label>
                           <div className="px-4 py-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
                             <span className="text-lg font-bold text-blue-700">
-                              {bmi} kg/m²
+                              {bmi} kg/mÂ²
                             </span>
                             <span className="text-xs text-gray-600 ml-2">
                               {parseFloat(bmi) < 18.5

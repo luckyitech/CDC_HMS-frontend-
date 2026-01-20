@@ -28,6 +28,7 @@ import {
   CheckCircle,
   Info,
   AlertCircle,
+  ChartNoAxesCombined 
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
@@ -278,7 +279,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       {
         name: "Glycemic Charts",
         path: "/doctor/glycemic-charts",
-        icon: Activity,
+        icon: ChartNoAxesCombined ,
       },
       { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       { name: "Reports", path: "/doctor/reports", icon: FileText },

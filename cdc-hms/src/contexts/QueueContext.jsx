@@ -50,7 +50,9 @@ export const QueueProvider = ({ children }) => {
       priority: priority,
       status: 'Waiting',
       reason: reason || 'Routine checkup',
-      estimatedWait: calculateWait(queue.filter(q => q.status === 'Waiting').length)
+      estimatedWait: calculateWait(queue.filter(q => q.status === 'Waiting').length),
+      assignedDoctorId: null,
+      assignedDoctorName: null
     };
 
     // If urgent, add to front (after any other urgent cases)
@@ -132,6 +134,22 @@ export const QueueProvider = ({ children }) => {
     return { success: false, message: 'No patients waiting' };
   };
 
+  // Assign doctor to queue item
+  const assignDoctorToQueue = (uhid, doctorId, doctorName) => {
+    setQueue(prevQueue => 
+      prevQueue.map(item => 
+        item.uhid === uhid 
+          ? { ...item, assignedDoctorId: doctorId, assignedDoctorName: doctorName }
+          : item
+      )
+    );
+  };
+
+  // Get queue by doctor
+  const getQueueByDoctor = (doctorId) => {
+    return queue.filter(item => item.assignedDoctorId === doctorId);
+  };
+
   const value = {
     // State
     queue,
@@ -146,6 +164,8 @@ export const QueueProvider = ({ children }) => {
     getQueueStats,
     isInQueue,
     callNextPatient,
+    assignDoctorToQueue,
+    getQueueByDoctor,
   };
 
   return (

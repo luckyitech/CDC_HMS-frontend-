@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { CheckCircle, AlertTriangle, XCircle, TrendingUp, TrendingDown } from 'lucide-react';
 import Card from "../../components/shared/Card";
@@ -9,10 +9,11 @@ import { usePatientContext } from '../../contexts/PatientContext';
 const GlycemicCharts = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { uhid: urlUHID } = useParams();
   const { getPatientByUHID, getBloodSugarReadings } = usePatientContext();
   
-  // Get patient from navigation state
-  const patientUHID = location.state?.patientUHID;
+  // Get patient from URL params OR navigation state (flexible!)
+  const patientUHID = urlUHID || location.state?.patientUHID;
   const fromConsultation = location.state?.fromConsultation;
   
   const [selectedPatient, setSelectedPatient] = useState(null);

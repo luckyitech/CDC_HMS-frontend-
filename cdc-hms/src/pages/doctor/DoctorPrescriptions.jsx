@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
@@ -13,6 +13,7 @@ import VoiceInput from "../../components/shared/VoiceInput";
 const DoctorPrescriptions = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { uhid: urlUHID } = useParams();
   const { currentUser } = useUserContext();
   const {
     getPrescriptionsByDoctor,
@@ -21,7 +22,8 @@ const DoctorPrescriptions = () => {
   } = usePrescriptionContext();
   const { getPatientByUHID } = usePatientContext();
 
-  const patientUHID = location.state?.patientUHID;
+  // Get patient from URL params OR navigation state (flexible!)
+  const patientUHID = urlUHID || location.state?.patientUHID;
   const fromConsultation = location.state?.fromConsultation;
 
   const [selectedPatient, setSelectedPatient] = useState(null);
