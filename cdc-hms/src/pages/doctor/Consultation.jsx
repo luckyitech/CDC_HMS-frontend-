@@ -849,7 +849,7 @@ const Consultation = () => {
         )}
 
         {/* Quick Actions Tab */}
-        {activeTab === "actions" && (
+        {/* {activeTab === "actions" && (
           <Card
             title={
               <span className="flex items-center gap-2">
@@ -969,7 +969,7 @@ const Consultation = () => {
               </div>
             </div>
           </Card>
-        )}
+        )} */}
       </div>
 
       {/* Floating Complete Button */}
