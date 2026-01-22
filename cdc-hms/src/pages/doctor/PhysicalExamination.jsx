@@ -101,7 +101,7 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
               variant="outline" 
               onClick={() => navigate('/doctor/consultations')}
             >
-              â† Back to Consultation
+               Back to Consultation
             </Button>
           )}
           {selectedPatient && mode === 'findings' && (
@@ -109,7 +109,7 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
               variant="outline"
               onClick={() => setMode('entry')}
             >
-              âœï¸ New Examination
+              New Examination
             </Button>
           )}
         </div>
@@ -133,7 +133,7 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
                   >
                     <p className="font-bold text-sm text-primary">{patient.uhid}</p>
                     <p className="font-semibold text-sm">{patient.name}</p>
-                    <p className="text-xs text-gray-600">{patient.age} yrs â€¢ {patient.gender}</p>
+                    <p className="text-xs text-gray-600">{patient.age} yrs {patient.gender}</p>
                   </button>
                 ))}
               </div>
@@ -146,7 +146,7 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
           {!selectedPatient ? (
             <Card>
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">ðŸ©º</div>
+                {/* <div className="text-6xl mb-4">ðŸ©º</div> */}
                 <p className="text-gray-500 text-lg">
                   Select a patient to begin physical examination
                 </p>

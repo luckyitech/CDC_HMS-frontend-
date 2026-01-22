@@ -221,10 +221,10 @@ const Triage = () => {
     const triageData = {
       bp: vitals.bloodPressure,
       heartRate: vitals.heartRate + " bpm",
-      temperature: vitals.temperature + "Â°C",
+      temperature: vitals.temperature + "°C",
       weight: vitals.weight + " kg",
       height: vitals.height + " cm",
-      bmi: bmi ? bmi + " kg/mÂ²" : "",
+      bmi: bmi ? bmi + " kg/m²" : "",
       oxygenSaturation: vitals.oxygenSaturation + "%",
       rbs: vitals.rbs ? vitals.rbs + " mg/dL" : "",
       hba1c: vitals.hba1c ? vitals.hba1c + "%" : "",

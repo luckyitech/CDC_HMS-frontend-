@@ -53,7 +53,7 @@ const DoctorDashboard = () => {
           <p className="text-gray-600 mt-1">Welcome back, {currentUser?.name || 'Doctor'}</p>
         </div>
         <div className="flex gap-3">
-          <Button onClick={() => navigate('/doctor/my-patients')}>
+          <Button onClick={() => navigate('/doctor/patients')}>
             View My Patients
           </Button>
         </div>

@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { 
-  Check, 
-  AlertCircle, 
-  ClipboardList, 
-  FileEdit, 
-  Stethoscope, 
-  MessageSquare, 
-  Target, 
+import {
+  Check,
+  AlertCircle,
+  ClipboardList,
+  FileEdit,
+  Stethoscope,
+  MessageSquare,
+  Target,
   Zap,
   User,
   Activity,
@@ -17,7 +17,8 @@ import {
   UserCircle,
   FileText,
   Calendar,
-  ClipboardCheck
+  ClipboardCheck,
+  X,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -28,9 +29,13 @@ import { useUserContext } from "../../contexts/UserContext";
 import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
+import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamination from "./PhysicalExamination";
+import NewPrescriptionForm from "../../components/doctor/NewPrescriptionForm";
+import PrescriptionHistory from "../../components/doctor/PrescriptionHistory";
+import TreatmentPlansList from "../../components/doctor/TreatmentPlansList";
 
 const Consultation = () => {
   const { uhid } = useParams();
@@ -42,6 +47,7 @@ const Consultation = () => {
   const { saveAssessment, getLatestAssessment } = useInitialAssessmentContext();
   const { saveExamination, getLatestExamination } = usePhysicalExamContext();
   const { addTreatmentPlan, getLatestPlan } = useTreatmentPlanContext();
+  const { getPrescriptionsByPatient, addPrescription } = usePrescriptionContext();
 
   // Get patient data
   const patient = getPatientByUHID(uhid);
@@ -56,6 +62,7 @@ const Consultation = () => {
     exam: false,
     notes: false,
     diagnosis: false,
+    prescriptions: false,
     actions: true, // Always true (just navigation)
   });
 
@@ -65,10 +72,14 @@ const Consultation = () => {
     exam: false,
     notes: false,
     diagnosis: false,
+    prescriptions: false,
   });
 
   // Overview tab data (read-only)
   const previousPlan = getLatestPlan(uhid);
+
+  // Get patient prescriptions
+  const patientPrescriptions = getPrescriptionsByPatient(uhid);
 
   // Assessment tab data
   const [historyOfPresentIllness, setHistoryOfPresentIllness] = useState("");
@@ -146,6 +157,7 @@ const Consultation = () => {
         examFindings !== "",
       notes: consultationNotes !== "",
       diagnosis: diagnosis !== "" || treatmentPlan !== "",
+      prescriptions: false, // Handled by component
     });
   }, [
     historyOfPresentIllness,
@@ -203,7 +215,7 @@ const Consultation = () => {
 
     setTabsCompleted({ ...tabsCompleted, assessment: true });
     setTabsUnsaved({ ...tabsUnsaved, assessment: false });
-    
+
     // Show success toast
     const toast = document.createElement("div");
     toast.className =
@@ -230,7 +242,7 @@ const Consultation = () => {
 
     setTabsCompleted({ ...tabsCompleted, exam: true });
     setTabsUnsaved({ ...tabsUnsaved, exam: false });
-    
+
     // Show success toast
     const toast = document.createElement("div");
     toast.className =
@@ -241,17 +253,16 @@ const Consultation = () => {
   };
 
   const handleSaveNotes = () => {
-    // Save notes (could add to a notes context if needed)
     setTabsCompleted({ ...tabsCompleted, notes: true });
     setTabsUnsaved({ ...tabsUnsaved, notes: false });
-    
+
     // Show success toast
     const toast = document.createElement("div");
     toast.className =
       "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "✅ Notes Saved";
+    toast.innerHTML = "✅ Notes Marked Complete (Will save with Diagnosis & Plan)";
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+    setTimeout(() => toast.remove(), 3000);
   };
 
   const handleSaveDiagnosis = () => {
@@ -270,11 +281,12 @@ const Consultation = () => {
       doctorName: currentUser?.name || "Doctor",
       diagnosis: diagnosis,
       plan: treatmentPlan,
+      notes: consultationNotes, // Include consultation notes
     });
 
     setTabsCompleted({ ...tabsCompleted, diagnosis: true });
     setTabsUnsaved({ ...tabsUnsaved, diagnosis: false });
-    
+
     // Show success toast
     const toast = document.createElement("div");
     toast.className =
@@ -282,6 +294,10 @@ const Consultation = () => {
     toast.innerHTML = "✅ Diagnosis & Plan Saved";
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
+  };
+
+  const handlePrescriptionSuccess = () => {
+    setTabsCompleted({ ...tabsCompleted, prescriptions: true });
   };
 
   const handleCompleteConsultation = () => {
@@ -323,6 +339,7 @@ const Consultation = () => {
     { id: "exam", label: "Exam", icon: Stethoscope },
     { id: "notes", label: "Notes", icon: MessageSquare },
     { id: "diagnosis", label: "Diagnosis & Plan", icon: Target },
+    { id: "prescriptions", label: "Prescriptions", icon: Pill },
     { id: "actions", label: "Actions", icon: Zap },
   ];
 
@@ -341,9 +358,7 @@ const Consultation = () => {
             <p className="text-gray-600 mb-4">
               Patient: {patient.name} ({patient.uhid})
             </p>
-            <p className="text-sm text-gray-500">
-              Redirecting to dashboard...
-            </p>
+            <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
           </div>
         </Card>
       </div>
@@ -352,53 +367,58 @@ const Consultation = () => {
 
   return (
     <div className="pb-24">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-              Consultation - {patient.name}
-            </h2>
-            <p className="text-gray-600 mt-1">
-              UHID: {patient.uhid} • {patient.age} yrs • {patient.gender}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate("/doctor/dashboard")}
-          >
-            ← Back to Dashboard
-          </Button>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
-        <div className="flex">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-max px-6 py-4 text-sm font-semibold transition-all relative ${
-                activeTab === tab.id
-                  ? "bg-primary text-white"
-                  : "text-gray-600 hover:bg-gray-50"
-              }`}
+      {/* Sticky Header Container */}
+      <div className="sticky top-0 z-30 bg-gray-50 pb-4">
+        {/* Header */}
+        <div className="mb-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
+                Consultation - {patient.name}
+              </h2>
+              <p className="text-gray-600 mt-1">
+                UHID: {patient.uhid} • {patient.age} yrs • {patient.gender}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/doctor/dashboard")}
+              className="w-full sm:w-auto"
             >
-              <span className="flex items-center justify-center gap-2">
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-                {tabsCompleted[tab.id] && (
-                  <Check className="w-4 h-4 text-green-500 bg-white rounded-full p-0.5" />
-                )}
-                {tabsUnsaved[tab.id] && !tabsCompleted[tab.id] && (
-                  <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                )}
-              </span>
-            </button>
-          ))}
+              ← Back to Dashboard
+            </Button>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+          <div className="flex">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex-1 min-w-max px-6 py-4 text-sm font-semibold transition-all relative ${
+                  activeTab === tab.id
+                    ? "bg-primary text-white"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                  {tabsCompleted[tab.id] && (
+                    <Check className="w-4 h-4 text-green-500 bg-white rounded-full p-0.5" />
+                  )}
+                  {tabsUnsaved[tab.id] && !tabsCompleted[tab.id] && (
+                    <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+      {/* End Sticky Container */}
 
       {/* Tab Content */}
       <div>
@@ -406,7 +426,14 @@ const Consultation = () => {
         {activeTab === "overview" && (
           <div className="space-y-6">
             {/* Patient Info Card */}
-            <Card title={<span className="flex items-center gap-2"><User className="w-6 h-6" />Patient Information</span>}>
+            <Card
+              title={
+                <span className="flex items-center gap-2">
+                  <User className="w-6 h-6" />
+                  Patient Information
+                </span>
+              }
+            >
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Age</p>
@@ -429,7 +456,14 @@ const Consultation = () => {
 
             {/* Today's Triage Data */}
             {patient.lastTriageDate && (
-              <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-6 h-6" />Today's Triage</span>}>
+              <Card
+                title={
+                  <span className="flex items-center gap-2">
+                    <ClipboardList className="w-6 h-6" />
+                    Today's Triage
+                  </span>
+                }
+              >
                 <div className="mb-4 pb-4 border-b">
                   <p className="text-sm text-gray-600">
                     Triaged on:{" "}
@@ -545,7 +579,14 @@ const Consultation = () => {
             )}
 
             {/* Medical History */}
-            <Card title={<span className="flex items-center gap-2"><Activity className="w-6 h-6" />Medical Information</span>}>
+            <Card
+              title={
+                <span className="flex items-center gap-2">
+                  <Activity className="w-6 h-6" />
+                  Medical Information
+                </span>
+              }
+            >
               <div className="space-y-4">
                 {patient.medications && patient.medications.length > 0 && (
                   <div>
@@ -590,7 +631,14 @@ const Consultation = () => {
 
             {/* Previous Treatment Plan */}
             {previousPlan && (
-              <Card title={<span className="flex items-center gap-2"><ClipboardCheck className="w-6 h-6" />Previous Treatment Plan</span>}>
+              <Card
+                title={
+                  <span className="flex items-center gap-2">
+                    <ClipboardCheck className="w-6 h-6" />
+                    Previous Treatment Plan
+                  </span>
+                }
+              >
                 <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div>
@@ -639,7 +687,6 @@ const Consultation = () => {
           <InitialAssessment uhid={uhid} embedded={true} />
         )}
 
-
         {/* Physical Exam Tab */}
         {activeTab === "exam" && (
           <PhysicalExamination uhid={uhid} embedded={true} />
@@ -647,8 +694,25 @@ const Consultation = () => {
 
         {/* Consultation Notes Tab */}
         {activeTab === "notes" && (
-          <Card title={<span className="flex items-center gap-2"><MessageSquare className="w-6 h-6" />Consultation Notes</span>}>
+          <Card
+            title={
+              <span className="flex items-center gap-2">
+                <MessageSquare className="w-6 h-6" />
+                Consultation Notes
+              </span>
+            }
+          >
             <div className="space-y-6">
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Note: These notes will be saved with your Diagnosis & Treatment Plan
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  Your consultation notes will be included when you save the Diagnosis & Plan tab. They'll appear in the treatment plan history and printout.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Consultation Notes
@@ -675,65 +739,125 @@ const Consultation = () => {
 
         {/* Diagnosis & Treatment Plan Tab */}
         {activeTab === "diagnosis" && (
-          <Card title={<span className="flex items-center gap-2"><Target className="w-6 h-6" />Diagnosis & Treatment Plan</span>}>
-            <div className="space-y-6">
-              <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg">
-                <p className="text-sm font-semibold text-yellow-800 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  Required for Completion
-                </p>
-                <p className="text-xs text-yellow-700 mt-1">
-                  Both diagnosis and treatment plan must be completed before you
-                  can complete the consultation.
-                </p>
-              </div>
+          <div className="space-y-6">
+            {/* Previous Treatment Plans History */}
+            <TreatmentPlansList patient={patient} showStatistics={false} />
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Diagnosis *
-                </label>
-                <input
-                  type="text"
-                  value={diagnosis}
-                  onChange={(e) => setDiagnosis(e.target.value)}
-                  placeholder="e.g., Type 2 Diabetes Mellitus - Poorly Controlled, Diabetic Neuropathy"
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                />
-              </div>
+            {/* Write New Diagnosis & Treatment Plan */}
+            <Card
+              title={
+                <span className="flex items-center gap-2">
+                  <FileEdit className="w-6 h-6" />
+                  Write New Diagnosis & Treatment Plan
+                </span>
+              }
+            >
+              <div className="space-y-6">
+                <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg">
+                  <p className="text-sm font-semibold text-yellow-800 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    Required for Completion
+                  </p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Both diagnosis and treatment plan must be completed before you
+                    can complete the consultation.
+                  </p>
+                </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Treatment Plan *
-                </label>
-                <VoiceInput
-                  value={treatmentPlan}
-                  onChange={(e) => setTreatmentPlan(e.target.value)}
-                  placeholder="Document treatment plan:
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Diagnosis *
+                  </label>
+                  <input
+                    type="text"
+                    value={diagnosis}
+                    onChange={(e) => setDiagnosis(e.target.value)}
+                    placeholder="e.g., Type 2 Diabetes Mellitus - Poorly Controlled, Diabetic Neuropathy"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Treatment Plan *
+                  </label>
+                  <VoiceInput
+                    value={treatmentPlan}
+                    onChange={(e) => setTreatmentPlan(e.target.value)}
+                    placeholder="Document treatment plan:
 • Medication changes (e.g., Increase Metformin to 1000mg twice daily, Add Glimepiride 2mg)
 • Monitoring instructions (e.g., Check SMBG daily, HbA1c repeat in 3 months)
 • Lifestyle modifications (e.g., Reduce carbs to 45-60g/meal, Walk 30min daily)
 • Follow-up schedule (e.g., Return in 4 weeks, phone check-in at 2 weeks)
 • Referrals (e.g., Ophthalmology for retinopathy screening)"
-                  rows={10}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Include: medication adjustments, monitoring plan, lifestyle
-                  changes, follow-up timeline, referrals needed
-                </p>
-              </div>
+                    rows={10}
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Include: medication adjustments, monitoring plan, lifestyle
+                    changes, follow-up timeline, referrals needed
+                  </p>
+                </div>
 
-              <div className="flex justify-end pt-4 border-t">
-                <Button onClick={handleSaveDiagnosis}>
-                  Save Diagnosis & Plan
-                </Button>
+                <div className="flex justify-end pt-4 border-t">
+                  <Button onClick={handleSaveDiagnosis}>
+                    Save Diagnosis & Plan
+                  </Button>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
+        )}
+
+        {/* Prescriptions Tab */}
+        {activeTab === "prescriptions" && (
+          <div className="space-y-6">
+            {/* Patient's Prescription History */}
+            <Card
+              title={
+                <span className="flex items-center gap-2">
+                  <Pill className="w-6 h-6" />
+                  Prescription History
+                </span>
+              }
+            >
+              <PrescriptionHistory
+                prescriptions={patientPrescriptions}
+                maxDisplay={5}
+                compact={true}
+              />
+            </Card>
+
+            {/* Write New Prescription Form */}
+            <Card
+              title={
+                <span className="flex items-center gap-2">
+                  <FileEdit className="w-6 h-6" />
+                  Write New Prescription
+                </span>
+              }
+            >
+              <NewPrescriptionForm
+                selectedPatient={patient}
+                fromConsultation={true}
+                embedded={true}
+                addPrescription={addPrescription}
+                currentDoctor={currentUser}
+                onSuccess={handlePrescriptionSuccess}
+              />
+            </Card>
+          </div>
         )}
 
         {/* Quick Actions Tab */}
         {activeTab === "actions" && (
-          <Card title={<span className="flex items-center gap-2"><Zap className="w-6 h-6" />Quick Actions</span>}>
+          <Card
+            title={
+              <span className="flex items-center gap-2">
+                <Zap className="w-6 h-6" />
+                Quick Actions
+              </span>
+            }
+          >
             <div className="space-y-6">
               <p className="text-gray-600">
                 Quick access to common actions during consultation:
@@ -848,36 +972,27 @@ const Consultation = () => {
         )}
       </div>
 
-      {/* Fixed Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-lg z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              {!tabsCompleted.diagnosis && (
-                <p className="text-orange-600 font-semibold flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  Complete Diagnosis & Treatment Plan to finish consultation
-                </p>
-              )}
-              {tabsCompleted.diagnosis && (
-                <p className="text-green-600 font-semibold flex items-center gap-2">
-                  <Check className="w-4 h-4" />
-                  Ready to complete consultation
-                </p>
-              )}
-            </div>
-            <Button
-              onClick={handleCompleteConsultation}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-bold"
-              disabled={!tabsCompleted.diagnosis}
-            >
-              <span className="flex items-center gap-2">
-                <Check className="w-5 h-5" />
-                Complete Consultation
-              </span>
-            </Button>
+      {/* Floating Complete Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        {!tabsCompleted.diagnosis && (
+          <div className="mb-3 bg-orange-50 border-2 border-orange-300 rounded-lg p-3 shadow-lg max-w-xs">
+            <p className="text-sm text-orange-700 font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              Complete Diagnosis & Plan to finish
+            </p>
           </div>
-        </div>
+        )}
+
+        <Button
+          onClick={handleCompleteConsultation}
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-4 text-base font-bold shadow-2xl"
+          disabled={!tabsCompleted.diagnosis}
+        >
+          <span className="flex items-center gap-2">
+            <Check className="w-5 h-5" />
+            Complete Consultation
+          </span>
+        </Button>
       </div>
 
       {/* Order Lab Test Modal */}
