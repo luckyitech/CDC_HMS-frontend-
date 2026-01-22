@@ -340,7 +340,7 @@ const Consultation = () => {
     { id: "notes", label: "Notes", icon: MessageSquare },
     { id: "diagnosis", label: "Diagnosis & Plan", icon: Target },
     { id: "prescriptions", label: "Prescriptions", icon: Pill },
-    { id: "actions", label: "Actions", icon: Zap },
+    // { id: "actions", label: "Actions", icon: Zap },
   ];
 
   // Success message overlay
