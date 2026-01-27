@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { usePatientContext } from '../../contexts/PatientContext';
@@ -7,9 +7,10 @@ import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import PhysicalExamEntry from './PhysicalExamEntry';
 import PhysicalExamFindings from './PhysicalExamFindings';
 
-const PhysicalExamination = () => {
+const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { uhid: urlUHID } = useParams();
   const { getPatientByUHID, patients } = usePatientContext();
   const { saveExamination, getLatestExamination, getExaminationById } = usePhysicalExamContext();
   
@@ -17,8 +18,9 @@ const PhysicalExamination = () => {
   const [mode, setMode] = useState('entry');
   const [currentExamination, setCurrentExamination] = useState(null);
 
-  const patientUHID = location.state?.patientUHID;
-  const fromConsultation = location.state?.fromConsultation;
+  // Get patient from URL params OR navigation state (flexible!)
+  const patientUHID = propUHID || urlUHID || location.state?.patientUHID;
+  const fromConsultation = location.state?.fromConsultation || embedded;
   const viewExamId = location.state?.examId;
   const viewMode = location.state?.viewMode;
   const fromProfile = location.state?.fromProfile;
@@ -94,12 +96,12 @@ const PhysicalExamination = () => {
           Physical Examination
         </h2>
         <div className="flex gap-2">
-          {fromConsultation && (
+          {fromConsultation && !embedded && (
             <Button 
               variant="outline" 
               onClick={() => navigate('/doctor/consultations')}
             >
-              ← Back to Consultation
+               Back to Consultation
             </Button>
           )}
           {selectedPatient && mode === 'findings' && (
@@ -107,15 +109,15 @@ const PhysicalExamination = () => {
               variant="outline"
               onClick={() => setMode('entry')}
             >
-              ✏️ New Examination
+              New Examination
             </Button>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Patient Selection (only show if NOT from consultation) */}
-        {!fromConsultation && (
+        {/* Patient Selection (only show if NOT from consultation or profile) */}
+        {!fromConsultation && !fromProfile && !embedded && !patientUHID && (
           <div className="lg:col-span-1">
             <Card title="Select Patient">
               <div className="space-y-2">
@@ -131,7 +133,7 @@ const PhysicalExamination = () => {
                   >
                     <p className="font-bold text-sm text-primary">{patient.uhid}</p>
                     <p className="font-semibold text-sm">{patient.name}</p>
-                    <p className="text-xs text-gray-600">{patient.age} yrs • {patient.gender}</p>
+                    <p className="text-xs text-gray-600">{patient.age} yrs {patient.gender}</p>
                   </button>
                 ))}
               </div>
@@ -144,7 +146,7 @@ const PhysicalExamination = () => {
           {!selectedPatient ? (
             <Card>
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">🩺</div>
+                {/* <div className="text-6xl mb-4">ðŸ©º</div> */}
                 <p className="text-gray-500 text-lg">
                   Select a patient to begin physical examination
                 </p>

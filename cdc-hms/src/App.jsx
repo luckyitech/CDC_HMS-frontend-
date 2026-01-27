@@ -11,6 +11,7 @@ import { InitialAssessmentProvider } from "./contexts/InitialAssessmentContext";
 import { LabProvider } from "./contexts/LabContext";
 import { TreatmentPlanProvider } from "./contexts/TreatmentPlanContext";
 import { AppointmentProvider } from './contexts/AppointmentContext';
+import { ConsultationNotesProvider } from './contexts/ConsultationNotesContext';
 
 import StaffLoginPage from "./pages/auth/StaffLoginPage";
 import DoctorLoginPage from "./pages/auth/DoctorLoginPage";
@@ -29,6 +30,7 @@ import StaffCreatePatient from "./pages/staff/CreatePatient";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import MyPatients from "./pages/doctor/MyPatients";
 import Consultations from "./pages/doctor/Consultations";
+import Consultation from "./pages/doctor/Consultation";
 import DoctorPrescriptions from "./pages/doctor/DoctorPrescriptions";
 import Reports from "./pages/doctor/Reports";
 import InitialAssessment from "./pages/doctor/InitialAssessment";
@@ -65,6 +67,7 @@ import ManageUsers from "./pages/admin/ManageUsers";
 function App() {
   return (
     <BrowserRouter>
+    <ConsultationNotesProvider>
       <LabProvider>
         <InitialAssessmentProvider>
           <PhysicalExamProvider>
@@ -118,6 +121,10 @@ function App() {
                         <Route
                           path="consultations"
                           element={<Consultations />}
+                        />
+                        <Route
+                          path="consultation/:uhid"
+                          element={<Consultation />}
                         />
                         <Route
                           path="initial-assessment"
@@ -221,6 +228,7 @@ function App() {
           </PhysicalExamProvider>
         </InitialAssessmentProvider>
       </LabProvider>
+      </ConsultationNotesProvider>
     </BrowserRouter>
   );
 }

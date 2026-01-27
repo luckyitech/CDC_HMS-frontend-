@@ -1,4 +1,21 @@
 import { useState } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
+import { 
+  ArrowLeft, 
+  User, 
+  Mail, 
+  Phone, 
+  Calendar, 
+  IdCard, 
+  Activity, 
+  MapPin, 
+  AlertCircle, 
+  Shield, 
+  Key, 
+  CheckCircle2,
+  RefreshCw,
+  Sparkles
+} from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
@@ -73,15 +90,50 @@ const CreatePatient = () => {
     const randomNum = Math.floor(Math.random() * 900) + 100; // 100-999
     const uhid = `CDC${randomNum}`;
     setGeneratedUHID(uhid);
+    
+    toast.success('UHID Generated Successfully!', {
+      duration: 3000,
+      icon: <Sparkles className="w-5 h-5" />,
+      style: {
+        background: '#DBEAFE',
+        color: '#1E40AF',
+        fontWeight: 'bold',
+        padding: '16px',
+      },
+    });
+    
     return uhid;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validation
+    // Validation with toast notifications
     if (!patientData.firstName || !patientData.lastName || !patientData.email || !patientData.phone) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields', {
+        duration: 4000,
+        icon: <AlertCircle className="w-5 h-5" />,
+        style: {
+          background: '#FEE2E2',
+          color: '#991B1B',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
+      return;
+    }
+
+    if (!generatedUHID) {
+      toast.error('Please generate UHID first', {
+        duration: 4000,
+        icon: <AlertCircle className="w-5 h-5" />,
+        style: {
+          background: '#FEE2E2',
+          color: '#991B1B',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
@@ -124,7 +176,32 @@ const CreatePatient = () => {
     
     addPatient(newPatient);
     
-    alert(`Patient account created successfully!\n\nUHID: ${uhid}\nName: ${patientData.firstName} ${patientData.lastName}\nEmail: ${patientData.email}\nDiabetes Type: ${patientData.diabetesType}\nPrimary Doctor: ${patientData.primaryDoctor}\n\nLogin credentials have been sent to the patient's email and SMS.`);
+    // Success toast with details
+    toast.success('Patient Account Created Successfully!', {
+      duration: 4000,
+      icon: <CheckCircle2 className="w-5 h-5" />,
+      style: {
+        background: '#D1FAE5',
+        color: '#065F46',
+        fontWeight: 'bold',
+        padding: '16px',
+      },
+    });
+
+    // Info toast with credentials
+    toast(
+      `Credentials sent to ${patientData.email}`,
+      {
+        duration: 5000,
+        icon: <Mail className="w-5 h-5" />,
+        style: {
+          background: '#DBEAFE',
+          color: '#1E40AF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      }
+    );
     
     // Reset form
     setPatientData({
@@ -136,12 +213,33 @@ const CreatePatient = () => {
       username: '', temporaryPassword: '',
     });
     setGeneratedUHID('');
+    
+    // Navigate after delay
+    setTimeout(() => navigate('/staff/dashboard'), 2000);
   };
 
   const generateUsername = () => {
     if (patientData.firstName && patientData.lastName) {
       const username = `${patientData.firstName.toLowerCase()}.${patientData.lastName.toLowerCase()}`;
       setPatientData({ ...patientData, username });
+      
+      toast.success('Username generated!', {
+        duration: 2000,
+        style: {
+          background: '#D1FAE5',
+          color: '#065F46',
+          padding: '12px',
+        },
+      });
+    } else {
+      toast.error('Please enter first and last name first', {
+        duration: 3000,
+        style: {
+          background: '#FEE2E2',
+          color: '#991B1B',
+          padding: '12px',
+        },
+      });
     }
   };
 
@@ -152,33 +250,49 @@ const CreatePatient = () => {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setPatientData({ ...patientData, temporaryPassword: password });
+    
+    toast.success('Secure password generated!', {
+      duration: 2000,
+      style: {
+        background: '#D1FAE5',
+        color: '#065F46',
+        padding: '12px',
+      },
+    });
   };
 
   return (
     <div>
+      <Toaster position="top-right" />
+      
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Patient Account</h2>
           <p className="text-gray-600 mt-1">Register new patient in the system</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
+        <Button variant="outline" onClick={() => navigate('/staff/dashboard')}>
+          {/* <ArrowLeft className="w-4 h-4 mr-2" /> */}
           Back to Dashboard
         </Button>
       </div>
 
       {/* UHID Display */}
       {generatedUHID && (
-        <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-500 rounded-lg">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 p-4 lg:p-6 bg-blue-50 border-2 border-blue-500 rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <p className="text-sm text-gray-700 font-semibold">Generated UHID (Universal Health ID)</p>
+              <p className="text-sm text-gray-700 font-semibold flex items-center gap-2">
+                <IdCard className="w-4 h-4" />
+                Generated UHID (Universal Health ID)
+              </p>
               <p className="text-3xl font-bold text-primary mt-2">{generatedUHID}</p>
             </div>
             <button
               type="button"
               onClick={generateUHID}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold"
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold flex items-center gap-2"
             >
+              <RefreshCw className="w-4 h-4" />
               Generate New
             </button>
           </div>
@@ -188,6 +302,7 @@ const CreatePatient = () => {
       {!generatedUHID && (
         <div className="mb-6">
           <Button onClick={generateUHID} className="w-full sm:w-auto">
+            {/* <Sparkles className="w-4 h-4 mr-2" /> */}
             Generate UHID First
           </Button>
         </div>
@@ -195,7 +310,12 @@ const CreatePatient = () => {
 
       <form onSubmit={handleSubmit}>
         {/* Personal Information */}
-        <Card title="Personal Information" className="mb-6">
+        <Card title={
+          <span className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Personal Information
+          </span>
+        } className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="First Name *"
@@ -268,7 +388,12 @@ const CreatePatient = () => {
         </Card>
 
         {/* Medical Information */}
-        <Card title="Medical Information" className="mb-6">
+        <Card title={
+          <span className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Medical Information
+          </span>
+        } className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Diagnosis</label>
@@ -318,7 +443,12 @@ const CreatePatient = () => {
         </Card>
 
         {/* Contact Information */}
-        <Card title="Contact Information" className="mb-6">
+        <Card title={
+          <span className="flex items-center gap-2">
+            <MapPin className="w-5 h-5" />
+            Contact Information
+          </span>
+        } className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-2">Residential Address</label>
@@ -342,7 +472,12 @@ const CreatePatient = () => {
         </Card>
 
         {/* Emergency Contact */}
-        <Card title="Emergency Contact" className="mb-6">
+        <Card title={
+          <span className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" />
+            Emergency Contact
+          </span>
+        } className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input
               label="Contact Name *"
@@ -374,7 +509,12 @@ const CreatePatient = () => {
         </Card>
 
         {/* Insurance Information */}
-        <Card title="Insurance Information" className="mb-6">
+        <Card title={
+          <span className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Insurance Information
+          </span>
+        } className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Insurance Provider</label>
@@ -415,7 +555,12 @@ const CreatePatient = () => {
         </Card>
 
         {/* Account Settings */}
-        <Card title="Account Settings" className="mb-6">
+        <Card title={
+          <span className="flex items-center gap-2">
+            <Key className="w-5 h-5" />
+            Account Settings
+          </span>
+        } className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Input
@@ -429,8 +574,9 @@ const CreatePatient = () => {
               <button
                 type="button"
                 onClick={generateUsername}
-                className="mt-2 text-xs text-primary hover:underline"
+                className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
               >
+                <RefreshCw className="w-3 h-3" />
                 Generate from name
               </button>
             </div>
@@ -447,17 +593,21 @@ const CreatePatient = () => {
               <button
                 type="button"
                 onClick={generatePassword}
-                className="mt-2 text-xs text-primary hover:underline"
+                className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
               >
+                <Key className="w-3 h-3" />
                 Generate secure password
               </button>
             </div>
 
             <div className="md:col-span-2 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
-              <p className="text-sm text-gray-700">
-                <strong>Note:</strong> The UHID, username, and temporary password will be sent to the patient via email and SMS. 
-                Patient must change password on first login.
-              </p>
+              <div className="flex gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-gray-700">
+                  <strong>Note:</strong> The UHID, username, and temporary password will be sent to the patient via email and SMS. 
+                  Patient must change password on first login.
+                </p>
+              </div>
             </div>
           </div>
         </Card>
@@ -465,32 +615,32 @@ const CreatePatient = () => {
         {/* Patient Portal Access */}
         <Card title="Patient Portal Access" className="mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-gray-700 mb-3">
-              <strong>Patient will have access to:</strong>
+            <p className="text-sm text-gray-700 mb-3 font-semibold">
+              Patient will have access to:
             </p>
             <ul className="space-y-2 text-sm text-gray-700">
               <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5"></span>
+                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                 <span>Log blood sugar readings (7 times daily)</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5"></span>
+                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                 <span>View blood sugar trends and statistics</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5"></span>
+                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                 <span>View prescriptions from doctors</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5"></span>
+                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                 <span>Book, reschedule, and cancel appointments</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5"></span>
+                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                 <span>View and download lab results</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-green-600 mt-0.5"></span>
+                <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                 <span>Upload external lab results and medical documents</span>
               </li>
             </ul>
@@ -502,7 +652,7 @@ const CreatePatient = () => {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/admin/dashboard')}
+            onClick={() => navigate('/staff/dashboard')}
             className="flex-1"
           >
             Cancel
@@ -512,6 +662,7 @@ const CreatePatient = () => {
             className="flex-1 bg-green-600 hover:bg-green-700"
             disabled={!generatedUHID}
           >
+            {/* <CheckCircle2 className="w-4 h-4 mr-2" /> */}
             Create Patient Account
           </Button>
         </div>

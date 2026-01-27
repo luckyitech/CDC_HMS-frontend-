@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
@@ -7,15 +7,18 @@ import { usePatientContext } from "../../contexts/PatientContext";
 import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
 import { useUserContext } from "../../contexts/UserContext";
 
-const InitialAssessment = () => {
+const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { uhid: urlUHID } = useParams();
   const { getPatientByUHID, patients } = usePatientContext();
   const { saveAssessment, getLatestAssessment } = useInitialAssessmentContext();
   const { currentUser } = useUserContext();
 
-  const patientUHID = location.state?.patientUHID;
-  const fromConsultation = location.state?.fromConsultation;
+  // Get patient from URL params OR navigation state (flexible!)
+  const patientUHID = propUHID || urlUHID || location.state?.patientUHID;
+  const fromConsultation = location.state?.fromConsultation || embedded;
+  const fromProfile = location.state?.fromProfile;
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [alreadyAssessed, setAlreadyAssessed] = useState(false);
@@ -135,7 +138,7 @@ const InitialAssessment = () => {
     const successDiv = document.createElement("div");
     successDiv.className =
       "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce";
-    successDiv.innerHTML = `✅ Initial Assessment completed for ${selectedPatient.name}!`;
+    successDiv.innerHTML = `âœ… Initial Assessment completed for ${selectedPatient.name}!`;
     document.body.appendChild(successDiv);
     setTimeout(() => successDiv.remove(), 3000);
 
@@ -153,21 +156,21 @@ const InitialAssessment = () => {
         <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
           Initial Diabetic Assessment
         </h2>
-        {fromConsultation && (
+        {fromConsultation && !embedded && (
           <Button
             variant="outline"
             onClick={() => navigate("/doctor/consultations")}
           >
-            ← Back to Consultation
+            Back to Consultation
           </Button>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Patient Selection (only show if NOT from consultation) */}
-        {!fromConsultation && (
+       {/* Patient Selection (only show if NOT from consultation or profile) */}
+        {!fromConsultation && !fromProfile && !embedded && !patientUHID && (
           <div className="lg:col-span-1">
-            <Card title="👥 Select Patient">
+            <Card title=" Select Patient">
               <div className="space-y-3">
                 {allPatients.map((patient) => (
                   <button
@@ -186,7 +189,7 @@ const InitialAssessment = () => {
                           {patient.name}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
-                          {patient.age} yrs • {patient.gender}
+                          {patient.age} yrs â€¢ {patient.gender}
                         </p>
                       </div>
                     </div>
@@ -202,7 +205,8 @@ const InitialAssessment = () => {
           {!selectedPatient ? (
             <Card>
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">👈</div>
+                <div className="text-6xl mb-4">
+                </div>
                 <p className="text-gray-500 text-lg">
                   Select a patient to start initial assessment
                 </p>
@@ -211,7 +215,7 @@ const InitialAssessment = () => {
           ) : alreadyAssessed ? (
             <Card>
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">✅</div>
+                <div className="text-6xl mb-4">âœ…</div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-2">
                   Initial Assessment Already Completed
                 </h3>
@@ -220,13 +224,13 @@ const InitialAssessment = () => {
                 </p>
                 <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded max-w-md mx-auto mb-6">
                   <p className="text-sm text-blue-800">
-                    <strong>ℹ️ Note:</strong> Initial Assessment is a one-time comprehensive evaluation for new patients.
+                    <strong>â„¹ï¸ Note:</strong> Initial Assessment is a one-time comprehensive evaluation for new patients.
                     For ongoing evaluations, please use:
                   </p>
                   <ul className="text-sm text-blue-800 mt-2 space-y-1 text-left">
-                    <li>• <strong>Physical Examination</strong> - For detailed body system checks</li>
-                    <li>• <strong>Consultations</strong> - For follow-up visits</li>
-                    <li>• <strong>Prescriptions</strong> - For medication management</li>
+                    <li>â€¢ <strong>Physical Examination</strong> - For detailed body system checks</li>
+                    <li>â€¢ <strong>Consultations</strong> - For follow-up visits</li>
+                    <li>â€¢ <strong>Prescriptions</strong> - For medication management</li>
                   </ul>
                 </div>
                 <div className="flex gap-3 justify-center">
@@ -237,7 +241,7 @@ const InitialAssessment = () => {
                       })
                     }
                   >
-                    📄 View Patient Profile
+                    View Patient Profile
                   </Button>
                   <Button
                     variant="outline"
@@ -245,7 +249,7 @@ const InitialAssessment = () => {
                       state: { patientUHID: selectedPatient.uhid, fromConsultation: false }
                     })}
                   >
-                    🩺 Physical Examination
+                    Physical Examination
                   </Button>
                   {!fromConsultation && (
                     <Button
@@ -255,15 +259,15 @@ const InitialAssessment = () => {
                         setAlreadyAssessed(false);
                       }}
                     >
-                      ← Back
+                      Back
                     </Button>
                   )}
-                  {fromConsultation && (
+                  {fromConsultation && !embedded && (
                     <Button
                       variant="outline"
                       onClick={() => navigate("/doctor/consultations")}
                     >
-                      ← Back to Consultation
+                      Back to Consultation
                     </Button>
                   )}
                 </div>
@@ -277,7 +281,7 @@ const InitialAssessment = () => {
                   {selectedPatient.name}
                 </h3>
                 <p className="text-gray-600 mt-1">
-                  {selectedPatient.uhid} • {selectedPatient.age} yrs •{" "}
+                  {selectedPatient.uhid} {selectedPatient.age} yrs {" "}
                   {selectedPatient.gender}
                 </p>
               </Card>
@@ -661,7 +665,7 @@ const InitialAssessment = () => {
               {/* Submit Buttons */}
               <div className="flex gap-4">
                 <Button type="submit" className="flex-1">
-                  💾 Save Initial Assessment
+                  Save Initial Assessment
                 </Button>
                 {fromConsultation ? (
                   <Button
@@ -670,7 +674,7 @@ const InitialAssessment = () => {
                     onClick={() => navigate("/doctor/consultations")}
                     className="flex-1"
                   >
-                    ← Return to Consultation
+                    Return to Consultation
                   </Button>
                 ) : (
                   <Button

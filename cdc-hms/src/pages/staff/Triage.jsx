@@ -1,6 +1,11 @@
-import { useState } from "react";
-import toast, { Toaster } from 'react-hot-toast';
-import { UserSquare2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from "react";
+import toast, { Toaster } from "react-hot-toast";
+import {
+  UserSquare2,
+  CheckCircle2,
+  AlertCircle,
+  UserCircle,
+} from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
@@ -12,7 +17,8 @@ import { useAppointmentContext } from "../../contexts/AppointmentContext";
 const Triage = () => {
   const { currentUser, getDoctors } = useUserContext();
   const { getPatientByUHID, updatePatientVitals } = usePatientContext();
-  const { getQueueByStatus, updateQueueStatus } = useQueueContext();
+  const { getQueueByStatus, updateQueueStatus, assignDoctorToQueue } =
+    useQueueContext();
   const { getTodayAppointment, checkInAppointment } = useAppointmentContext();
 
   const [selectedPatient, setSelectedPatient] = useState(null);
@@ -30,6 +36,19 @@ const Triage = () => {
     ketones: "",
   });
   const [chiefComplaint, setChiefComplaint] = useState("");
+  // Auto-save triage data to localStorage
+  useEffect(() => {
+    if (selectedPatient) {
+      const triageKey = `triage_draft_${selectedPatient.uhid}`;
+      const draftData = {
+        vitals,
+        chiefComplaint,
+        assignedDoctor,
+        timestamp: new Date().toISOString(),
+      };
+      localStorage.setItem(triageKey, JSON.stringify(draftData));
+    }
+  }, [vitals, chiefComplaint, assignedDoctor, selectedPatient]);
 
   // Calculate BMI
   const calculateBMI = () => {
@@ -59,39 +78,144 @@ const Triage = () => {
     const appointment = getTodayAppointment(uhid);
     setTodayAppointment(appointment);
 
-    // Pre-select doctor if appointment exists
-    if (appointment) {
-      setAssignedDoctor(appointment.doctorId.toString());
-    } else {
-      setAssignedDoctor("");
-    }
-
-    // Update queue status to "In Triage" - ORIGINAL BEHAVIOR
+    // Update queue status to "In Triage"
     updateQueueStatus(uhid, "In Triage");
 
-    // Reset form
-    setVitals({
-      bloodPressure: "",
-      heartRate: "",
-      temperature: "",
-      weight: "",
-      height: "",
-      oxygenSaturation: "",
-      rbs: "",
-      hba1c: "",
-      ketones: "",
-    });
-    setChiefComplaint("");
+    // Check for saved draft data in localStorage
+    const triageKey = `triage_draft_${uhid}`;
+    const savedDraft = localStorage.getItem(triageKey);
+
+    if (savedDraft) {
+      // Restore saved data
+      const draftData = JSON.parse(savedDraft);
+      setVitals(draftData.vitals);
+      setChiefComplaint(draftData.chiefComplaint);
+      setAssignedDoctor(draftData.assignedDoctor || "");
+
+      // Show toast notification
+      toast.info("📋 Draft data restored from previous session", {
+        duration: 3000,
+        style: {
+          background: "#DBEAFE",
+          color: "#1E40AF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+    } else {
+      // No saved data - start fresh
+      // Pre-select doctor if appointment exists
+      if (appointment) {
+        setAssignedDoctor(appointment.doctorId.toString());
+      } else {
+        setAssignedDoctor("");
+      }
+
+      // Reset form
+      setVitals({
+        bloodPressure: "",
+        heartRate: "",
+        temperature: "",
+        weight: "",
+        height: "",
+        oxygenSaturation: "",
+        rbs: "",
+        hba1c: "",
+        ketones: "",
+      });
+      setChiefComplaint("");
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validate doctor assignment
+    // Validate all required fields with toast notifications
     if (!assignedDoctor) {
-      toast.error("Please select a doctor to assign the patient to");
+      toast.error(" Please select a doctor to assign the patient to", {
+        duration: 4000,
+        style: {
+          background: "#FEE2E2",
+          color: "#991B1B",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+      // Scroll to doctor select
+      document.querySelector("select")?.focus();
       return;
     }
+
+    if (!chiefComplaint.trim()) {
+      toast.error(" Please enter the reason for visit", {
+        duration: 4000,
+        style: {
+          background: "#FEE2E2",
+          color: "#991B1B",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+      // Scroll to and focus textarea
+      document.querySelector("textarea")?.focus();
+      return;
+    }
+
+    if (!vitals.bloodPressure.trim()) {
+      toast.error(" Please enter blood pressure", {
+        duration: 4000,
+        style: {
+          background: "#FEE2E2",
+          color: "#991B1B",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+      // Focus first vital input
+      document.querySelector('input[placeholder*="mmHg"]')?.focus();
+      return;
+    }
+
+    if (!vitals.heartRate) {
+      toast.error("Please enter heart rate", {
+        duration: 4000,
+        style: {
+          background: "#FEE2E2",
+          color: "#991B1B",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+      // Focus heart rate input
+      document.querySelector('input[placeholder*="bpm"]')?.focus();
+      return;
+    }
+
+    if (!vitals.temperature) {
+      toast.error("Please enter temperature", {
+        duration: 4000,
+        style: {
+          background: "#FEE2E2",
+          color: "#991B1B",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+      // Focus temperature input
+      document.querySelector('input[placeholder*="°C"]')?.focus();
+      return;
+    }
+
+    // All validations passed - show success toast
+    toast.success("Validation passed! Completing triage...", {
+      duration: 2000,
+      style: {
+        background: "#D1FAE5",
+        color: "#065F46",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
 
     // Prepare triage data
     const triageData = {
@@ -109,7 +233,8 @@ const Triage = () => {
       lastTriageDate: new Date().toISOString(),
       triageBy: currentUser?.name || "Staff",
       assignedDoctorId: parseInt(assignedDoctor),
-      assignedDoctorName: allDoctors.find(d => d.id === parseInt(assignedDoctor))?.name || '',
+      assignedDoctorName:
+        allDoctors.find((d) => d.id === parseInt(assignedDoctor))?.name || "",
     };
 
     // Save vitals to patient record
@@ -118,23 +243,46 @@ const Triage = () => {
     // Update queue status to "With Doctor" - ORIGINAL BEHAVIOR
     updateQueueStatus(selectedPatient.uhid, "With Doctor");
 
+    // Assign doctor to queue item
+    assignDoctorToQueue(
+      selectedPatient.uhid,
+      parseInt(assignedDoctor),
+      allDoctors.find((d) => d.id === parseInt(assignedDoctor))?.name || ""
+    );
+
     // Check-in appointment if exists
     if (todayAppointment) {
       checkInAppointment(selectedPatient.uhid);
     }
 
     if (result.success) {
-      const doctorName = allDoctors.find(d => d.id === parseInt(assignedDoctor))?.name;
-      
-      toast.success(
-        `Triage completed for ${selectedPatient.name}!`,
-        { duration: 3000 }
-      );
+      const doctorName = allDoctors.find(
+        (d) => d.id === parseInt(assignedDoctor)
+      )?.name;
 
-      toast(
-        `Patient assigned to ${doctorName}`,
-        { duration: 3000, icon: '👨‍⚕️' }
-      );
+      toast.success(`Triage completed for ${selectedPatient.name}!`, {
+        duration: 3000,
+        style: {
+          background: "#D1FAE5",
+          color: "#065F46",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+
+      toast.success(` Patient assigned to ${doctorName}`, {
+        duration: 3000,
+        style: {
+          background: "#DBEAFE",
+          color: "#1E40AF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+
+      // Clear the draft from localStorage
+      const triageKey = `triage_draft_${selectedPatient.uhid}`;
+      localStorage.removeItem(triageKey);
     }
 
     setSelectedPatient(null);
@@ -144,26 +292,43 @@ const Triage = () => {
 
   const handleCancel = () => {
     if (selectedPatient) {
+      const patientName = selectedPatient.name;
+
+      // Clear the draft from localStorage
+      const triageKey = `triage_draft_${selectedPatient.uhid}`;
+      localStorage.removeItem(triageKey);
+
       // Move patient back to "Waiting" - ORIGINAL BEHAVIOR
       updateQueueStatus(selectedPatient.uhid, "Waiting");
       setSelectedPatient(null);
       setTodayAppointment(null);
       setAssignedDoctor("");
+
+      // Show cancellation toast
+      toast.info(` Triage cancelled - ${patientName} moved back to waiting`, {
+        duration: 3000,
+        style: {
+          background: "#FEF3C7",
+          color: "#92400E",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
     }
   };
 
   return (
     <div>
-      <Toaster 
+      <Toaster
         position="top-right"
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#fff',
-            color: '#374151',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            borderRadius: '0.5rem',
-            padding: '16px',
+            background: "#fff",
+            color: "#374151",
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+            borderRadius: "0.5rem",
+            padding: "16px",
           },
         }}
       />
@@ -199,7 +364,7 @@ const Triage = () => {
                       {patient.name}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {patient.age} yrs • {patient.gender}
+                      {patient.age} yrs {patient.gender}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       Arrived: {patient.arrivalTime}
@@ -219,13 +384,21 @@ const Triage = () => {
             <Card title="In Triage" className="mt-4">
               <div className="space-y-2">
                 {inTriagePatients.map((patient) => (
-                  <div
+                  <button
                     key={patient.id}
-                    className="p-3 bg-blue-50 rounded-lg border border-blue-200"
+                    onClick={() => handleSelectPatient(patient.uhid)}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition ${
+                      selectedPatient?.uhid === patient.uhid
+                        ? "border-primary bg-blue-100"
+                        : "border-blue-200 bg-blue-50 hover:border-blue-400 hover:bg-blue-100"
+                    }`}
                   >
                     <p className="font-semibold text-sm">{patient.name}</p>
                     <p className="text-xs text-gray-600">{patient.uhid}</p>
-                  </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Click to continue triage
+                    </p>
+                  </button>
                 ))}
               </div>
             </Card>
@@ -237,14 +410,22 @@ const Triage = () => {
           {!selectedPatient ? (
             <Card>
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">👈</div>
+                <div className="flex justify-center mb-4">
+                  <UserCircle className="w-20 h-20 text-gray-400" />
+                </div>
                 <p className="text-gray-500 text-lg">
                   Select a patient to start triage
                 </p>
               </div>
             </Card>
           ) : (
-            <form onSubmit={handleSubmit}>
+            <form
+              onSubmit={handleSubmit}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.target.tagName !== "TEXTAREA")
+                  e.preventDefault();
+              }}
+            >
               <Card title={`Triage - ${selectedPatient.name}`}>
                 <div className="space-y-6">
                   {/* Patient Info */}
@@ -259,7 +440,7 @@ const Triage = () => {
                       <div>
                         <p className="text-sm text-gray-600">Age / Gender</p>
                         <p className="font-semibold">
-                          {selectedPatient.age} yrs • {selectedPatient.gender}
+                          {selectedPatient.age} yrs â€¢ {selectedPatient.gender}
                         </p>
                       </div>
                       <div>
@@ -302,13 +483,16 @@ const Triage = () => {
                             <div>
                               <p className="text-gray-600">Type</p>
                               <p className="font-semibold text-gray-800 capitalize">
-                                {todayAppointment.appointmentType.replace('-', ' ')}
+                                {todayAppointment.appointmentType.replace(
+                                  "-",
+                                  " "
+                                )}
                               </p>
                             </div>
                             <div>
                               <p className="text-gray-600">Reason</p>
                               <p className="font-semibold text-gray-800">
-                                {todayAppointment.reason || 'N/A'}
+                                {todayAppointment.reason || "N/A"}
                               </p>
                             </div>
                           </div>
@@ -320,8 +504,12 @@ const Triage = () => {
                       <div className="flex items-start gap-3">
                         <AlertCircle className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
                         <div>
-                          <p className="font-bold text-blue-800">Walk-in Patient</p>
-                          <p className="text-sm text-blue-700">No appointment scheduled for today</p>
+                          <p className="font-bold text-blue-800">
+                            Walk-in Patient
+                          </p>
+                          <p className="text-sm text-blue-700">
+                            No appointment scheduled for today
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -342,19 +530,24 @@ const Triage = () => {
                       value={assignedDoctor}
                       onChange={(e) => setAssignedDoctor(e.target.value)}
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary font-semibold"
-                      required
                     >
                       <option value="">Select a doctor...</option>
                       {allDoctors.map((doctor) => (
                         <option key={doctor.id} value={doctor.id}>
-                          {doctor.name} - {doctor.specialty || 'General Physician'}
+                          {doctor.name} -{" "}
+                          {doctor.specialty || "General Physician"}
                         </option>
                       ))}
                     </select>
                     {assignedDoctor && (
                       <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
-                        Patient will be assigned to {allDoctors.find(d => d.id === parseInt(assignedDoctor))?.name}
+                        Patient will be assigned to{" "}
+                        {
+                          allDoctors.find(
+                            (d) => d.id === parseInt(assignedDoctor)
+                          )?.name
+                        }
                       </p>
                     )}
                   </div>
@@ -370,7 +563,6 @@ const Triage = () => {
                       placeholder="Patient's main reason for visit..."
                       rows="3"
                       className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                      required
                     />
                   </div>
 
@@ -391,63 +583,78 @@ const Triage = () => {
                           })
                         }
                         placeholder="120/80 mmHg"
-                        required
                       />
 
                       <Input
                         label="Heart Rate *"
                         type="number"
+                        min="0"
                         value={vitals.heartRate}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, heartRate: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Only allow positive numbers or empty string
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, heartRate: value });
+                          }
+                        }}
                         placeholder="bpm"
-                        required
                       />
 
                       <Input
                         label="Temperature *"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.temperature}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, temperature: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, temperature: value });
+                          }
+                        }}
                         placeholder="°C"
-                        required
                       />
 
                       <Input
                         label="Oxygen Saturation"
                         type="number"
+                        min="0"
                         value={vitals.oxygenSaturation}
-                        onChange={(e) =>
-                          setVitals({
-                            ...vitals,
-                            oxygenSaturation: e.target.value,
-                          })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, oxygenSaturation: value });
+                          }
+                        }}
                         placeholder="%"
                       />
 
                       <Input
                         label="Weight"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.weight}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, weight: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, weight: value });
+                          }
+                        }}
                         placeholder="kg"
                       />
 
                       <Input
                         label="Height"
                         type="number"
+                        min="0"
                         value={vitals.height}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, height: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, height: value });
+                          }
+                        }}
                         placeholder="cm"
                       />
 
@@ -477,33 +684,45 @@ const Triage = () => {
                       <Input
                         label="RBS (Random Blood Sugar)"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.rbs}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, rbs: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, rbs: value });
+                          }
+                        }}
                         placeholder="mg/dL"
                       />
 
                       <Input
                         label="HbA1c"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.hba1c}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, hba1c: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, hba1c: value });
+                          }
+                        }}
                         placeholder="%"
                       />
 
                       <Input
                         label="Ketones"
                         type="number"
+                        min="0"
                         step="0.1"
                         value={vitals.ketones}
-                        onChange={(e) =>
-                          setVitals({ ...vitals, ketones: e.target.value })
-                        }
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, ketones: value });
+                          }
+                        }}
                         placeholder="mmol/L"
                       />
                     </div>
