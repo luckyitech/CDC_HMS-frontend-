@@ -18,6 +18,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   // Get patient from URL params OR navigation state (flexible!)
   const patientUHID = propUHID || urlUHID || location.state?.patientUHID;
   const fromConsultation = location.state?.fromConsultation || embedded;
+  const fromProfile = location.state?.fromProfile;
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [alreadyAssessed, setAlreadyAssessed] = useState(false);
@@ -160,14 +161,14 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
             variant="outline"
             onClick={() => navigate("/doctor/consultations")}
           >
-            â† Back to Consultation
+            Back to Consultation
           </Button>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Patient Selection (only show if NOT from consultation) */}
-        {!fromConsultation && (
+       {/* Patient Selection (only show if NOT from consultation or profile) */}
+        {!fromConsultation && !fromProfile && !embedded && !patientUHID && (
           <div className="lg:col-span-1">
             <Card title=" Select Patient">
               <div className="space-y-3">

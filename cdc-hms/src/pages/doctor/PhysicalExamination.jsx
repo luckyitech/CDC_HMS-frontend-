@@ -116,8 +116,8 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Patient Selection (only show if NOT from consultation) */}
-        {!fromConsultation && (
+        {/* Patient Selection (only show if NOT from consultation or profile) */}
+        {!fromConsultation && !fromProfile && !embedded && !patientUHID && (
           <div className="lg:col-span-1">
             <Card title="Select Patient">
               <div className="space-y-2">

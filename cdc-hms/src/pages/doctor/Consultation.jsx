@@ -30,12 +30,14 @@ import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentCon
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
+import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamination from "./PhysicalExamination";
 import NewPrescriptionForm from "../../components/doctor/NewPrescriptionForm";
 import PrescriptionHistory from "../../components/doctor/PrescriptionHistory";
 import TreatmentPlansList from "../../components/doctor/TreatmentPlansList";
+import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 
 const Consultation = () => {
   const { uhid } = useParams();
@@ -47,7 +49,10 @@ const Consultation = () => {
   const { saveAssessment, getLatestAssessment } = useInitialAssessmentContext();
   const { saveExamination, getLatestExamination } = usePhysicalExamContext();
   const { addTreatmentPlan, getLatestPlan } = useTreatmentPlanContext();
-  const { getPrescriptionsByPatient, addPrescription } = usePrescriptionContext();
+  const { getPrescriptionsByPatient, addPrescription } =
+    usePrescriptionContext();
+  const { getNotesByPatient, searchNotes, addNote } =
+    useConsultationNotesContext();
 
   // Get patient data
   const patient = getPatientByUHID(uhid);
@@ -97,9 +102,6 @@ const Consultation = () => {
   const [musculoskeletal, setMusculoskeletal] = useState("");
   const [skin, setSkin] = useState("");
   const [examFindings, setExamFindings] = useState("");
-
-  // Consultation Notes tab data
-  const [consultationNotes, setConsultationNotes] = useState("");
 
   // Diagnosis & Treatment Plan tab data
   const [diagnosis, setDiagnosis] = useState("");
@@ -155,7 +157,6 @@ const Consultation = () => {
         musculoskeletal !== "" ||
         skin !== "" ||
         examFindings !== "",
-      notes: consultationNotes !== "",
       diagnosis: diagnosis !== "" || treatmentPlan !== "",
       prescriptions: false, // Handled by component
     });
@@ -173,7 +174,6 @@ const Consultation = () => {
     musculoskeletal,
     skin,
     examFindings,
-    consultationNotes,
     diagnosis,
     treatmentPlan,
   ]);
@@ -220,7 +220,7 @@ const Consultation = () => {
     const toast = document.createElement("div");
     toast.className =
       "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "✅ Assessment Saved";
+    toast.innerHTML = "âœ… Assessment Saved";
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
   };
@@ -247,22 +247,9 @@ const Consultation = () => {
     const toast = document.createElement("div");
     toast.className =
       "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "✅ Physical Exam Saved";
+    toast.innerHTML = "âœ… Physical Exam Saved";
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
-  };
-
-  const handleSaveNotes = () => {
-    setTabsCompleted({ ...tabsCompleted, notes: true });
-    setTabsUnsaved({ ...tabsUnsaved, notes: false });
-
-    // Show success toast
-    const toast = document.createElement("div");
-    toast.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "✅ Notes Marked Complete (Will save with Diagnosis & Plan)";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
   };
 
   const handleSaveDiagnosis = () => {
@@ -281,7 +268,6 @@ const Consultation = () => {
       doctorName: currentUser?.name || "Doctor",
       diagnosis: diagnosis,
       plan: treatmentPlan,
-      notes: consultationNotes, // Include consultation notes
     });
 
     setTabsCompleted({ ...tabsCompleted, diagnosis: true });
@@ -291,7 +277,7 @@ const Consultation = () => {
     const toast = document.createElement("div");
     toast.className =
       "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "✅ Diagnosis & Plan Saved";
+    toast.innerHTML = "âœ… Diagnosis & Plan Saved";
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
   };
@@ -340,7 +326,7 @@ const Consultation = () => {
     { id: "notes", label: "Notes", icon: MessageSquare },
     { id: "diagnosis", label: "Diagnosis & Plan", icon: Target },
     { id: "prescriptions", label: "Prescriptions", icon: Pill },
-    // { id: "actions", label: "Actions", icon: Zap },
+    { id: "actions", label: "Actions", icon: Zap },
   ];
 
   // Success message overlay
@@ -377,7 +363,7 @@ const Consultation = () => {
                 Consultation - {patient.name}
               </h2>
               <p className="text-gray-600 mt-1">
-                UHID: {patient.uhid} • {patient.age} yrs • {patient.gender}
+                UHID: {patient.uhid} â€¢ {patient.age} yrs â€¢ {patient.gender}
               </p>
             </div>
             <Button
@@ -385,7 +371,7 @@ const Consultation = () => {
               onClick={() => navigate("/doctor/dashboard")}
               className="w-full sm:w-auto"
             >
-              ← Back to Dashboard
+              Back to Dashboard
             </Button>
           </div>
         </div>
@@ -655,7 +641,7 @@ const Consultation = () => {
                             year: "numeric",
                           }
                         )}{" "}
-                        • {previousPlan.time} • By {previousPlan.doctorName}
+                        â€¢ {previousPlan.time} â€¢ By {previousPlan.doctorName}
                       </p>
                     </div>
                     <span
@@ -693,49 +679,7 @@ const Consultation = () => {
         )}
 
         {/* Consultation Notes Tab */}
-        {activeTab === "notes" && (
-          <Card
-            title={
-              <span className="flex items-center gap-2">
-                <MessageSquare className="w-6 h-6" />
-                Consultation Notes
-              </span>
-            }
-          >
-            <div className="space-y-6">
-              <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
-                <p className="text-sm font-semibold text-blue-800 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  Note: These notes will be saved with your Diagnosis & Treatment Plan
-                </p>
-                <p className="text-xs text-blue-700 mt-1">
-                  Your consultation notes will be included when you save the Diagnosis & Plan tab. They'll appear in the treatment plan history and printout.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Consultation Notes
-                </label>
-                <VoiceInput
-                  value={consultationNotes}
-                  onChange={(e) => setConsultationNotes(e.target.value)}
-                  placeholder="Document your clinical impression, reasoning, patient education provided, and any other relevant information from today's consultation..."
-                  rows={12}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  This is your space for free-form notes about the consultation.
-                  Include your clinical thinking, patient concerns, education
-                  provided, and any other relevant observations.
-                </p>
-              </div>
-
-              <div className="flex justify-end pt-4 border-t">
-                <Button onClick={handleSaveNotes}>Save Notes</Button>
-              </div>
-            </div>
-          </Card>
-        )}
+        {activeTab === "notes" && <ConsultationNotesList patient={patient} />}
 
         {/* Diagnosis & Treatment Plan Tab */}
         {activeTab === "diagnosis" && (
@@ -759,8 +703,8 @@ const Consultation = () => {
                     Required for Completion
                   </p>
                   <p className="text-xs text-yellow-700 mt-1">
-                    Both diagnosis and treatment plan must be completed before you
-                    can complete the consultation.
+                    Both diagnosis and treatment plan must be completed before
+                    you can complete the consultation.
                   </p>
                 </div>
 
@@ -785,11 +729,11 @@ const Consultation = () => {
                     value={treatmentPlan}
                     onChange={(e) => setTreatmentPlan(e.target.value)}
                     placeholder="Document treatment plan:
-• Medication changes (e.g., Increase Metformin to 1000mg twice daily, Add Glimepiride 2mg)
-• Monitoring instructions (e.g., Check SMBG daily, HbA1c repeat in 3 months)
-• Lifestyle modifications (e.g., Reduce carbs to 45-60g/meal, Walk 30min daily)
-• Follow-up schedule (e.g., Return in 4 weeks, phone check-in at 2 weeks)
-• Referrals (e.g., Ophthalmology for retinopathy screening)"
+â€¢ Medication changes (e.g., Increase Metformin to 1000mg twice daily, Add Glimepiride 2mg)
+â€¢ Monitoring instructions (e.g., Check SMBG daily, HbA1c repeat in 3 months)
+â€¢ Lifestyle modifications (e.g., Reduce carbs to 45-60g/meal, Walk 30min daily)
+â€¢ Follow-up schedule (e.g., Return in 4 weeks, phone check-in at 2 weeks)
+â€¢ Referrals (e.g., Ophthalmology for retinopathy screening)"
                     rows={10}
                   />
                   <p className="text-xs text-gray-500 mt-2">
@@ -849,7 +793,7 @@ const Consultation = () => {
         )}
 
         {/* Quick Actions Tab */}
-        {/* {activeTab === "actions" && (
+        {activeTab === "actions" && (
           <Card
             title={
               <span className="flex items-center gap-2">
@@ -969,19 +913,11 @@ const Consultation = () => {
               </div>
             </div>
           </Card>
-        )} */}
+        )}
       </div>
 
       {/* Floating Complete Button */}
       <div className="fixed bottom-6 right-6 z-40">
-        {!tabsCompleted.diagnosis && (
-          <div className="mb-3 bg-orange-50 border-2 border-orange-300 rounded-lg p-3 shadow-lg max-w-xs">
-            <p className="text-sm text-orange-700 font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              Complete Diagnosis & Plan to finish
-            </p>
-          </div>
-        )}
 
         <Button
           onClick={handleCompleteConsultation}

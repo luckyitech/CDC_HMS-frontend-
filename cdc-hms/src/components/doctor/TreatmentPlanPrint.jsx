@@ -101,19 +101,12 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
             </div>
           </div>
 
-          {/* Consultation Notes (if exists) */}
-          {plan.notes && (
-            <div className="mb-6">
-              <h3 className="text-sm font-bold text-gray-700 mb-2">
-                CONSULTATION NOTES
-              </h3>
-              <div className="p-4 bg-blue-50 rounded border-l-4 border-blue-500">
-                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
-                  {plan.notes}
-                </pre>
-              </div>
-            </div>
-          )}
+          {/* 
+            NOTE: Consultation notes are NOT printed on patient copies.
+            Doctor's notes remain in the medical record for healthcare 
+            provider reference only. This protects patient privacy and 
+            maintains appropriate boundaries in patient-provider communication.
+          */}
 
           {/* Doctor Information */}
           <div className="mb-8 p-4 bg-blue-50 rounded-lg">

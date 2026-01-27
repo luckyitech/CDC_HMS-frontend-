@@ -12,6 +12,7 @@ import { useLabContext } from "../../contexts/LabContext";
 import LabTestDetailsModal from "../../components/lab/LabTestDetailsModal";
 import LabTestPrint from "../../components/lab/LabTestPrint";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
+import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 
 import {
   physicalExamSections,
@@ -64,6 +65,7 @@ const PatientProfile = () => {
     { id: "glycemic-charts", name: "Glycemic Charts", icon: "📈" },
     { id: "prescriptions", name: "Prescriptions", icon: "💊" },
     { id: "treatment-plans", name: "Treatment Plans", icon: "📝" },
+    { id: "consultation-notes", name: "Consultation Notes", icon: "💬" }, 
     { id: "reports", name: "Reports", icon: "📄" },
   ];
 
@@ -195,6 +197,13 @@ const PatientProfile = () => {
         {activeTab === "prescriptions" && <DoctorPrescriptions />}
         {activeTab === "treatment-plans" && (
           <TreatmentPlansTab patient={patient} />
+        )}
+        {/* Consultation Notes Tab */}
+        {activeTab === "consultation-notes" && (
+          <ConsultationNotesList 
+            patient={patient} 
+            showStatistics={true}
+          />
         )}
         {activeTab === "reports" && <ReportsTab patient={patient} />}
       </div>

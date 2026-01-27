@@ -11,6 +11,7 @@ import { InitialAssessmentProvider } from "./contexts/InitialAssessmentContext";
 import { LabProvider } from "./contexts/LabContext";
 import { TreatmentPlanProvider } from "./contexts/TreatmentPlanContext";
 import { AppointmentProvider } from './contexts/AppointmentContext';
+import { ConsultationNotesProvider } from './contexts/ConsultationNotesContext';
 
 import StaffLoginPage from "./pages/auth/StaffLoginPage";
 import DoctorLoginPage from "./pages/auth/DoctorLoginPage";
@@ -66,6 +67,7 @@ import ManageUsers from "./pages/admin/ManageUsers";
 function App() {
   return (
     <BrowserRouter>
+    <ConsultationNotesProvider>
       <LabProvider>
         <InitialAssessmentProvider>
           <PhysicalExamProvider>
@@ -226,6 +228,7 @@ function App() {
           </PhysicalExamProvider>
         </InitialAssessmentProvider>
       </LabProvider>
+      </ConsultationNotesProvider>
     </BrowserRouter>
   );
 }

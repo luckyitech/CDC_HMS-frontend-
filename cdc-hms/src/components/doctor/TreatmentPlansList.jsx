@@ -19,7 +19,7 @@ const TreatmentPlansList = ({ patient, showStatistics = true }) => {
     return (
       <Card>
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">📋</div>
+          {/* <div className="text-6xl mb-4">ðŸ“‹</div> */}
           <p className="text-gray-500 text-lg mb-2">
             No Treatment Plans Available
           </p>
@@ -56,7 +56,7 @@ const TreatmentPlansList = ({ patient, showStatistics = true }) => {
       )}
 
       {/* Treatment Plans List */}
-      <Card title="📋 Treatment Plan History">
+      <Card title="Treatment Plan History">
         <div className="space-y-4">
           {treatmentPlans.map((plan, index) => (
             <div
@@ -91,15 +91,15 @@ const TreatmentPlansList = ({ patient, showStatistics = true }) => {
                   </h3>
                   <div className="text-sm text-gray-600">
                     <p>
-                      📅{" "}
+                      {" "}
                       {new Date(plan.date).toLocaleDateString("en-US", {
                         month: "long",
                         day: "numeric",
                         year: "numeric",
                       })}{" "}
-                      • {plan.time}
+                      â€¢ {plan.time}
                     </p>
-                    <p className="mt-1">👨‍⚕️ {plan.doctorName}</p>
+                    <p className="mt-1"> {plan.doctorName}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -108,7 +108,7 @@ const TreatmentPlansList = ({ patient, showStatistics = true }) => {
                     className="text-sm"
                     onClick={() => handlePrint(plan)}
                   >
-                    🖨️ Print
+                    Print
                   </Button>
                 </div>
               </div>
@@ -123,17 +123,6 @@ const TreatmentPlansList = ({ patient, showStatistics = true }) => {
                 </pre>
               </div>
 
-              {/* Consultation Notes (if exists) */}
-              {plan.notes && (
-                <div className="bg-blue-50 rounded-lg p-4 mt-4">
-                  <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                    <span>💬</span> Consultation Notes:
-                  </p>
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
-                    {plan.notes}
-                  </pre>
-                </div>
-              )}
             </div>
           ))}
         </div>
