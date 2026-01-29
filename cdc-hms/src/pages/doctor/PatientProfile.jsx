@@ -366,7 +366,7 @@ const OverviewTab = ({ patient }) => {
       </div>
 
       <Card title="📊 Latest Vitals">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg text-center">
             <p className="text-xs text-gray-600 uppercase">Blood Pressure</p>
             <p className="text-lg font-bold text-blue-700 mt-1">
@@ -379,9 +379,21 @@ const OverviewTab = ({ patient }) => {
               {patient.vitals.heartRate}
             </p>
           </div>
+          <div className="bg-red-50 p-4 rounded-lg text-center">
+            <p className="text-xs text-gray-600 uppercase">Temperature</p>
+            <p className="text-lg font-bold text-red-700 mt-1">
+              {patient.vitals.temperature}
+            </p>
+          </div>
           <div className="bg-purple-50 p-4 rounded-lg text-center">
-            <p className="text-xs text-gray-600 uppercase">Weight</p>
+            <p className="text-xs text-gray-600 uppercase">O2 Saturation</p>
             <p className="text-lg font-bold text-purple-700 mt-1">
+              {patient.vitals.oxygenSaturation || "N/A"}
+            </p>
+          </div>
+          <div className="bg-indigo-50 p-4 rounded-lg text-center">
+            <p className="text-xs text-gray-600 uppercase">Weight</p>
+            <p className="text-lg font-bold text-indigo-700 mt-1">
               {patient.vitals.weight}
             </p>
           </div>
@@ -391,18 +403,69 @@ const OverviewTab = ({ patient }) => {
               {patient.vitals.height}
             </p>
           </div>
-          <div className="bg-orange-50 p-4 rounded-lg text-center">
+          <div className="bg-orange-50 p-4 rounded-lg text-center border-2 border-orange-200">
             <p className="text-xs text-gray-600 uppercase">BMI</p>
             <p className="text-lg font-bold text-orange-700 mt-1">
               {patient.vitals.bmi}
             </p>
           </div>
-          <div className="bg-red-50 p-4 rounded-lg text-center">
-            <p className="text-xs text-gray-600 uppercase">Temperature</p>
-            <p className="text-lg font-bold text-red-700 mt-1">
-              {patient.vitals.temperature}
-            </p>
-          </div>
+
+          {/* NEW: Waist Circumference */}
+          {patient.vitals.waistCircumference && (
+            <div className="bg-pink-50 p-4 rounded-lg text-center border-2 border-pink-200">
+              <p className="text-xs text-gray-600 uppercase">Waist Circ.</p>
+              <p className="text-lg font-bold text-pink-700 mt-1">
+                {patient.vitals.waistCircumference}
+              </p>
+            </div>
+          )}
+
+          {/* NEW: Waist-to-Height Ratio */}
+          {patient.vitals.waistHeightRatio && (
+            <div className="bg-yellow-50 p-4 rounded-lg text-center border-2 border-yellow-200">
+              <p className="text-xs text-gray-600 uppercase">Waist/Height</p>
+              <p className="text-lg font-bold text-yellow-700 mt-1">
+                {patient.vitals.waistHeightRatio}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {parseFloat(patient.vitals.waistHeightRatio) < 0.5
+                  ? "Healthy"
+                  : parseFloat(patient.vitals.waistHeightRatio) < 0.6
+                  ? "Inc. Risk"
+                  : "High Risk"}
+              </p>
+            </div>
+          )}
+
+          {/* RBS */}
+          {patient.vitals.rbs && (
+            <div className="bg-rose-50 p-4 rounded-lg text-center border-2 border-rose-200">
+              <p className="text-xs text-gray-600 uppercase">RBS</p>
+              <p className="text-lg font-bold text-rose-700 mt-1">
+                {patient.vitals.rbs}
+              </p>
+            </div>
+          )}
+
+          {/* HbA1c */}
+          {patient.vitals.hba1c && (
+            <div className="bg-red-50 p-4 rounded-lg text-center border-2 border-red-300">
+              <p className="text-xs text-gray-600 uppercase">HbA1c</p>
+              <p className="text-lg font-bold text-red-700 mt-1">
+                {patient.vitals.hba1c}
+              </p>
+            </div>
+          )}
+
+          {/* Ketones */}
+          {patient.vitals.ketones && (
+            <div className="bg-amber-50 p-4 rounded-lg text-center">
+              <p className="text-xs text-gray-600 uppercase">Ketones</p>
+              <p className="text-lg font-bold text-amber-700 mt-1">
+                {patient.vitals.ketones}
+              </p>
+            </div>
+          )}
         </div>
       </Card>
     </div>
