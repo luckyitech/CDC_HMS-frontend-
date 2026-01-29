@@ -1,24 +1,27 @@
 // Physical Examination Data Structure - COMPLETE VERSION
 // Includes: Left/Right feet, 4 lung zones, 4 abdominal quadrants, full cardiovascular
 
+
 export const physicalExamSections = [
   {
-    id: 'vitalSigns',
-    icon: '📊',
-    title: 'Vital Signs',
-    type: 'vitals',
-    fields: [
-      { id: 'bp', label: 'Blood Pressure', unit: 'mmHg', type: 'text', placeholder: '120/80' },
-      { id: 'hr', label: 'Heart Rate', unit: 'bpm', type: 'number', placeholder: '80' },
-      { id: 'rr', label: 'Respiratory Rate', unit: '/min', type: 'number', placeholder: '18' },
-      { id: 'temp', label: 'Temperature', unit: '°C', type: 'number', placeholder: '36.7', step: '0.1' },
-      { id: 'spo2', label: 'SpO2', unit: '%', type: 'number', placeholder: '98' },
-      { id: 'bmi', label: 'BMI', unit: 'kg/m²', type: 'number', placeholder: '25.0', step: '0.1' },
-      { id: 'rbs', label: 'RBS', unit: 'mg/dL', type: 'number', placeholder: '12.5', step: '0.1' },
-      { id: 'hba1c', label: 'HbA1c', unit: '%', type: 'number', placeholder: '6.9', step: '0.1' },
-      { id: 'ketones', label: 'Ketones', unit: 'mmol/L', type: 'number', placeholder: '0.1', step: '0.1' }
-    ]
-  },
+  id: 'vitalSigns',
+  icon: '📊',
+  title: 'Vital Signs',
+  type: 'vitals',
+  fields: [
+    { id: 'bp', label: 'Blood Pressure', unit: 'mmHg', type: 'text', placeholder: '120/80' },
+    { id: 'hr', label: 'Heart Rate', unit: 'bpm', type: 'number', placeholder: '80' },
+    { id: 'rr', label: 'Respiratory Rate', unit: '/min', type: 'number', placeholder: '18' },
+    { id: 'temp', label: 'Temperature', unit: '°C', type: 'number', placeholder: '36.7', step: '0.1' },
+    { id: 'spo2', label: 'SpO2', unit: '%', type: 'number', placeholder: '98' },
+    { id: 'bmi', label: 'BMI', unit: 'kg/m²', type: 'number', placeholder: '25.0', step: '0.1' },
+    { id: 'waistCircumference', label: 'Waist Circumference', unit: 'cm', type: 'number', placeholder: '90', step: '0.1' },
+    { id: 'waistHeightRatio', label: 'Waist-to-Height Ratio', unit: '', type: 'number', placeholder: '0.51', step: '0.01' },
+    { id: 'rbs', label: 'RBS', unit: 'mmol/L', type: 'number', placeholder: '5.5', step: '0.1' },
+    { id: 'hba1c', label: 'HbA1c', unit: '%', type: 'number', placeholder: '6.9', step: '0.1' },
+    { id: 'ketones', label: 'Ketones', unit: 'mmol/L', type: 'number', placeholder: '0.1', step: '0.1' }
+  ]
+},
   {
     id: 'general',
     icon: '📋',
@@ -56,61 +59,22 @@ export const physicalExamSections = [
       {
         title: 'Heart Sounds',
         items: [
-          { id: 'normalS1S2', label: 'Normal S1S2', normalState: true },
+          { id: 'normalS1S2', label: 'Normal S1/S2', normalState: true },
+          { id: 'noMurmurs', label: 'No Murmurs', normalState: true },
           { id: 'regularRhythm', label: 'Regular Rhythm', normalState: true },
-          { id: 'murmursPresent', label: 'Murmurs Present', normalState: false }
-        ]
-      },
-      {
-        title: 'Aortic Area',
-        items: [
-          { id: 'aorticRegurgitation', label: 'Aortic Regurgitation', normalState: false },
-          { id: 'aorticStenosis', label: 'Aortic Stenosis', normalState: false },
-          { id: 'aorticOther', label: 'Other', normalState: false }
-        ]
-      },
-      {
-        title: 'Tricuspid Area',
-        items: [
+          { id: 'tachycardia', label: 'Tachycardia', normalState: false },
+          { id: 'bradycardia', label: 'Bradycardia', normalState: false },
+          { id: 'tricuspidStenosis', label: 'Tricuspid Stenosis', normalState: false },
           { id: 'tricuspidRegurgitation', label: 'Tricuspid Regurgitation', normalState: false },
-          { id: 'tricuspidStenosis', label: 'Tricuspid Stenosis', normalState: false }
+          { id: 'otherAbnormal', label: 'Other Abnormal', normalState: false }
         ]
       },
       {
-        title: 'Pulmonary Area',
+        title: 'Heart Rhythm',
         items: [
-          { id: 'palpableThrill', label: 'Palpable Thrill', normalState: false },
-          { id: 'palpableP2', label: 'Palpable P2', normalState: false },
-          { id: 'pulmonaryRegurgitation', label: 'Pulmonary Regurgitation', normalState: false },
-          { id: 'pulmonaryStenosis', label: 'Pulmonary Stenosis', normalState: false }
-        ]
-      },
-      {
-        title: 'Mitral Area',
-        items: [
-          { id: 'mitralPalpableThrill', label: 'Palpable Thrill', normalState: false },
-          { id: 'mitralS1', label: 'S1', normalState: true },
-          { id: 'mitralS2', label: 'S2', normalState: true },
-          { id: 'mitralS3', label: 'S3', normalState: false },
-          { id: 'mitralS4', label: 'S4', normalState: false },
-          { id: 'mitralRegurgitation', label: 'Mitral Regurgitation', normalState: false },
-          { id: 'mitralStenosis', label: 'Mitral Stenosis', normalState: false },
-          { id: 'murmursPresent', label: 'Murmurs Present', normalState: false }
-        ]
-      },
-      {
-        title: 'Carotid Area',
-        items: [
-          { id: 'carotidPulseNormal', label: 'Carotid Pulse Normal', normalState: true },
-          { id: 'carotidBruit', label: 'Carotid Bruit', normalState: false },
-          { id: 'otherCarotidAnomaly', label: 'Other Carotid Anomaly', normalState: false }
-        ]
-      },
-      {
-        title: 'Other Findings',
-        items: [
-          { id: 'peripheralEdema', label: 'Peripheral Edema', normalState: false },
-          { id: 'jugularVenousDistension', label: 'Jugular Venous Distension', normalState: false }
+          { id: 'normalS1S2_rhythm', label: 'Normal S1S2', normalState: true },
+          { id: 'noCarotidPulseNormal', label: 'No Carotid Pulse Normal', normalState: false },
+          { id: 'normalS1S2_2', label: 'Normal S1S2', normalState: true }
         ]
       }
     ],
@@ -122,70 +86,55 @@ export const physicalExamSections = [
     title: 'Respiratory System',
     subsections: [
       {
-        title: 'Trachea',
+        title: 'Chest - Right Upper Zone',
         items: [
-          { id: 'tracheaStridor', label: 'Stridor', normalState: false },
-          { id: 'tracheaDeviatedRight', label: 'Deviated Right', normalState: false },
-          { id: 'tracheaDeviatedLeft', label: 'Deviated Left', normalState: false }
+          { id: 'ruzNoVesicularBreathSounds', label: 'No Vesicular Breath Sounds', normalState: false },
+          { id: 'ruzBronchialBreathSounds', label: 'Bronchial Breath Sounds', normalState: false },
+          { id: 'ruzRhonchi', label: 'Rhonchi', normalState: false },
+          { id: 'ruzNoVesicularBreathSounds_2', label: 'No Vesicular Breath Sounds', normalState: false },
+          { id: 'ruzBronchialBreathSounds_2', label: 'Bronchial Breath Sounds', normalState: false },
+          { id: 'ruzVelcroCrepitations', label: 'Velcro Crepitations', normalState: false },
+          { id: 'ruzNoNormalChestExpansion', label: 'No Normal Chest Expansion', normalState: false },
+          { id: 'ruzVesicularBreathSounds', label: 'Vesicular Breath Sounds', normalState: true }
         ]
       },
       {
-        title: 'Left Upper Lung Zone',
+        title: 'Chest - Right Lower Zone',
         items: [
-          { id: 'luVesicularBreath', label: 'Vesicular Breath Sounds', normalState: true },
-          { id: 'luBronchialBreath', label: 'Bronchial Breath Sounds', normalState: false },
-          { id: 'luFineCrepitations', label: 'Fine Crepitations', normalState: false },
-          { id: 'luCoarseCrepitations', label: 'Coarse Crepitations', normalState: false },
-          { id: 'luVelcroCrepitations', label: 'Velcro Crepitations', normalState: false },
-          { id: 'luTransmittedSounds', label: 'Transmitted Sounds', normalState: false },
-          { id: 'luWheeze', label: 'Wheeze', normalState: false },
-          { id: 'luRhonchi', label: 'Rhonchi', normalState: false }
+          { id: 'rlzNoVesicularBreathSounds', label: 'No Vesicular Breath Sounds', normalState: false },
+          { id: 'rlzBronchialBreathSounds', label: 'Bronchial Breath Sounds', normalState: false },
+          { id: 'rlzRhonchi', label: 'Rhonchi', normalState: false },
+          { id: 'rlzNoVesicularBreathSounds_2', label: 'No Vesicular Breath Sounds', normalState: false },
+          { id: 'rlzBronchialBreathSounds_2', label: 'Bronchial Breath Sounds', normalState: false },
+          { id: 'rlzVelcroCrepitations', label: 'Velcro Crepitations', normalState: false },
+          { id: 'rlzNoNormalChestExpansion', label: 'No Normal Chest Expansion', normalState: false },
+          { id: 'rlzVesicularBreathSounds', label: 'Vesicular Breath Sounds', normalState: true }
         ]
       },
       {
-        title: 'Right Upper Lung Zone',
+        title: 'Chest - Left Upper Zone',
         items: [
-          { id: 'ruVesicularBreath', label: 'Vesicular Breath Sounds', normalState: true },
-          { id: 'ruBronchialBreath', label: 'Bronchial Breath Sounds', normalState: false },
-          { id: 'ruFineCrepitations', label: 'Fine Crepitations', normalState: false },
-          { id: 'ruCoarseCrepitations', label: 'Coarse Crepitations', normalState: false },
-          { id: 'ruVelcroCrepitations', label: 'Velcro Crepitations', normalState: false },
-          { id: 'ruTransmittedSounds', label: 'Transmitted Sounds', normalState: false },
-          { id: 'ruWheeze', label: 'Wheeze', normalState: false },
-          { id: 'ruRhonchi', label: 'Rhonchi', normalState: false }
+          { id: 'luzNoVesicularBreathSounds', label: 'No Vesicular Breath Sounds', normalState: false },
+          { id: 'luzBronchialBreathSounds', label: 'Bronchial Breath Sounds', normalState: false },
+          { id: 'luzRhonchi', label: 'Rhonchi', normalState: false },
+          { id: 'luzNoVesicularBreathSounds_2', label: 'No Vesicular Breath Sounds', normalState: false },
+          { id: 'luzBronchialBreathSounds_2', label: 'Bronchial Breath Sounds', normalState: false },
+          { id: 'luzVelcroCrepitations', label: 'Velcro Crepitations', normalState: false },
+          { id: 'luzNoNormalChestExpansion', label: 'No Normal Chest Expansion', normalState: false },
+          { id: 'luzVesicularBreathSounds', label: 'Vesicular Breath Sounds', normalState: true }
         ]
       },
       {
-        title: 'Left Lower Lung Zone',
+        title: 'Chest - Left Lower Zone',
         items: [
-          { id: 'llVesicularBreath', label: 'Vesicular Breath Sounds', normalState: true },
-          { id: 'llBronchialBreath', label: 'Bronchial Breath Sounds', normalState: false },
-          { id: 'llFineCrepitations', label: 'Fine Crepitations', normalState: false },
-          { id: 'llCoarseCrepitations', label: 'Coarse Crepitations', normalState: false },
-          { id: 'llVelcroCrepitations', label: 'Velcro Crepitations', normalState: false },
-          { id: 'llTransmittedSounds', label: 'Transmitted Sounds', normalState: false },
-          { id: 'llWheeze', label: 'Wheeze', normalState: false },
-          { id: 'llRhonchi', label: 'Rhonchi', normalState: false }
-        ]
-      },
-      {
-        title: 'Right Lower Lung Zone',
-        items: [
-          { id: 'rlVesicularBreath', label: 'Vesicular Breath Sounds', normalState: true },
-          { id: 'rlBronchialBreath', label: 'Bronchial Breath Sounds', normalState: false },
-          { id: 'rlFineCrepitations', label: 'Fine Crepitations', normalState: false },
-          { id: 'rlCoarseCrepitations', label: 'Coarse Crepitations', normalState: false },
-          { id: 'rlVelcroCrepitations', label: 'Velcro Crepitations', normalState: false },
-          { id: 'rlTransmittedSounds', label: 'Transmitted Sounds', normalState: false },
-          { id: 'rlWheeze', label: 'Wheeze', normalState: false },
-          { id: 'rlRhonchi', label: 'Rhonchi', normalState: false }
-        ]
-      },
-      {
-        title: 'Chest Expansion',
-        items: [
-          { id: 'normalChestExpansion', label: 'Normal Chest Expansion', normalState: true },
-          { id: 'reducedChestExpansion', label: 'Reduced Chest Expansion', normalState: false }
+          { id: 'llzNoVesicularBreathSounds', label: 'No Vesicular Breath Sounds', normalState: false },
+          { id: 'llzBronchialBreathSounds', label: 'Bronchial Breath Sounds', normalState: false },
+          { id: 'llzRhonchi', label: 'Rhonchi', normalState: false },
+          { id: 'llzNoVesicularBreathSounds_2', label: 'No Vesicular Breath Sounds', normalState: false },
+          { id: 'llzBronchialBreathSounds_2', label: 'Bronchial Breath Sounds', normalState: false },
+          { id: 'llzVelcroCrepitations', label: 'Velcro Crepitations', normalState: false },
+          { id: 'llzNoNormalChestExpansion', label: 'No Normal Chest Expansion', normalState: false },
+          { id: 'llzVesicularBreathSounds', label: 'Vesicular Breath Sounds', normalState: true }
         ]
       }
     ],
@@ -260,40 +209,94 @@ export const physicalExamSections = [
   {
     id: 'neurological',
     icon: '🧠',
-    title: 'Central Nervous System',
+    title: 'Neurological Examination',
     subsections: [
       {
         title: 'Mental Status',
         items: [
           { id: 'alertOriented', label: 'Alert and Oriented', normalState: true },
-          { id: 'normalCognition', label: 'Normal Cognition', normalState: true }
+          { id: 'confused', label: 'Confused', normalState: false },
+          { id: 'lethargic', label: 'Lethargic', normalState: false }
+        ]
+      },
+      {
+        title: 'Cranial Nerves',
+        items: [
+          { id: 'cranialNervesIntact', label: 'All Cranial Nerves Intact', normalState: true },
+          { id: 'abnormalCranialNerves', label: 'Abnormal Cranial Nerve Findings', normalState: false }
         ]
       },
       {
         title: 'Motor Function',
         items: [
-          { id: 'normalMusclePower', label: 'Normal Muscle Power', normalState: true },
-          { id: 'normalMuscleTone', label: 'Normal Muscle Tone', normalState: true },
-          { id: 'muscleWeakness', label: 'Muscle Weakness', normalState: false },
-          { id: 'muscleAtrophy', label: 'Muscle Atrophy', normalState: false }
+          { id: 'normalStrength', label: 'Normal Strength (5/5)', normalState: true },
+          { id: 'weakness', label: 'Weakness', normalState: false },
+          { id: 'normalTone', label: 'Normal Tone', normalState: true },
+          { id: 'increasedTone', label: 'Increased Tone', normalState: false },
+          { id: 'decreasedTone', label: 'Decreased Tone', normalState: false }
+        ]
+      },
+      {
+        title: 'Sensory Function',
+        items: [
+          { id: 'normalSensation', label: 'Normal Sensation', normalState: true },
+          { id: 'decreasedSensation', label: 'Decreased Sensation', normalState: false },
+          { id: 'numbness', label: 'Numbness', normalState: false },
+          { id: 'tingling', label: 'Tingling', normalState: false }
         ]
       },
       {
         title: 'Reflexes',
         items: [
-          { id: 'normalReflexes', label: 'Normal Reflexes', normalState: true },
-          { id: 'ankleReflexDiminished', label: 'Ankle Reflex Slightly Diminished', normalState: false },
-          { id: 'diminishedReflexes', label: 'Diminished Reflexes', normalState: false },
-          { id: 'hyperreflexia', label: 'Hyperreflexia', normalState: false }
+          { id: 'normalReflexes', label: 'Normal Reflexes (2+)', normalState: true },
+          { id: 'hyperreflexia', label: 'Hyperreflexia', normalState: false },
+          { id: 'hyporeflexia', label: 'Hyporeflexia', normalState: false },
+          { id: 'absentReflexes', label: 'Absent Reflexes', normalState: false }
         ]
       },
       {
-        title: 'Sensory',
+        title: 'Coordination & Gait',
         items: [
-          { id: 'normalSensation', label: 'Normal Sensation', normalState: true },
-          { id: 'tinglingToes', label: 'Mild Tingling in Toes', normalState: false },
-          { id: 'numbness', label: 'Numbness', normalState: false },
-          { id: 'reducedVibrationSense', label: 'Reduced Vibration Sense', normalState: false }
+          { id: 'normalGait', label: 'Normal Gait', normalState: true },
+          { id: 'ataxia', label: 'Ataxia', normalState: false },
+          { id: 'normalCoordination', label: 'Normal Coordination', normalState: true },
+          { id: 'dysmetria', label: 'Dysmetria', normalState: false }
+        ]
+      }
+    ],
+    hasNotes: true
+  },
+  {
+    id: 'musculoskeletal',
+    icon: '🦴',
+    title: 'Musculoskeletal System',
+    subsections: [
+      {
+        title: 'Joint Examination',
+        items: [
+          { id: 'normalROM', label: 'Normal Range of Motion', normalState: true },
+          { id: 'limitedROM', label: 'Limited Range of Motion', normalState: false },
+          { id: 'noJointSwelling', label: 'No Joint Swelling', normalState: true },
+          { id: 'jointSwelling', label: 'Joint Swelling', normalState: false },
+          { id: 'noDeformities', label: 'No Deformities', normalState: true },
+          { id: 'deformities', label: 'Deformities Present', normalState: false }
+        ]
+      },
+      {
+        title: 'Muscle Strength',
+        items: [
+          { id: 'normalMuscleStrength', label: 'Normal Muscle Strength', normalState: true },
+          { id: 'muscleWeakness', label: 'Muscle Weakness', normalState: false },
+          { id: 'muscleAtrophy', label: 'Muscle Atrophy', normalState: false }
+        ]
+      },
+      {
+        title: 'Spine',
+        items: [
+          { id: 'normalSpineCurvature', label: 'Normal Spine Curvature', normalState: true },
+          { id: 'scoliosis', label: 'Scoliosis', normalState: false },
+          { id: 'kyphosis', label: 'Kyphosis', normalState: false },
+          { id: 'lordosis', label: 'Lordosis', normalState: false }
         ]
       }
     ],
@@ -307,29 +310,15 @@ export const physicalExamSections = [
       {
         title: 'Left Foot - Plantar Surface',
         items: [
-          { id: 'lfpMonofilamentNormal', label: '10g Monofilament - Normal', normalState: true },
-          { id: 'lfpMonofilamentReduced', label: '10g Monofilament - Reduced Sensation', normalState: false },
-          { id: 'lfpVibration128Normal', label: '128 Hz Vibration - Normal', normalState: true },
-          { id: 'lfpVibration128Reduced', label: '128 Hz Vibration - Reduced', normalState: false },
-          { id: 'lfpHighArchedFoot', label: 'High Arched Foot', normalState: false },
-          { id: 'lfpFootUlcer', label: 'Foot Ulcer', normalState: false },
-          { id: 'lfpHammerToe', label: 'Hammer Toe', normalState: false },
-          { id: 'lfpClawToe', label: 'Claw Toe', normalState: false },
-          { id: 'lfpInterdigitalMycosis', label: 'Interdigital Mycosis', normalState: false }
-        ]
-      },
-      {
-        title: 'Right Foot - Plantar Surface',
-        items: [
-          { id: 'rfpMonofilamentNormal', label: '10g Monofilament - Normal', normalState: true },
-          { id: 'rfpMonofilamentReduced', label: '10g Monofilament - Reduced Sensation', normalState: false },
-          { id: 'rfpVibration128Normal', label: '128 Hz Vibration - Normal', normalState: true },
-          { id: 'rfpVibration128Reduced', label: '128 Hz Vibration - Reduced', normalState: false },
-          { id: 'rfpHighArchedFoot', label: 'High Arched Foot', normalState: false },
-          { id: 'rfpFootUlcer', label: 'Foot Ulcer', normalState: false },
-          { id: 'rfpHammerToe', label: 'Hammer Toe', normalState: false },
-          { id: 'rfpClawToe', label: 'Claw Toe', normalState: false },
-          { id: 'rfpInterdigitalMycosis', label: 'Interdigital Mycosis', normalState: false }
+          { id: 'lfpDrySkin', label: 'Dry Skin', normalState: false },
+          { id: 'lfpOnychomycosis', label: 'Onychomycosis', normalState: false },
+          { id: 'lfpDystrophicNails', label: 'Dystrophic Nails', normalState: false },
+          { id: 'lfpHalluxValgus', label: 'Hallux Valgus', normalState: false },
+          { id: 'lfpHalluxVarus', label: 'Hallux Varus', normalState: false },
+          { id: 'lfpParonychia', label: 'Paronychia', normalState: false },
+          { id: 'lfpIngrownToeNail', label: 'Ingrown Toe Nail', normalState: false },
+          { id: 'lfpCallus', label: 'Callus', normalState: false },
+          { id: 'lfpHeelUlcer', label: 'Heel Ulcer', normalState: false }
         ]
       },
       {
@@ -344,6 +333,20 @@ export const physicalExamSections = [
           { id: 'lfdIngrownToeNail', label: 'Ingrown Toe Nail', normalState: false },
           { id: 'lfdCallus', label: 'Callus', normalState: false },
           { id: 'lfdToeUlcer', label: 'Toe Ulcer', normalState: false }
+        ]
+      },
+      {
+        title: 'Right Foot - Plantar Surface',
+        items: [
+          { id: 'rfpDrySkin', label: 'Dry Skin', normalState: false },
+          { id: 'rfpOnychomycosis', label: 'Onychomycosis', normalState: false },
+          { id: 'rfpDystrophicNails', label: 'Dystrophic Nails', normalState: false },
+          { id: 'rfpHalluxValgus', label: 'Hallux Valgus', normalState: false },
+          { id: 'rfpHalluxVarus', label: 'Hallux Varus', normalState: false },
+          { id: 'rfpParonychia', label: 'Paronychia', normalState: false },
+          { id: 'rfpIngrownToeNail', label: 'Ingrown Toe Nail', normalState: false },
+          { id: 'rfpCallus', label: 'Callus', normalState: false },
+          { id: 'rfpHeelUlcer', label: 'Heel Ulcer', normalState: false }
         ]
       },
       {
@@ -393,6 +396,26 @@ export const physicalExamSections = [
       }
     ],
     hasNotes: true
+  },
+  {
+    id: 'clinicalImages',
+    icon: '📸',
+    title: 'Clinical Images',
+    type: 'images',
+    description: 'Upload clinical photographs for documentation and progress tracking',
+    bodyAreaOptions: [
+      'General Appearance',
+      'Cardiovascular',
+      'Respiratory',
+      'Gastrointestinal',
+      'Neurological',
+      'Musculoskeletal',
+      'Skin & Integumentary',
+      'Diabetic Foot - Left',
+      'Diabetic Foot - Right',
+      'Neck/Thyroid',
+      'Other'
+    ]
   }
 ];
 

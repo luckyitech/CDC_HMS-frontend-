@@ -1,22 +1,35 @@
 import { useState } from "react";
-import { MessageSquare, Plus } from "lucide-react";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
 import VoiceInput from "../shared/VoiceInput";
 import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
 import { useUserContext } from "../../contexts/UserContext";
+import { MessageSquare, Plus, ChevronDown, ChevronUp } from "lucide-react";
 
-const ConsultationNotesList = ({ 
-  patient, 
+const ConsultationNotesList = ({
+  patient,
   showStatistics = false,
-  compact = false 
+  compact = false,
 }) => {
   const { currentUser } = useUserContext();
-  const { getNotesByPatient, searchNotes, addNote } = useConsultationNotesContext();
+  const { getNotesByPatient, searchNotes, addNote } =
+    useConsultationNotesContext();
   const [notesSearchTerm, setNotesSearchTerm] = useState("");
   const [consultationNotes, setConsultationNotes] = useState("");
   const [showWriteModal, setShowWriteModal] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState(new Set([0])); // First note expanded by default
+
+  // Toggle note expansion
+  const toggleNoteExpansion = (index) => {
+    const newExpanded = new Set(expandedNotes);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedNotes(newExpanded);
+  };
 
   const handleSaveNote = () => {
     if (!consultationNotes.trim()) {
@@ -47,7 +60,11 @@ const ConsultationNotesList = ({
 
   const handleCancelWrite = () => {
     if (consultationNotes.trim()) {
-      if (window.confirm("You have unsaved notes. Are you sure you want to close?")) {
+      if (
+        window.confirm(
+          "You have unsaved notes. Are you sure you want to close?"
+        )
+      ) {
         setConsultationNotes("");
         setShowWriteModal(false);
       }
@@ -146,42 +163,84 @@ const ConsultationNotesList = ({
               )}
             </div>
           ) : (
-            filteredNotes.map((note, index) => (
-              <div
-                key={note.id}
-                className={`p-4 border-2 rounded-lg ${
-                  index === 0
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 bg-white"
-                }`}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 pb-3 border-b">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {index === 0 && (
-                      <span className="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">
-                        LATEST
-                      </span>
+            filteredNotes.map((note, index) => {
+              const isExpanded = expandedNotes.has(index);
+              const notePreview =
+                note.notes.length > 100
+                  ? note.notes.substring(0, 100) + "..."
+                  : note.notes;
+
+              return (
+                <div
+                  key={note.id}
+                  className={`border-2 rounded-lg transition-all ${
+                    index === 0
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  {/* Clickable Header */}
+                  <div
+                    onClick={() => toggleNoteExpansion(index)}
+                    className="p-4 cursor-pointer hover:bg-gray-50 transition"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      {/* Left side - Date & Badge */}
+                      <div className="flex items-center gap-2 flex-wrap flex-1">
+                        {index === 0 && (
+                          <span className="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">
+                            LATEST
+                          </span>
+                        )}
+                        <span className="text-sm font-bold text-gray-700">
+                          📅{" "}
+                          {new Date(note.date).toLocaleDateString("en-US", {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                          {" • "}
+                          {note.time}
+                        </span>
+                        <span className="text-sm text-gray-600">
+                          👨‍⚕️ {note.doctorName}
+                        </span>
+                      </div>
+
+                      {/* Right side - Expand/Collapse Icon */}
+                      <div className="flex items-center gap-2">
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-gray-600" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-gray-600" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Preview when collapsed */}
+                    {!isExpanded && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          {notePreview}
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1 font-medium">
+                          Click to expand
+                        </p>
+                      </div>
                     )}
-                    <span className="text-sm font-bold text-gray-700">
-                      📅{" "}
-                      {new Date(note.date).toLocaleDateString("en-US", {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                      {" • "}
-                      {note.time}
-                    </span>
                   </div>
-                  <span className="text-sm text-gray-600">
-                    👨‍⚕️ {note.doctorName}
-                  </span>
+
+                  {/* Expanded Content */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 border-t border-gray-200">
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed mt-4">
+                        {note.notes}
+                      </pre>
+                    </div>
+                  )}
                 </div>
-                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
-                  {note.notes}
-                </pre>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </Card>
@@ -226,22 +285,18 @@ const ConsultationNotesList = ({
                 rows={15}
               />
               <p className="text-xs text-gray-500 mt-2">
-                💬 Document your clinical reasoning, concerns, observations, or any
-                information that should remain confidential between healthcare providers.
+                💬 Document your clinical reasoning, concerns, observations, or
+                any information that should remain confidential between
+                healthcare providers.
               </p>
             </div>
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={handleCancelWrite}
-              >
+              <Button variant="outline" onClick={handleCancelWrite}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveNote}>
-                Save Consultation Notes
-              </Button>
+              <Button onClick={handleSaveNote}>Save Consultation Notes</Button>
             </div>
           </div>
         </Modal>

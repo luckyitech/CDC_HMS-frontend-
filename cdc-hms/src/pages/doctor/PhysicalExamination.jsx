@@ -1,21 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import Card from '../../components/shared/Card';
-import Button from '../../components/shared/Button';
-import { usePatientContext } from '../../contexts/PatientContext';
-import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
-import PhysicalExamEntry from './PhysicalExamEntry';
-import PhysicalExamFindings from './PhysicalExamFindings';
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import Card from "../../components/shared/Card";
+import Button from "../../components/shared/Button";
+import { usePatientContext } from "../../contexts/PatientContext";
+import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
+import PhysicalExamEntry from "./PhysicalExamEntry";
+import PhysicalExamFindings from "./PhysicalExamFindings";
+import PhysicalExamList from "../../components/doctor/PhysicalExamList";
 
 const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { uhid: urlUHID } = useParams();
   const { getPatientByUHID, patients } = usePatientContext();
-  const { saveExamination, getLatestExamination, getExaminationById } = usePhysicalExamContext();
-  
+  const { saveExamination, getLatestExamination, getExaminationById } =
+    usePhysicalExamContext();
+
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [mode, setMode] = useState('entry');
+  const [mode, setMode] = useState("entry");
   const [currentExamination, setCurrentExamination] = useState(null);
 
   // Get patient from URL params OR navigation state (flexible!)
@@ -32,41 +34,47 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
       const patient = getPatientByUHID(patientUHID);
       if (patient) {
         setSelectedPatient(patient);
-        
+
         // If specific exam ID is provided, load that exam
         if (viewExamId) {
           const specificExam = getExaminationById(viewExamId);
           if (specificExam) {
             setCurrentExamination(specificExam);
-            setMode(viewMode || 'findings');
+            setMode(viewMode || "findings");
           }
         } else {
           // Otherwise load latest exam
           const latestExam = getLatestExamination(patientUHID);
           if (latestExam) {
             setCurrentExamination(latestExam);
-            setMode('findings');
+            setMode("findings");
           }
         }
       }
     }
-  }, [patientUHID, viewExamId, getPatientByUHID, getLatestExamination, getExaminationById]);
+  }, [
+    patientUHID,
+    viewExamId,
+    getPatientByUHID,
+    getLatestExamination,
+    getExaminationById,
+  ]);
 
   const handleSelectPatient = (uhid) => {
     const patient = getPatientByUHID(uhid);
     setSelectedPatient(patient);
-    setMode('entry');
+    setMode("entry");
     setCurrentExamination(null);
   };
 
   const handleSaveExamination = (examData, generateFindings) => {
     const savedExam = saveExamination(examData);
     setCurrentExamination(savedExam);
-    
+
     if (generateFindings) {
-      setMode('findings');
+      setMode("findings");
     } else {
-      alert('Examination draft saved successfully!');
+      alert("Examination draft saved successfully!");
     }
   };
 
@@ -75,16 +83,20 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
   };
 
   const handleEdit = () => {
-    setMode('entry');
+    setMode("entry");
   };
 
   const handleCancel = () => {
-    if (fromConsultation) {
-      navigate('/doctor/consultations');
+    if (fromConsultation && embedded) {
+      // Stay in embedded tab - do nothing
+      return;
+    } else if (fromConsultation) {
+      // Navigate back to consultation page with tabs
+      navigate(`/doctor/consultation/${selectedPatient.uhid}`);
     } else {
       setSelectedPatient(null);
       setCurrentExamination(null);
-      setMode('entry');
+      setMode("entry");
     }
   };
 
@@ -97,18 +109,17 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
         </h2>
         <div className="flex gap-2">
           {fromConsultation && !embedded && (
-            <Button 
-              variant="outline" 
-              onClick={() => navigate('/doctor/consultations')}
+            <Button
+              variant="outline"
+              onClick={() =>
+                navigate(`/doctor/consultation/${selectedPatient?.uhid}`)
+              }
             >
-               Back to Consultation
+              Back to Consultation
             </Button>
           )}
-          {selectedPatient && mode === 'findings' && (
-            <Button 
-              variant="outline"
-              onClick={() => setMode('entry')}
-            >
+          {selectedPatient && mode === "findings" && (
+            <Button variant="outline" onClick={() => setMode("entry")}>
               New Examination
             </Button>
           )}
@@ -127,13 +138,17 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
                     onClick={() => handleSelectPatient(patient.uhid)}
                     className={`w-full text-left p-3 rounded-lg border-2 transition ${
                       selectedPatient?.uhid === patient.uhid
-                        ? 'border-primary bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? "border-primary bg-blue-50"
+                        : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <p className="font-bold text-sm text-primary">{patient.uhid}</p>
+                    <p className="font-bold text-sm text-primary">
+                      {patient.uhid}
+                    </p>
                     <p className="font-semibold text-sm">{patient.name}</p>
-                    <p className="text-xs text-gray-600">{patient.age} yrs {patient.gender}</p>
+                    <p className="text-xs text-gray-600">
+                      {patient.age} yrs {patient.gender}
+                    </p>
                   </button>
                 ))}
               </div>
@@ -142,33 +157,22 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
         )}
 
         {/* Main Content Area */}
-        <div className={fromConsultation ? 'lg:col-span-4' : 'lg:col-span-3'}>
+        <div
+          className={
+            fromConsultation || fromProfile ? "lg:col-span-4" : "lg:col-span-3"
+          }
+        >
           {!selectedPatient ? (
             <Card>
               <div className="text-center py-12">
-                {/* <div className="text-6xl mb-4">ðŸ©º</div> */}
                 <p className="text-gray-500 text-lg">
                   Select a patient to begin physical examination
                 </p>
               </div>
             </Card>
-          ) : mode === 'entry' ? (
-            <PhysicalExamEntry
-              patientData={selectedPatient}
-              initialData={currentExamination?.data || {}}
-              onSave={handleSaveExamination}
-              onCancel={handleCancel}
-            />
-          ) : mode === 'findings' && currentExamination ? (
-            <div className="print-content">
-              <PhysicalExamFindings
-                examinationData={currentExamination}
-                onEdit={handleEdit}
-                onPrint={handlePrint}
-                onClose={fromConsultation ? () => navigate('/doctor/consultations') : null}
-              />
-            </div>
-          ) : null}
+          ) : (
+            <PhysicalExamList patient={selectedPatient} embedded={false} />
+          )}
         </div>
       </div>
     </div>

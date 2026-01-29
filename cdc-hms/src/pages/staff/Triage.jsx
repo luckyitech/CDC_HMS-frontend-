@@ -34,8 +34,10 @@ const Triage = () => {
     rbs: "",
     hba1c: "",
     ketones: "",
+    waistCircumference: "",
   });
   const [chiefComplaint, setChiefComplaint] = useState("");
+  const [allergies, setAllergies] = useState("");
   // Auto-save triage data to localStorage
   useEffect(() => {
     if (selectedPatient) {
@@ -43,12 +45,13 @@ const Triage = () => {
       const draftData = {
         vitals,
         chiefComplaint,
+        allergies,
         assignedDoctor,
         timestamp: new Date().toISOString(),
       };
       localStorage.setItem(triageKey, JSON.stringify(draftData));
     }
-  }, [vitals, chiefComplaint, assignedDoctor, selectedPatient]);
+  }, [vitals, chiefComplaint, allergies, assignedDoctor, selectedPatient]);
 
   // Calculate BMI
   const calculateBMI = () => {
@@ -62,6 +65,33 @@ const Triage = () => {
   };
 
   const bmi = calculateBMI();
+
+  // Calculate Waist-to-Height Ratio
+  const calculateWaistHeightRatio = () => {
+    if (vitals.waistCircumference && vitals.height) {
+      const waist = parseFloat(vitals.waistCircumference);
+      const height = parseFloat(vitals.height);
+      const ratio = (waist / height).toFixed(2);
+      return ratio;
+    }
+    return "";
+  };
+
+  const waistHeightRatio = calculateWaistHeightRatio();
+
+  // Get waist-to-height ratio status
+  const getWaistRatioStatus = (ratio) => {
+    const r = parseFloat(ratio);
+    if (r < 0.5)
+      return { text: "Healthy", color: "text-green-700", bg: "bg-green-50" };
+    if (r < 0.6)
+      return {
+        text: "Increased Risk",
+        color: "text-yellow-700",
+        bg: "bg-yellow-50",
+      };
+    return { text: "High Risk", color: "text-red-700", bg: "bg-red-50" };
+  };
 
   // Get all doctors for dropdown
   const allDoctors = getDoctors();
@@ -90,6 +120,7 @@ const Triage = () => {
       const draftData = JSON.parse(savedDraft);
       setVitals(draftData.vitals);
       setChiefComplaint(draftData.chiefComplaint);
+      setAllergies(draftData.allergies || "");
       setAssignedDoctor(draftData.assignedDoctor || "");
 
       // Show toast notification
@@ -122,8 +153,10 @@ const Triage = () => {
         rbs: "",
         hba1c: "",
         ketones: "",
+        waistCircumference: "",
       });
       setChiefComplaint("");
+      setAllergies("");
     }
   };
 
@@ -225,10 +258,15 @@ const Triage = () => {
       weight: vitals.weight + " kg",
       height: vitals.height + " cm",
       bmi: bmi ? bmi + " kg/m²" : "",
+      waistCircumference: vitals.waistCircumference
+        ? vitals.waistCircumference + " cm"
+        : "",
+      waistHeightRatio: waistHeightRatio || "",
       oxygenSaturation: vitals.oxygenSaturation + "%",
-      rbs: vitals.rbs ? vitals.rbs + " mg/dL" : "",
+      rbs: vitals.rbs ? vitals.rbs + " mmol/L" : "", // SIMPLE - always mmol/L
       hba1c: vitals.hba1c ? vitals.hba1c + "%" : "",
       ketones: vitals.ketones ? vitals.ketones + " mmol/L" : "",
+      allergies: allergies,
       chiefComplaint: chiefComplaint,
       lastTriageDate: new Date().toISOString(),
       triageBy: currentUser?.name || "Staff",
@@ -566,6 +604,24 @@ const Triage = () => {
                     />
                   </div>
 
+                  {/*Allergies Section */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Known Allergies
+                    </label>
+                    <textarea
+                      value={allergies}
+                      onChange={(e) => setAllergies(e.target.value)}
+                      placeholder="Enter any known allergies (medications, food, etc.) or 'None'"
+                      rows="2"
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Include medication allergies, food allergies, or
+                      environmental allergies
+                    </p>
+                  </div>
+
                   {/* Vitals */}
                   <div>
                     <h3 className="font-semibold text-gray-800 mb-4">
@@ -681,6 +737,52 @@ const Triage = () => {
                         </div>
                       )}
 
+                      {/* NEW: Waist Circumference */}
+                      <Input
+                        label="Waist Circumference"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={vitals.waistCircumference}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "" || parseFloat(value) >= 0) {
+                            setVitals({ ...vitals, waistCircumference: value });
+                          }
+                        }}
+                        placeholder="cm"
+                      />
+
+                      {/* Waist-to-Height Ratio Display */}
+                      {waistHeightRatio && (
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Waist-to-Height Ratio (Calculated)
+                          </label>
+                          <div
+                            className={`px-4 py-3 border-2 rounded-lg ${
+                              getWaistRatioStatus(waistHeightRatio).bg
+                            } border-${getWaistRatioStatus(
+                              waistHeightRatio
+                            ).color.replace("text-", "")}-300`}
+                          >
+                            <span
+                              className={`text-lg font-bold ${
+                                getWaistRatioStatus(waistHeightRatio).color
+                              }`}
+                            >
+                              {waistHeightRatio}
+                            </span>
+                            <span className="text-xs text-gray-600 ml-2">
+                              ({getWaistRatioStatus(waistHeightRatio).text})
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Target: &lt; 0.5 (Healthy)
+                          </p>
+                        </div>
+                      )}
+
                       <Input
                         label="RBS (Random Blood Sugar)"
                         type="number"
@@ -693,7 +795,7 @@ const Triage = () => {
                             setVitals({ ...vitals, rbs: value });
                           }
                         }}
-                        placeholder="mg/dL"
+                        placeholder="mmol/L"
                       />
 
                       <Input

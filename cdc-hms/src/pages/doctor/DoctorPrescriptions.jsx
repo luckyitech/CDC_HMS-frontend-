@@ -88,29 +88,7 @@ const DoctorPrescriptions = () => {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">
-            {fromConsultation && selectedPatient
-              ? "Patient Prescriptions"
-              : "Today's Prescriptions"}
-          </p>
-          <p className="text-4xl font-bold mt-2">{prescriptions.length}</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Active</p>
-          <p className="text-4xl font-bold mt-2">
-            {prescriptions.filter((p) => p.status === "Active").length}
-          </p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Completed</p>
-          <p className="text-4xl font-bold mt-2">
-            {prescriptions.filter((p) => p.status === "Completed").length}
-          </p>
-        </div>
-      </div>
+      
 
       {/* Prescription List with View/Print buttons */}
       <Card
