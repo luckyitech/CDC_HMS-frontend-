@@ -102,7 +102,13 @@ export const PatientProvider = ({ children }) => {
                 temp: triageData.temperature.replace("°C", ""),
                 spo2: triageData.oxygenSaturation.replace("%", ""),
                 bmi: bmi.replace(" kg/m²", ""),
-                rbs: triageData.rbs ? triageData.rbs.replace(" mg/dL", "") : "",
+                waistCircumference: triageData.waistCircumference
+                  ? triageData.waistCircumference.replace(" cm", "")
+                  : "",
+                waistHeightRatio: triageData.waistHeightRatio || "",
+                rbs: triageData.rbs
+                  ? triageData.rbs.replace(" mmol/L", "")
+                  : "",
                 hba1c: triageData.hba1c
                   ? triageData.hba1c.replace("%", "")
                   : "",
@@ -121,8 +127,14 @@ export const PatientProvider = ({ children }) => {
                 height: triageData.height,
                 oxygenSaturation: triageData.oxygenSaturation,
                 bmi: bmi,
+                waistCircumference: triageData.waistCircumference || "",
+                waistHeightRatio: triageData.waistHeightRatio || "",
+                rbs: triageData.rbs || "",
+                hba1c: triageData.hba1c || "", 
+                ketones: triageData.ketones || "", 
               },
               chiefComplaint: triageData.chiefComplaint,
+              allergies: triageData.allergies || patient.allergies,
               lastTriageDate: triageData.lastTriageDate,
               triageBy: triageData.triageBy,
             }
@@ -179,7 +191,7 @@ export const PatientProvider = ({ children }) => {
     getPatientsByStatus,
     addPatient,
     updatePatient,
-    updatePatientVitals, // NEW FUNCTION
+    updatePatientVitals,
     deletePatient,
     getBloodSugarReadings,
     addBloodSugarReading,

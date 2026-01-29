@@ -13,6 +13,7 @@ import LabTestDetailsModal from "../../components/lab/LabTestDetailsModal";
 import LabTestPrint from "../../components/lab/LabTestPrint";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
+import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 
 import {
   physicalExamSections,
@@ -30,6 +31,7 @@ import GlycemicCharts from "./GlycemicCharts";
 import DoctorPrescriptions from "./DoctorPrescriptions";
 import PhysicalExamination from "./PhysicalExamination";
 import InitialAssessment from "./InitialAssessment";
+import PhysicalExamList from "../../components/doctor/PhysicalExamList";
 
 const PatientProfile = () => {
   const navigate = useNavigate();
@@ -65,7 +67,7 @@ const PatientProfile = () => {
     { id: "glycemic-charts", name: "Glycemic Charts", icon: "📈" },
     { id: "prescriptions", name: "Prescriptions", icon: "💊" },
     { id: "treatment-plans", name: "Treatment Plans", icon: "📝" },
-    { id: "consultation-notes", name: "Consultation Notes", icon: "💬" }, 
+    { id: "consultation-notes", name: "Consultation Notes", icon: "💬" },
     { id: "reports", name: "Reports", icon: "📄" },
   ];
 
@@ -192,18 +194,19 @@ const PatientProfile = () => {
       <div>
         {activeTab === "overview" && <OverviewTab patient={patient} />}
         {activeTab === "initial-assessment" && <InitialAssessment />}
-        {activeTab === "physical-exam" && <PhysicalExamination />}
+        {activeTab === "physical-exam" && (
+          <PhysicalExamList patient={patient} embedded={true} />
+        )}
         {activeTab === "glycemic-charts" && <GlycemicCharts />}
-        {activeTab === "prescriptions" && <DoctorPrescriptions />}
+        {activeTab === "prescriptions" && (
+          <PrescriptionsTab patient={patient} />
+        )}
         {activeTab === "treatment-plans" && (
           <TreatmentPlansTab patient={patient} />
         )}
         {/* Consultation Notes Tab */}
         {activeTab === "consultation-notes" && (
-          <ConsultationNotesList 
-            patient={patient} 
-            showStatistics={true}
-          />
+          <ConsultationNotesList patient={patient} showStatistics={true} />
         )}
         {activeTab === "reports" && <ReportsTab patient={patient} />}
       </div>
@@ -411,435 +414,20 @@ const OverviewTab = ({ patient }) => {
 // GlycemicChartsTab removed - using imported GlycemicCharts component
 // PrescriptionsTab removed - using imported DoctorPrescriptions component
 
-const NewPrescriptionForm = ({
-  onClose,
-  patient,
-  addPrescription,
-  currentDoctor,
- }) => {
-  const commonMedications = [
-    { name: "Metformin", defaultDosage: "500mg", type: "Oral" },
-    { name: "Glimepiride", defaultDosage: "2mg", type: "Oral" },
-    { name: "Insulin Glargine", defaultDosage: "10 units", type: "Injectable" },
-    { name: "Insulin Aspart", defaultDosage: "5 units", type: "Injectable" },
-    { name: "Atorvastatin", defaultDosage: "20mg", type: "Oral" },
-    { name: "Amlodipine", defaultDosage: "5mg", type: "Oral" },
-  ];
-
-  const [diagnosis, setDiagnosis] = useState("");
-  const [medications, setMedications] = useState([
-    { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
-  ]);
-
-  const handleAddMedication = () => {
-    setMedications([
-      ...medications,
-      { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
-    ]);
-  };
-
-  const handleRemoveMedication = (index) => {
-    setMedications(medications.filter((_, i) => i !== index));
-  };
-
-  const handleMedicationChange = (index, field, value) => {
-    const newMeds = [...medications];
-    newMeds[index][field] = value;
-
-    if (field === "name") {
-      const commonMed = commonMedications.find((m) => m.name === value);
-      if (commonMed) {
-        newMeds[index]["dosage"] = commonMed.defaultDosage;
-      }
-    }
-
-    setMedications(newMeds);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    const newPrescription = {
-      uhid: patient.uhid,
-      patientName: patient.name,
-      diagnosis: diagnosis,
-      doctorName: currentDoctor?.name || "Dr. Ahmed Hassan",
-      doctorSpecialty: currentDoctor?.specialty || "Endocrinologist",
-      medications: medications.map((med) => ({
-        ...med,
-        quantity: "30",
-      })),
-      notes: "",
-    };
-
-    addPrescription(newPrescription);
-
-    const successDiv = document.createElement("div");
-    successDiv.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce";
-    successDiv.innerHTML = "✅ Prescription created successfully!";
-    document.body.appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 3000);
-
-    onClose();
-  };
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-4 max-h-[70vh] overflow-y-auto"
-    >
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-gray-700 font-semibold mb-2 text-sm">
-            Patient UHID
-          </label>
-          <input
-            type="text"
-            value={patient.uhid}
-            disabled
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100"
-          />
-        </div>
-        <div>
-          <label className="block text-gray-700 font-semibold mb-2 text-sm">
-            Patient Name
-          </label>
-          <input
-            type="text"
-            value={patient.name}
-            disabled
-            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-gray-700 font-semibold mb-2 text-sm uppercase tracking-wide">
-          Diagnosis *
-        </label>
-        {/* <textarea
-          value={diagnosis}
-          onChange={(e) => setDiagnosis(e.target.value)}
-          placeholder="Enter diagnosis..."
-          rows="2"
-          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-          required
-        /> */}
-        <VoiceInput
-          value={diagnosis}
-          onChange={(e) => setDiagnosis(e.target.value)}
-          placeholder="Enter diagnosis..."
-          rows={2}
-          // className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-          required ={true}
-        />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="font-semibold text-gray-700">Medications</h4>
-          <button
-            type="button"
-            onClick={handleAddMedication}
-            className="text-sm text-primary hover:underline font-semibold"
-          >
-            + Add Medication
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {medications.map((med, index) => (
-            <div
-              key={index}
-              className="p-4 border-2 border-gray-200 rounded-lg relative"
-            >
-              {medications.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveMedication(index)}
-                  className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold"
-                >
-                  ✕
-                </button>
-              )}
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Medication Name *
-                  </label>
-                  <select
-                    value={med.name}
-                    onChange={(e) =>
-                      handleMedicationChange(index, "name", e.target.value)
-                    }
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                    required
-                  >
-                    <option value="">Select medication...</option>
-                    {commonMedications.map((commonMed) => (
-                      <option key={commonMed.name} value={commonMed.name}>
-                        {commonMed.name} ({commonMed.type})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Dosage *
-                    </label>
-                    <input
-                      type="text"
-                      value={med.dosage}
-                      onChange={(e) =>
-                        handleMedicationChange(index, "dosage", e.target.value)
-                      }
-                      placeholder="500mg"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Duration *
-                    </label>
-                    <input
-                      type="text"
-                      value={med.duration}
-                      onChange={(e) =>
-                        handleMedicationChange(
-                          index,
-                          "duration",
-                          e.target.value
-                        )
-                      }
-                      placeholder="30 days"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Frequency *
-                  </label>
-                  <select
-                    value={med.frequency}
-                    onChange={(e) =>
-                      handleMedicationChange(index, "frequency", e.target.value)
-                    }
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                    required
-                  >
-                    <option value="">Select frequency...</option>
-                    <option value="Once daily">Once daily</option>
-                    <option value="Twice daily">Twice daily</option>
-                    <option value="Three times daily">Three times daily</option>
-                    <option value="Before meals">Before meals</option>
-                    <option value="After meals">After meals</option>
-                    <option value="Bedtime">Bedtime</option>
-                    <option value="As needed">As needed</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Special Instructions
-                  </label>
-                  <input
-                    type="text"
-                    value={med.instructions}
-                    onChange={(e) =>
-                      handleMedicationChange(
-                        index,
-                        "instructions",
-                        e.target.value
-                      )
-                    }
-                    placeholder="Take with food"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex gap-3 pt-4 border-t">
-        <button
-          type="submit"
-          className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-blue-700 font-semibold transition"
-        >
-          Create Prescription
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold transition"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-};
-
-const ViewPrescriptionModal = ({ prescription, onClose, onPrint }) => {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b-2 border-gray-200 p-6 flex justify-between items-center">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-800">
-              Prescription Details
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              #{prescription.prescriptionNumber}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-xs text-gray-600 uppercase font-semibold">
-                Date Issued
-              </p>
-              <p className="text-lg font-bold text-gray-800 mt-1">
-                {prescription.date}
-              </p>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <p className="text-xs text-gray-600 uppercase font-semibold">
-                Status
-              </p>
-              <p className="text-lg font-bold text-green-700 mt-1">
-                {prescription.status}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 border-2 border-gray-200 rounded-lg">
-              <p className="text-xs text-gray-600 uppercase font-semibold mb-2">
-                Patient
-              </p>
-              <p className="font-bold text-gray-800">
-                {prescription.patientName}
-              </p>
-              <p className="text-sm text-gray-600">{prescription.uhid}</p>
-            </div>
-            <div className="p-4 border-2 border-gray-200 rounded-lg">
-              <p className="text-xs text-gray-600 uppercase font-semibold mb-2">
-                Prescribed By
-              </p>
-              <p className="font-bold text-gray-800">
-                {prescription.doctorName}
-              </p>
-              <p className="text-sm text-gray-600">
-                {prescription.doctorSpecialty}
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
-            <p className="text-xs text-gray-600 uppercase font-semibold mb-2">
-              🩺 Diagnosis
-            </p>
-            <p className="text-gray-800">{prescription.diagnosis}</p>
-          </div>
-
-          <div>
-            <h4 className="font-bold text-gray-800 mb-3">💊 Medications</h4>
-            <div className="space-y-3">
-              {prescription.medications.map((med, index) => (
-                <div
-                  key={index}
-                  className="p-4 border-2 border-gray-200 rounded-lg"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="font-bold text-gray-800 text-lg">
-                      {med.name}
-                    </p>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                      Qty: {med.quantity}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div>
-                      <p className="text-gray-600">Dosage</p>
-                      <p className="font-semibold text-gray-800">
-                        {med.dosage}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Frequency</p>
-                      <p className="font-semibold text-gray-800">
-                        {med.frequency}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Duration</p>
-                      <p className="font-semibold text-gray-800">
-                        {med.duration}
-                      </p>
-                    </div>
-                  </div>
-                  {med.instructions && (
-                    <div className="mt-3 p-2 bg-yellow-50 rounded">
-                      <p className="text-xs text-gray-600">Instructions:</p>
-                      <p className="text-sm text-gray-700">
-                        {med.instructions}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {prescription.notes && (
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-xs text-gray-600 uppercase font-semibold mb-2">
-                📝 Additional Notes
-              </p>
-              <p className="text-gray-700">{prescription.notes}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="sticky bottom-0 bg-gray-50 border-t-2 border-gray-200 p-6 flex gap-3">
-          <button
-            onClick={onPrint}
-            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-blue-700 font-semibold transition"
-          >
-            🖨️ Print Prescription
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold transition"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const TreatmentPlansTab = ({ patient }) => {
-  return <TreatmentPlansList patient={patient} showStatistics={true} />;
+  const { currentUser } = useUserContext();
+
+  return (
+    <TreatmentPlansList
+      patient={patient}
+      showStatistics={true}
+      showCreateForm={true}
+      currentUser={currentUser}
+      onSuccess={() => {
+        console.log("Treatment plan created successfully");
+      }}
+    />
+  );
 };
 
 // ReportsTab component
@@ -1198,6 +786,27 @@ const ReportsTab = ({ patient }) => {
         />
       )}
     </div>
+  );
+};
+
+// Prescriptions Tab Component
+const PrescriptionsTab = ({ patient }) => {
+  const { currentUser } = useUserContext();
+  const { getPrescriptionsByPatient, addPrescription } =
+    usePrescriptionContext();
+
+  const patientPrescriptions = getPrescriptionsByPatient(patient.uhid);
+
+  return (
+    <PrescriptionManagement
+      patient={patient}
+      patientPrescriptions={patientPrescriptions}
+      addPrescription={addPrescription}
+      currentUser={currentUser}
+      onSuccess={() => {
+        console.log("Prescription created successfully");
+      }}
+    />
   );
 };
 

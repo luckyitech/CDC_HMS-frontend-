@@ -184,34 +184,34 @@ export const mockPatients = [
     address: 'Kilimani, Nairobi',
     dateOfBirth: '1979-05-15',
     idNumber: '12345678',
-    
+
     // Medical Info
     diabetesType: 'Type 2',
     diagnosisDate: '2018-03-15',
     hba1c: '7.2%',
     primaryDoctor: 'Dr. Ahmed Hassan',
     referredBy: 'Nairobi Hospital',
-    
+
     // Status
     status: 'Active',
     riskLevel: 'Medium',
     lastVisit: '2024-12-05',
     nextVisit: '2024-12-20',
-    
+
     // Emergency Contact
     emergencyContact: {
       name: 'Jane Doe',
       relationship: 'Spouse',
       phone: '0722111222'
     },
-    
+
     // Insurance
     insurance: {
       provider: 'NHIF',
       policyNumber: 'NHIF-123456',
       type: 'Insurance'
     },
-    
+
     // Vitals (Latest)
     vitals: {
       bp: '130/85 mmHg',
@@ -220,22 +220,24 @@ export const mockPatients = [
       height: '175 cm',
       bmi: '26.8',
       temperature: '36.7°C',
-      oxygenSaturation: '98%'
+      oxygenSaturation: '98%',
+      waistCircumference: '95 cm',
+      waistHeightRatio: '0.54',
     },
-    
+
     // Current Medications
     medications: [
       'Metformin 500mg - Twice daily',
       'Glimepiride 2mg - Once daily',
     ],
-    
+
     // Allergies
     allergies: 'None',
-    
+
     // Comorbidities
     comorbidities: ['Hypertension'],
   },
-  
+
   {
     id: 2,
     uhid: 'CDC002',
@@ -247,30 +249,30 @@ export const mockPatients = [
     address: 'Westlands, Nairobi',
     dateOfBirth: '1972-08-22',
     idNumber: '23456789',
-    
+
     diabetesType: 'Type 2',
     diagnosisDate: '2019-06-10',
     hba1c: '6.8%',
     primaryDoctor: 'Dr. Sarah Kamau',
     referredBy: 'Aga Khan Hospital',
-    
+
     status: 'Active',
     riskLevel: 'Low',
     lastVisit: '2024-12-05',
     nextVisit: '2024-12-18',
-    
+
     emergencyContact: {
       name: 'John Smith',
       relationship: 'Spouse',
       phone: '0733222333'
     },
-    
+
     insurance: {
       provider: 'AAR Healthcare',
       policyNumber: 'AAR-789012',
       type: 'Insurance'
     },
-    
+
     vitals: {
       bp: '125/80 mmHg',
       heartRate: '72 bpm',
@@ -278,18 +280,20 @@ export const mockPatients = [
       height: '162 cm',
       bmi: '25.9',
       temperature: '36.5°C',
-      oxygenSaturation: '99%'
+      oxygenSaturation: '99%',
+      waistCircumference: '95 cm', 
+      waistHeightRatio: '0.54', 
     },
-    
+
     medications: [
       'Metformin 850mg - Twice daily',
       'Atorvastatin 20mg - Once daily',
     ],
-    
+
     allergies: 'Penicillin',
     comorbidities: ['Dyslipidemia'],
   },
-  
+
   {
     id: 3,
     uhid: 'CDC003',
@@ -301,30 +305,30 @@ export const mockPatients = [
     address: 'Mombasa, Kenya',
     dateOfBirth: '1986-03-10',
     idNumber: '34567890',
-    
+
     diabetesType: 'Type 1',
     diagnosisDate: '2015-01-20',
     hba1c: '8.5%',
     primaryDoctor: 'Dr. James Omondi',
     referredBy: 'Coast General Hospital',
-    
+
     status: 'Active',
     riskLevel: 'High',
     lastVisit: '2024-12-05',
     nextVisit: '2024-12-15',
-    
+
     emergencyContact: {
       name: 'Fatima Hassan',
       relationship: 'Sister',
       phone: '0744333444'
     },
-    
+
     insurance: {
       provider: 'Jubilee Insurance',
       policyNumber: 'JUB-345678',
       type: 'Insurance'
     },
-    
+
     vitals: {
       bp: '140/90 mmHg',
       heartRate: '80 bpm',
@@ -332,18 +336,20 @@ export const mockPatients = [
       height: '178 cm',
       bmi: '23.7',
       temperature: '36.8°C',
-      oxygenSaturation: '97%'
+      oxygenSaturation: '97%',
+      waistCircumference: '95 cm',
+      waistHeightRatio: '0.54',
     },
-    
+
     medications: [
       'Insulin Aspart 10 units - Before meals',
       'Insulin Glargine 20 units - Bedtime',
     ],
-    
+
     allergies: 'None',
     comorbidities: [],
   },
-  
+
   {
     id: 4,
     uhid: 'CDC005',
@@ -355,30 +361,30 @@ export const mockPatients = [
     address: 'Karen, Nairobi',
     dateOfBirth: '1963-11-05',
     idNumber: '45678901',
-    
+
     diabetesType: 'Type 2',
     diagnosisDate: '2018-03-15',
     hba1c: '7.9%',
     primaryDoctor: 'Dr. Ahmed Hassan',
     referredBy: 'MP Shah Hospital',
-    
+
     status: 'Active',
     riskLevel: 'Medium',
     lastVisit: '2024-11-28',
     nextVisit: '2024-12-28',
-    
+
     emergencyContact: {
       name: 'Peter Johnson',
       relationship: 'Son',
       phone: '0755444555'
     },
-    
+
     insurance: {
       provider: 'NHIF',
       policyNumber: 'NHIF-456789',
       type: 'Insurance'
     },
-    
+
     vitals: {
       bp: '135/85 mmHg',
       heartRate: '78 bpm',
@@ -386,19 +392,21 @@ export const mockPatients = [
       height: '165 cm',
       bmi: '28.7',
       temperature: '36.6°C',
-      oxygenSaturation: '98%'
+      oxygenSaturation: '98%',
+      waistCircumference: '95 cm',
+      waistHeightRatio: '0.54',
     },
-    
+
     medications: [
       'Metformin 500mg - Twice daily',
       'Glimepiride 2mg - Once daily',
       'Atorvastatin 20mg - Once daily'
     ],
-    
+
     allergies: 'Sulfa drugs',
     comorbidities: ['Hypertension', 'Dyslipidemia'],
   },
-  
+
   {
     id: 5,
     uhid: 'CDC007',
@@ -410,30 +418,30 @@ export const mockPatients = [
     address: 'Thika, Kenya',
     dateOfBirth: '1977-07-12',
     idNumber: '56789012',
-    
+
     diabetesType: 'Type 2',
     diagnosisDate: '2020-06-10',
     hba1c: '9.1%',
     primaryDoctor: 'Dr. Ahmed Hassan',
     referredBy: 'Kenyatta Hospital',
-    
+
     status: 'Active',
     riskLevel: 'High',
     lastVisit: '2024-12-01',
     nextVisit: '2024-12-22',
-    
+
     emergencyContact: {
       name: 'Joseph Wanjiru',
       relationship: 'Husband',
       phone: '0766555666'
     },
-    
+
     insurance: {
       provider: 'CIC Insurance',
       policyNumber: 'CIC-567890',
       type: 'Insurance'
     },
-    
+
     vitals: {
       bp: '145/92 mmHg',
       heartRate: '82 bpm',
@@ -441,15 +449,17 @@ export const mockPatients = [
       height: '160 cm',
       bmi: '33.2',
       temperature: '36.9°C',
-      oxygenSaturation: '96%'
+      oxygenSaturation: '96%',
+      waistCircumference: '95 cm',
+      waistHeightRatio: '0.54',
     },
-    
+
     medications: [
       'Metformin 1000mg - Twice daily',
       'Insulin Glargine 20 units - Bedtime',
       'Amlodipine 5mg - Once daily'
     ],
-    
+
     allergies: 'None',
     comorbidities: ['Hypertension', 'Obesity'],
   },
@@ -471,21 +481,21 @@ export const mockPrescriptions = [
     diagnosis: 'Type 2 Diabetes Mellitus - Controlled',
     status: 'Active',
     medications: [
-      { 
-        name: 'Metformin', 
+      {
+        name: 'Metformin',
         genericName: 'Metformin HCl',
-        dosage: '500mg', 
-        frequency: 'Twice daily', 
+        dosage: '500mg',
+        frequency: 'Twice daily',
         duration: '30 days',
         quantity: 60,
         instructions: 'Take with meals',
         refills: 2
       },
-      { 
-        name: 'Glimepiride', 
+      {
+        name: 'Glimepiride',
         genericName: 'Glimepiride',
-        dosage: '2mg', 
-        frequency: 'Once daily', 
+        dosage: '2mg',
+        frequency: 'Once daily',
         duration: '30 days',
         quantity: 30,
         instructions: 'Take before breakfast',
@@ -494,7 +504,7 @@ export const mockPrescriptions = [
     ],
     notes: 'Monitor blood sugar levels regularly. Follow up in 3 months.',
   },
-  
+
   {
     id: 2,
     prescriptionNumber: 'RX-2024-002',
@@ -506,21 +516,21 @@ export const mockPrescriptions = [
     diagnosis: 'Type 2 Diabetes with Dyslipidemia',
     status: 'Active',
     medications: [
-      { 
-        name: 'Metformin', 
+      {
+        name: 'Metformin',
         genericName: 'Metformin HCl',
-        dosage: '850mg', 
-        frequency: 'Twice daily', 
+        dosage: '850mg',
+        frequency: 'Twice daily',
         duration: '30 days',
         quantity: 60,
         instructions: 'Take with meals',
         refills: 3
       },
-      { 
-        name: 'Atorvastatin', 
+      {
+        name: 'Atorvastatin',
         genericName: 'Atorvastatin Calcium',
-        dosage: '20mg', 
-        frequency: 'Once daily', 
+        dosage: '20mg',
+        frequency: 'Once daily',
         duration: '30 days',
         quantity: 30,
         instructions: 'Take at bedtime',
@@ -529,7 +539,7 @@ export const mockPrescriptions = [
     ],
     notes: 'Check lipid profile in 6 weeks.',
   },
-  
+
   {
     id: 3,
     prescriptionNumber: 'RX-2024-003',
@@ -541,21 +551,21 @@ export const mockPrescriptions = [
     diagnosis: 'Type 1 Diabetes Mellitus',
     status: 'Active',
     medications: [
-      { 
-        name: 'Insulin Aspart', 
+      {
+        name: 'Insulin Aspart',
         genericName: 'Insulin Aspart',
-        dosage: '10 units', 
-        frequency: 'Before meals', 
+        dosage: '10 units',
+        frequency: 'Before meals',
         duration: '30 days',
         quantity: '3 vials',
         instructions: 'Inject 15 minutes before meals',
         refills: 1
       },
-      { 
-        name: 'Insulin Glargine', 
+      {
+        name: 'Insulin Glargine',
         genericName: 'Insulin Glargine',
-        dosage: '20 units', 
-        frequency: 'Bedtime', 
+        dosage: '20 units',
+        frequency: 'Bedtime',
         duration: '30 days',
         quantity: '2 vials',
         instructions: 'Inject same time every night',
@@ -564,7 +574,7 @@ export const mockPrescriptions = [
     ],
     notes: 'Maintain carbohydrate counting. Regular blood glucose monitoring essential.',
   },
-  
+
   {
     id: 4,
     prescriptionNumber: 'RX-2024-004',
@@ -576,31 +586,31 @@ export const mockPrescriptions = [
     diagnosis: 'Type 2 Diabetes Mellitus with Hypertension',
     status: 'Active',
     medications: [
-      { 
-        name: 'Metformin', 
+      {
+        name: 'Metformin',
         genericName: 'Metformin HCl',
-        dosage: '500mg', 
-        frequency: 'Twice daily', 
+        dosage: '500mg',
+        frequency: 'Twice daily',
         duration: '30 days',
         quantity: 60,
         instructions: 'Take with meals',
         refills: 2
       },
-      { 
-        name: 'Glimepiride', 
+      {
+        name: 'Glimepiride',
         genericName: 'Glimepiride',
-        dosage: '2mg', 
-        frequency: 'Once daily', 
+        dosage: '2mg',
+        frequency: 'Once daily',
         duration: '30 days',
         quantity: 30,
         instructions: 'Take before breakfast',
         refills: 2
       },
-      { 
-        name: 'Atorvastatin', 
+      {
+        name: 'Atorvastatin',
         genericName: 'Atorvastatin Calcium',
-        dosage: '20mg', 
-        frequency: 'Once daily', 
+        dosage: '20mg',
+        frequency: 'Once daily',
         duration: '30 days',
         quantity: 30,
         instructions: 'Take at bedtime',
@@ -609,7 +619,7 @@ export const mockPrescriptions = [
     ],
     notes: 'Patient compliant with medications. HbA1c improving. Continue current regimen.',
   },
-  
+
   {
     id: 5,
     prescriptionNumber: 'RX-2024-005',
@@ -621,31 +631,31 @@ export const mockPrescriptions = [
     diagnosis: 'Type 2 Diabetes Mellitus - Poorly Controlled',
     status: 'Active',
     medications: [
-      { 
-        name: 'Metformin', 
+      {
+        name: 'Metformin',
         genericName: 'Metformin HCl',
-        dosage: '1000mg', 
-        frequency: 'Twice daily', 
+        dosage: '1000mg',
+        frequency: 'Twice daily',
         duration: '30 days',
         quantity: 60,
         instructions: 'Take with meals',
         refills: 1
       },
-      { 
-        name: 'Insulin Glargine', 
+      {
+        name: 'Insulin Glargine',
         genericName: 'Insulin Glargine',
-        dosage: '20 units', 
-        frequency: 'Bedtime', 
+        dosage: '20 units',
+        frequency: 'Bedtime',
         duration: '30 days',
         quantity: '2 vials',
         instructions: 'Inject same time every night',
         refills: 1
       },
-      { 
-        name: 'Amlodipine', 
+      {
+        name: 'Amlodipine',
         genericName: 'Amlodipine Besylate',
-        dosage: '5mg', 
-        frequency: 'Once daily', 
+        dosage: '5mg',
+        frequency: 'Once daily',
         duration: '30 days',
         quantity: 30,
         instructions: 'Take in the morning',
@@ -669,7 +679,7 @@ export const mockBloodSugarReadings = {
     { date: '2024-12-11', timeSlot: 'beforeDinner', value: 145, time: '06:30 PM' },
     { date: '2024-12-11', timeSlot: 'afterDinner', value: 172, time: '08:30 PM' },
     { date: '2024-12-11', timeSlot: 'bedtime', value: 135, time: '10:00 PM' },
-    
+
     { date: '2024-12-10', timeSlot: 'fasting', value: 138, time: '07:00 AM' },
     { date: '2024-12-10', timeSlot: 'breakfast', value: 162, time: '09:30 AM' },
     { date: '2024-12-10', timeSlot: 'beforeLunch', value: 135, time: '12:30 PM' },
@@ -677,7 +687,7 @@ export const mockBloodSugarReadings = {
     { date: '2024-12-10', timeSlot: 'beforeDinner', value: 142, time: '06:30 PM' },
     { date: '2024-12-10', timeSlot: 'afterDinner', value: 168, time: '08:30 PM' },
     { date: '2024-12-10', timeSlot: 'bedtime', value: 132, time: '10:00 PM' },
-    
+
     { date: '2024-12-09', timeSlot: 'fasting', value: 145, time: '07:00 AM' },
     { date: '2024-12-09', timeSlot: 'breakfast', value: 170, time: '09:30 AM' },
     { date: '2024-12-09', timeSlot: 'beforeLunch', value: 140, time: '12:30 PM' },
@@ -686,7 +696,7 @@ export const mockBloodSugarReadings = {
     { date: '2024-12-09', timeSlot: 'afterDinner', value: 175, time: '08:30 PM' },
     { date: '2024-12-09', timeSlot: 'bedtime', value: 138, time: '10:00 PM' },
   ],
-  
+
   'CDC002': [
     { date: '2024-12-11', timeSlot: 'fasting', value: 128, time: '07:00 AM' },
     { date: '2024-12-11', timeSlot: 'breakfast', value: 148, time: '09:30 AM' },
@@ -696,7 +706,7 @@ export const mockBloodSugarReadings = {
     { date: '2024-12-11', timeSlot: 'afterDinner', value: 158, time: '08:30 PM' },
     { date: '2024-12-11', timeSlot: 'bedtime', value: 122, time: '10:00 PM' },
   ],
-  
+
   'CDC003': [
     { date: '2024-12-11', timeSlot: 'fasting', value: 165, time: '07:00 AM' },
     { date: '2024-12-11', timeSlot: 'breakfast', value: 210, time: '09:30 AM' },
@@ -706,7 +716,7 @@ export const mockBloodSugarReadings = {
     { date: '2024-12-11', timeSlot: 'afterDinner', value: 205, time: '08:30 PM' },
     { date: '2024-12-11', timeSlot: 'bedtime', value: 162, time: '10:00 PM' },
   ],
-  
+
   'CDC005': [
     { date: '2024-12-11', timeSlot: 'fasting', value: 152, time: '07:00 AM' },
     { date: '2024-12-11', timeSlot: 'breakfast', value: 180, time: '09:30 AM' },
@@ -715,7 +725,7 @@ export const mockBloodSugarReadings = {
     { date: '2024-12-11', timeSlot: 'beforeDinner', value: 155, time: '06:30 PM' },
     { date: '2024-12-11', timeSlot: 'afterDinner', value: 188, time: '08:30 PM' },
     { date: '2024-12-11', timeSlot: 'bedtime', value: 145, time: '10:00 PM' },
-    
+
     { date: '2024-12-10', timeSlot: 'fasting', value: 148, time: '07:00 AM' },
     { date: '2024-12-10', timeSlot: 'breakfast', value: 178, time: '09:30 AM' },
     { date: '2024-12-10', timeSlot: 'beforeLunch', value: 145, time: '12:30 PM' },
@@ -724,7 +734,7 @@ export const mockBloodSugarReadings = {
     { date: '2024-12-10', timeSlot: 'afterDinner', value: 185, time: '08:30 PM' },
     { date: '2024-12-10', timeSlot: 'bedtime', value: 142, time: '10:00 PM' },
   ],
-  
+
   'CDC007': [
     { date: '2024-12-11', timeSlot: 'fasting', value: 178, time: '07:00 AM' },
     { date: '2024-12-11', timeSlot: 'breakfast', value: 225, time: '09:30 AM' },
@@ -733,7 +743,7 @@ export const mockBloodSugarReadings = {
     { date: '2024-12-11', timeSlot: 'beforeDinner', value: 185, time: '06:30 PM' },
     { date: '2024-12-11', timeSlot: 'afterDinner', value: 220, time: '08:30 PM' },
     { date: '2024-12-11', timeSlot: 'bedtime', value: 175, time: '10:00 PM' },
-    
+
     { date: '2024-12-10', timeSlot: 'fasting', value: 182, time: '07:00 AM' },
     { date: '2024-12-10', timeSlot: 'breakfast', value: 232, time: '09:30 AM' },
     { date: '2024-12-10', timeSlot: 'beforeLunch', value: 178, time: '12:30 PM' },
@@ -767,7 +777,7 @@ export const mockLabTests = [
       performedBy: 'Sarah Mwangi'
     }
   },
-  
+
   {
     id: 2,
     testNumber: 'LAB-2024-002',
@@ -788,7 +798,7 @@ export const mockLabTests = [
       performedBy: 'Sarah Mwangi'
     }
   },
-  
+
   {
     id: 3,
     testNumber: 'LAB-2024-003',
@@ -802,7 +812,7 @@ export const mockLabTests = [
     sampleCollected: true,
     collectionDate: '2024-12-10 08:30 AM'
   },
-  
+
   {
     id: 4,
     testNumber: 'LAB-2024-004',
@@ -817,7 +827,7 @@ export const mockLabTests = [
     collectionDate: '2024-12-09 09:00 AM',
     expectedDate: '2024-12-12'
   },
-  
+
   {
     id: 5,
     testNumber: 'LAB-2024-005',
@@ -837,7 +847,7 @@ export const mockLabTests = [
       performedBy: 'John Kamau'
     }
   },
-  
+
   {
     id: 6,
     testNumber: 'LAB-2024-006',
@@ -872,7 +882,7 @@ export const mockAppointments = [
     reason: '3-month diabetes review',
     notes: 'Bring recent blood sugar log'
   },
-  
+
   {
     id: 2,
     appointmentNumber: 'APT-2024-002',
@@ -888,7 +898,7 @@ export const mockAppointments = [
     reason: 'Lipid profile review',
     notes: ''
   },
-  
+
   {
     id: 3,
     appointmentNumber: 'APT-2024-003',
@@ -904,7 +914,7 @@ export const mockAppointments = [
     reason: 'Type 1 diabetes management',
     notes: 'Discuss insulin adjustment'
   },
-  
+
   {
     id: 4,
     appointmentNumber: 'APT-2024-004',
@@ -920,7 +930,7 @@ export const mockAppointments = [
     reason: 'Diabetes review',
     notes: 'Patient responded well to treatment'
   },
-  
+
   {
     id: 5,
     appointmentNumber: 'APT-2024-005',
@@ -955,13 +965,15 @@ export const mockConsultationNotes = [
       heartRate: '75 bpm',
       weight: '82 kg',
       temperature: '36.7°C',
-      oxygenSaturation: '98%'
+      oxygenSaturation: '98%',
+      waistCircumference: '95 cm',
+      waistHeightRatio: '0.54',
     },
     assessment: 'Type 2 Diabetes - adequately controlled. Mild polydipsia noted.',
     plan: 'Continue current medications. Increase water intake. Review in 3 months.',
     prescriptions: ['RX-2024-001']
   },
-  
+
   {
     id: 2,
     uhid: 'CDC005',
@@ -974,13 +986,15 @@ export const mockConsultationNotes = [
       heartRate: '78 bpm',
       weight: '78 kg',
       temperature: '36.6°C',
-      oxygenSaturation: '98%'
+      oxygenSaturation: '98%',
+      waistCircumference: '95 cm',
+      waistHeightRatio: '0.54',
     },
     assessment: 'Type 2 Diabetes with Hypertension - good control. HbA1c improving.',
     plan: 'Continue current regimen. Monitor BP at home. Return in 4 weeks.',
     prescriptions: ['RX-2024-004']
   },
-  
+
   {
     id: 3,
     uhid: 'CDC007',
@@ -993,7 +1007,9 @@ export const mockConsultationNotes = [
       heartRate: '82 bpm',
       weight: '85 kg',
       temperature: '36.9°C',
-      oxygenSaturation: '96%'
+      oxygenSaturation: '96%',
+      waistCircumference: '95 cm',
+      waistHeightRatio: '0.54',
     },
     assessment: 'Type 2 Diabetes - poorly controlled. Peripheral neuropathy symptoms. Hypertension.',
     plan: 'Started insulin therapy. Counsel on administration. Foot care education. Follow up in 2 weeks.',
@@ -1066,7 +1082,7 @@ export const mockReports = [
     size: '2.3 MB',
     description: 'Comprehensive patient summary including demographics, visit frequency, and outcomes'
   },
-  
+
   {
     id: 2,
     reportNumber: 'RPT-2024-002',
@@ -1080,7 +1096,7 @@ export const mockReports = [
     size: '4.1 MB',
     description: 'Analysis of HbA1c trends and blood sugar control across patient population'
   },
-  
+
   {
     id: 3,
     reportNumber: 'RPT-2024-003',
@@ -1094,7 +1110,7 @@ export const mockReports = [
     size: '1.8 MB',
     description: 'Prescription compliance and medication adherence analysis'
   },
-  
+
   {
     id: 4,
     reportNumber: 'RPT-2024-004',
@@ -1139,7 +1155,7 @@ export const mockUploadedDocuments = {
       notes: ''
     },
   ],
-  
+
   'CDC005': [
     {
       id: 3,

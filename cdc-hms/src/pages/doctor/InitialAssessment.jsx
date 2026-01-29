@@ -20,8 +20,12 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const fromConsultation = location.state?.fromConsultation || embedded;
   const fromProfile = location.state?.fromProfile;
 
+  // const [selectedPatient, setSelectedPatient] = useState(null);
+  // const [alreadyAssessed, setAlreadyAssessed] = useState(false);
+
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [alreadyAssessed, setAlreadyAssessed] = useState(false);
+  const [viewMode, setViewMode] = useState(false);
 
   // Auto-select patient if coming from Consultations
   useEffect(() => {
@@ -32,6 +36,9 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
         const existingAssessment = getLatestAssessment(patient.uhid);
         if (existingAssessment) {
           setAlreadyAssessed(true);
+          setViewMode(true);
+          // Load the existing data
+          setAssessmentData(existingAssessment.data);
         }
         setSelectedPatient(patient);
       }
@@ -85,14 +92,18 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const handleSelectPatient = (patient) => {
     // Check if patient already has an initial assessment
     const existingAssessment = getLatestAssessment(patient.uhid);
-    
+
     if (existingAssessment) {
       setAlreadyAssessed(true);
+      setViewMode(true);
       setSelectedPatient(patient);
+      // Load existing data
+      setAssessmentData(existingAssessment.data);
       return;
     }
-    
+
     setAlreadyAssessed(false);
+    setViewMode(false);
     setSelectedPatient(patient);
     // Reset form
     setAssessmentData({
@@ -143,8 +154,12 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     setTimeout(() => successDiv.remove(), 3000);
 
     // Navigate back or clear
-    if (fromConsultation) {
-      navigate("/doctor/consultations");
+    if (fromConsultation && embedded) {
+      // Stay in embedded tab - don't navigate
+      return;
+    } else if (fromConsultation) {
+      // Navigate back to the consultation page with tabs
+      navigate(`/doctor/consultation/${selectedPatient.uhid}`);
     } else {
       setSelectedPatient(null);
     }
@@ -167,7 +182,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-       {/* Patient Selection (only show if NOT from consultation or profile) */}
+        {/* Patient Selection (only show if NOT from consultation or profile) */}
         {!fromConsultation && !fromProfile && !embedded && !patientUHID && (
           <div className="lg:col-span-1">
             <Card title=" Select Patient">
@@ -201,220 +216,170 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
         )}
 
         {/* Assessment Form */}
-        <div className={fromConsultation ? "lg:col-span-3" : "lg:col-span-2"}>
+        <div className={fromConsultation || fromProfile ? "lg:col-span-3" : "lg:col-span-2"}>
           {!selectedPatient ? (
             <Card>
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">
-                </div>
+                <div className="text-6xl mb-4">📋</div>
                 <p className="text-gray-500 text-lg">
                   Select a patient to start initial assessment
                 </p>
               </div>
             </Card>
-          ) : alreadyAssessed ? (
-            <Card>
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">âœ…</div>
-                <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                  Initial Assessment Already Completed
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  {selectedPatient.name} ({selectedPatient.uhid}) has already been assessed.
-                </p>
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded max-w-md mx-auto mb-6">
-                  <p className="text-sm text-blue-800">
-                    <strong>â„¹ï¸ Note:</strong> Initial Assessment is a one-time comprehensive evaluation for new patients.
-                    For ongoing evaluations, please use:
-                  </p>
-                  <ul className="text-sm text-blue-800 mt-2 space-y-1 text-left">
-                    <li>â€¢ <strong>Physical Examination</strong> - For detailed body system checks</li>
-                    <li>â€¢ <strong>Consultations</strong> - For follow-up visits</li>
-                    <li>â€¢ <strong>Prescriptions</strong> - For medication management</li>
-                  </ul>
-                </div>
-                <div className="flex gap-3 justify-center">
-                  <Button
-                    onClick={() =>
-                      navigate(`/doctor/patient-profile/${selectedPatient.uhid}`, {
-                        state: { fromConsultation: false }
-                      })
-                    }
-                  >
-                    View Patient Profile
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate("/doctor/physical-exam", {
-                      state: { patientUHID: selectedPatient.uhid, fromConsultation: false }
-                    })}
-                  >
-                    Physical Examination
-                  </Button>
-                  {!fromConsultation && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedPatient(null);
-                        setAlreadyAssessed(false);
-                      }}
-                    >
-                      Back
-                    </Button>
-                  )}
-                  {fromConsultation && !embedded && (
-                    <Button
-                      variant="outline"
-                      onClick={() => navigate("/doctor/consultations")}
-                    >
-                      Back to Consultation
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Card>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* View Mode Banner */}
+              {viewMode && (
+                <Card>
+                  <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl">👁️</div>
+                      <div>
+                        <p className="text-sm font-bold text-blue-900">
+                          VIEW MODE - Initial Assessment (Read Only)
+                        </p>
+                        <p className="text-xs text-blue-700 mt-1">
+                          This assessment was completed on {new Date().toLocaleDateString()}. 
+                          Initial assessments cannot be edited as they are one-time comprehensive evaluations.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
               {/* Patient Header */}
               <Card>
                 <h3 className="text-2xl font-bold text-gray-800">
                   {selectedPatient.name}
                 </h3>
                 <p className="text-gray-600 mt-1">
-                  {selectedPatient.uhid} {selectedPatient.age} yrs {" "}
-                  {selectedPatient.gender}
+                  {selectedPatient.uhid} • {selectedPatient.age} yrs • {selectedPatient.gender}
                 </p>
               </Card>
 
               {/* Presenting Complaints */}
               <Card title="Presenting Complaints">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.weightLoss}
                       onChange={() => handleCheckboxChange("weightLoss")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
-                    <span className="font-medium text-gray-800">
-                      Weight Loss
-                    </span>
+                    <span className="font-medium text-gray-800">Weight Loss</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.visualDisturbances}
-                      onChange={() =>
-                        handleCheckboxChange("visualDisturbances")
-                      }
+                      onChange={() => handleCheckboxChange("visualDisturbances")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
-                    <span className="font-medium text-gray-800">
-                      Visual Disturbances
-                    </span>
+                    <span className="font-medium text-gray-800">Visual Disturbances</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.increasedThirst}
                       onChange={() => handleCheckboxChange("increasedThirst")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
-                    <span className="font-medium text-gray-800">
-                      Increased Thirst (Polydipsia)
-                    </span>
+                    <span className="font-medium text-gray-800">Increased Thirst (Polydipsia)</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.fatigue}
                       onChange={() => handleCheckboxChange("fatigue")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
                     <span className="font-medium text-gray-800">Fatigue</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.nocturia}
                       onChange={() => handleCheckboxChange("nocturia")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
-                    <span className="font-medium text-gray-800">
-                      Nocturia (Frequent Nighttime Urination)
-                    </span>
+                    <span className="font-medium text-gray-800">Nocturia (Frequent Nighttime Urination)</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.paresthesia}
                       onChange={() => handleCheckboxChange("paresthesia")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
-                    <span className="font-medium text-gray-800">
-                      Paresthesia (Numbness/Tingling)
-                    </span>
+                    <span className="font-medium text-gray-800">Paresthesia (Numbness/Tingling)</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.dizziness}
                       onChange={() => handleCheckboxChange("dizziness")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
                     <span className="font-medium text-gray-800">Dizziness</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.legCramps}
                       onChange={() => handleCheckboxChange("legCramps")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
-                    <span className="font-medium text-gray-800">
-                      Leg Cramps
-                    </span>
+                    <span className="font-medium text-gray-800">Leg Cramps</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.constipation}
                       onChange={() => handleCheckboxChange("constipation")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
-                    <span className="font-medium text-gray-800">
-                      Constipation
-                    </span>
+                    <span className="font-medium text-gray-800">Constipation</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.diarrhea}
                       onChange={() => handleCheckboxChange("diarrhea")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
                     <span className="font-medium text-gray-800">Diarrhea</span>
                   </label>
 
-                  <label className="flex items-center space-x-3 p-3 border-2 border-gray-200 rounded-lg hover:border-primary transition cursor-pointer">
+                  <label className={`flex items-center space-x-3 p-3 border-2 rounded-lg ${viewMode ? 'bg-gray-50 cursor-not-allowed' : 'border-gray-200 hover:border-primary cursor-pointer'} transition`}>
                     <input
                       type="checkbox"
                       checked={assessmentData.decreasedLibido}
                       onChange={() => handleCheckboxChange("decreasedLibido")}
+                      disabled={viewMode}
                       className="w-5 h-5 text-primary"
                     />
-                    <span className="font-medium text-gray-800">
-                      Decreased Libido
-                    </span>
+                    <span className="font-medium text-gray-800">Decreased Libido</span>
                   </label>
                 </div>
 
@@ -422,23 +387,12 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Other Complaints
                   </label>
-                  {/* <textarea
-                    value={assessmentData.otherComplaints}
-                    onChange={(e) =>
-                      handleInputChange("otherComplaints", e.target.value)
-                    }
-                    placeholder="Describe any other complaints..."
-                    rows="3"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                  /> */}
                   <VoiceInput
                     value={assessmentData.otherComplaints}
-                    onChange={(e) =>
-                      handleInputChange("otherComplaints", e.target.value)
-                    }
+                    onChange={(e) => handleInputChange("otherComplaints", e.target.value)}
                     placeholder="Describe any other complaints..."
                     rows={3}
-                    // className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                    disabled={viewMode}
                   />
                 </div>
               </Card>
@@ -453,11 +407,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.retinopathy}
-                      onChange={(e) =>
-                        handleInputChange("retinopathy", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("retinopathy", e.target.value)}
                       placeholder="Enter findings or 'None'"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -468,14 +421,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.cerebrovascularDisease}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "cerebrovascularDisease",
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => handleInputChange("cerebrovascularDisease", e.target.value)}
                       placeholder="Enter findings or 'None'"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -486,14 +435,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.cardiovascularDisease}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "cardiovascularDisease",
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => handleInputChange("cardiovascularDisease", e.target.value)}
                       placeholder="Enter findings or 'None'"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -504,11 +449,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.nephropathy}
-                      onChange={(e) =>
-                        handleInputChange("nephropathy", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("nephropathy", e.target.value)}
                       placeholder="Enter findings or 'None'"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -519,14 +463,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.neuropathyPeripheral}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "neuropathyPeripheral",
-                          e.target.value
-                        )
-                      }
+                      onChange={(e) => handleInputChange("neuropathyPeripheral", e.target.value)}
                       placeholder="Enter findings or 'None'"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -537,11 +477,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.neuropathyAutonomic}
-                      onChange={(e) =>
-                        handleInputChange("neuropathyAutonomic", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("neuropathyAutonomic", e.target.value)}
                       placeholder="Enter findings or 'None'"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -549,28 +488,18 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
 
               {/* Family History */}
               <Card title="Family History">
-                {/* <textarea
-                  value={assessmentData.familyHistory}
-                  onChange={(e) =>
-                    handleInputChange("familyHistory", e.target.value)
-                  }
-                  placeholder="Enter family history of diabetes, cardiovascular disease, etc..."
-                  rows="4"
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                /> */}
                 <VoiceInput
                   value={assessmentData.familyHistory}
-                  onChange={(e) =>
-                    handleInputChange("familyHistory", e.target.value)
-                  }
+                  onChange={(e) => handleInputChange("familyHistory", e.target.value)}
                   placeholder="Enter family history of diabetes, cardiovascular disease, etc..."
                   rows="4"
+                  disabled={viewMode}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
                 />
               </Card>
 
               {/* Social History */}
-              <Card title=" Social History">
+              <Card title="Social History">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -579,11 +508,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.alcoholIntake}
-                      onChange={(e) =>
-                        handleInputChange("alcoholIntake", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("alcoholIntake", e.target.value)}
                       placeholder="e.g., None, Occasional, Daily"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -594,11 +522,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.cigaretteSmoking}
-                      onChange={(e) =>
-                        handleInputChange("cigaretteSmoking", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("cigaretteSmoking", e.target.value)}
                       placeholder="e.g., Non-smoker, 5 cigarettes/day, Former smoker"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -608,10 +535,9 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     </label>
                     <select
                       value={assessmentData.dietType}
-                      onChange={(e) =>
-                        handleInputChange("dietType", e.target.value)
-                      }
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      onChange={(e) => handleInputChange("dietType", e.target.value)}
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     >
                       <option value="">Select diet type...</option>
                       <option value="Liberal Diet">Liberal Diet</option>
@@ -625,23 +551,12 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Exercise Plan
                     </label>
-                    {/* <textarea
-                      value={assessmentData.exercisePlan}
-                      onChange={(e) =>
-                        handleInputChange("exercisePlan", e.target.value)
-                      }
-                      placeholder="Describe current exercise routine..."
-                      rows="3"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                    /> */}
                     <VoiceInput
                       value={assessmentData.exercisePlan}
-                      onChange={(e) =>
-                        handleInputChange("exercisePlan", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("exercisePlan", e.target.value)}
                       placeholder="Describe current exercise routine..."
                       rows={3}
-                      // className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
                     />
                   </div>
 
@@ -652,39 +567,92 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <input
                       type="text"
                       value={assessmentData.substanceUse}
-                      onChange={(e) =>
-                        handleInputChange("substanceUse", e.target.value)
-                      }
+                      onChange={(e) => handleInputChange("substanceUse", e.target.value)}
                       placeholder="Enter any substance use or 'None'"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      disabled={viewMode}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
               </Card>
 
-              {/* Submit Buttons */}
+            {/* Action Buttons */}
               <div className="flex gap-4">
-                <Button type="submit" className="flex-1">
-                  Save Initial Assessment
-                </Button>
-                {fromConsultation ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => navigate("/doctor/consultations")}
-                    className="flex-1"
-                  >
-                    Return to Consultation
-                  </Button>
+                {!viewMode ? (
+                  <>
+                    <Button type="submit" className="flex-1">
+                      Save Initial Assessment
+                    </Button>
+                    {fromConsultation && embedded ? (
+                      // Embedded in Consultation tabs - no button needed
+                      null
+                    ) : fromConsultation ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigate(`/doctor/consultation/${selectedPatient.uhid}`)}
+                        className="flex-1"
+                      >
+                        Return to Consultation
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setSelectedPatient(null)}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                    )}
+                  </>
                 ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setSelectedPatient(null)}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
+                  <>
+                    {fromConsultation && embedded ? (
+                      // Embedded in tabs - just show close
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          // Do nothing, stay in tab
+                        }}
+                        className="flex-1"
+                      >
+                        ✓ Viewing Assessment
+                      </Button>
+                    ) : fromConsultation ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => navigate(`/doctor/consultation/${selectedPatient.uhid}`)}
+                        className="flex-1"
+                      >
+                        Return to Consultation
+                      </Button>
+                    ) : fromProfile ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => window.history.back()}
+                        className="flex-1"
+                      >
+                        Back to Profile
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedPatient(null);
+                          setViewMode(false);
+                          setAlreadyAssessed(false);
+                        }}
+                        className="flex-1"
+                      >
+                        Back to Patient Selection
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </form>

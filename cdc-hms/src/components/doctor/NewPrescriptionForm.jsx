@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import Button from "../shared/Button";
 import Input from "../shared/Input";
@@ -12,6 +12,8 @@ const NewPrescriptionForm = ({
   addPrescription,
   currentDoctor,
   embedded = false, // New prop for embedded mode (no modal wrapper)
+  initialMedications = [], // NEW: Accept pre-filled medications
+  onMedicationsChange, // NEW: Callback when medications change
 }) => {
   const commonMedications = [
     { name: "Metformin", defaultDosage: "500mg", type: "Oral" },
@@ -29,8 +31,22 @@ const NewPrescriptionForm = ({
   });
 
   const [medications, setMedications] = useState([
-    { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
-  ]);
+  { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
+]);
+
+// Sync with initialMedications when they change
+useEffect(() => {
+  if (initialMedications && initialMedications.length > 0) {
+    setMedications(initialMedications);
+  }
+}, [initialMedications]);
+
+  // Notify parent when medications change
+  useEffect(() => {
+    if (onMedicationsChange) {
+      onMedicationsChange(medications);
+    }
+  }, [medications, onMedicationsChange]);
 
   const handleAddMedication = () => {
     setMedications([
@@ -113,7 +129,9 @@ const NewPrescriptionForm = ({
   return (
     <form
       onSubmit={handleSubmit}
-      className={embedded ? "space-y-6" : "space-y-4 max-h-[70vh] overflow-y-auto"}
+      className={
+        embedded ? "space-y-6" : "space-y-4 max-h-[70vh] overflow-y-auto"
+      }
     >
       {/* Patient Info - Show differently based on embedded mode */}
       {embedded ? (

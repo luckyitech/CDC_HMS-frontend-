@@ -1,10 +1,43 @@
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
+import { useState } from "react";
+import ImageViewerModal from "../../components/doctor/ImageViewerModal";
 import {
   physicalExamSections,
   generateFindingsProse,
 } from "./physicalExamData";
+import {
+  Eye,
+  Printer,
+  ArrowLeft,
+  Camera,
+  Edit,
+  Activity,
+  ClipboardList,
+  Heart,
+  Wind,
+  Circle,
+  Brain,
+  Bone,
+  Footprints,
+} from "lucide-react";
+
+// Icon mapping helper - converts emoji strings to Lucide components
+const getIconComponent = (emojiIcon) => {
+  const iconMap = {
+    "📊": Activity,
+    "📋": ClipboardList,
+    "❤️": Heart,
+    "🫁": Wind,
+    "🔴": Circle,
+    "🧠": Brain,
+    "🦴": Bone,
+    "🦶": Footprints,
+    "📸": Camera,
+  };
+  return iconMap[emojiIcon] || ClipboardList;
+};
 
 const PhysicalExamFindings = ({
   examinationData,
@@ -12,13 +45,21 @@ const PhysicalExamFindings = ({
   onPrint,
   onClose,
 }) => {
-  const { uhid, patientName, doctorName, date, time, data } = examinationData;
+  const { uhid, patientName, doctorName, date, time, data, clinicalImages } =
+    examinationData;
+
+  // State for image viewer
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [showImageViewer, setShowImageViewer] = useState(false);
 
   // Generate findings for each section
   const generateAllFindings = () => {
     const findings = [];
 
     physicalExamSections.forEach((section) => {
+      // Skip clinical images section (handled separately)
+      if (section.id === "clinicalImages") return;
+
       if (data[section.id]) {
         const prose = generateFindingsProse(section.id, data[section.id]);
         if (prose) {
@@ -35,6 +76,12 @@ const PhysicalExamFindings = ({
   };
 
   const allFindings = generateAllFindings();
+
+  // Handle image view
+  const handleImageView = (image) => {
+    setSelectedImage(image);
+    setShowImageViewer(true);
+  };
 
   return (
     <div className="space-y-6 px-2">
@@ -53,15 +100,20 @@ const PhysicalExamFindings = ({
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onEdit} className="text-sm">
-              ✏️ Edit
-            </Button>
+            {onEdit && (
+              <Button variant="outline" onClick={onEdit} className="text-sm">
+                <Edit className="w-4 h-4 inline mr-1" />
+                Edit
+              </Button>
+            )}
             <Button variant="outline" onClick={onPrint} className="text-sm">
-              🖨️ Print
+              <Printer className="w-4 h-4 inline mr-1" />
+              Print
             </Button>
             {onClose && (
               <Button variant="outline" onClick={onClose} className="text-sm">
-                ← Back
+                <ArrowLeft className="w-4 h-4 inline mr-1" />
+                Back
               </Button>
             )}
           </div>
@@ -75,7 +127,9 @@ const PhysicalExamFindings = ({
           <div className="flex items-center justify-between">
             {/* Left side - Clinic Name */}
             <div className="flex-1 px-4">
-              <h1 className="text-3xl font-bold text-primary">CDC DIABETES CLINIC</h1>
+              <h1 className="text-3xl font-bold text-primary">
+                CDC DIABETES CLINIC
+              </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Comprehensive Diabetes Centre • Excellence in Diabetes Care
               </p>
@@ -83,12 +137,12 @@ const PhysicalExamFindings = ({
                 Tel: +254 700 000 000 • Email: info@cdc-diabetes.com
               </p>
             </div>
-            
+
             {/* Right side - Logo ONLY */}
             <div>
-              <img 
-                src={cdcLogo} 
-                alt="CDC Logo" 
+              <img
+                src={cdcLogo}
+                alt="CDC Logo"
                 className="w-40 h-40 object-contain py-4"
               />
             </div>
@@ -107,11 +161,15 @@ const PhysicalExamFindings = ({
 
         {/* Patient Information */}
         <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-          <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase">Patient Information</h3>
+          <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase">
+            Patient Information
+          </h3>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-gray-600">Patient Name:</span>
-              <span className="font-semibold text-gray-800 ml-2">{patientName}</span>
+              <span className="font-semibold text-gray-800 ml-2">
+                {patientName}
+              </span>
             </div>
             <div>
               <span className="text-gray-600">UHID:</span>
@@ -119,7 +177,9 @@ const PhysicalExamFindings = ({
             </div>
             <div>
               <span className="text-gray-600">Examined by:</span>
-              <span className="font-semibold text-gray-800 ml-2">{doctorName}</span>
+              <span className="font-semibold text-gray-800 ml-2">
+                {doctorName}
+              </span>
             </div>
             <div>
               <span className="text-gray-600">Date:</span>
@@ -151,7 +211,12 @@ const PhysicalExamFindings = ({
                 >
                   <td className="px-6 py-4 align-top">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl">{finding.icon}</span>
+                      {(() => {
+                        const IconComponent = getIconComponent(finding.icon);
+                        return (
+                          <IconComponent className="w-5 h-5 text-primary" />
+                        );
+                      })()}
                       <span className="font-semibold text-gray-800">
                         {finding.title}
                       </span>
@@ -176,6 +241,74 @@ const PhysicalExamFindings = ({
           </div>
         )}
       </Card>
+
+      {/* Clinical Images Section */}
+      {clinicalImages && clinicalImages.length > 0 && (
+        <Card>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-4 border-b-2 border-gray-200">
+              <Camera className="w-6 h-6 text-primary" />
+              <h3 className="text-xl font-bold text-gray-800">
+                Clinical Images
+              </h3>
+              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                {clinicalImages.length}{" "}
+                {clinicalImages.length === 1 ? "Image" : "Images"}
+              </span>
+            </div>
+
+            {/* Images Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {clinicalImages.map((image, index) => (
+                <div
+                  key={image.id || index}
+                  className="border-2 border-gray-200 rounded-lg p-3 hover:border-primary transition print:break-inside-avoid"
+                >
+                  {/* Image Preview */}
+                  <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-3">
+                    <img
+                      src={image.file}
+                      alt={image.caption || `Clinical image ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Image Info */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                        {image.bodyArea}
+                      </span>
+                    </div>
+
+                    {image.caption && (
+                      <p className="text-sm text-gray-700 line-clamp-2">
+                        {image.caption}
+                      </p>
+                    )}
+
+                    <p className="text-xs text-gray-500">
+                      {new Date(image.timestamp).toLocaleDateString()} •{" "}
+                      {new Date(image.timestamp).toLocaleTimeString()}
+                    </p>
+
+                    {/* Action Button (Hide in print) */}
+                    <div className="print:hidden">
+                      <button
+                        onClick={() => handleImageView(image)}
+                        className="w-full px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium transition"
+                      >
+                        <Eye className="w-4 h-4 inline mr-1" />
+                        View Full Size
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Signature Section */}
       <Card>
@@ -234,7 +367,7 @@ const PhysicalExamFindings = ({
           }
           
           /* Remove background colors for printing */
-          .bg-blue-50, .bg-gray-50 {
+          .bg-blue-50, .bg-gray-50, .bg-blue-100 {
             background-color: white !important;
           }
           
@@ -242,8 +375,30 @@ const PhysicalExamFindings = ({
           .border-2, .border-b-2 {
             border-color: #333 !important;
           }
+          
+          /* Images print properly */
+          img {
+            page-break-inside: avoid;
+            max-width: 100%;
+          }
+          
+          /* Prevent page breaks inside image cards */
+          .print\\:break-inside-avoid {
+            page-break-inside: avoid;
+          }
         }
       `}</style>
+
+      {/* Image Viewer Modal */}
+      {showImageViewer && selectedImage && (
+        <ImageViewerModal
+          image={selectedImage}
+          onClose={() => {
+            setShowImageViewer(false);
+            setSelectedImage(null);
+          }}
+        />
+      )}
     </div>
   );
 };

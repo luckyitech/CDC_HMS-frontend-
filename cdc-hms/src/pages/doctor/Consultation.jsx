@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   X,
 } from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
@@ -34,10 +35,10 @@ import { useConsultationNotesContext } from "../../contexts/ConsultationNotesCon
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamination from "./PhysicalExamination";
-import NewPrescriptionForm from "../../components/doctor/NewPrescriptionForm";
-import PrescriptionHistory from "../../components/doctor/PrescriptionHistory";
+import PhysicalExamList from "../../components/doctor/PhysicalExamList";
 import TreatmentPlansList from "../../components/doctor/TreatmentPlansList";
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
+import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 
 const Consultation = () => {
   const { uhid } = useParams();
@@ -103,10 +104,6 @@ const Consultation = () => {
   const [skin, setSkin] = useState("");
   const [examFindings, setExamFindings] = useState("");
 
-  // Diagnosis & Treatment Plan tab data
-  const [diagnosis, setDiagnosis] = useState("");
-  const [treatmentPlan, setTreatmentPlan] = useState("");
-
   // Modal state
   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -157,7 +154,6 @@ const Consultation = () => {
         musculoskeletal !== "" ||
         skin !== "" ||
         examFindings !== "",
-      diagnosis: diagnosis !== "" || treatmentPlan !== "",
       prescriptions: false, // Handled by component
     });
   }, [
@@ -174,8 +170,6 @@ const Consultation = () => {
     musculoskeletal,
     skin,
     examFindings,
-    diagnosis,
-    treatmentPlan,
   ]);
 
   // Redirect if patient not found
@@ -252,34 +246,8 @@ const Consultation = () => {
     setTimeout(() => toast.remove(), 2000);
   };
 
-  const handleSaveDiagnosis = () => {
-    if (!diagnosis.trim()) {
-      alert("Please enter a diagnosis");
-      return;
-    }
-    if (!treatmentPlan.trim()) {
-      alert("Please enter a treatment plan");
-      return;
-    }
-
-    addTreatmentPlan({
-      uhid: patient.uhid,
-      patientName: patient.name,
-      doctorName: currentUser?.name || "Doctor",
-      diagnosis: diagnosis,
-      plan: treatmentPlan,
-    });
-
+  const handleDiagnosisSuccess = () => {
     setTabsCompleted({ ...tabsCompleted, diagnosis: true });
-    setTabsUnsaved({ ...tabsUnsaved, diagnosis: false });
-
-    // Show success toast
-    const toast = document.createElement("div");
-    toast.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "âœ… Diagnosis & Plan Saved";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
   };
 
   const handlePrescriptionSuccess = () => {
@@ -287,8 +255,8 @@ const Consultation = () => {
   };
 
   const handleCompleteConsultation = () => {
-    // Validate required fields
-    if (!diagnosis.trim() || !treatmentPlan.trim()) {
+    // Validate required fields - check if diagnosis tab is completed
+    if (!tabsCompleted.diagnosis) {
       alert(
         "Please complete Diagnosis & Treatment Plan tab before completing consultation"
       );
@@ -559,6 +527,37 @@ const Consultation = () => {
                         </p>
                       </div>
                     )}
+
+                    {/*Waist Circumference */}
+                    {patient.vitals?.waistCircumference && (
+                      <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                        <p className="text-xs text-gray-600">
+                          Waist Circumference
+                        </p>
+                        <p className="font-semibold text-lg text-purple-700">
+                          {patient.vitals.waistCircumference}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Waist-to-Height Ratio */}
+                    {patient.vitals?.waistHeightRatio && (
+                      <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                        <p className="text-xs text-gray-600">
+                          Waist-to-Height Ratio
+                        </p>
+                        <p className="font-semibold text-lg text-orange-700">
+                          {patient.vitals.waistHeightRatio}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {parseFloat(patient.vitals.waistHeightRatio) < 0.5
+                            ? "(Healthy)"
+                            : parseFloat(patient.vitals.waistHeightRatio) < 0.6
+                            ? "(Increased Risk)"
+                            : "(High Risk)"}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -590,11 +589,14 @@ const Consultation = () => {
                 )}
 
                 {patient.allergies && (
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700 mb-1">
+                  <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                    <p className="text-sm font-semibold text-red-700 mb-1 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
                       Allergies:
                     </p>
-                    <p className="text-sm text-gray-600">{patient.allergies}</p>
+                    <p className="text-sm text-gray-800 font-medium">
+                      {patient.allergies}
+                    </p>
                   </div>
                 )}
 
@@ -675,121 +677,31 @@ const Consultation = () => {
 
         {/* Physical Exam Tab */}
         {activeTab === "exam" && (
-          <PhysicalExamination uhid={uhid} embedded={true} />
+          <PhysicalExamList patient={patient} embedded={true} />
         )}
-
         {/* Consultation Notes Tab */}
         {activeTab === "notes" && <ConsultationNotesList patient={patient} />}
 
         {/* Diagnosis & Treatment Plan Tab */}
         {activeTab === "diagnosis" && (
-          <div className="space-y-6">
-            {/* Previous Treatment Plans History */}
-            <TreatmentPlansList patient={patient} showStatistics={false} />
-
-            {/* Write New Diagnosis & Treatment Plan */}
-            <Card
-              title={
-                <span className="flex items-center gap-2">
-                  <FileEdit className="w-6 h-6" />
-                  Write New Diagnosis & Treatment Plan
-                </span>
-              }
-            >
-              <div className="space-y-6">
-                <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded-lg">
-                  <p className="text-sm font-semibold text-yellow-800 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Required for Completion
-                  </p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Both diagnosis and treatment plan must be completed before
-                    you can complete the consultation.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Diagnosis *
-                  </label>
-                  <input
-                    type="text"
-                    value={diagnosis}
-                    onChange={(e) => setDiagnosis(e.target.value)}
-                    placeholder="e.g., Type 2 Diabetes Mellitus - Poorly Controlled, Diabetic Neuropathy"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Treatment Plan *
-                  </label>
-                  <VoiceInput
-                    value={treatmentPlan}
-                    onChange={(e) => setTreatmentPlan(e.target.value)}
-                    placeholder="Document treatment plan:
-â€¢ Medication changes (e.g., Increase Metformin to 1000mg twice daily, Add Glimepiride 2mg)
-â€¢ Monitoring instructions (e.g., Check SMBG daily, HbA1c repeat in 3 months)
-â€¢ Lifestyle modifications (e.g., Reduce carbs to 45-60g/meal, Walk 30min daily)
-â€¢ Follow-up schedule (e.g., Return in 4 weeks, phone check-in at 2 weeks)
-â€¢ Referrals (e.g., Ophthalmology for retinopathy screening)"
-                    rows={10}
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Include: medication adjustments, monitoring plan, lifestyle
-                    changes, follow-up timeline, referrals needed
-                  </p>
-                </div>
-
-                <div className="flex justify-end pt-4 border-t">
-                  <Button onClick={handleSaveDiagnosis}>
-                    Save Diagnosis & Plan
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          </div>
+          <TreatmentPlansList
+            patient={patient}
+            showStatistics={false}
+            showCreateForm={true}
+            currentUser={currentUser}
+            onSuccess={handleDiagnosisSuccess}
+          />
         )}
 
         {/* Prescriptions Tab */}
         {activeTab === "prescriptions" && (
-          <div className="space-y-6">
-            {/* Patient's Prescription History */}
-            <Card
-              title={
-                <span className="flex items-center gap-2">
-                  <Pill className="w-6 h-6" />
-                  Prescription History
-                </span>
-              }
-            >
-              <PrescriptionHistory
-                prescriptions={patientPrescriptions}
-                maxDisplay={5}
-                compact={true}
-              />
-            </Card>
-
-            {/* Write New Prescription Form */}
-            <Card
-              title={
-                <span className="flex items-center gap-2">
-                  <FileEdit className="w-6 h-6" />
-                  Write New Prescription
-                </span>
-              }
-            >
-              <NewPrescriptionForm
-                selectedPatient={patient}
-                fromConsultation={true}
-                embedded={true}
-                addPrescription={addPrescription}
-                currentDoctor={currentUser}
-                onSuccess={handlePrescriptionSuccess}
-              />
-            </Card>
-          </div>
+          <PrescriptionManagement
+            patient={patient}
+            patientPrescriptions={patientPrescriptions}
+            addPrescription={addPrescription}
+            currentUser={currentUser}
+            onSuccess={handlePrescriptionSuccess}
+          />
         )}
 
         {/* Quick Actions Tab */}
@@ -918,7 +830,6 @@ const Consultation = () => {
 
       {/* Floating Complete Button */}
       <div className="fixed bottom-6 right-6 z-40">
-
         <Button
           onClick={handleCompleteConsultation}
           className="bg-green-600 hover:bg-green-700 text-white px-6 py-4 text-base font-bold shadow-2xl"
