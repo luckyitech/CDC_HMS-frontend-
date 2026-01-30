@@ -261,27 +261,27 @@ const MainLayout = ({ userRole = "Staff" }) => {
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
       { name: "My Patients", path: "/doctor/patients", icon: Users },
-      {
-        name: "Consultations",
-        path: "/doctor/consultations",
-        icon: HeartPulse,
-      },
-      {
-        name: "Initial Assessment",
-        path: "/doctor/initial-assessment",
-        icon: ClipboardList,
-      },
-      {
-        name: "Physical Exam",
-        path: "/doctor/physical-exam",
-        icon: Stethoscope,
-      },
+      // {
+      //   name: "Consultations",
+      //   path: "/doctor/consultations",
+      //   icon: HeartPulse,
+      // },
+      // {
+      //   name: "Initial Assessment",
+      //   path: "/doctor/initial-assessment",
+      //   icon: ClipboardList,
+      // },
+      // {
+      //   name: "Physical Exam",
+      //   path: "/doctor/physical-exam",
+      //   icon: Stethoscope,
+      // },
       {
         name: "Glycemic Charts",
         path: "/doctor/glycemic-charts",
         icon: ChartNoAxesCombined ,
       },
-      { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
+      // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       { name: "Reports", path: "/doctor/reports", icon: FileText },
     ],
     patient: [

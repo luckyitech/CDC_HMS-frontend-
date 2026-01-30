@@ -25,6 +25,7 @@ import PatientSearch from "./pages/staff/PatientSearch";
 import QueueManagement from "./pages/staff/QueueManagement";
 import Triage from "./pages/staff/Triage";
 import StaffCreatePatient from "./pages/staff/CreatePatient";
+import StaffPatientProfile from './pages/staff/StaffPatientProfile';
 
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
@@ -105,6 +106,7 @@ function App() {
                           path="create-patient"
                           element={<StaffCreatePatient />}
                         />
+                        <Route path="/staff/patient-profile/:uhid" element={<StaffPatientProfile />} />
                       </Route>
 
                       {/* Doctor Portal */}
