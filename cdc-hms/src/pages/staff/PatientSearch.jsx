@@ -1,76 +1,90 @@
-import { useState } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
-import { Search, UserCircle, UserPlus, AlertCircle, X, CheckCircle2 } from 'lucide-react';
-import Card from '../../components/shared/Card';
-import Button from '../../components/shared/Button';
-import { usePatientContext } from '../../contexts/PatientContext';
-import { useQueueContext } from '../../contexts/QueueContext';
+import { useState } from "react";
+import toast, { Toaster } from "react-hot-toast";
+import {
+  Search,
+  UserCircle,
+  UserPlus,
+  AlertCircle,
+  X,
+  CheckCircle2,
+} from "lucide-react";
+import Card from "../../components/shared/Card";
+import Button from "../../components/shared/Button";
+import { usePatientContext } from "../../contexts/PatientContext";
+import { useQueueContext } from "../../contexts/QueueContext";
+import { useNavigate } from "react-router-dom";
 
 const PatientSearch = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [queuePriority, setQueuePriority] = useState('Normal');
-  const [queueReason, setQueueReason] = useState('');
-  
+  const [queuePriority, setQueuePriority] = useState("Normal");
+  const [queueReason, setQueueReason] = useState("");
+
   const { searchPatients } = usePatientContext();
   const { addToQueue, isInQueue } = useQueueContext();
+
+  // Inside component:
+  const navigate = useNavigate();
 
   const handleSearch = () => {
     if (searchTerm.trim()) {
       const results = searchPatients(searchTerm);
       setSearchResults(results);
       setHasSearched(true);
-      
+
       if (results.length === 0) {
-        toast.error('No patients found', {
+        toast.error("No patients found", {
           duration: 3000,
           icon: <Search className="w-5 h-5" />,
           style: {
-            background: '#FEE2E2',
-            color: '#991B1B',
-            fontWeight: 'bold',
-            padding: '16px',
+            background: "#FEE2E2",
+            color: "#991B1B",
+            fontWeight: "bold",
+            padding: "16px",
           },
         });
       } else {
-        toast.success(`Found ${results.length} patient${results.length > 1 ? 's' : ''}`, {
-          duration: 2000,
-          icon: <CheckCircle2 className="w-5 h-5" />,
-          style: {
-            background: '#D1FAE5',
-            color: '#065F46',
-            fontWeight: 'bold',
-            padding: '16px',
-          },
-        });
+        toast.success(
+          `Found ${results.length} patient${results.length > 1 ? "s" : ""}`,
+          {
+            duration: 2000,
+            icon: <CheckCircle2 className="w-5 h-5" />,
+            style: {
+              background: "#D1FAE5",
+              color: "#065F46",
+              fontWeight: "bold",
+              padding: "16px",
+            },
+          }
+        );
       }
     } else {
-      toast.error('Please enter a search term', {
+      toast.error("Please enter a search term", {
         duration: 3000,
         icon: <AlertCircle className="w-5 h-5" />,
         style: {
-          background: '#FEE2E2',
-          color: '#991B1B',
-          fontWeight: 'bold',
-          padding: '16px',
+          background: "#FEE2E2",
+          color: "#991B1B",
+          fontWeight: "bold",
+          padding: "16px",
         },
       });
     }
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handleSearch();
     }
   };
 
   const handleAddToQueueClick = (patient) => {
     setSelectedPatient(patient);
-    setQueuePriority('Normal');
-    setQueueReason('');
+    setQueuePriority("Normal");
+    setQueueReason("");
     setShowQueueModal(true);
   };
 
@@ -82,10 +96,10 @@ const PatientSearch = () => {
           duration: 3000,
           icon: <CheckCircle2 className="w-5 h-5" />,
           style: {
-            background: '#D1FAE5',
-            color: '#065F46',
-            fontWeight: 'bold',
-            padding: '16px',
+            background: "#D1FAE5",
+            color: "#065F46",
+            fontWeight: "bold",
+            padding: "16px",
           },
         });
         setShowQueueModal(false);
@@ -95,10 +109,10 @@ const PatientSearch = () => {
           duration: 3000,
           icon: <AlertCircle className="w-5 h-5" />,
           style: {
-            background: '#FEE2E2',
-            color: '#991B1B',
-            fontWeight: 'bold',
-            padding: '16px',
+            background: "#FEE2E2",
+            color: "#991B1B",
+            fontWeight: "bold",
+            padding: "16px",
           },
         });
       }
@@ -111,7 +125,9 @@ const PatientSearch = () => {
 
       <div className="flex items-center gap-3 mb-6">
         <Search className="w-8 h-8 text-primary" />
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Patient Search</h2>
+        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
+          Patient Search
+        </h2>
       </div>
 
       {/* Search Card */}
@@ -134,55 +150,91 @@ const PatientSearch = () => {
 
       {/* Search Results */}
       {hasSearched && (
-        <Card title={`Search Results (${searchResults.length})`} className="mt-6">
+        <Card
+          title={`Search Results (${searchResults.length})`}
+          className="mt-6"
+        >
           {searchResults.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b-2 border-gray-200">
                   <tr>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
-                    <th className="hidden md:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age/Gender</th>
-                    <th className="hidden lg:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Phone</th>
-                    <th className="hidden sm:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Diabetes Type</th>
-                    <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                      UHID
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                      Name
+                    </th>
+                    <th className="hidden md:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                      Age/Gender
+                    </th>
+                    <th className="hidden lg:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                      Phone
+                    </th>
+                    <th className="hidden sm:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                      Diabetes Type
+                    </th>
+                    <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                      Status
+                    </th>
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {searchResults.map((patient) => (
                     <tr key={patient.id} className="hover:bg-gray-50">
-                      <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
-                      <td className="px-4 lg:px-6 py-4 font-semibold text-sm">{patient.name}</td>
-                      <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">{patient.age} yrs • {patient.gender}</td>
-                      <td className="hidden lg:table-cell px-4 lg:px-6 py-4 text-sm">{patient.phone}</td>
+                      <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">
+                        {patient.uhid}
+                      </td>
+                      <td className="px-4 lg:px-6 py-4 font-semibold text-sm">
+                        {patient.name}
+                      </td>
+                      <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">
+                        {patient.age} yrs • {patient.gender}
+                      </td>
+                      <td className="hidden lg:table-cell px-4 lg:px-6 py-4 text-sm">
+                        {patient.phone}
+                      </td>
                       <td className="hidden sm:table-cell px-4 lg:px-6 py-4">
                         <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
                           {patient.diabetesType}
                         </span>
                       </td>
                       <td className="hidden xl:table-cell px-4 lg:px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          patient.status === 'Active' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            patient.status === "Active"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
                           {patient.status}
                         </span>
                       </td>
                       <td className="px-4 lg:px-6 py-4">
                         <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            className="text-xs py-1 px-3"
+                            onClick={() =>
+                              navigate(`/staff/patient-profile/${patient.uhid}`)
+                            }
+                          >
+                            👤 View
+                          </Button>
                           {isInQueue(patient.uhid) ? (
-                            <Button 
-                              variant="secondary" 
+                            <Button
+                              variant="secondary"
                               className="text-xs py-1 px-3"
                               disabled
                             >
                               In Queue
                             </Button>
                           ) : (
-                            <Button 
-                              variant="primary" 
+                            <Button
+                              variant="primary"
                               className="text-xs py-1 px-3"
                               onClick={() => handleAddToQueueClick(patient)}
                             >
@@ -202,8 +254,12 @@ const PatientSearch = () => {
               <div className="flex justify-center mb-4">
                 <Search className="w-16 h-16 text-gray-400" />
               </div>
-              <p className="text-xl font-semibold text-gray-800 mb-2">No patients found</p>
-              <p className="text-gray-600">Try searching with a different term</p>
+              <p className="text-xl font-semibold text-gray-800 mb-2">
+                No patients found
+              </p>
+              <p className="text-gray-600">
+                Try searching with a different term
+              </p>
             </div>
           )}
         </Card>
@@ -215,8 +271,12 @@ const PatientSearch = () => {
             <div className="flex justify-center mb-4">
               <UserCircle className="w-20 h-20 text-gray-400" />
             </div>
-            <p className="text-xl font-semibold text-gray-800 mb-2">Search for a patient</p>
-            <p className="text-gray-600">Enter name, UHID, or phone number to find patient records</p>
+            <p className="text-xl font-semibold text-gray-800 mb-2">
+              Search for a patient
+            </p>
+            <p className="text-gray-600">
+              Enter name, UHID, or phone number to find patient records
+            </p>
           </div>
         </Card>
       )}
@@ -240,11 +300,17 @@ const PatientSearch = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-              <p className="font-semibold text-gray-800">{selectedPatient.name}</p>
-              <p className="text-sm text-gray-600">UHID: {selectedPatient.uhid}</p>
-              <p className="text-sm text-gray-600">{selectedPatient.age} yrs • {selectedPatient.gender}</p>
+              <p className="font-semibold text-gray-800">
+                {selectedPatient.name}
+              </p>
+              <p className="text-sm text-gray-600">
+                UHID: {selectedPatient.uhid}
+              </p>
+              <p className="text-sm text-gray-600">
+                {selectedPatient.age} yrs • {selectedPatient.gender}
+              </p>
             </div>
 
             <div className="mb-4">
@@ -257,7 +323,7 @@ const PatientSearch = () => {
                     type="radio"
                     name="priority"
                     value="Normal"
-                    checked={queuePriority === 'Normal'}
+                    checked={queuePriority === "Normal"}
                     onChange={(e) => setQueuePriority(e.target.value)}
                     className="mr-2"
                   />
@@ -268,7 +334,7 @@ const PatientSearch = () => {
                     type="radio"
                     name="priority"
                     value="Urgent"
-                    checked={queuePriority === 'Urgent'}
+                    checked={queuePriority === "Urgent"}
                     onChange={(e) => setQueuePriority(e.target.value)}
                     className="mr-2"
                   />
