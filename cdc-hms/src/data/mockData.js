@@ -236,6 +236,16 @@ export const mockPatients = [
 
     // Comorbidities
     comorbidities: ['Hypertension'],
+
+    //  Medical Equipment
+    medicalEquipment: {
+      insulinPump: {
+        hasPump: false,
+        current: null,
+        transmitter: null,
+        history: []
+      }
+    },
   },
 
   {
@@ -281,8 +291,8 @@ export const mockPatients = [
       bmi: '25.9',
       temperature: '36.5°C',
       oxygenSaturation: '99%',
-      waistCircumference: '95 cm', 
-      waistHeightRatio: '0.54', 
+      waistCircumference: '95 cm',
+      waistHeightRatio: '0.54',
     },
 
     medications: [
@@ -292,6 +302,16 @@ export const mockPatients = [
 
     allergies: 'Penicillin',
     comorbidities: ['Dyslipidemia'],
+
+    // Medical Equipment
+    medicalEquipment: {
+      insulinPump: {
+        hasPump: false,
+        current: null,
+        transmitter: null,
+        history: []
+      }
+    },
   },
 
   {
@@ -348,6 +368,40 @@ export const mockPatients = [
 
     allergies: 'None',
     comorbidities: [],
+
+
+    //  Medical Equipment (WITH TEST DATA - Type 1 Diabetes patient)
+    medicalEquipment: {
+      insulinPump: {
+        hasPump: true,
+        current: {
+          type: 'new',
+          serialNo: 'INS-2024-001',
+          model: 'MiniMed 780G',
+          manufacturer: 'Medtronic',
+          startDate: '2024-01-15',
+          warrantyStartDate: '2024-01-15',
+          warrantyEndDate: '2028-01-15',
+          addedBy: 'Mary Njeri (Staff)',
+          addedDate: '2024-01-15T10:30:00Z',
+          lastUpdatedBy: 'Mary Njeri (Staff)',
+          lastUpdatedDate: '2024-01-15T10:30:00Z'
+        },
+        transmitter: {
+          hasTransmitter: true,
+          type: 'new',
+          serialNo: 'TRX-2024-050',
+          startDate: '2024-01-15',
+          warrantyStartDate: '2024-01-15',
+          warrantyEndDate: '2025-01-15',
+          addedBy: 'Mary Njeri (Staff)',
+          addedDate: '2024-01-15T10:30:00Z',
+          lastUpdatedBy: 'Mary Njeri (Staff)',
+          lastUpdatedDate: '2024-01-15T10:30:00Z'
+        },
+        history: []
+      }
+    },
   },
 
   {
@@ -405,6 +459,16 @@ export const mockPatients = [
 
     allergies: 'Sulfa drugs',
     comorbidities: ['Hypertension', 'Dyslipidemia'],
+
+    // NEW: Medical Equipment
+    medicalEquipment: {
+      insulinPump: {
+        hasPump: false,
+        current: null,
+        transmitter: null,
+        history: []
+      }
+    },
   },
 
   {
@@ -462,6 +526,15 @@ export const mockPatients = [
 
     allergies: 'None',
     comorbidities: ['Hypertension', 'Obesity'],
+    // Medical Equipment
+    medicalEquipment: {
+      insulinPump: {
+        hasPump: false,
+        current: null,
+        transmitter: null,
+        history: []
+      }
+    },
   },
 ];
 

@@ -66,6 +66,15 @@ export const PatientProvider = ({ children }) => {
       id: patients.length + 1,
       ...patientData,
       status: "Active",
+      // Initialize medical equipment structure
+      medicalEquipment: {
+        insulinPump: {
+          hasPump: false,
+          current: null,
+          transmitter: null,
+          history: []
+        }
+      }
     };
     setPatients([...patients, newPatient]);
     return newPatient;
@@ -130,8 +139,8 @@ export const PatientProvider = ({ children }) => {
                 waistCircumference: triageData.waistCircumference || "",
                 waistHeightRatio: triageData.waistHeightRatio || "",
                 rbs: triageData.rbs || "",
-                hba1c: triageData.hba1c || "", 
-                ketones: triageData.ketones || "", 
+                hba1c: triageData.hba1c || "",
+                ketones: triageData.ketones || "",
               },
               chiefComplaint: triageData.chiefComplaint,
               allergies: triageData.allergies || patient.allergies,
@@ -176,12 +185,252 @@ export const PatientProvider = ({ children }) => {
     };
   };
 
+  // ========================================
+  // MEDICAL EQUIPMENT FUNCTIONS
+  // ========================================
+
+  // Add insulin pump or transmitter
+  const addMedicalEquipment = (uhid, equipmentData, userName) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((patient) => {
+        if (patient.uhid !== uhid) return patient;
+
+        const now = new Date().toISOString();
+        const equipment = patient.medicalEquipment?.insulinPump || {
+          hasPump: false,
+          current: null,
+          transmitter: null,
+          history: []
+        };
+
+        // Add insulin pump
+        if (equipmentData.deviceType === 'pump') {
+          return {
+            ...patient,
+            medicalEquipment: {
+              ...patient.medicalEquipment,
+              insulinPump: {
+                ...equipment,
+                hasPump: true,
+                current: {
+                  ...equipmentData,
+                  addedBy: userName,
+                  addedDate: now,
+                  lastUpdatedBy: userName,
+                  lastUpdatedDate: now
+                }
+              }
+            }
+          };
+        }
+
+        // Add transmitter
+        if (equipmentData.deviceType === 'transmitter') {
+          return {
+            ...patient,
+            medicalEquipment: {
+              ...patient.medicalEquipment,
+              insulinPump: {
+                ...equipment,
+                transmitter: {
+                  ...equipmentData,
+                  hasTransmitter: true,
+                  addedBy: userName,
+                  addedDate: now,
+                  lastUpdatedBy: userName,
+                  lastUpdatedDate: now
+                }
+              }
+            }
+          };
+        }
+
+        return patient;
+      })
+    );
+
+    return { success: true, message: "Medical equipment added successfully" };
+  };
+
+  // Update insulin pump or transmitter
+  const updateMedicalEquipment = (uhid, equipmentData, userName) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((patient) => {
+        if (patient.uhid !== uhid) return patient;
+
+        const now = new Date().toISOString();
+        const equipment = patient.medicalEquipment?.insulinPump;
+
+        if (!equipment) return patient;
+
+        // Update pump
+        if (equipmentData.deviceType === 'pump' && equipment.current) {
+          return {
+            ...patient,
+            medicalEquipment: {
+              ...patient.medicalEquipment,
+              insulinPump: {
+                ...equipment,
+                current: {
+                  ...equipment.current,
+                  ...equipmentData,
+                  lastUpdatedBy: userName,
+                  lastUpdatedDate: now
+                }
+              }
+            }
+          };
+        }
+
+        // Update transmitter
+        if (equipmentData.deviceType === 'transmitter' && equipment.transmitter) {
+          return {
+            ...patient,
+            medicalEquipment: {
+              ...patient.medicalEquipment,
+              insulinPump: {
+                ...equipment,
+                transmitter: {
+                  ...equipment.transmitter,
+                  ...equipmentData,
+                  lastUpdatedBy: userName,
+                  lastUpdatedDate: now
+                }
+              }
+            }
+          };
+        }
+
+        return patient;
+      })
+    );
+
+    return { success: true, message: "Medical equipment updated successfully" };
+  };
+
+  // Replace insulin pump or transmitter (archives old one)
+  const replaceMedicalEquipment = (uhid, equipmentData, reason, userName) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((patient) => {
+        if (patient.uhid !== uhid) return patient;
+
+        const now = new Date().toISOString();
+        const equipment = patient.medicalEquipment?.insulinPump;
+
+        if (!equipment) return patient;
+
+        // Replace pump
+        if (equipmentData.deviceType === 'pump' && equipment.current) {
+          const archivedPump = {
+            ...equipment.current,
+            deviceType: 'pump',
+            endDate: now,
+            reason: reason,
+            archivedBy: userName,
+            archivedDate: now
+          };
+
+          return {
+            ...patient,
+            medicalEquipment: {
+              ...patient.medicalEquipment,
+              insulinPump: {
+                ...equipment,
+                current: {
+                  ...equipmentData,
+                  addedBy: userName,
+                  addedDate: now,
+                  lastUpdatedBy: userName,
+                  lastUpdatedDate: now
+                },
+                history: [...equipment.history, archivedPump]
+              }
+            }
+          };
+        }
+
+        // Replace transmitter
+        if (equipmentData.deviceType === 'transmitter' && equipment.transmitter) {
+          const archivedTransmitter = {
+            ...equipment.transmitter,
+            deviceType: 'transmitter',
+            endDate: now,
+            reason: reason,
+            archivedBy: userName,
+            archivedDate: now
+          };
+
+          return {
+            ...patient,
+            medicalEquipment: {
+              ...patient.medicalEquipment,
+              insulinPump: {
+                ...equipment,
+                transmitter: {
+                  ...equipmentData,
+                  hasTransmitter: true,
+                  addedBy: userName,
+                  addedDate: now,
+                  lastUpdatedBy: userName,
+                  lastUpdatedDate: now
+                },
+                history: [...equipment.history, archivedTransmitter]
+              }
+            }
+          };
+        }
+
+        return patient;
+      })
+    );
+
+    return { success: true, message: "Medical equipment replaced successfully" };
+  };
+
+  // Get equipment history
+  const getMedicalEquipmentHistory = (uhid) => {
+    const patient = getPatientByUHID(uhid);
+    return patient?.medicalEquipment?.insulinPump?.history || [];
+  };
+
+  // Get warranty status for equipment
+  const getEquipmentWarrantyStatus = (warrantyEndDate) => {
+    if (!warrantyEndDate) return null;
+
+    const today = new Date();
+    const endDate = new Date(warrantyEndDate);
+    const daysRemaining = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+
+    if (daysRemaining < 0) {
+      return {
+        status: 'expired',
+        daysRemaining: Math.abs(daysRemaining),
+        message: `Expired ${Math.abs(daysRemaining)} days ago`,
+        color: 'red'
+      };
+    } else if (daysRemaining <= 30) {
+      return {
+        status: 'expiring-soon',
+        daysRemaining: daysRemaining,
+        message: `Expires in ${daysRemaining} days`,
+        color: 'yellow'
+      };
+    } else {
+      return {
+        status: 'active',
+        daysRemaining: daysRemaining,
+        message: `${daysRemaining} days remaining`,
+        color: 'green'
+      };
+    }
+  };
+
   const value = {
     // State
     patients,
     bloodSugarReadings,
 
-    // Functions
+    // Patient Functions
     getAllPatients,
     getPatientByUHID,
     getPatientById,
@@ -196,6 +445,13 @@ export const PatientProvider = ({ children }) => {
     getBloodSugarReadings,
     addBloodSugarReading,
     getPatientStats,
+
+    // NEW: Medical Equipment Functions
+    addMedicalEquipment,
+    updateMedicalEquipment,
+    replaceMedicalEquipment,
+    getMedicalEquipmentHistory,
+    getEquipmentWarrantyStatus,
   };
 
   return (
