@@ -1,4 +1,17 @@
 import { useState } from 'react';
+import { 
+  Battery, 
+  Zap, 
+  Radio, 
+  PlusCircle, 
+  TrendingUp, 
+  RefreshCw, 
+  Edit, 
+  FileText, 
+  AlertCircle,
+  CheckCircle,
+  Circle
+} from 'lucide-react';
 import Card from '../shared/Card';
 import Button from '../shared/Button';
 import AddEquipmentModal from './AddEquipmentModal';
@@ -138,9 +151,15 @@ const MedicalEquipmentTab = ({ patient }) => {
       active: 'bg-green-100 text-green-700 border-green-300'
     };
 
+    const icons = {
+      expired: <Circle className="w-3 h-3 fill-red-600 text-red-600" />,
+      'expiring-soon': <AlertCircle className="w-3 h-3" />,
+      active: <CheckCircle className="w-3 h-3" />
+    };
+
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${colors[status.status]}`}>
-        {status.status === 'expired' ? '🔴' : status.status === 'expiring-soon' ? '⚠️' : '✅'} {status.message}
+      <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${colors[status.status]}`}>
+        {icons[status.status]} {status.message}
       </span>
     );
   };
@@ -153,7 +172,7 @@ const MedicalEquipmentTab = ({ patient }) => {
       {!hasPump && !hasTransmitter && (
         <Card>
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">🔋</div>
+            <Battery className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <p className="text-xl font-bold text-gray-800 mb-2">
               No Medical Equipment Registered
             </p>
@@ -162,10 +181,12 @@ const MedicalEquipmentTab = ({ patient }) => {
             </p>
             <div className="flex gap-4 justify-center">
               <Button onClick={() => setShowAddPumpModal(true)}>
-                ⚡ Add Insulin Pump
+                <Zap className="w-4 h-4 mr-2" />
+                Add Insulin Pump
               </Button>
               <Button variant="secondary" onClick={() => setShowAddTransmitterModal(true)}>
-                📡 Add Transmitter
+                <Radio className="w-4 h-4 mr-2" />
+                Add Transmitter
               </Button>
             </div>
           </div>
@@ -177,7 +198,7 @@ const MedicalEquipmentTab = ({ patient }) => {
         <Card>
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="text-4xl">⚡</div>
+              <Zap className="w-10 h-10 text-blue-600" />
               <div>
                 <h3 className="text-xl font-bold text-gray-800">Insulin Pump</h3>
                 <p className="text-sm text-gray-600">Active Equipment</p>
@@ -213,9 +234,14 @@ const MedicalEquipmentTab = ({ patient }) => {
 
               <div>
                 <p className="text-xs text-gray-600 uppercase font-semibold">Type</p>
-                <p className="text-sm font-semibold text-gray-800">
-                  {equipment.current.type === 'new' ? '🆕 New Patient' : 
-                   equipment.current.type === 'upgrade' ? '⬆️ Upgrade' : '🔄 Replacement'}
+                <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                  {equipment.current.type === 'new' ? (
+                    <><PlusCircle className="w-4 h-4" /> New Patient</>
+                  ) : equipment.current.type === 'upgrade' ? (
+                    <><TrendingUp className="w-4 h-4" /> Upgrade</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4" /> Replacement</>
+                  )}
                 </p>
               </div>
             </div>
@@ -262,11 +288,13 @@ const MedicalEquipmentTab = ({ patient }) => {
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
             <Button variant="outline" onClick={() => setShowEditPumpModal(true)}>
-              ✏️ Edit Details
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Details
             </Button>
             {isStaff && (
               <Button variant="outline" onClick={() => setShowReplacePumpModal(true)}>
-                🔄 Replace Pump
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Replace Pump
               </Button>
             )}
           </div>
@@ -279,7 +307,8 @@ const MedicalEquipmentTab = ({ patient }) => {
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">No insulin pump registered</p>
             <Button onClick={() => setShowAddPumpModal(true)}>
-              ⚡ Add Insulin Pump
+              <Zap className="w-4 h-4 mr-2" />
+              Add Insulin Pump
             </Button>
           </div>
         </Card>
@@ -290,7 +319,7 @@ const MedicalEquipmentTab = ({ patient }) => {
         <Card>
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="text-4xl">📡</div>
+              <Radio className="w-10 h-10 text-purple-600" />
               <div>
                 <h3 className="text-xl font-bold text-gray-800">Transmitter</h3>
                 <p className="text-sm text-gray-600">Active Equipment</p>
@@ -312,9 +341,14 @@ const MedicalEquipmentTab = ({ patient }) => {
 
               <div>
                 <p className="text-xs text-gray-600 uppercase font-semibold">Type</p>
-                <p className="text-sm font-semibold text-gray-800">
-                  {equipment.transmitter.type === 'new' ? '🆕 New Patient' : 
-                   equipment.transmitter.type === 'upgrade' ? '⬆️ Upgrade' : '🔄 Replacement'}
+                <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                  {equipment.transmitter.type === 'new' ? (
+                    <><PlusCircle className="w-4 h-4" /> New Patient</>
+                  ) : equipment.transmitter.type === 'upgrade' ? (
+                    <><TrendingUp className="w-4 h-4" /> Upgrade</>
+                  ) : (
+                    <><RefreshCw className="w-4 h-4" /> Replacement</>
+                  )}
                 </p>
               </div>
             </div>
@@ -351,11 +385,13 @@ const MedicalEquipmentTab = ({ patient }) => {
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
             <Button variant="outline" onClick={() => setShowEditTransmitterModal(true)}>
-              ✏️ Edit Details
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Details
             </Button>
             {isStaff && (
               <Button variant="outline" onClick={() => setShowReplaceTransmitterModal(true)}>
-                🔄 Replace Transmitter
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Replace Transmitter
               </Button>
             )}
           </div>
@@ -368,7 +404,8 @@ const MedicalEquipmentTab = ({ patient }) => {
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">No transmitter registered</p>
             <Button variant="secondary" onClick={() => setShowAddTransmitterModal(true)}>
-              📡 Add Transmitter
+              <Radio className="w-4 h-4 mr-2" />
+              Add Transmitter
             </Button>
           </div>
         </Card>
@@ -383,7 +420,8 @@ const MedicalEquipmentTab = ({ patient }) => {
               <p className="text-sm text-gray-600">{history.length} archived device(s)</p>
             </div>
             <Button variant="outline" onClick={() => setShowHistoryModal(true)}>
-              📜 View Full History
+              <FileText className="w-4 h-4 mr-2" />
+              View Full History
             </Button>
           </div>
 
@@ -392,13 +430,20 @@ const MedicalEquipmentTab = ({ patient }) => {
             {history.slice(0, 2).map((item, index) => (
               <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-gray-800">
-                      {item.deviceType === 'pump' ? '⚡ Pump' : '📡 Transmitter'} - {item.serialNo}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {formatDate(item.startDate)} - {formatDate(item.endDate)}
-                    </p>
+                  <div className="flex items-center gap-2">
+                    {item.deviceType === 'pump' ? (
+                      <Zap className="w-4 h-4 text-blue-600" />
+                    ) : (
+                      <Radio className="w-4 h-4 text-purple-600" />
+                    )}
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        {item.deviceType === 'pump' ? 'Pump' : 'Transmitter'} - {item.serialNo}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {formatDate(item.startDate)} - {formatDate(item.endDate)}
+                      </p>
+                    </div>
                   </div>
                   <span className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs">
                     Archived
