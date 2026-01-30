@@ -667,6 +667,63 @@ const Consultation = () => {
                 </div>
               </Card>
             )}
+            {/* NEW: Medical Equipment Summary (if exists) */}
+            {patient.medicalEquipment?.insulinPump?.hasPump && (
+              <Card
+                title={
+                  <span className="flex items-center gap-2">
+                    <span className="text-2xl">🔋</span>
+                    Medical Equipment
+                  </span>
+                }
+              >
+                <div className="space-y-3">
+                  {/* Pump Info */}
+                  {patient.medicalEquipment.insulinPump.current && (
+                    <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                      <p className="text-sm font-bold text-gray-800 mb-1">
+                        ⚡ Insulin Pump
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        {patient.medicalEquipment.insulinPump.current.model ||
+                          "Not specified"}{" "}
+                        ({patient.medicalEquipment.insulinPump.current.serialNo}
+                        )
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Active since{" "}
+                        {new Date(
+                          patient.medicalEquipment.insulinPump.current.startDate
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Transmitter Info */}
+                  {patient.medicalEquipment.insulinPump.transmitter
+                    ?.hasTransmitter && (
+                    <div className="p-3 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+                      <p className="text-sm font-bold text-gray-800 mb-1">
+                        📡 Transmitter
+                      </p>
+                      <p className="text-sm text-gray-700">
+                        Serial:{" "}
+                        {
+                          patient.medicalEquipment.insulinPump.transmitter
+                            .serialNo
+                        }
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Active since{" "}
+                        {new Date(
+                          patient.medicalEquipment.insulinPump.transmitter.startDate
+                        ).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
           </div>
         )}
 

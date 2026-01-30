@@ -14,6 +14,7 @@ import LabTestPrint from "../../components/lab/LabTestPrint";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
+import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 
 import {
   physicalExamSections,
@@ -62,6 +63,7 @@ const PatientProfile = () => {
 
   const tabs = [
     { id: "overview", name: "Overview", icon: "📋" },
+    { id: "equipment", name: "Medical Equipment", icon: "🔋" },
     { id: "initial-assessment", name: "Initial Assessment", icon: "📝" },
     { id: "physical-exam", name: "Physical Exam", icon: "🩺" },
     { id: "glycemic-charts", name: "Glycemic Charts", icon: "📈" },
@@ -193,6 +195,7 @@ const PatientProfile = () => {
 
       <div>
         {activeTab === "overview" && <OverviewTab patient={patient} />}
+        {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "initial-assessment" && <InitialAssessment />}
         {activeTab === "physical-exam" && (
           <PhysicalExamList patient={patient} embedded={true} />
@@ -468,6 +471,75 @@ const OverviewTab = ({ patient }) => {
           )}
         </div>
       </Card>
+      {/* NEW: Medical Equipment Summary */}
+      {patient.medicalEquipment?.insulinPump?.hasPump && (
+        <Card title="🔋 Medical Equipment">
+          <div className="space-y-4">
+            {/* Pump Summary */}
+            {patient.medicalEquipment.insulinPump.current && (
+              <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-bold text-gray-800 flex items-center gap-2">
+                    ⚡ Insulin Pump
+                  </p>
+                  <span className="text-xs px-2 py-1 bg-blue-200 text-blue-800 rounded">
+                    Active
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Model:</span>{" "}
+                  {patient.medicalEquipment.insulinPump.current.model ||
+                    "Not specified"}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Serial:</span>{" "}
+                  {patient.medicalEquipment.insulinPump.current.serialNo}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Warranty expires:{" "}
+                  {new Date(
+                    patient.medicalEquipment.insulinPump.current.warrantyEndDate
+                  ).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+
+            {/* Transmitter Summary */}
+            {patient.medicalEquipment.insulinPump.transmitter
+              ?.hasTransmitter && (
+              <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-bold text-gray-800 flex items-center gap-2">
+                    📡 Transmitter
+                  </p>
+                  <span className="text-xs px-2 py-1 bg-purple-200 text-purple-800 rounded">
+                    Active
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Serial:</span>{" "}
+                  {patient.medicalEquipment.insulinPump.transmitter.serialNo}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Warranty expires:{" "}
+                  {new Date(
+                    patient.medicalEquipment.insulinPump.transmitter.warrantyEndDate
+                  ).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+
+            {/* View Details Button */}
+            <Button
+              variant="outline"
+              onClick={() => setActiveTab("equipment")}
+              className="w-full"
+            >
+              View Equipment Details →
+            </Button>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
