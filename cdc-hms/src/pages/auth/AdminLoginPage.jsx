@@ -81,6 +81,16 @@ const AdminLoginPage = () => {
             {loading ? 'Logging in...' : 'Login as Admin'}
           </Button>
 
+          <div className="text-center mt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="text-primary hover:underline text-sm"
+            >
+              Forgot password?
+            </button>
+          </div>
+
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
             <p className="font-semibold text-blue-900 mb-2">Demo Credentials:</p>
             <p className="text-blue-700">📧 admin@cdc.com</p>
