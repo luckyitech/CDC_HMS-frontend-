@@ -1,24 +1,24 @@
-import { useState } from 'react';
-import { 
-  Battery, 
-  Zap, 
-  Radio, 
-  PlusCircle, 
-  TrendingUp, 
-  RefreshCw, 
-  Edit, 
-  FileText, 
+import { useState, useRef } from "react";
+import {
+  Battery,
+  Zap,
+  Radio,
+  PlusCircle,
+  TrendingUp,
+  RefreshCw,
+  Edit,
+  FileText,
   AlertCircle,
   CheckCircle,
-  Circle
-} from 'lucide-react';
-import Card from '../shared/Card';
-import Button from '../shared/Button';
-import AddEquipmentModal from './AddEquipmentModal';
-import EquipmentHistoryModal from './EquipmentHistoryModal';
-import { usePatientContext } from '../../contexts/PatientContext';
-import { useUserContext } from '../../contexts/UserContext';
-import toast, { Toaster } from 'react-hot-toast';
+  Circle,
+} from "lucide-react";
+import Card from "../shared/Card";
+import Button from "../shared/Button";
+import AddEquipmentModal from "./AddEquipmentModal";
+import EquipmentHistoryModal from "./EquipmentHistoryModal";
+import { usePatientContext } from "../../contexts/PatientContext";
+import { useUserContext } from "../../contexts/UserContext";
+import toast, { Toaster } from "react-hot-toast";
 
 const MedicalEquipmentTab = ({ patient }) => {
   const { currentUser } = useUserContext();
@@ -27,15 +27,17 @@ const MedicalEquipmentTab = ({ patient }) => {
     updateMedicalEquipment,
     replaceMedicalEquipment,
     getMedicalEquipmentHistory,
-    getEquipmentWarrantyStatus
+    getEquipmentWarrantyStatus,
   } = usePatientContext();
 
   const [showAddPumpModal, setShowAddPumpModal] = useState(false);
   const [showAddTransmitterModal, setShowAddTransmitterModal] = useState(false);
   const [showEditPumpModal, setShowEditPumpModal] = useState(false);
-  const [showEditTransmitterModal, setShowEditTransmitterModal] = useState(false);
+  const [showEditTransmitterModal, setShowEditTransmitterModal] =
+    useState(false);
   const [showReplacePumpModal, setShowReplacePumpModal] = useState(false);
-  const [showReplaceTransmitterModal, setShowReplaceTransmitterModal] = useState(false);
+  const [showReplaceTransmitterModal, setShowReplaceTransmitterModal] =
+    useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const equipment = patient?.medicalEquipment?.insulinPump;
@@ -43,15 +45,17 @@ const MedicalEquipmentTab = ({ patient }) => {
   const hasTransmitter = equipment?.transmitter?.hasTransmitter;
   const history = getMedicalEquipmentHistory(patient?.uhid);
 
+
+
   // Check if user is staff (can delete/replace)
-  const isStaff = currentUser?.role === 'Staff';
+  const isStaff = currentUser?.role === "Staff";
 
   // Format date helper
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -64,79 +68,97 @@ const MedicalEquipmentTab = ({ patient }) => {
 
   // Handle Add Pump
   const handleAddPump = (equipmentData) => {
-    const userName = currentUser?.name || 'Unknown User';
+    const userName = currentUser?.name || "Unknown User";
     const result = addMedicalEquipment(patient.uhid, equipmentData, userName);
-    
+
     if (result.success) {
-      toast.success('✅ Insulin pump added successfully!');
+      toast.success("✅ Insulin pump added successfully!");
       setShowAddPumpModal(false);
     } else {
-      toast.error('❌ Failed to add insulin pump');
+      toast.error("❌ Failed to add insulin pump");
     }
   };
 
   // Handle Add Transmitter
   const handleAddTransmitter = (equipmentData) => {
-    const userName = currentUser?.name || 'Unknown User';
+    const userName = currentUser?.name || "Unknown User";
     const result = addMedicalEquipment(patient.uhid, equipmentData, userName);
-    
+
     if (result.success) {
-      toast.success('✅ Transmitter added successfully!');
+      toast.success("✅ Transmitter added successfully!");
       setShowAddTransmitterModal(false);
     } else {
-      toast.error('❌ Failed to add transmitter');
+      toast.error("❌ Failed to add transmitter");
     }
   };
 
   // Handle Edit Pump
   const handleEditPump = (equipmentData) => {
-    const userName = currentUser?.name || 'Unknown User';
-    const result = updateMedicalEquipment(patient.uhid, equipmentData, userName);
-    
+    const userName = currentUser?.name || "Unknown User";
+    const result = updateMedicalEquipment(
+      patient.uhid,
+      equipmentData,
+      userName
+    );
+
     if (result.success) {
-      toast.success('✅ Insulin pump updated successfully!');
+      toast.success("✅ Insulin pump updated successfully!");
       setShowEditPumpModal(false);
     } else {
-      toast.error('❌ Failed to update insulin pump');
+      toast.error("❌ Failed to update insulin pump");
     }
   };
 
   // Handle Edit Transmitter
   const handleEditTransmitter = (equipmentData) => {
-    const userName = currentUser?.name || 'Unknown User';
-    const result = updateMedicalEquipment(patient.uhid, equipmentData, userName);
-    
+    const userName = currentUser?.name || "Unknown User";
+    const result = updateMedicalEquipment(
+      patient.uhid,
+      equipmentData,
+      userName
+    );
+
     if (result.success) {
-      toast.success('✅ Transmitter updated successfully!');
+      toast.success("✅ Transmitter updated successfully!");
       setShowEditTransmitterModal(false);
     } else {
-      toast.error('❌ Failed to update transmitter');
+      toast.error("❌ Failed to update transmitter");
     }
   };
 
   // Handle Replace Pump
   const handleReplacePump = (equipmentData, reason) => {
-    const userName = currentUser?.name || 'Unknown User';
-    const result = replaceMedicalEquipment(patient.uhid, equipmentData, reason, userName);
-    
+    const userName = currentUser?.name || "Unknown User";
+    const result = replaceMedicalEquipment(
+      patient.uhid,
+      equipmentData,
+      reason,
+      userName
+    );
+
     if (result.success) {
-      toast.success('✅ Insulin pump replaced successfully!');
+      toast.success("✅ Insulin pump replaced successfully!");
       setShowReplacePumpModal(false);
     } else {
-      toast.error('❌ Failed to replace insulin pump');
+      toast.error("❌ Failed to replace insulin pump");
     }
   };
 
   // Handle Replace Transmitter
   const handleReplaceTransmitter = (equipmentData, reason) => {
-    const userName = currentUser?.name || 'Unknown User';
-    const result = replaceMedicalEquipment(patient.uhid, equipmentData, reason, userName);
-    
+    const userName = currentUser?.name || "Unknown User";
+    const result = replaceMedicalEquipment(
+      patient.uhid,
+      equipmentData,
+      reason,
+      userName
+    );
+
     if (result.success) {
-      toast.success('✅ Transmitter replaced successfully!');
+      toast.success("✅ Transmitter replaced successfully!");
       setShowReplaceTransmitterModal(false);
     } else {
-      toast.error('❌ Failed to replace transmitter');
+      toast.error("❌ Failed to replace transmitter");
     }
   };
 
@@ -146,19 +168,23 @@ const MedicalEquipmentTab = ({ patient }) => {
     if (!status) return null;
 
     const colors = {
-      expired: 'bg-red-100 text-red-700 border-red-300',
-      'expiring-soon': 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      active: 'bg-green-100 text-green-700 border-green-300'
+      expired: "bg-red-100 text-red-700 border-red-300",
+      "expiring-soon": "bg-yellow-100 text-yellow-700 border-yellow-300",
+      active: "bg-green-100 text-green-700 border-green-300",
     };
 
     const icons = {
       expired: <Circle className="w-3 h-3 fill-red-600 text-red-600" />,
-      'expiring-soon': <AlertCircle className="w-3 h-3" />,
-      active: <CheckCircle className="w-3 h-3" />
+      "expiring-soon": <AlertCircle className="w-3 h-3" />,
+      active: <CheckCircle className="w-3 h-3" />,
     };
 
     return (
-      <span className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${colors[status.status]}`}>
+      <span
+        className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${
+          colors[status.status]
+        }`}
+      >
         {icons[status.status]} {status.message}
       </span>
     );
@@ -167,7 +193,6 @@ const MedicalEquipmentTab = ({ patient }) => {
   return (
     <div className="space-y-6">
       <Toaster position="top-right" />
-
       {/* Empty State */}
       {!hasPump && !hasTransmitter && (
         <Card>
@@ -177,14 +202,18 @@ const MedicalEquipmentTab = ({ patient }) => {
               No Medical Equipment Registered
             </p>
             <p className="text-gray-600 mb-6">
-              This patient does not have an insulin pump or transmitter on record.
+              This patient does not have an insulin pump or transmitter on
+              record.
             </p>
             <div className="flex gap-4 justify-center">
               <Button onClick={() => setShowAddPumpModal(true)}>
                 <Zap className="w-4 h-4 mr-2" />
                 Add Insulin Pump
               </Button>
-              <Button variant="secondary" onClick={() => setShowAddTransmitterModal(true)}>
+              <Button
+                variant="secondary"
+                onClick={() => setShowAddTransmitterModal(true)}
+              >
                 <Radio className="w-4 h-4 mr-2" />
                 Add Transmitter
               </Button>
@@ -200,7 +229,9 @@ const MedicalEquipmentTab = ({ patient }) => {
             <div className="flex items-center gap-3">
               <Zap className="w-10 h-10 text-blue-600" />
               <div>
-                <h3 className="text-xl font-bold text-gray-800">Insulin Pump</h3>
+                <h3 className="text-xl font-bold text-gray-800">
+                  Insulin Pump
+                </h3>
                 <p className="text-sm text-gray-600">Active Equipment</p>
               </div>
             </div>
@@ -212,35 +243,49 @@ const MedicalEquipmentTab = ({ patient }) => {
             {/* Left Column */}
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Model</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Model
+                </p>
                 <p className="text-lg font-bold text-gray-800">
-                  {equipment.current.model || 'Not specified'}
+                  {equipment.current.model || "Not specified"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Manufacturer</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Manufacturer
+                </p>
                 <p className="text-lg font-bold text-gray-800">
-                  {equipment.current.manufacturer || 'Not specified'}
+                  {equipment.current.manufacturer || "Not specified"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Serial Number</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Serial Number
+                </p>
                 <p className="text-lg font-bold text-primary">
                   {equipment.current.serialNo}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Type</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Type
+                </p>
                 <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                  {equipment.current.type === 'new' ? (
-                    <><PlusCircle className="w-4 h-4" /> New Patient</>
-                  ) : equipment.current.type === 'upgrade' ? (
-                    <><TrendingUp className="w-4 h-4" /> Upgrade</>
+                  {equipment.current.type === "new" ? (
+                    <>
+                      <PlusCircle className="w-4 h-4" /> New Patient
+                    </>
+                  ) : equipment.current.type === "upgrade" ? (
+                    <>
+                      <TrendingUp className="w-4 h-4" /> Upgrade
+                    </>
                   ) : (
-                    <><RefreshCw className="w-4 h-4" /> Replacement</>
+                    <>
+                      <RefreshCw className="w-4 h-4" /> Replacement
+                    </>
                   )}
                 </p>
               </div>
@@ -249,34 +294,49 @@ const MedicalEquipmentTab = ({ patient }) => {
             {/* Right Column */}
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Start Date</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Start Date
+                </p>
                 <p className="text-lg font-bold text-gray-800">
                   {formatDate(equipment.current.startDate)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  In use for {calculateDaysInUse(equipment.current.startDate)} days
+                  In use for {calculateDaysInUse(equipment.current.startDate)}{" "}
+                  days
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Warranty Period</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Warranty Period
+                </p>
                 <p className="text-lg font-bold text-gray-800">
-                  {formatDate(equipment.current.warrantyStartDate)} - {formatDate(equipment.current.warrantyEndDate)}
+                  {formatDate(equipment.current.warrantyStartDate)} -{" "}
+                  {formatDate(equipment.current.warrantyEndDate)}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Added By</p>
-                <p className="text-sm text-gray-800">{equipment.current.addedBy}</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Added By
+                </p>
+                <p className="text-sm text-gray-800">
+                  {equipment.current.addedBy}
+                </p>
                 <p className="text-xs text-gray-500">
                   {formatDate(equipment.current.addedDate)}
                 </p>
               </div>
 
-              {equipment.current.lastUpdatedBy !== equipment.current.addedBy && (
+              {equipment.current.lastUpdatedBy !==
+                equipment.current.addedBy && (
                 <div>
-                  <p className="text-xs text-gray-600 uppercase font-semibold">Last Updated By</p>
-                  <p className="text-sm text-gray-800">{equipment.current.lastUpdatedBy}</p>
+                  <p className="text-xs text-gray-600 uppercase font-semibold">
+                    Last Updated By
+                  </p>
+                  <p className="text-sm text-gray-800">
+                    {equipment.current.lastUpdatedBy}
+                  </p>
                   <p className="text-xs text-gray-500">
                     {formatDate(equipment.current.lastUpdatedDate)}
                   </p>
@@ -287,12 +347,18 @@ const MedicalEquipmentTab = ({ patient }) => {
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowEditPumpModal(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditPumpModal(true)}
+            >
               <Edit className="w-4 h-4 mr-2" />
               Edit Details
             </Button>
             {isStaff && (
-              <Button variant="outline" onClick={() => setShowReplacePumpModal(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowReplacePumpModal(true)}
+              >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Replace Pump
               </Button>
@@ -333,21 +399,31 @@ const MedicalEquipmentTab = ({ patient }) => {
             {/* Left Column */}
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Serial Number</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Serial Number
+                </p>
                 <p className="text-lg font-bold text-primary">
                   {equipment.transmitter.serialNo}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Type</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Type
+                </p>
                 <p className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                  {equipment.transmitter.type === 'new' ? (
-                    <><PlusCircle className="w-4 h-4" /> New Patient</>
-                  ) : equipment.transmitter.type === 'upgrade' ? (
-                    <><TrendingUp className="w-4 h-4" /> Upgrade</>
+                  {equipment.transmitter.type === "new" ? (
+                    <>
+                      <PlusCircle className="w-4 h-4" /> New Patient
+                    </>
+                  ) : equipment.transmitter.type === "upgrade" ? (
+                    <>
+                      <TrendingUp className="w-4 h-4" /> Upgrade
+                    </>
                   ) : (
-                    <><RefreshCw className="w-4 h-4" /> Replacement</>
+                    <>
+                      <RefreshCw className="w-4 h-4" /> Replacement
+                    </>
                   )}
                 </p>
               </div>
@@ -356,25 +432,35 @@ const MedicalEquipmentTab = ({ patient }) => {
             {/* Right Column */}
             <div className="space-y-4">
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Start Date</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Start Date
+                </p>
                 <p className="text-lg font-bold text-gray-800">
                   {formatDate(equipment.transmitter.startDate)}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  In use for {calculateDaysInUse(equipment.transmitter.startDate)} days
+                  In use for{" "}
+                  {calculateDaysInUse(equipment.transmitter.startDate)} days
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Warranty Period</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Warranty Period
+                </p>
                 <p className="text-lg font-bold text-gray-800">
-                  {formatDate(equipment.transmitter.warrantyStartDate)} - {formatDate(equipment.transmitter.warrantyEndDate)}
+                  {formatDate(equipment.transmitter.warrantyStartDate)} -{" "}
+                  {formatDate(equipment.transmitter.warrantyEndDate)}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs text-gray-600 uppercase font-semibold">Added By</p>
-                <p className="text-sm text-gray-800">{equipment.transmitter.addedBy}</p>
+                <p className="text-xs text-gray-600 uppercase font-semibold">
+                  Added By
+                </p>
+                <p className="text-sm text-gray-800">
+                  {equipment.transmitter.addedBy}
+                </p>
                 <p className="text-xs text-gray-500">
                   {formatDate(equipment.transmitter.addedDate)}
                 </p>
@@ -384,12 +470,18 @@ const MedicalEquipmentTab = ({ patient }) => {
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowEditTransmitterModal(true)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditTransmitterModal(true)}
+            >
               <Edit className="w-4 h-4 mr-2" />
               Edit Details
             </Button>
             {isStaff && (
-              <Button variant="outline" onClick={() => setShowReplaceTransmitterModal(true)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowReplaceTransmitterModal(true)}
+              >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Replace Transmitter
               </Button>
@@ -403,7 +495,10 @@ const MedicalEquipmentTab = ({ patient }) => {
         <Card>
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">No transmitter registered</p>
-            <Button variant="secondary" onClick={() => setShowAddTransmitterModal(true)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowAddTransmitterModal(true)}
+            >
               <Radio className="w-4 h-4 mr-2" />
               Add Transmitter
             </Button>
@@ -416,8 +511,12 @@ const MedicalEquipmentTab = ({ patient }) => {
         <Card>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xl font-bold text-gray-800">Equipment History</h3>
-              <p className="text-sm text-gray-600">{history.length} archived device(s)</p>
+              <h3 className="text-xl font-bold text-gray-800">
+                Equipment History
+              </h3>
+              <p className="text-sm text-gray-600">
+                {history.length} archived device(s)
+              </p>
             </div>
             <Button variant="outline" onClick={() => setShowHistoryModal(true)}>
               <FileText className="w-4 h-4 mr-2" />
@@ -428,20 +527,25 @@ const MedicalEquipmentTab = ({ patient }) => {
           {/* Recent History Preview */}
           <div className="space-y-3">
             {history.slice(0, 2).map((item, index) => (
-              <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div
+                key={index}
+                className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {item.deviceType === 'pump' ? (
+                    {item.deviceType === "pump" ? (
                       <Zap className="w-4 h-4 text-blue-600" />
                     ) : (
                       <Radio className="w-4 h-4 text-purple-600" />
                     )}
                     <div>
                       <p className="font-semibold text-gray-800">
-                        {item.deviceType === 'pump' ? 'Pump' : 'Transmitter'} - {item.serialNo}
+                        {item.deviceType === "pump" ? "Pump" : "Transmitter"} -{" "}
+                        {item.serialNo}
                       </p>
                       <p className="text-xs text-gray-600">
-                        {formatDate(item.startDate)} - {formatDate(item.endDate)}
+                        {formatDate(item.startDate)} -{" "}
+                        {formatDate(item.endDate)}
                       </p>
                     </div>
                   </div>

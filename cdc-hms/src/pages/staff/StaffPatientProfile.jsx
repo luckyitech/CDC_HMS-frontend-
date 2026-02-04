@@ -4,12 +4,26 @@ import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
+import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
+import { 
+  Phone, 
+  Mail, 
+  ClipboardList, 
+  Battery, 
+  FileText,
+  Hospital, 
+  AlertTriangle, 
+  Pill, 
+  BarChart3, 
+  Zap, 
+  Radio 
+} from "lucide-react";
 
 const StaffPatientProfile = () => {
   const navigate = useNavigate();
   const { uhid } = useParams();
   const [activeTab, setActiveTab] = useState("overview");
-  
+
   const { getPatientByUHID } = usePatientContext();
   const patient = getPatientByUHID(uhid);
 
@@ -26,8 +40,9 @@ const StaffPatientProfile = () => {
   }
 
   const tabs = [
-    { id: "overview", name: "Overview", icon: "📋" },
-    { id: "equipment", name: "Medical Equipment", icon: "🔋" },
+    { id: "overview", name: "Overview", icon: ClipboardList },
+    { id: "equipment", name: "Medical Equipment", icon: Battery },
+    { id: "medical-documents", name: "Medical Documents", icon: FileText },
   ];
 
   return (
@@ -42,10 +57,7 @@ const StaffPatientProfile = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/staff/patients")}
-          >
+          <Button variant="outline" onClick={() => navigate("/staff/patients")}>
             ← Back to Patient Search
           </Button>
         </div>
@@ -54,20 +66,31 @@ const StaffPatientProfile = () => {
       {/* Patient Summary Card */}
       <Card className="mb-6">
         <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+          <div className="flex items-start gap-3 sm:gap-4">
+            {/* Avatar - Responsive size */}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl font-bold flex-shrink-0">
               {patient.name.charAt(0)}
             </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-800">
+
+            {/* Patient Info - Left-aligned, compact on mobile */}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg sm:text-2xl font-bold text-gray-800 truncate">
                 {patient.name}
               </h3>
-              <p className="text-gray-600 mt-1">
+              <p className="text-sm sm:text-base text-gray-600 mt-0.5 sm:mt-1">
                 {patient.uhid} • {patient.age} yrs • {patient.gender}
               </p>
-              <p className="text-sm text-gray-500 mt-1">
-                📞 {patient.phone} • 📧 {patient.email}
-              </p>
+              {/* Contact Info - Stacked on mobile, inline on desktop */}
+              <div className="mt-1 sm:mt-1.5 space-y-0.5 sm:space-y-0">
+                <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="truncate">{patient.phone}</span>
+                </p>
+                <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5">
+                  <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="truncate">{patient.email}</span>
+                </p>
+              </div>
             </div>
           </div>
 
@@ -96,27 +119,33 @@ const StaffPatientProfile = () => {
       {/* Tabs */}
       <div className="mb-6 overflow-x-auto">
         <div className="flex gap-2 border-b-2 border-gray-200 pb-2 min-w-max">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 rounded-t-lg font-semibold transition whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "bg-primary text-white shadow-lg"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              <span className="mr-2">{tab.icon}</span>
-              {tab.name}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const IconComponent = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-6 py-3 rounded-t-lg font-semibold transition whitespace-nowrap flex items-center gap-2 ${
+                  activeTab === tab.id
+                    ? "bg-primary text-white shadow-lg"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                <IconComponent className="w-5 h-5" />
+                {tab.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Tab Content */}
       <div>
-        {activeTab === "overview" && <OverviewTab patient={patient} setActiveTab={setActiveTab} />}
+        {activeTab === "overview" && (
+          <OverviewTab patient={patient} setActiveTab={setActiveTab} />
+        )}
         {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
+        {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
       </div>
     </div>
   );
@@ -128,7 +157,11 @@ const OverviewTab = ({ patient, setActiveTab }) => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Personal Information */}
-        <Card title="📋 Personal Information">
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <ClipboardList className="w-5 h-5 text-blue-600" />
+            <h3 className="text-lg font-bold text-gray-800">Personal Information</h3>
+          </div>
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-600">Full Name</p>
@@ -160,7 +193,11 @@ const OverviewTab = ({ patient, setActiveTab }) => {
         </Card>
 
         {/* Medical Information */}
-        <Card title="🏥 Medical Information">
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <Hospital className="w-5 h-5 text-green-600" />
+            <h3 className="text-lg font-bold text-gray-800">Medical Information</h3>
+          </div>
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-600">Diabetes Type</p>
@@ -207,7 +244,11 @@ const OverviewTab = ({ patient, setActiveTab }) => {
       </div>
 
       {/* Emergency Contact */}
-      <Card title="🚨 Emergency Contact">
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <AlertTriangle className="w-5 h-5 text-red-600" />
+          <h3 className="text-lg font-bold text-gray-800">Emergency Contact</h3>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-gray-600">Name</p>
@@ -231,14 +272,18 @@ const OverviewTab = ({ patient, setActiveTab }) => {
       </Card>
 
       {/* Current Medications */}
-      <Card title="💊 Current Medications">
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <Pill className="w-5 h-5 text-purple-600" />
+          <h3 className="text-lg font-bold text-gray-800">Current Medications</h3>
+        </div>
         <ul className="space-y-2">
           {patient.medications.map((med, index) => (
             <li
               key={index}
               className="flex items-start p-3 bg-gray-50 rounded-lg"
             >
-              <span className="text-blue-600 mr-2">💊</span>
+              <Pill className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
               <span className="text-sm font-medium text-gray-800">{med}</span>
             </li>
           ))}
@@ -247,7 +292,11 @@ const OverviewTab = ({ patient, setActiveTab }) => {
 
       {/* Allergies & Comorbidities */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card title="⚠️ Allergies">
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <h3 className="text-lg font-bold text-gray-800">Allergies</h3>
+          </div>
           <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
             <p className="text-sm font-semibold text-red-700">
               {patient.allergies}
@@ -255,7 +304,11 @@ const OverviewTab = ({ patient, setActiveTab }) => {
           </div>
         </Card>
 
-        <Card title="🏥 Comorbidities">
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <Hospital className="w-5 h-5 text-orange-600" />
+            <h3 className="text-lg font-bold text-gray-800">Comorbidities</h3>
+          </div>
           {patient.comorbidities && patient.comorbidities.length > 0 ? (
             <ul className="space-y-1">
               {patient.comorbidities.map((condition, index) => (
@@ -271,7 +324,11 @@ const OverviewTab = ({ patient, setActiveTab }) => {
       </div>
 
       {/* Latest Vitals */}
-      <Card title="📊 Latest Vitals">
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 className="w-5 h-5 text-indigo-600" />
+          <h3 className="text-lg font-bold text-gray-800">Latest Vitals</h3>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg text-center">
             <p className="text-xs text-gray-600 uppercase">Blood Pressure</p>
@@ -315,7 +372,7 @@ const OverviewTab = ({ patient, setActiveTab }) => {
               {patient.vitals.bmi}
             </p>
           </div>
-          
+
           {patient.vitals.waistCircumference && (
             <div className="bg-pink-50 p-4 rounded-lg text-center border-2 border-pink-200">
               <p className="text-xs text-gray-600 uppercase">Waist Circ.</p>
@@ -329,13 +386,18 @@ const OverviewTab = ({ patient, setActiveTab }) => {
 
       {/* Medical Equipment Summary */}
       {patient.medicalEquipment?.insulinPump?.hasPump && (
-        <Card title="🔋 Medical Equipment">
+        <Card>
+          <div className="flex items-center gap-2 mb-4">
+            <Battery className="w-5 h-5 text-blue-600" />
+            <h3 className="text-lg font-bold text-gray-800">Medical Equipment</h3>
+          </div>
           <div className="space-y-4">
             {patient.medicalEquipment.insulinPump.current && (
               <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-bold text-gray-800 flex items-center gap-2">
-                    ⚡ Insulin Pump
+                    <Zap className="w-4 h-4 text-blue-600" />
+                    Insulin Pump
                   </p>
                   <span className="text-xs px-2 py-1 bg-blue-200 text-blue-800 rounded">
                     Active
@@ -343,7 +405,8 @@ const OverviewTab = ({ patient, setActiveTab }) => {
                 </div>
                 <p className="text-sm text-gray-700">
                   <span className="font-semibold">Model:</span>{" "}
-                  {patient.medicalEquipment.insulinPump.current.model || "Not specified"}
+                  {patient.medicalEquipment.insulinPump.current.model ||
+                    "Not specified"}
                 </p>
                 <p className="text-sm text-gray-700">
                   <span className="font-semibold">Serial:</span>{" "}
@@ -351,16 +414,20 @@ const OverviewTab = ({ patient, setActiveTab }) => {
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
                   Warranty expires:{" "}
-                  {new Date(patient.medicalEquipment.insulinPump.current.warrantyEndDate).toLocaleDateString()}
+                  {new Date(
+                    patient.medicalEquipment.insulinPump.current.warrantyEndDate
+                  ).toLocaleDateString()}
                 </p>
               </div>
             )}
 
-            {patient.medicalEquipment.insulinPump.transmitter?.hasTransmitter && (
+            {patient.medicalEquipment.insulinPump.transmitter
+              ?.hasTransmitter && (
               <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-bold text-gray-800 flex items-center gap-2">
-                    📡 Transmitter
+                    <Radio className="w-4 h-4 text-purple-600" />
+                    Transmitter
                   </p>
                   <span className="text-xs px-2 py-1 bg-purple-200 text-purple-800 rounded">
                     Active
@@ -372,7 +439,9 @@ const OverviewTab = ({ patient, setActiveTab }) => {
                 </p>
                 <p className="text-xs text-gray-500 mt-2">
                   Warranty expires:{" "}
-                  {new Date(patient.medicalEquipment.insulinPump.transmitter.warrantyEndDate).toLocaleDateString()}
+                  {new Date(
+                    patient.medicalEquipment.insulinPump.transmitter.warrantyEndDate
+                  ).toLocaleDateString()}
                 </p>
               </div>
             )}
