@@ -244,7 +244,8 @@ export const mockPatients = [
         current: null,
         transmitter: null,
         history: []
-      }
+      },
+      medicalDocuments: []
     },
   },
 
@@ -310,7 +311,8 @@ export const mockPatients = [
         current: null,
         transmitter: null,
         history: []
-      }
+      },
+      medicalDocuments: []
     },
   },
 
@@ -400,8 +402,44 @@ export const mockPatients = [
           lastUpdatedDate: '2024-01-15T10:30:00Z'
         },
         history: []
-      }
+      },
     },
+    medicalDocuments: [
+        {
+          id: 'DOC-001',
+          fileName: 'KIBUI_LILIANWANJIRU-309404720_ENDOCRINOLOGY.pdf',
+          documentCategory: 'Lab Report - External',
+          testType: 'Cortisol Random',
+          labName: 'PathCare Kenya Limited',
+          testDate: '2026-01-23',
+          uploadDate: '2026-01-24T10:30:00',
+          uploadedBy: 'Dr. Ahmed Hassan',
+          uploadedByRole: 'Doctor',
+          fileSize: '245 KB',
+          fileUrl: '/uploads/endocrinology_report.pdf',
+          status: 'Reviewed',
+          reviewedBy: 'Dr. Ahmed Hassan',
+          reviewDate: '2026-01-25T14:20:00',
+          notes: 'Cortisol level critically low - follow up required'
+        },
+        {
+          id: 'DOC-002',
+          fileName: 'Thyroid_Ultrasound_AKU.pdf',
+          documentCategory: 'Imaging Report',
+          testType: 'Thyroid Ultrasound',
+          labName: 'Aga Khan University Hospital',
+          testDate: '2026-01-22',
+          uploadDate: '2026-01-23T14:20:00',
+          uploadedBy: 'Ali Hassan',
+          uploadedByRole: 'Patient',
+          fileSize: '1.2 MB',
+          fileUrl: '/uploads/thyroid_ultrasound.pdf',
+          status: 'Pending Review',
+          reviewedBy: null,
+          reviewDate: null,
+          notes: null
+        }
+      ],
   },
 
   {
@@ -467,8 +505,9 @@ export const mockPatients = [
         current: null,
         transmitter: null,
         history: []
-      }
+      },
     },
+    medicalDocuments: [],
   },
 
   {
@@ -535,6 +574,7 @@ export const mockPatients = [
         history: []
       }
     },
+    medicalDocuments: [],
   },
 ];
 

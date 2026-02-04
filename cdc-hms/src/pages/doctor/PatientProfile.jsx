@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { Phone, Mail, Microscope, ArrowLeft } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
@@ -15,6 +16,7 @@ import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
+import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
 
 import {
   physicalExamSections,
@@ -70,6 +72,7 @@ const PatientProfile = () => {
     { id: "prescriptions", name: "Prescriptions", icon: "💊" },
     { id: "treatment-plans", name: "Treatment Plans", icon: "📝" },
     { id: "consultation-notes", name: "Consultation Notes", icon: "💬" },
+     { id: "medical-documents", name: "Medical Documents", icon: "📄" },
     { id: "reports", name: "Reports", icon: "📄" },
   ];
 
@@ -84,46 +87,67 @@ const PatientProfile = () => {
             {patient.name} ({patient.uhid})
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+          {/* Order Lab Test Button */}
           <Button
             onClick={() => setShowOrderLabModal(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
           >
-            🔬 Order Lab Test
+            <Microscope className="w-5 h-5" />
+            <span>Order Lab Test</span>
           </Button>
+
+          {/* Back to Consultation Button */}
           {fromConsultation && (
             <Button
               variant="primary"
               onClick={() => navigate("/doctor/consultations")}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
             >
-              ← Back to Consultation
+              <ArrowLeft className="w-5 h-5" />
+              <span>Back to Consultation</span>
             </Button>
           )}
+
+          {/* Back to My Patients Button */}
           <Button
             variant="outline"
             onClick={() => navigate("/doctor/patients")}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
           >
-            ← Back to My Patients
+            <ArrowLeft className="w-5 h-5" />
+            <span>Back to My Patients</span>
           </Button>
         </div>
       </div>
 
       <Card className="mb-6">
         <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+          <div className="flex items-start gap-3 sm:gap-4">
+            {/* Avatar - Responsive size */}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl font-bold flex-shrink-0">
               {patient.name.charAt(0)}
             </div>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-800">
+
+            {/* Patient Info - Left-aligned, compact on mobile */}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg sm:text-2xl font-bold text-gray-800 truncate">
                 {patient.name}
               </h3>
-              <p className="text-gray-600 mt-1">
+              <p className="text-sm sm:text-base text-gray-600 mt-0.5 sm:mt-1">
                 {patient.uhid} • {patient.age} yrs • {patient.gender}
               </p>
-              <p className="text-sm text-gray-500 mt-1">
-                📞 {patient.phone} • 📧 {patient.email}
-              </p>
+              {/* Contact Info - Stacked on mobile, inline on desktop */}
+              <div className="mt-1 sm:mt-1.5 space-y-0.5 sm:space-y-0">
+                <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="truncate">{patient.phone}</span>
+                </p>
+                <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5">
+                  <Mail className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="truncate">{patient.email}</span>
+                </p>
+              </div>
             </div>
           </div>
 
@@ -211,6 +235,7 @@ const PatientProfile = () => {
         {activeTab === "consultation-notes" && (
           <ConsultationNotesList patient={patient} showStatistics={true} />
         )}
+        {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
         {activeTab === "reports" && <ReportsTab patient={patient} />}
       </div>
 

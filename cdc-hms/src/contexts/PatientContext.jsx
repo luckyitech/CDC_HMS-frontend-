@@ -1,6 +1,21 @@
 import { createContext, useContext, useState } from "react";
 import { mockPatients, mockBloodSugarReadings } from "../data/mockData";
 
+// ========================================
+// DOCUMENT CATEGORIES
+// ========================================
+const DOCUMENT_CATEGORIES = [
+  "Lab Report - External",
+  "Imaging Report",
+  "Endocrinology Report",
+  "Cardiology Report",
+  "Nephrology Report",
+  "Ophthalmology Report",
+  "Neuropathy Screening Test",
+  "Specialist Consultation Report",
+  "Other Medical Document",
+];
+
 // Create Context
 const PatientContext = createContext();
 
@@ -72,9 +87,9 @@ export const PatientProvider = ({ children }) => {
           hasPump: false,
           current: null,
           transmitter: null,
-          history: []
-        }
-      }
+          history: [],
+        },
+      },
     };
     setPatients([...patients, newPatient]);
     return newPatient;
@@ -200,11 +215,11 @@ export const PatientProvider = ({ children }) => {
           hasPump: false,
           current: null,
           transmitter: null,
-          history: []
+          history: [],
         };
 
         // Add insulin pump
-        if (equipmentData.deviceType === 'pump') {
+        if (equipmentData.deviceType === "pump") {
           return {
             ...patient,
             medicalEquipment: {
@@ -217,15 +232,15 @@ export const PatientProvider = ({ children }) => {
                   addedBy: userName,
                   addedDate: now,
                   lastUpdatedBy: userName,
-                  lastUpdatedDate: now
-                }
-              }
-            }
+                  lastUpdatedDate: now,
+                },
+              },
+            },
           };
         }
 
         // Add transmitter
-        if (equipmentData.deviceType === 'transmitter') {
+        if (equipmentData.deviceType === "transmitter") {
           return {
             ...patient,
             medicalEquipment: {
@@ -238,10 +253,10 @@ export const PatientProvider = ({ children }) => {
                   addedBy: userName,
                   addedDate: now,
                   lastUpdatedBy: userName,
-                  lastUpdatedDate: now
-                }
-              }
-            }
+                  lastUpdatedDate: now,
+                },
+              },
+            },
           };
         }
 
@@ -264,7 +279,7 @@ export const PatientProvider = ({ children }) => {
         if (!equipment) return patient;
 
         // Update pump
-        if (equipmentData.deviceType === 'pump' && equipment.current) {
+        if (equipmentData.deviceType === "pump" && equipment.current) {
           return {
             ...patient,
             medicalEquipment: {
@@ -275,15 +290,18 @@ export const PatientProvider = ({ children }) => {
                   ...equipment.current,
                   ...equipmentData,
                   lastUpdatedBy: userName,
-                  lastUpdatedDate: now
-                }
-              }
-            }
+                  lastUpdatedDate: now,
+                },
+              },
+            },
           };
         }
 
         // Update transmitter
-        if (equipmentData.deviceType === 'transmitter' && equipment.transmitter) {
+        if (
+          equipmentData.deviceType === "transmitter" &&
+          equipment.transmitter
+        ) {
           return {
             ...patient,
             medicalEquipment: {
@@ -294,10 +312,10 @@ export const PatientProvider = ({ children }) => {
                   ...equipment.transmitter,
                   ...equipmentData,
                   lastUpdatedBy: userName,
-                  lastUpdatedDate: now
-                }
-              }
-            }
+                  lastUpdatedDate: now,
+                },
+              },
+            },
           };
         }
 
@@ -320,14 +338,14 @@ export const PatientProvider = ({ children }) => {
         if (!equipment) return patient;
 
         // Replace pump
-        if (equipmentData.deviceType === 'pump' && equipment.current) {
+        if (equipmentData.deviceType === "pump" && equipment.current) {
           const archivedPump = {
             ...equipment.current,
-            deviceType: 'pump',
+            deviceType: "pump",
             endDate: now,
             reason: reason,
             archivedBy: userName,
-            archivedDate: now
+            archivedDate: now,
           };
 
           return {
@@ -341,23 +359,26 @@ export const PatientProvider = ({ children }) => {
                   addedBy: userName,
                   addedDate: now,
                   lastUpdatedBy: userName,
-                  lastUpdatedDate: now
+                  lastUpdatedDate: now,
                 },
-                history: [...equipment.history, archivedPump]
-              }
-            }
+                history: [...equipment.history, archivedPump],
+              },
+            },
           };
         }
 
         // Replace transmitter
-        if (equipmentData.deviceType === 'transmitter' && equipment.transmitter) {
+        if (
+          equipmentData.deviceType === "transmitter" &&
+          equipment.transmitter
+        ) {
           const archivedTransmitter = {
             ...equipment.transmitter,
-            deviceType: 'transmitter',
+            deviceType: "transmitter",
             endDate: now,
             reason: reason,
             archivedBy: userName,
-            archivedDate: now
+            archivedDate: now,
           };
 
           return {
@@ -372,11 +393,11 @@ export const PatientProvider = ({ children }) => {
                   addedBy: userName,
                   addedDate: now,
                   lastUpdatedBy: userName,
-                  lastUpdatedDate: now
+                  lastUpdatedDate: now,
                 },
-                history: [...equipment.history, archivedTransmitter]
-              }
-            }
+                history: [...equipment.history, archivedTransmitter],
+              },
+            },
           };
         }
 
@@ -384,7 +405,10 @@ export const PatientProvider = ({ children }) => {
       })
     );
 
-    return { success: true, message: "Medical equipment replaced successfully" };
+    return {
+      success: true,
+      message: "Medical equipment replaced successfully",
+    };
   };
 
   // Get equipment history
@@ -403,26 +427,131 @@ export const PatientProvider = ({ children }) => {
 
     if (daysRemaining < 0) {
       return {
-        status: 'expired',
+        status: "expired",
         daysRemaining: Math.abs(daysRemaining),
         message: `Expired ${Math.abs(daysRemaining)} days ago`,
-        color: 'red'
+        color: "red",
       };
     } else if (daysRemaining <= 30) {
       return {
-        status: 'expiring-soon',
+        status: "expiring-soon",
         daysRemaining: daysRemaining,
         message: `Expires in ${daysRemaining} days`,
-        color: 'yellow'
+        color: "yellow",
       };
     } else {
       return {
-        status: 'active',
+        status: "active",
         daysRemaining: daysRemaining,
         message: `${daysRemaining} days remaining`,
-        color: 'green'
+        color: "green",
       };
     }
+  };
+
+  // ========================================
+  // MEDICAL DOCUMENTS FUNCTIONS
+  // ========================================
+
+  // Upload Medical Document
+  const uploadMedicalDocument = (uhid, documentData, currentUser) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((p) => {
+        if (p.uhid === uhid) {
+          const newDocument = {
+            id: `DOC-${Date.now()}`,
+            fileName: documentData.fileName,
+            documentCategory: documentData.documentCategory,
+            testType: documentData.testType,
+            labName: documentData.labName || "Not specified",
+            testDate: documentData.testDate,
+            uploadDate: new Date().toISOString(),
+            uploadedBy: currentUser?.name || "Unknown User",
+            uploadedByRole: currentUser?.role || "Unknown",
+            fileSize: documentData.fileSize,
+            fileUrl: documentData.fileUrl, // In real app, this would be from file upload
+            status:
+              currentUser?.role === "Patient" ? "Pending Review" : "Reviewed",
+            reviewedBy:
+              currentUser?.role === "Patient" ? null : currentUser?.name,
+            reviewDate:
+              currentUser?.role === "Patient" ? null : new Date().toISOString(),
+            notes: documentData.notes || null,
+          };
+
+          return {
+            ...p,
+            medicalDocuments: [...(p.medicalDocuments || []), newDocument],
+          };
+        }
+        return p;
+      })
+    );
+    return { success: true, message: "Document uploaded successfully" };
+  };
+
+  // Get Medical Documents
+  const getMedicalDocuments = (uhid) => {
+    const patient = patients.find((p) => p.uhid === uhid);
+    return patient?.medicalDocuments || [];
+  };
+
+  // Update Document Status
+  const updateDocumentStatus = (uhid, documentId, status, reviewedBy) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((p) => {
+        if (p.uhid === uhid) {
+          return {
+            ...p,
+            medicalDocuments: (p.medicalDocuments || []).map((doc) =>
+              doc.id === documentId
+                ? {
+                    ...doc,
+                    status,
+                    reviewedBy,
+                    reviewDate: new Date().toISOString(),
+                  }
+                : doc
+            ),
+          };
+        }
+        return p;
+      })
+    );
+    return { success: true, message: "Document status updated" };
+  };
+
+  // Delete Medical Document
+  const deleteMedicalDocument = (uhid, documentId) => {
+    setPatients((prevPatients) =>
+      prevPatients.map((p) => {
+        if (p.uhid === uhid) {
+          return {
+            ...p,
+            medicalDocuments: (p.medicalDocuments || []).filter(
+              (doc) => doc.id !== documentId
+            ),
+          };
+        }
+        return p;
+      })
+    );
+    return { success: true, message: "Document deleted successfully" };
+  };
+
+  // Sort Documents by Date
+  const sortDocumentsByDate = (documents, order = "desc") => {
+    return [...documents].sort((a, b) => {
+      const dateA = new Date(a.testDate);
+      const dateB = new Date(b.testDate);
+      return order === "desc" ? dateB - dateA : dateA - dateB;
+    });
+  };
+
+  // Filter Documents by Category
+  const filterDocumentsByCategory = (documents, category) => {
+    if (!category || category === "all") return documents;
+    return documents.filter((doc) => doc.documentCategory === category);
   };
 
   const value = {
@@ -452,6 +581,15 @@ export const PatientProvider = ({ children }) => {
     replaceMedicalEquipment,
     getMedicalEquipmentHistory,
     getEquipmentWarrantyStatus,
+
+    // Medical Documents Functions
+    DOCUMENT_CATEGORIES,
+    uploadMedicalDocument,
+    getMedicalDocuments,
+    updateDocumentStatus,
+    deleteMedicalDocument,
+    sortDocumentsByDate,
+    filterDocumentsByCategory,
   };
 
   return (

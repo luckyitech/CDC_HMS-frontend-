@@ -39,6 +39,7 @@ import PhysicalExamList from "../../components/doctor/PhysicalExamList";
 import TreatmentPlansList from "../../components/doctor/TreatmentPlansList";
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
+import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 
 const Consultation = () => {
   const { uhid } = useParams();
@@ -294,6 +295,7 @@ const Consultation = () => {
     { id: "notes", label: "Notes", icon: MessageSquare },
     { id: "diagnosis", label: "Diagnosis & Plan", icon: Target },
     { id: "prescriptions", label: "Prescriptions", icon: Pill },
+    { id: "documents", label: "Documents", icon: FileText },
     { id: "actions", label: "Actions", icon: Zap },
   ];
 
@@ -760,6 +762,20 @@ const Consultation = () => {
             onSuccess={handlePrescriptionSuccess}
           />
         )}
+
+        {/* Medical Documents Tab - OPTIONAL */}
+        {activeTab === "documents" && (
+          <div className="space-y-4">
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+              <p className="text-sm text-gray-700">
+                <strong>ℹ️ Optional:</strong> Upload external medical documents,
+                lab reports, or imaging results during consultation. This step
+                is not required to complete the consultation.
+              </p>
+            </div>
+            <MedicalDocumentsTab patient={patient} />
+          </div>
+        )} 
 
         {/* Quick Actions Tab */}
         {activeTab === "actions" && (

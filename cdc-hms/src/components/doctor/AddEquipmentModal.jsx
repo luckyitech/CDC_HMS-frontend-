@@ -187,6 +187,12 @@ const AddEquipmentModal = ({
             <option value="3">3 Years</option>
             <option value="4">4 Years</option>
             <option value="5">5 Years</option>
+            <option value="6">6 Years</option>
+            <option value="7">7 Years</option>
+            <option value="8">8 Years</option>
+            <option value="9">9 Years</option>
+            <option value="10">10 Years</option>
+            
           </select>
           <p className="text-xs text-gray-500 mt-1">
             Warranty will expire on: {calculateWarrantyEndDate(formData.warrantyStartDate, formData.warrantyYears)}
