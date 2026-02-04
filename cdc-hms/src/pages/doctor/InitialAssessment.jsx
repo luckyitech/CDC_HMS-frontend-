@@ -174,7 +174,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
         {fromConsultation && !embedded && (
           <Button
             variant="outline"
-            onClick={() => navigate("/doctor/consultations")}
+            onClick={() => navigate(`/doctor/consultation/${patientUHID}`)}
           >
             Back to Consultation
           </Button>

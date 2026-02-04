@@ -57,7 +57,7 @@ const PatientProfile = () => {
         <p className="text-2xl font-bold text-red-600">Patient not found!</p>
         <p className="text-gray-600 mt-2">UHID: {uhid}</p>
         <Button onClick={() => navigate("/doctor/patients")} className="mt-4">
-          ← Back to My Patients
+          ← Back to Patients
         </Button>
       </div>
     );
@@ -101,7 +101,7 @@ const PatientProfile = () => {
           {fromConsultation && (
             <Button
               variant="primary"
-              onClick={() => navigate("/doctor/consultations")}
+              onClick={() => navigate(`/doctor/consultation/${uhid}`)}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -116,7 +116,7 @@ const PatientProfile = () => {
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to My Patients</span>
+            <span>Back to Patients</span>
           </Button>
         </div>
       </div>

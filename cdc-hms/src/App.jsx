@@ -30,7 +30,6 @@ import StaffPatientProfile from './pages/staff/StaffPatientProfile';
 // Doctor Pages
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import MyPatients from "./pages/doctor/MyPatients";
-import Consultations from "./pages/doctor/Consultations";
 import Consultation from "./pages/doctor/Consultation";
 import DoctorPrescriptions from "./pages/doctor/DoctorPrescriptions";
 import Reports from "./pages/doctor/Reports";
@@ -38,6 +37,7 @@ import InitialAssessment from "./pages/doctor/InitialAssessment";
 import PhysicalExamination from "./pages/doctor/PhysicalExamination";
 import GlycemicCharts from "./pages/doctor/GlycemicCharts";
 import PatientProfile from "./pages/doctor/PatientProfile";
+import MedicalDocuments from "./pages/shared/MedicalDocuments";
 
 // Patient pages
 import PatientDashboard from "./pages/patient/PatientDashboard";
@@ -107,6 +107,7 @@ function App() {
                           element={<StaffCreatePatient />}
                         />
                         <Route path="/staff/patient-profile/:uhid" element={<StaffPatientProfile />} />
+                        <Route path="medical-documents" element={<MedicalDocuments />} />
                       </Route>
 
                       {/* Doctor Portal */}
@@ -121,10 +122,6 @@ function App() {
                           element={<PatientProfile />}
                         />
                         <Route
-                          path="consultations"
-                          element={<Consultations />}
-                        />
-                        <Route
                           path="consultation/:uhid"
                           element={<Consultation />}
                         />
@@ -137,6 +134,7 @@ function App() {
                           element={<DoctorPrescriptions />}
                         />
                         <Route path="reports" element={<Reports />} />
+                        <Route path="medical-documents" element={<MedicalDocuments />} />
                         <Route
                           path="physical-exam"
                           element={<PhysicalExamination />}

@@ -245,8 +245,60 @@ export const mockPatients = [
         transmitter: null,
         history: []
       },
-      medicalDocuments: []
     },
+    medicalDocuments: [
+      {
+        id: 'DOC-101',
+        fileName: 'HbA1c_Lab_Report_Jan2026.pdf',
+        documentCategory: 'Lab Report - External',
+        testType: 'HbA1c Test',
+        labName: 'PathCare Kenya Limited',
+        testDate: '2026-01-15',
+        uploadDate: '2026-01-16T09:00:00',
+        uploadedBy: 'Dr. Ahmed Hassan',
+        uploadedByRole: 'Doctor',
+        fileSize: '320 KB',
+        fileUrl: '/uploads/hba1c_lab_report.pdf',
+        status: 'Reviewed',
+        reviewedBy: 'Dr. Ahmed Hassan',
+        reviewDate: '2026-01-16T11:30:00',
+        notes: 'HbA1c stable at 7.2%'
+      },
+      {
+        id: 'DOC-102',
+        fileName: 'ECG_Report_AKU_Jan2026.pdf',
+        documentCategory: 'Cardiology Report',
+        testType: 'ECG Report',
+        labName: 'Aga Khan University Hospital',
+        testDate: '2026-01-20',
+        uploadDate: '2026-01-21T10:15:00',
+        uploadedBy: 'John Doe',
+        uploadedByRole: 'Patient',
+        fileSize: '180 KB',
+        fileUrl: '/uploads/ecg_report.pdf',
+        status: 'Reviewed',
+        reviewedBy: 'Dr. Ahmed Hassan',
+        reviewDate: '2026-01-22T14:00:00',
+        notes: 'Normal sinus rhythm'
+      },
+      {
+        id: 'DOC-103',
+        fileName: 'Kidney_Ultrasound_Jan2026.pdf',
+        documentCategory: 'Imaging Report',
+        testType: 'Kidney Ultrasound',
+        labName: 'National Hospital Cumming',
+        testDate: '2026-01-28',
+        uploadDate: '2026-01-29T08:45:00',
+        uploadedBy: 'John Doe',
+        uploadedByRole: 'Patient',
+        fileSize: '2.1 MB',
+        fileUrl: '/uploads/kidney_ultrasound.pdf',
+        status: 'Pending Review',
+        reviewedBy: null,
+        reviewDate: null,
+        notes: 'Follow up with nephrologist recommended'
+      }
+    ],
   },
 
   {
@@ -312,8 +364,60 @@ export const mockPatients = [
         transmitter: null,
         history: []
       },
-      medicalDocuments: []
     },
+    medicalDocuments: [
+      {
+        id: 'DOC-201',
+        fileName: 'Lipid_Profile_QuestDiag.pdf',
+        documentCategory: 'Lab Report - External',
+        testType: 'Lipid Profile',
+        labName: 'Quest Diagnostics Kenya',
+        testDate: '2026-01-10',
+        uploadDate: '2026-01-11T10:00:00',
+        uploadedBy: 'Dr. Sarah Kamau',
+        uploadedByRole: 'Doctor',
+        fileSize: '275 KB',
+        fileUrl: '/uploads/lipid_profile.pdf',
+        status: 'Reviewed',
+        reviewedBy: 'Dr. Sarah Kamau',
+        reviewDate: '2026-01-11T15:20:00',
+        notes: 'LDL elevated - continue statin therapy'
+      },
+      {
+        id: 'DOC-202',
+        fileName: 'Eye_Exam_Report_Jan2026.pdf',
+        documentCategory: 'Ophthalmology Report',
+        testType: 'Annual Eye Examination',
+        labName: 'Vision Care Center Nairobi',
+        testDate: '2026-01-18',
+        uploadDate: '2026-01-19T11:30:00',
+        uploadedBy: 'Jane Smith',
+        uploadedByRole: 'Patient',
+        fileSize: '510 KB',
+        fileUrl: '/uploads/eye_exam_report.pdf',
+        status: 'Pending Review',
+        reviewedBy: null,
+        reviewDate: null,
+        notes: null
+      },
+      {
+        id: 'DOC-203',
+        fileName: 'Peripheral_Nerve_Study.pdf',
+        documentCategory: 'Neuropathy Screening Test',
+        testType: 'Peripheral Nerve Conduction Study',
+        labName: 'Specialist Neurology Center',
+        testDate: '2026-01-25',
+        uploadDate: '2026-01-25T14:00:00',
+        uploadedBy: 'Dr. Sarah Kamau',
+        uploadedByRole: 'Doctor',
+        fileSize: '890 KB',
+        fileUrl: '/uploads/nerve_conduction.pdf',
+        status: 'Reviewed',
+        reviewedBy: 'Dr. Sarah Kamau',
+        reviewDate: '2026-01-26T09:45:00',
+        notes: 'No significant neuropathy detected'
+      }
+    ],
   },
 
   {
@@ -507,7 +611,59 @@ export const mockPatients = [
         history: []
       },
     },
-    medicalDocuments: [],
+    medicalDocuments: [
+      {
+        id: 'DOC-501',
+        fileName: 'Thyroid_Function_Test_Jan2026.pdf',
+        documentCategory: 'Endocrinology Report',
+        testType: 'Thyroid Function Test',
+        labName: 'Labcraft Diagnostics',
+        testDate: '2026-01-12',
+        uploadDate: '2026-01-13T08:30:00',
+        uploadedBy: 'Dr. Ahmed Hassan',
+        uploadedByRole: 'Doctor',
+        fileSize: '410 KB',
+        fileUrl: '/uploads/thyroid_function.pdf',
+        status: 'Reviewed',
+        reviewedBy: 'Dr. Ahmed Hassan',
+        reviewDate: '2026-01-13T16:00:00',
+        notes: 'TSH slightly elevated - monitor closely'
+      },
+      {
+        id: 'DOC-502',
+        fileName: 'Creatinine_Clearance_Jan2026.pdf',
+        documentCategory: 'Nephrology Report',
+        testType: 'Creatinine Clearance Test',
+        labName: 'National Laboratory Kenya',
+        testDate: '2026-01-22',
+        uploadDate: '2026-01-23T09:45:00',
+        uploadedBy: 'Mary Johnson',
+        uploadedByRole: 'Patient',
+        fileSize: '300 KB',
+        fileUrl: '/uploads/creatinine_clearance.pdf',
+        status: 'Pending Review',
+        reviewedBy: null,
+        reviewDate: null,
+        notes: 'Requested by Dr. Ahmed Hassan'
+      },
+      {
+        id: 'DOC-503',
+        fileName: 'Diabetes_Education_Certificate.pdf',
+        documentCategory: 'Other Medical Document',
+        testType: 'Diabetes Education Certificate',
+        labName: 'CDC Diabetes Care Center',
+        testDate: '2026-01-30',
+        uploadDate: '2026-01-30T11:00:00',
+        uploadedBy: 'Dr. Ahmed Hassan',
+        uploadedByRole: 'Doctor',
+        fileSize: '125 KB',
+        fileUrl: '/uploads/diabetes_education.pdf',
+        status: 'Reviewed',
+        reviewedBy: 'Dr. Ahmed Hassan',
+        reviewDate: '2026-01-30T11:05:00',
+        notes: 'Patient completed 3-session education program'
+      }
+    ],
   },
 
   {
@@ -574,7 +730,59 @@ export const mockPatients = [
         history: []
       }
     },
-    medicalDocuments: [],
+    medicalDocuments: [
+      {
+        id: 'DOC-701',
+        fileName: 'HbA1c_CePeptide_Jan2026.pdf',
+        documentCategory: 'Lab Report - External',
+        testType: 'HbA1c and C-Peptide',
+        labName: 'Quest Diagnostics Kenya',
+        testDate: '2026-01-08',
+        uploadDate: '2026-01-09T07:30:00',
+        uploadedBy: 'Dr. Ahmed Hassan',
+        uploadedByRole: 'Doctor',
+        fileSize: '350 KB',
+        fileUrl: '/uploads/hba1c_cpeptide.pdf',
+        status: 'Reviewed',
+        reviewedBy: 'Dr. Ahmed Hassan',
+        reviewDate: '2026-01-09T14:15:00',
+        notes: 'HbA1c at 9.1% - insulin therapy adjustment needed'
+      },
+      {
+        id: 'DOC-702',
+        fileName: 'Endocrinologist_Referral_Jan2026.pdf',
+        documentCategory: 'Specialist Consultation Report',
+        testType: 'Endocrinologist Referral',
+        labName: 'Nairobi Hospital',
+        testDate: '2026-01-16',
+        uploadDate: '2026-01-17T13:00:00',
+        uploadedBy: 'Grace Wanjiru',
+        uploadedByRole: 'Patient',
+        fileSize: '620 KB',
+        fileUrl: '/uploads/endocrinologist_referral.pdf',
+        status: 'Pending Review',
+        reviewedBy: null,
+        reviewDate: null,
+        notes: null
+      },
+      {
+        id: 'DOC-703',
+        fileName: 'Abdominal_Ultrasound_Feb2026.pdf',
+        documentCategory: 'Imaging Report',
+        testType: 'Abdominal Ultrasound',
+        labName: 'Radiology Center Thika',
+        testDate: '2026-02-01',
+        uploadDate: '2026-02-02T10:00:00',
+        uploadedBy: 'Grace Wanjiru',
+        uploadedByRole: 'Patient',
+        fileSize: '1.8 MB',
+        fileUrl: '/uploads/abdominal_ultrasound.pdf',
+        status: 'Pending Review',
+        reviewedBy: null,
+        reviewDate: null,
+        notes: 'Screening for fatty liver disease'
+      }
+    ],
   },
 ];
 

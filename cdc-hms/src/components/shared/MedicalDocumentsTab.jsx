@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Upload, FileText, Download, Trash2, Eye, Filter, SortAsc, SortDesc, Search } from 'lucide-react';
+import { Upload, FileText, Filter, SortAsc, SortDesc, Search } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
+import DocumentCard from './DocumentCard';
 import UploadDocumentModal from './UploadDocumentModal';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
+import { showNotification } from '../../utils/documentHelpers';
 
 const MedicalDocumentsTab = ({ patient }) => {
   const { currentUser } = useUserContext();
@@ -38,27 +40,13 @@ const MedicalDocumentsTab = ({ patient }) => {
   }
 
   const handleUploadSuccess = () => {
-    // Show success notification
-    const notificationDiv = document.createElement('div');
-    notificationDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50';
-    notificationDiv.innerHTML = '<p class="font-bold">✅ Document uploaded successfully!</p>';
-    document.body.appendChild(notificationDiv);
-    setTimeout(() => notificationDiv.remove(), 3000);
+    showNotification('✅ Document uploaded successfully!');
   };
 
   const handleMarkAsReviewed = (documentId) => {
-    const result = updateDocumentStatus(
-      patient.uhid,
-      documentId,
-      'Reviewed',
-      currentUser?.name
-    );
+    const result = updateDocumentStatus(patient.uhid, documentId, 'Reviewed', currentUser?.name);
     if (result.success) {
-      const notificationDiv = document.createElement('div');
-      notificationDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50';
-      notificationDiv.innerHTML = '<p class="font-bold">✅ Document marked as reviewed</p>';
-      document.body.appendChild(notificationDiv);
-      setTimeout(() => notificationDiv.remove(), 3000);
+      showNotification('✅ Document marked as reviewed');
     }
   };
 
@@ -66,62 +54,17 @@ const MedicalDocumentsTab = ({ patient }) => {
     if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
       const result = deleteMedicalDocument(patient.uhid, documentId);
       if (result.success) {
-        const notificationDiv = document.createElement('div');
-        notificationDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50';
-        notificationDiv.innerHTML = '<p class="font-bold">✅ Document deleted successfully</p>';
-        document.body.appendChild(notificationDiv);
-        setTimeout(() => notificationDiv.remove(), 3000);
+        showNotification('✅ Document deleted successfully');
       }
     }
   };
 
   const handleDownload = (doc) => {
-    // Mock download - in real app would download actual file
-    const notificationDiv = document.createElement('div');
-    notificationDiv.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-4 rounded-lg shadow-lg z-50';
-    notificationDiv.innerHTML = `<p class="font-bold">📥 Downloading ${doc.fileName}...</p>`;
-    document.body.appendChild(notificationDiv);
-    setTimeout(() => notificationDiv.remove(), 3000);
+    showNotification(`📥 Downloading ${doc.fileName}...`, true);
   };
 
   const handleView = (doc) => {
-    // Mock view - in real app would open PDF viewer
-    const notificationDiv = document.createElement('div');
-    notificationDiv.className = 'fixed top-4 right-4 bg-blue-500 text-white px-6 py-4 rounded-lg shadow-lg z-50';
-    notificationDiv.innerHTML = `<p class="font-bold">👁️ Opening ${doc.fileName}...</p>`;
-    document.body.appendChild(notificationDiv);
-    setTimeout(() => notificationDiv.remove(), 3000);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const getStatusBadge = (status) => {
-    const colors = {
-      'Reviewed': 'bg-green-100 text-green-700 border-green-300',
-      'Pending Review': 'bg-yellow-100 text-yellow-700 border-yellow-300'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-700 border-gray-300';
-  };
-
-  const getCategoryIcon = (category) => {
-    const icons = {
-      'Lab Report - External': '🔬',
-      'Imaging Report': '🏥',
-      'Endocrinology Report': '⚕️',
-      'Cardiology Report': '❤️',
-      'Nephrology Report': '🩺',
-      'Ophthalmology Report': '👁️',
-      'Neuropathy Screening Test': '🧠',
-      'Specialist Consultation Report': '👨‍⚕️',
-      'Other Medical Document': '📄'
-    };
-    return icons[category] || '📄';
+    showNotification(`👁️ Opening ${doc.fileName}...`, true);
   };
 
   const isStaff = currentUser?.role === 'Staff' || currentUser?.role === 'Doctor';
@@ -254,107 +197,15 @@ const MedicalDocumentsTab = ({ patient }) => {
       ) : (
         <div className="space-y-4">
           {filteredDocuments.map((doc) => (
-            <Card key={doc.id} className="hover:shadow-lg transition">
-              <div className="flex flex-col lg:flex-row gap-4">
-                {/* Document Icon */}
-                <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-lg flex-shrink-0">
-                  <span className="text-3xl">{getCategoryIcon(doc.documentCategory)}</span>
-                </div>
-
-                {/* Document Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h4 className="font-bold text-gray-800 text-lg truncate">{doc.testType}</h4>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(doc.status)}`}>
-                      {doc.status}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-600">File Name</p>
-                      <p className="font-semibold text-gray-800 truncate">{doc.fileName}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Category</p>
-                      <p className="font-semibold text-gray-800">{doc.documentCategory}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Lab/Facility</p>
-                      <p className="font-semibold text-gray-800">{doc.labName}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Test Date</p>
-                      <p className="font-semibold text-gray-800">{formatDate(doc.testDate)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Uploaded By</p>
-                      <p className="font-semibold text-gray-800">
-                        {doc.uploadedBy} ({doc.uploadedByRole})
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Upload Date</p>
-                      <p className="font-semibold text-gray-800">{formatDate(doc.uploadDate)}</p>
-                    </div>
-                  </div>
-
-                  {doc.notes && (
-                    <div className="mt-3 p-2 bg-yellow-50 rounded border-l-4 border-yellow-500">
-                      <p className="text-sm text-gray-700">
-                        <strong>Notes:</strong> {doc.notes}
-                      </p>
-                    </div>
-                  )}
-
-                  {doc.reviewedBy && (
-                    <div className="mt-2 text-xs text-gray-500">
-                      Reviewed by {doc.reviewedBy} on {formatDate(doc.reviewDate)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-2 lg:w-auto w-full">
-                  <Button
-                    variant="outline"
-                    className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"
-                    onClick={() => handleView(doc)}
-                  >
-                    <Eye className="w-4 h-4" />
-                    View
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"
-                    onClick={() => handleDownload(doc)}
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                  </Button>
-                  {isStaff && doc.status === 'Pending Review' && (
-                    <Button
-                      variant="primary"
-                      className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"
-                      onClick={() => handleMarkAsReviewed(doc.id)}
-                    >
-                      <FileText className="w-4 h-4" />
-                      Mark Reviewed
-                    </Button>
-                  )}
-                  {isStaff && (
-                    <Button
-                      variant="outline"
-                      className="w-full lg:w-auto text-sm text-red-600 border-red-300 hover:bg-red-50 flex items-center justify-center gap-2"
-                      onClick={() => handleDelete(doc.id, doc.fileName)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Card>
+            <DocumentCard
+              key={doc.id}
+              doc={doc}
+              isStaff={isStaff}
+              onView={() => handleView(doc)}
+              onDownload={() => handleDownload(doc)}
+              onMarkReviewed={() => handleMarkAsReviewed(doc.id)}
+              onDelete={() => handleDelete(doc.id, doc.fileName)}
+            />
           ))}
         </div>
       )}
