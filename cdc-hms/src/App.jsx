@@ -17,6 +17,7 @@ import StaffLoginPage from "./pages/auth/StaffLoginPage";
 import DoctorLoginPage from "./pages/auth/DoctorLoginPage";
 import LabLoginPage from "./pages/auth/LabLoginPage";
 import PatientLoginPage from "./pages/auth/PatientLoginPage";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 import MainLayout from "./layouts/MainLayout";
 
 // Staff Pages
@@ -92,6 +93,7 @@ function App() {
                         element={<PatientLoginPage />}
                       />
                       <Route path="/login/admin" element={<AdminLoginPage />} />
+                      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
                       {/* Staff Portal */}
                       <Route
