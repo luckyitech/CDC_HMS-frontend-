@@ -52,7 +52,8 @@ export const QueueProvider = ({ children }) => {
       reason: reason || 'Routine checkup',
       estimatedWait: calculateWait(queue.filter(q => q.status === 'Waiting').length),
       assignedDoctorId: null,
-      assignedDoctorName: null
+      assignedDoctorName: null,
+      createdAt: new Date().toISOString()
     };
 
     // If urgent, add to front (after any other urgent cases)
@@ -75,10 +76,25 @@ export const QueueProvider = ({ children }) => {
 
   // Update queue item status
   const updateQueueStatus = (uhid, newStatus) => {
-    setQueue(prevQueue => 
-      prevQueue.map(item => 
-        item.uhid === uhid 
-          ? { ...item, status: newStatus }
+    setQueue(prevQueue =>
+      prevQueue.map(item =>
+        item.uhid === uhid
+          ? {
+              ...item,
+              status: newStatus,
+              ...(newStatus === 'Completed' ? { consultationEndTime: new Date().toISOString() } : {})
+            }
+          : item
+      )
+    );
+  };
+
+  // Start consultation - record start time (only if not already started)
+  const startConsultation = (uhid) => {
+    setQueue(prevQueue =>
+      prevQueue.map(item =>
+        item.uhid === uhid && !item.consultationStartTime
+          ? { ...item, consultationStartTime: new Date().toISOString() }
           : item
       )
     );
@@ -157,6 +173,7 @@ export const QueueProvider = ({ children }) => {
     // Functions
     addToQueue,
     updateQueueStatus,
+    startConsultation,
     removeFromQueue,
     getNextPatient,
     getQueueByStatus,

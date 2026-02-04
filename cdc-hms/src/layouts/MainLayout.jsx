@@ -28,7 +28,8 @@ import {
   CheckCircle,
   Info,
   AlertCircle,
-  ChartNoAxesCombined 
+  ChartNoAxesCombined,
+  FileStack
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
@@ -257,10 +258,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
         path: "/staff/create-patient",
         icon: UserPlus,
       },
+      { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
     ],
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
-      { name: "My Patients", path: "/doctor/patients", icon: Users },
+      { name: "Patients", path: "/doctor/patients", icon: Users },
       // {
       //   name: "Consultations",
       //   path: "/doctor/consultations",
@@ -283,6 +285,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       { name: "Reports", path: "/doctor/reports", icon: FileText },
+      { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
     ],
     patient: [
       { name: "Home", path: "/patient/dashboard", icon: Home },

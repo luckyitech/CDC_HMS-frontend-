@@ -9,22 +9,39 @@ import { usePatientContext } from '../../contexts/PatientContext';
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
-  const { getQueueByStatus, getQueueStats } = useQueueContext();
+  const { getQueueByStatus, startConsultation } = useQueueContext();
   const { getPatientByUHID } = usePatientContext();
   
-  // Get all patients with "With Doctor" status
-  const withDoctorQueue = getQueueByStatus('With Doctor');
-  const queueStats = getQueueStats();
-  
+  const isToday = (dateString) => {
+    if (!dateString) return true;
+    return new Date(dateString).toDateString() === new Date().toDateString();
+  };
+
+  const formatDuration = (startTime, endTime) => {
+    if (!startTime || !endTime) return '-';
+    const diffMins = Math.round((new Date(endTime) - new Date(startTime)) / 60000);
+    if (diffMins >= 60) {
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    }
+    return `${diffMins}m`;
+  };
+
+  // Get today's patients only
+  const withDoctorQueue = getQueueByStatus('With Doctor').filter(q => isToday(q.createdAt));
+  const completedQueue = getQueueByStatus('Completed').filter(q => isToday(q.createdAt));
+  const todayQueue = [...withDoctorQueue, ...completedQueue];
+
   // Calculate stats for current doctor
-  const myPatients = withDoctorQueue.filter(q => q.assignedDoctorId === currentUser?.id);
-  const completedToday = 0; // This would come from a completed queue or consultation records
-  
+  const myWithDoctor = withDoctorQueue.filter(q => q.assignedDoctorId === currentUser?.id);
+  const myCompleted = completedQueue.filter(q => q.assignedDoctorId === currentUser?.id);
+
   const stats = [
-    { title: 'Today\'s Patients', value: myPatients.length.toString(), icon: '👥', gradient: 'from-blue-500 to-blue-600' },
-    { title: 'Waiting', value: myPatients.length.toString(), icon: '⏳', gradient: 'from-cyan-500 to-cyan-600' },
-    { title: 'Completed', value: completedToday.toString(), icon: '✅', gradient: 'from-green-500 to-green-600' },
-    { title: 'Total Queue', value: queueStats.withDoctor.toString(), icon: '📋', gradient: 'from-purple-500 to-purple-600' },
+    { title: 'Today\'s Patients', value: (myWithDoctor.length + myCompleted.length).toString(), icon: '👥', gradient: 'from-blue-500 to-blue-600' },
+    { title: 'Waiting', value: myWithDoctor.length.toString(), icon: '⏳', gradient: 'from-cyan-500 to-cyan-600' },
+    { title: 'Completed', value: myCompleted.length.toString(), icon: '✅', gradient: 'from-green-500 to-green-600' },
+    { title: 'Total Queue', value: todayQueue.length.toString(), icon: '📋', gradient: 'from-purple-500 to-purple-600' },
   ];
 
   const getStatusColor = (status) => {
@@ -42,8 +59,9 @@ const DoctorDashboard = () => {
   };
 
   const handleStartConsultation = (uhid) => {
-  navigate(`/doctor/consultation/${uhid}`);
-};
+    startConsultation(uhid);
+    navigate(`/doctor/consultation/${uhid}`);
+  };
 
   return (
     <div>
@@ -54,7 +72,7 @@ const DoctorDashboard = () => {
         </div>
         <div className="flex gap-3">
           <Button onClick={() => navigate('/doctor/patients')}>
-            View My Patients
+            View Patients
           </Button>
         </div>
       </div>
@@ -73,9 +91,9 @@ const DoctorDashboard = () => {
       </div>
 
       {/* Today's Queue - All Patients */}
-      <Card title="📋 Today's Queue - All Patients With Doctor">
+      <Card title="📋 Today's Queue">
         <div className="overflow-x-auto">
-          {withDoctorQueue.length > 0 ? (
+          {todayQueue.length > 0 ? (
             <table className="w-full">
               <thead className="bg-gray-50 border-b-2 border-gray-200">
                 <tr>
@@ -85,11 +103,12 @@ const DoctorDashboard = () => {
                   <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase hidden md:table-cell">Age</th>
                   <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Assigned To</th>
                   <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Duration</th>
                   <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {withDoctorQueue.map((queueItem) => {
+                {todayQueue.map((queueItem) => {
                   const patient = getPatientByUHID(queueItem.uhid);
                   const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
                   
@@ -115,18 +134,30 @@ const DoctorDashboard = () => {
                           {queueItem.status}
                         </span>
                       </td>
+                      <td className="px-4 lg:px-6 py-4 text-sm">
+                        {queueItem.status === 'Completed'
+                          ? <span className="text-green-600 font-semibold">{formatDuration(queueItem.consultationStartTime, queueItem.consultationEndTime)}</span>
+                          : queueItem.consultationStartTime
+                            ? <span className="text-blue-600 font-semibold">In Progress</span>
+                            : <span className="text-gray-400">-</span>
+                        }
+                      </td>
                       <td className="px-4 lg:px-6 py-4">
-                        {isMyPatient ? (
-                          <Button 
-                            variant="primary" 
+                        {queueItem.status === 'Completed' ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">
+                            Done
+                          </span>
+                        ) : isMyPatient ? (
+                          <Button
+                            variant="primary"
                             className="text-xs py-1 px-3"
                             onClick={() => handleStartConsultation(queueItem.uhid)}
                           >
-                            Start Consultation
+                            {queueItem.consultationStartTime ? 'Continue' : 'Start Consultation'}
                           </Button>
                         ) : (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             className="text-xs py-1 px-3 opacity-50 cursor-not-allowed"
                             disabled
                           >
@@ -155,7 +186,7 @@ const DoctorDashboard = () => {
               onClick={() => navigate('/doctor/my-patients')}
               className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500"
             >
-              <p className="font-semibold text-blue-700">👥 View All My Patients</p>
+              <p className="font-semibold text-blue-700">👥 View All Patients</p>
             </button>
             <button 
               onClick={() => navigate('/doctor/prescriptions')}
@@ -172,10 +203,10 @@ const DoctorDashboard = () => {
           </div>
         </Card>
 
-        <Card title="🚨 My Patients Alerts" className="md:col-span-2">
-          {myPatients.length > 0 ? (
+        <Card title="🚨 Patients Alerts" className="md:col-span-2">
+          {myWithDoctor.length > 0 ? (
             <div className="space-y-3">
-              {myPatients.slice(0, 3).map((queueItem) => {
+              {myWithDoctor.slice(0, 3).map((queueItem) => {
                 const patient = getPatientByUHID(queueItem.uhid);
                 return (
                   <div key={queueItem.id} className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
