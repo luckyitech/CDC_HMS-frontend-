@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
@@ -69,11 +70,35 @@ const CreateStaff = () => {
     
     // Validation
     if (!staffData.firstName || !staffData.lastName || !staffData.email || !staffData.role) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
-    alert(`Staff account created successfully!\n\nName: ${staffData.firstName} ${staffData.lastName}\nRole: ${staffData.role}\nEmail: ${staffData.email}\n\nLogin credentials have been sent to the staff member's email.`);
+    toast.success(
+      `Staff Account Created Successfully!\n\nName: ${staffData.firstName} ${staffData.lastName}\nRole: ${staffData.role}\nEmail: ${staffData.email}\n\nLogin credentials have been sent to the staff member's email.`,
+      {
+        duration: 5000,
+        position: 'top-right',
+        icon: '✅',
+        style: {
+          background: '#10B981',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+          whiteSpace: 'pre-line',
+        },
+      }
+    );
     
     // Reset form
     setStaffData({

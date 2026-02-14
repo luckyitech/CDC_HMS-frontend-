@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
@@ -70,12 +71,17 @@ const PhysicalExamList = ({ patient, embedded = false }) => {
       }
 
       // Show success toast
-      const toast = document.createElement("div");
-      toast.className =
-        "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-      toast.innerHTML = "✅ Physical Examination Saved";
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
+      toast.success("Physical Examination Saved Successfully", {
+        duration: 3000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#10B981",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
     } else {
       // Update existing exam
       updateExamination(selectedExamId, examData);
@@ -96,12 +102,17 @@ const PhysicalExamList = ({ patient, embedded = false }) => {
       }
 
       // Show success toast
-      const toast = document.createElement("div");
-      toast.className =
-        "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-      toast.innerHTML = "✅ Physical Examination Updated";
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
+      toast.success("Physical Examination Updated Successfully", {
+        duration: 3000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#10B981",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
     }
   };
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -146,12 +147,17 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     });
 
     // Show success message
-    const successDiv = document.createElement("div");
-    successDiv.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce";
-    successDiv.innerHTML = `âœ… Initial Assessment completed for ${selectedPatient.name}!`;
-    document.body.appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 3000);
+    toast.success(`Initial Assessment Completed for ${selectedPatient.name}`, {
+      duration: 3000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
 
     // Navigate back or clear
     if (fromConsultation && embedded) {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
@@ -70,11 +71,35 @@ const CreateLabTech = () => {
     
     // Validation
     if (!labTechData.firstName || !labTechData.lastName || !labTechData.email || !labTechData.certificationNumber) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
-    alert(`Lab Technician account created successfully!\n\nName: ${labTechData.firstName} ${labTechData.lastName}\nEmail: ${labTechData.email}\nSpecialization: ${labTechData.specialization}\n\nLogin credentials have been sent to the lab technician's email.`);
+    toast.success(
+      `Lab Technician Account Created Successfully!\n\nName: ${labTechData.firstName} ${labTechData.lastName}\nEmail: ${labTechData.email}\nSpecialization: ${labTechData.specialization}\n\nLogin credentials have been sent to the lab technician's email.`,
+      {
+        duration: 5000,
+        position: 'top-right',
+        icon: '✅',
+        style: {
+          background: '#10B981',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+          whiteSpace: 'pre-line',
+        },
+      }
+    );
     
     // Reset form
     setLabTechData({

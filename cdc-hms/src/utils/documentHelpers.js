@@ -29,10 +29,32 @@ export const getCategoryIcon = (category) => {
   return icons[category] || '📄';
 };
 
+import toast from 'react-hot-toast';
+
 export const showNotification = (message, isBlue = false) => {
-  const div = document.createElement('div');
-  div.className = `fixed top-4 right-4 ${isBlue ? 'bg-blue-500' : 'bg-green-500'} text-white px-6 py-4 rounded-lg shadow-lg z-50`;
-  div.innerHTML = `<p class="font-bold">${message}</p>`;
-  document.body.appendChild(div);
-  setTimeout(() => div.remove(), 3000);
+  if (isBlue) {
+    toast.info(message, {
+      duration: 3000,
+      position: 'top-right',
+      icon: 'ℹ️',
+      style: {
+        background: '#3B82F6',
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        padding: '16px',
+      },
+    });
+  } else {
+    toast.success(message, {
+      duration: 3000,
+      position: 'top-right',
+      icon: '✅',
+      style: {
+        background: '#10B981',
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        padding: '16px',
+      },
+    });
+  }
 };

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 
 const VoiceInput = ({ value, onChange, placeholder, rows = 4, required = false }) => {
   const [isListening, setIsListening] = useState(false);
@@ -60,7 +61,17 @@ const VoiceInput = ({ value, onChange, placeholder, rows = 4, required = false }
       setIsListening(false);
       
       if (event.error === 'not-allowed') {
-        alert('Microphone access denied. Please allow microphone access in your browser settings.');
+        toast.error('Microphone access denied. Please allow microphone access in your browser settings.', {
+          duration: 4000,
+          position: 'top-right',
+          icon: '🎤',
+          style: {
+            background: '#EF4444',
+            color: '#FFFFFF',
+            fontWeight: 'bold',
+            padding: '16px',
+          },
+        });
       } else if (event.error === 'no-speech') {
         // Don't show alert for no-speech, just stop silently
         console.log('No speech detected');
@@ -93,7 +104,17 @@ const VoiceInput = ({ value, onChange, placeholder, rows = 4, required = false }
         setIsListening(true);
       } catch (error) {
         console.error('Error starting recognition:', error);
-        alert('Could not start voice input. Please try again.');
+        toast.error('Could not start voice input. Please try again.', {
+          duration: 3000,
+          position: 'top-right',
+          icon: '❌',
+          style: {
+            background: '#EF4444',
+            color: '#FFFFFF',
+            fontWeight: 'bold',
+            padding: '16px',
+          },
+        });
       }
     }
   };

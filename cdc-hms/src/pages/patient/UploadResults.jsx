@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 
@@ -56,13 +57,33 @@ const UploadResults = () => {
       // Validate file type
       const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
       if (!validTypes.includes(file.type)) {
-        alert('Please upload PDF, JPG, or PNG files only');
+        toast.error('Please upload PDF, JPG, or PNG files only', {
+          duration: 3000,
+          position: 'top-right',
+          icon: '❌',
+          style: {
+            background: '#EF4444',
+            color: '#FFFFFF',
+            fontWeight: 'bold',
+            padding: '16px',
+          },
+        });
         return;
       }
 
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        alert('File size must be less than 10MB');
+        toast.error('File size must be less than 10MB', {
+          duration: 3000,
+          position: 'top-right',
+          icon: '❌',
+          style: {
+            background: '#EF4444',
+            color: '#FFFFFF',
+            fontWeight: 'bold',
+            padding: '16px',
+          },
+        });
         return;
       }
 
@@ -72,22 +93,62 @@ const UploadResults = () => {
 
   const handleUpload = () => {
     if (!selectedFile) {
-      alert('Please select a file to upload');
+      toast.error('Please select a file to upload', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
     if (!uploadData.documentType) {
-      alert('Please select document type');
+      toast.error('Please select document type', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
     if (!uploadData.testDate) {
-      alert('Please select test/document date');
+      toast.error('Please select test/document date', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
     // Simulate upload
-    alert(`File "${selectedFile.name}" uploaded successfully! Your doctor will review it soon.`);
+    toast.success(`File "${selectedFile.name}" uploaded successfully! Your doctor will review it soon.`, {
+      duration: 4000,
+      position: 'top-right',
+      icon: '✅',
+      style: {
+        background: '#10B981',
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        padding: '16px',
+      },
+    });
     
     // Reset form
     setSelectedFile(null);

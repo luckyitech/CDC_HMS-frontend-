@@ -1,5 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
 import { useState } from "react";
+import toast from "react-hot-toast";
 import {
   LayoutDashboard,
   Search,
@@ -239,11 +240,31 @@ const MainLayout = ({ userRole = "Staff" }) => {
   };
 
   const handleMarkAsRead = (notificationId) => {
-    alert(`Notification ${notificationId} marked as read`);
+    toast.success(`Notification Marked as Read`, {
+      duration: 2000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
   };
 
   const handleMarkAllAsRead = () => {
-    alert("All notifications marked as read");
+    toast.success("All Notifications Marked as Read", {
+      duration: 2000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
     setNotificationsOpen(false);
   };
 

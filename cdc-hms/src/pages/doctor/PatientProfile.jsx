@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Phone, Mail, Microscope, ArrowLeft } from "lucide-react";
 import Card from "../../components/shared/Card";
@@ -612,16 +613,21 @@ const ReportsTab = ({ patient }) => {
 
   const handleEmail = (test) => {
     // Show "Not implemented" message
-    const notificationDiv = document.createElement("div");
-    notificationDiv.className =
-      "fixed top-4 right-4 bg-blue-500 text-white px-6 py-4 rounded-lg shadow-lg z-50";
-    notificationDiv.innerHTML = `
-      <p class="font-bold">📧 Email Feature</p>
-      <p class="text-sm mt-1">Email functionality will be implemented with backend integration.</p>
-      <p class="text-sm">Test: ${test.testType} for ${test.patientName}</p>
-    `;
-    document.body.appendChild(notificationDiv);
-    setTimeout(() => notificationDiv.remove(), 4000);
+    toast.info(
+      `Email Feature\nEmail functionality will be implemented with backend integration.\nTest: ${test.testType} for ${test.patientName}`,
+      {
+        duration: 4000,
+        position: "top-right",
+        icon: "📧",
+        style: {
+          background: "#3B82F6",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+          whiteSpace: "pre-line",
+        },
+      }
+    );
   };
 
   if (labTests.length === 0) {

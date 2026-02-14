@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
@@ -82,13 +83,37 @@ const CreatePatient = () => {
     
     // Validation
     if (!patientData.firstName || !patientData.lastName || !patientData.email || !patientData.phone) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
     const uhid = generatedUHID || generateUHID();
-    
-    alert(`Patient account created successfully!\n\nUHID: ${uhid}\nName: ${patientData.firstName} ${patientData.lastName}\nEmail: ${patientData.email}\nDiabetes Type: ${patientData.diabetesType}\nPrimary Doctor: ${patientData.primaryDoctor}\n\nLogin credentials have been sent to the patient's email and SMS.`);
+
+    toast.success(
+      `Patient Account Created Successfully!\n\nUHID: ${uhid}\nName: ${patientData.firstName} ${patientData.lastName}\nEmail: ${patientData.email}\nDiabetes Type: ${patientData.diabetesType}\nPrimary Doctor: ${patientData.primaryDoctor}\n\nLogin credentials have been sent to the patient's email and SMS.`,
+      {
+        duration: 5000,
+        position: 'top-right',
+        icon: '✅',
+        style: {
+          background: '#10B981',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+          whiteSpace: 'pre-line',
+        },
+      }
+    );
     
     // Reset form
     setPatientData({

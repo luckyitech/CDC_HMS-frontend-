@@ -1,6 +1,7 @@
 // OrderLabTestModal.jsx - Modal for doctors to order lab tests
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 import Button from "../shared/Button";
 import { useLabContext } from "../../contexts/LabContext";
 import { useUserContext } from "../../contexts/UserContext";
@@ -32,7 +33,17 @@ const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
 
   const handleSubmit = () => {
     if (!selectedTest) {
-      alert("Please select a test type");
+      toast.error("Please select a test type", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
       return;
     }
 
@@ -55,17 +66,21 @@ const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
     addPendingTest(testOrder);
 
     // Show success notification
-    const successDiv = document.createElement("div");
-    successDiv.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce";
-    successDiv.innerHTML = `
-      <p class="font-bold">✅ Lab Test Ordered Successfully!</p>
-      <p class="text-sm mt-1">Patient: ${patient.name}</p>
-      <p class="text-sm">Test: ${selectedTest}</p>
-      <p class="text-sm">Priority: ${priority}</p>
-    `;
-    document.body.appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 4000);
+    toast.success(
+      `Lab Test Ordered Successfully!\nPatient: ${patient.name}\nTest: ${selectedTest}\nPriority: ${priority}`,
+      {
+        duration: 4000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#10B981",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+          whiteSpace: "pre-line",
+        },
+      }
+    );
 
     // Call success callback
     if (onSuccess) onSuccess();

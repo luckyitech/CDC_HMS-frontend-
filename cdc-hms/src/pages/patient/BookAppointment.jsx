@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { UserSquare2, Calendar as CalendarIcon, Clock, FileText, CheckCircle2 } from 'lucide-react';
+import { UserSquare2, Calendar as CalendarIcon, Clock, FileText, CheckCircle2, X } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
@@ -59,15 +59,45 @@ const BookAppointment = () => {
 
   const handleNext = () => {
     if (step === 1 && !bookingData.doctor) {
-      alert('Please select a doctor');
+      toast.error('Please select a doctor', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
     if (step === 2 && (!bookingData.date || !bookingData.timeSlot)) {
-      alert('Please select date and time');
+      toast.error('Please select date and time', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
     if (step === 3 && !bookingData.appointmentType) {
-      alert('Please select appointment type');
+      toast.error('Please select appointment type', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
     setStep(step + 1);

@@ -212,12 +212,17 @@ const Consultation = () => {
     setTabsUnsaved({ ...tabsUnsaved, assessment: false });
 
     // Show success toast
-    const toast = document.createElement("div");
-    toast.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "âœ… Assessment Saved";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+    toast.success("Assessment Saved Successfully", {
+      duration: 3000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
   };
 
   const handleSaveExam = () => {
@@ -239,12 +244,17 @@ const Consultation = () => {
     setTabsUnsaved({ ...tabsUnsaved, exam: false });
 
     // Show success toast
-    const toast = document.createElement("div");
-    toast.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "âœ… Physical Exam Saved";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+    toast.success("Physical Exam Saved Successfully", {
+      duration: 3000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
   };
 
   const handleDiagnosisSuccess = () => {
@@ -258,8 +268,19 @@ const Consultation = () => {
   const handleCompleteConsultation = () => {
     // Validate required fields - check if diagnosis tab is completed
     if (!tabsCompleted.diagnosis) {
-      alert(
-        "Please complete Diagnosis & Treatment Plan tab before completing consultation"
+      toast.error(
+        "Please complete Diagnosis & Treatment Plan tab before completing consultation",
+        {
+          duration: 4000,
+          position: "top-right",
+          icon: "❌",
+          style: {
+            background: "#EF4444",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        }
       );
       setActiveTab("diagnosis");
       return;

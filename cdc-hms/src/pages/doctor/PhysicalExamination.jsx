@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -74,7 +75,17 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
     if (generateFindings) {
       setMode("findings");
     } else {
-      alert("Examination draft saved successfully!");
+      toast.success("Examination Draft Saved Successfully", {
+        duration: 3000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#10B981",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
     }
   };
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
@@ -33,7 +34,17 @@ const ConsultationNotesList = ({
 
   const handleSaveNote = () => {
     if (!consultationNotes.trim()) {
-      alert("Please enter consultation notes");
+      toast.error("Please enter consultation notes", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
       return;
     }
 
@@ -50,12 +61,17 @@ const ConsultationNotesList = ({
     setShowWriteModal(false);
 
     // Show success toast
-    const toast = document.createElement("div");
-    toast.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "✅ Consultation Notes Saved";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+    toast.success("Consultation Notes Saved Successfully", {
+      duration: 3000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
   };
 
   const handleCancelWrite = () => {

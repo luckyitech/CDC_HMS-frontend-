@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { X } from "lucide-react";
 import Button from "../shared/Button";
 import Input from "../shared/Input";
@@ -79,7 +80,17 @@ useEffect(() => {
 
     // Validate
     if (!formData.diagnosis.trim()) {
-      alert("Please enter a diagnosis for the prescription");
+      toast.error("Please enter a diagnosis for the prescription", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
       return;
     }
 
@@ -87,7 +98,17 @@ useEffect(() => {
       (m) => m.name && m.dosage && m.frequency && m.duration
     );
     if (validMedications.length === 0) {
-      alert("Please add at least one complete medication");
+      toast.error("Please add at least one complete medication", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
       return;
     }
 
@@ -106,12 +127,17 @@ useEffect(() => {
 
     addPrescription(newPrescription);
 
-    const successDiv = document.createElement("div");
-    successDiv.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce";
-    successDiv.innerHTML = "✅ Prescription created successfully!";
-    document.body.appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 3000);
+    toast.success("Prescription Created Successfully", {
+      duration: 3000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
 
     // Clear form
     setFormData({

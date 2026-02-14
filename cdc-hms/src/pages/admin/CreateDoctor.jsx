@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
@@ -66,11 +67,35 @@ const CreateDoctor = () => {
     
     // Validation
     if (!doctorData.firstName || !doctorData.lastName || !doctorData.email || !doctorData.licenseNumber) {
-      alert('Please fill in all required fields');
+      toast.error('Please fill in all required fields', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
-    alert(`Doctor account created successfully!\n\nName: Dr. ${doctorData.firstName} ${doctorData.lastName}\nEmail: ${doctorData.email}\nSpecialty: ${doctorData.specialty}\n\nLogin credentials have been sent to the doctor's email.`);
+    toast.success(
+      `Doctor Account Created Successfully!\n\nName: Dr. ${doctorData.firstName} ${doctorData.lastName}\nEmail: ${doctorData.email}\nSpecialty: ${doctorData.specialty}\n\nLogin credentials have been sent to the doctor's email.`,
+      {
+        duration: 5000,
+        position: 'top-right',
+        icon: '✅',
+        style: {
+          background: '#10B981',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+          whiteSpace: 'pre-line',
+        },
+      }
+    );
     
     // Reset form
     setDoctorData({

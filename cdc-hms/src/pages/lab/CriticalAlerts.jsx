@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { useNavigate } from "react-router-dom";
@@ -37,17 +38,21 @@ const CriticalAlerts = () => {
 
   const handleNotifyDoctor = (alert) => {
     // Show success notification
-    const successDiv = document.createElement("div");
-    successDiv.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50";
-    successDiv.innerHTML = `
-       <p class="font-bold">✅ Doctor Notified Successfully!</p>
-       <p class="text-sm mt-1">Patient: ${alert.patientName}</p>
-       <p class="text-sm">Doctor: ${alert.orderedBy}</p>
-       <p class="text-sm">Test: ${alert.testType}</p>
-     `;
-    document.body.appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 5000);
+    toast.success(
+      `Doctor Notified Successfully!\nPatient: ${alert.patientName}\nDoctor: ${alert.orderedBy}\nTest: ${alert.testType}`,
+      {
+        duration: 5000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#10B981",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+          whiteSpace: "pre-line",
+        },
+      }
+    );
 
     // In real system, this would send SMS/Email to doctor
     console.log("Notification sent:", {

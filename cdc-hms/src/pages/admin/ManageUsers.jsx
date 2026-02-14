@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useNavigate } from 'react-router-dom';
@@ -77,25 +78,66 @@ const ManageUsers = () => {
   };
 
   const handleEdit = (user) => {
-    alert(`Edit user: ${user.name}\n\nThis will open an edit form to update user details.`);
+    toast.info(`Edit User: ${user.name}\n\nThis will open an edit form to update user details.`, {
+      duration: 3000,
+      position: 'top-right',
+      icon: '✏️',
+      style: {
+        background: '#3B82F6',
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        padding: '16px',
+        whiteSpace: 'pre-line',
+      },
+    });
   };
 
   const handleDeactivate = (user) => {
     if (window.confirm(`Are you sure you want to deactivate ${user.name}?\n\nThey will not be able to login until reactivated.`)) {
-      alert(`${user.name} has been deactivated.`);
+      toast.success(`${user.name} has been deactivated`, {
+        duration: 3000,
+        position: 'top-right',
+        icon: '✅',
+        style: {
+          background: '#10B981',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
     }
   };
 
   const handleResetPassword = (user) => {
     if (window.confirm(`Reset password for ${user.name}?\n\nA new temporary password will be sent to their email.`)) {
-      alert(`Password reset email sent to ${user.email}`);
+      toast.success(`Password reset email sent to ${user.email}`, {
+        duration: 3000,
+        position: 'top-right',
+        icon: '✅',
+        style: {
+          background: '#10B981',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
     }
   };
 
   const handleDelete = (user) => {
     if (window.confirm(`⚠️ WARNING: Delete ${user.name}?\n\nThis action cannot be undone. All user data will be permanently deleted.`)) {
       if (window.confirm(`Are you absolutely sure? Type DELETE to confirm.`)) {
-        alert(`${user.name} has been deleted from the system.`);
+        toast.success(`${user.name} has been deleted from the system`, {
+          duration: 3000,
+          position: 'top-right',
+          icon: '✅',
+          style: {
+            background: '#10B981',
+            color: '#FFFFFF',
+            fontWeight: 'bold',
+            padding: '16px',
+          },
+        });
       }
     }
   };
@@ -281,10 +323,20 @@ const ManageUsers = () => {
                             ⏸️ Deactivate
                           </Button>
                         ) : (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             className="text-xs py-1 px-2 text-green-600 border-green-300 hover:bg-green-50"
-                            onClick={() => alert(`${user.name} has been activated.`)}
+                            onClick={() => toast.success(`${user.name} has been activated`, {
+                              duration: 3000,
+                              position: 'top-right',
+                              icon: '✅',
+                              style: {
+                                background: '#10B981',
+                                color: '#FFFFFF',
+                                fontWeight: 'bold',
+                                padding: '16px',
+                              },
+                            })}
                           >
                             ▶️ Activate
                           </Button>
