@@ -13,14 +13,15 @@ const PatientLoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const result = login(formData.email, formData.password, 'Patient');
-      
+      // login() is now async - need await
+      const result = await login(formData.email, formData.password, 'Patient');
+
       if (result.success) {
         navigate('/patient/dashboard');
       } else {

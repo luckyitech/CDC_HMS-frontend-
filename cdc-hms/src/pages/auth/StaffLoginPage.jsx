@@ -13,14 +13,15 @@ const StaffLoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const result = login(formData.email, formData.password, 'Staff');
-      
+      // login() is now async - need await
+      const result = await login(formData.email, formData.password, 'Staff');
+
       if (result.success) {
         navigate('/staff/dashboard');
       } else {

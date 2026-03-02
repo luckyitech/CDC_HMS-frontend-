@@ -20,9 +20,12 @@ const PrescriptionManagement = ({
   const [showViewModal, setShowViewModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
 
+  // Ensure patientPrescriptions is an array (handles async/Promise issues)
+  const prescriptionsArray = Array.isArray(patientPrescriptions) ? patientPrescriptions : [];
+
   // Get current and past prescriptions
-  const currentPrescription = patientPrescriptions[0] || null;
-  const pastPrescriptions = patientPrescriptions.slice(1);
+  const currentPrescription = prescriptionsArray[0] || null;
+  const pastPrescriptions = prescriptionsArray.slice(1);
 
   // Handle adding medication from current or past
   const handleAddMedication = (medication) => {

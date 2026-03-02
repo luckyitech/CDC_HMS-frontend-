@@ -1,3 +1,5 @@
+import cdcLogo from "../../assets/cdc_web_logo1.svg";
+
 const PrescriptionPrint = ({ prescription, onClose }) => {
   if (!prescription) return null;
 
@@ -30,12 +32,19 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
         {/* Printable Prescription Content */}
         <div className="print-prescription p-8">
           {/* Hospital Header */}
-          <div className="text-center border-b-4 border-primary pb-6 mb-6">
-            <h1 className="text-3xl font-bold text-primary mb-2">CDC DIABETES CARE CENTER</h1>
-            <p className="text-gray-600">Center for Diabetes Care & Management</p>
-            <p className="text-sm text-gray-600 mt-1">
-              📍 123 Medical Plaza, Healthcare District | 📞 +1-234-567-8900 | 📧 info@cdcdiabetes.com
-            </p>
+          <div className="flex justify-between items-center border-b-4 border-primary pb-6 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold text-primary mb-2">CDC DIABETES CARE CENTER</h1>
+              <p className="text-gray-600">Center for Diabetes Care & Management</p>
+              <p className="text-sm text-gray-600 mt-1">
+                📍 123 Medical Plaza, Healthcare District | 📞 +1-234-567-8900 | 📧 info@cdcdiabetes.com
+              </p>
+            </div>
+            <img
+              src={cdcLogo}
+              alt="CDC Logo"
+              className="w-40 h-40 object-contain py-4"
+            />
           </div>
 
           {/* Prescription Header */}
@@ -69,7 +78,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
               </div>
               <div>
                 <p className="text-gray-600">Patient ID:</p>
-                <p className="font-semibold text-gray-800">{prescription.uhid}</p>
+                <p className="font-semibold text-gray-800">{prescription.patientUhid || prescription.uhid}</p>
               </div>
             </div>
           </div>

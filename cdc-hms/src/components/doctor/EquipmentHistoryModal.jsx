@@ -2,6 +2,9 @@ import Modal from '../shared/Modal';
 import Button from '../shared/Button';
 
 const EquipmentHistoryModal = ({ isOpen, onClose, history }) => {
+  // Ensure history is an array
+  const historyArray = Array.isArray(history) ? history : [];
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
@@ -26,14 +29,14 @@ const EquipmentHistoryModal = ({ isOpen, onClose, history }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="📜 Equipment History">
       <div className="space-y-4">
-        {history.length === 0 ? (
+        {historyArray.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-4xl mb-2">📦</div>
             <p className="text-gray-500">No equipment history</p>
             <p className="text-sm text-gray-400 mt-1">Previous equipment will appear here</p>
           </div>
         ) : (
-          history.map((item, index) => (
+          historyArray.map((item, index) => (
             <div
               key={index}
               className="p-4 bg-gray-50 rounded-lg border-2 border-gray-200"

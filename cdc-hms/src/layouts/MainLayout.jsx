@@ -1,5 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import appointmentService from "../services/appointmentService";
+import { useUserContext } from "../contexts/UserContext";
 import toast from "react-hot-toast";
 import {
   LayoutDashboard,
@@ -37,8 +39,24 @@ import logo from "../assets/cdc_web_logo1.svg";
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser } = useUserContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [doctorApptCount, setDoctorApptCount] = useState(0);
+
+  // For doctor role: fetch today's scheduled appointment count as badge
+  useEffect(() => {
+    if (userRole.toLowerCase() !== 'doctor' || !currentUser?.id) return;
+    appointmentService.getByDoctor(currentUser.id, { date: 'today' })
+      .then(res => {
+        if (res.success) {
+          const scheduled = (res.data.appointments || res.data)
+            .filter(a => a.status === 'scheduled').length;
+          setDoctorApptCount(scheduled);
+        }
+      })
+      .catch(() => {});
+  }, [userRole, currentUser?.id]);
 
   const handleLogout = () => {
     navigate("/");
@@ -209,7 +227,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
   };
 
   const notifications = getNotifications();
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const mockUnread = notifications.filter((n) => !n.read).length;
+  const unreadCount = userRole.toLowerCase() === 'doctor' ? doctorApptCount : mockUnread;
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -239,7 +258,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     }
   };
 
-  const handleMarkAsRead = (notificationId) => {
+  const handleMarkAsRead = () => {
     toast.success(`Notification Marked as Read`, {
       duration: 2000,
       position: "top-right",
@@ -319,7 +338,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         path: "/patient/book-appointment",
         icon: Calendar,
       },
-      { name: "Upload Results", path: "/patient/upload-results", icon: Upload },
+      { name: "My Documents", path: "/patient/upload-results", icon: FileText },
     ],
     lab: [
       { name: "Dashboard", path: "/lab/dashboard", icon: LayoutDashboard },

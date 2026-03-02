@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, FileText, Filter, SortAsc, SortDesc, Search } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
@@ -7,6 +7,7 @@ import UploadDocumentModal from './UploadDocumentModal';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { showNotification } from '../../utils/documentHelpers';
+import documentService from '../../services/documentService';
 
 const MedicalDocumentsTab = ({ patient }) => {
   const { currentUser } = useUserContext();
@@ -24,50 +25,118 @@ const MedicalDocumentsTab = ({ patient }) => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const allDocuments = getMedicalDocuments(patient.uhid);
-  
+  // State for documents loaded async
+  const [allDocuments, setAllDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load documents on mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadDocuments = async () => {
+      setIsLoading(true);
+      try {
+        const docs = await getMedicalDocuments(patient.uhid);
+        if (isMounted) {
+          setAllDocuments(Array.isArray(docs) ? docs : []);
+        }
+      } catch (err) {
+        console.error('Error loading documents:', err);
+        if (isMounted) setAllDocuments([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadDocuments();
+    return () => { isMounted = false; };
+  }, [patient.uhid, getMedicalDocuments]);
+
   // Apply filters and sorting
   let filteredDocuments = filterDocumentsByCategory(allDocuments, selectedCategory);
   filteredDocuments = sortDocumentsByDate(filteredDocuments, sortOrder);
-  
+
   // Apply search
   if (searchQuery) {
     filteredDocuments = filteredDocuments.filter(doc =>
-      doc.testType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.labName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.fileName.toLowerCase().includes(searchQuery.toLowerCase())
+      doc.testType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.labName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      doc.fileName?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }
 
-  const handleUploadSuccess = () => {
-    showNotification('✅ Document uploaded successfully!');
-  };
-
-  const handleMarkAsReviewed = (documentId) => {
-    const result = updateDocumentStatus(patient.uhid, documentId, 'Reviewed', currentUser?.name);
-    if (result.success) {
-      showNotification('✅ Document marked as reviewed');
+  // Refresh documents list
+  const refreshDocuments = async () => {
+    try {
+      const docs = await getMedicalDocuments(patient.uhid);
+      setAllDocuments(Array.isArray(docs) ? docs : []);
+    } catch (err) {
+      console.error('Error refreshing documents:', err);
     }
   };
 
-  const handleDelete = (documentId, fileName) => {
+  const handleUploadSuccess = async () => {
+    showNotification('✅ Document uploaded successfully!');
+    await refreshDocuments();
+  };
+
+  const handleMarkAsReviewed = async (documentId) => {
+    const result = await updateDocumentStatus(documentId, 'Reviewed');
+    if (result.success) {
+      showNotification('✅ Document marked as reviewed');
+      await refreshDocuments();
+    }
+  };
+
+  const handleDelete = async (documentId, fileName) => {
     if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
-      const result = deleteMedicalDocument(patient.uhid, documentId);
+      const result = await deleteMedicalDocument(documentId);
       if (result.success) {
         showNotification('✅ Document deleted successfully');
+        await refreshDocuments();
       }
     }
   };
 
-  const handleDownload = (doc) => {
-    showNotification(`📥 Downloading ${doc.fileName}...`, true);
+  const handleDownload = async (doc) => {
+    if (!doc.fileUrl) return;
+    try {
+      const filename = doc.fileUrl.split('/').pop();
+      const blob = await documentService.getFile(filename);
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = doc.fileName;
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      showNotification('Failed to download file');
+    }
   };
 
-  const handleView = (doc) => {
-    showNotification(`👁️ Opening ${doc.fileName}...`, true);
+  const handleView = async (doc) => {
+    if (!doc.fileUrl) return;
+    try {
+      const filename = doc.fileUrl.split('/').pop();
+      const blob = await documentService.getFile(filename);
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (err) {
+      showNotification('Failed to open file');
+    }
   };
 
-  const isStaff = currentUser?.role === 'Staff' || currentUser?.role === 'Doctor';
+  const isStaff = ['staff', 'doctor'].includes(currentUser?.role?.toLowerCase());
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="text-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading medical documents...</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -110,7 +179,7 @@ const MedicalDocumentsTab = ({ patient }) => {
           <p className="text-xs text-gray-600 uppercase font-semibold">This Month</p>
           <p className="text-3xl font-bold text-purple-700 mt-1">
             {allDocuments.filter(d => {
-              const docDate = new Date(d.uploadDate);
+              const docDate = new Date(d.uploadedAt);
               const now = new Date();
               return docDate.getMonth() === now.getMonth() && 
                      docDate.getFullYear() === now.getFullYear();

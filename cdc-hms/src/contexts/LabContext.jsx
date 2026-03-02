@@ -1,224 +1,177 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import labService from '../services/labService';
 
 const LabContext = createContext();
 
 export const useLabContext = () => {
   const context = useContext(LabContext);
   if (!context) {
-    throw new Error("useLabContext must be used within LabProvider");
+    throw new Error('useLabContext must be used within LabProvider');
   }
   return context;
 };
 
 export const LabProvider = ({ children }) => {
-  // Store all lab test results
-  const [labTests, setLabTests] = useState([
-    // Mock initial data - can be removed once real data is entered
-    {
-      id: 1,
-      uhid: "CDC001",
-      patientName: "John Doe",
-      testType: "HbA1c",
-      sampleType: "Blood",
-      orderedBy: "Dr. Ahmed Hassan",
-      orderedDate: "2024-11-15",
-      orderedTime: "09:30 AM",
-      completedDate: "2024-11-15",
-      completedTime: "02:30 PM",
-      completedBy: "Tech. Sarah Mwangi",
-      status: "Completed",
-      priority: "Routine",
-      results: {
-        hba1c: "7.2",
-      },
-      normalRange: "<7.0%",
-      interpretation: "Abnormal",
-      isCritical: false,
-      technicianNotes: "Slightly elevated",
-      reportGenerated: true,
-    },
-    {
-      id: 2,
-      uhid: "CDC005",
-      patientName: "Mary Johnson",
-      testType: "Fasting Glucose",
-      sampleType: "Blood",
-      orderedBy: "Dr. Ahmed Hassan",
-      orderedDate: "2024-11-10",
-      orderedTime: "08:15 AM",
-      completedDate: "2024-11-10",
-      completedTime: "10:45 AM",
-      completedBy: "Tech. John Kamau",
-      status: "Completed",
-      priority: "Urgent",
-      results: {
-        fastingGlucose: "145",
-      },
-      normalRange: "70-100 mg/dL",
-      interpretation: "Abnormal",
-      isCritical: false,
-      technicianNotes: "Patient was fasting for 12 hours",
-      reportGenerated: true,
-    },
-    {
-      id: 3,
-      uhid: "CDC003",
-      patientName: "Ali Hassan",
-      testType: "Lipid Profile",
-      sampleType: "Blood",
-      orderedBy: "Dr. Sarah Kamau",
-      orderedDate: "2024-11-08",
-      orderedTime: "10:00 AM",
-      completedDate: "2024-11-08",
-      completedTime: "03:00 PM",
-      completedBy: "Tech. Sarah Mwangi",
-      status: "Completed",
-      priority: "Routine",
-      results: {
-        totalCholesterol: "185",
-        ldl: "110",
-        hdl: "45",
-        triglycerides: "140",
-      },
-      normalRange: "See individual ranges",
-      interpretation: "Normal",
-      isCritical: false,
-      technicianNotes: "All parameters within normal limits",
-      reportGenerated: true,
-    },
-    {
-      id: 4,
-      uhid: "CDC007",
-      patientName: "Grace Wanjiru",
-      testType: "Kidney Function",
-      sampleType: "Blood",
-      orderedBy: "Dr. Ahmed Hassan",
-      orderedDate: "2024-11-05",
-      orderedTime: "09:00 AM",
-      completedDate: "2024-11-05",
-      completedTime: "01:00 PM",
-      completedBy: "Tech. John Kamau",
-      status: "Completed",
-      priority: "Urgent",
-      results: {
-        creatinine: "3.5",
-        bun: "45",
-        egfr: "35",
-        uricAcid: "8.5",
-      },
-      normalRange: "See individual ranges",
-      interpretation: "Critical",
-      isCritical: true,
-      technicianNotes: "Critical - Doctor notified immediately",
-      reportGenerated: true,
-    },
-  ]);
+  const [labTests, setLabTests] = useState([]);
+  const [pendingTests, setPendingTests] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Add new test result
-  const addLabTest = (testData) => {
-    const newTest = {
-      id: labTests.length + 1,
-      completedDate: new Date().toISOString().split("T")[0],
-      completedTime: new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      status: "Completed",
-      reportGenerated: true,
-      ...testData,
-    };
-    setLabTests([newTest, ...labTests]);
-    return newTest;
+  // ============================================
+  // FETCH LAB TESTS FROM API
+  // ============================================
+
+  // Load all lab tests from API
+  const fetchLabTests = useCallback(async (params = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await labService.getAll(params);
+      if (response.success) {
+        const tests = response.data.labTests || response.data;
+        setLabTests(tests);
+        // Separate pending tests
+        setPendingTests(tests.filter(t => t.status === 'Sample Collected' || t.status === 'Pending'));
+      }
+      return response;
+    } catch (err) {
+      setError(err.message);
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load lab tests on mount
+  useEffect(() => {
+    fetchLabTests();
+  }, [fetchLabTests]);
+
+  // ============================================
+  // LAB TEST OPERATIONS (API)
+  // ============================================
+
+  // Add new lab test (order test)
+  const addLabTest = async (testData) => {
+    setLoading(true);
+    try {
+      const response = await labService.order(testData);
+      if (response.success) {
+        await fetchLabTests();
+        return response.data.labTest || response.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('Add lab test error:', err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Get all tests for a patient
-  const getTestsByPatient = (uhid) => {
-    return labTests
-      .filter((test) => test.uhid === uhid)
-      .sort((a, b) => new Date(b.completedDate) - new Date(a.completedDate));
+  // Enter lab test results (lab tech) - uses update endpoint
+  const enterResults = async (testId, resultsData) => {
+    setLoading(true);
+    try {
+      const response = await labService.update(testId, resultsData);
+      if (response.success) {
+        await fetchLabTests();
+        return { success: true, labTest: response.data.labTest || response.data };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Get all tests for a patient (via API)
+  const getTestsByPatient = async (uhid) => {
+    try {
+      const response = await labService.getByPatient(uhid);
+      if (response.success) {
+        const tests = response.data.labTests || response.data;
+        return tests.sort((a, b) => new Date(b.completedDate || b.orderedDate) - new Date(a.completedDate || a.orderedDate));
+      }
+      return [];
+    } catch (err) {
+      console.error('Get tests by patient error:', err.message);
+      return [];
+    }
   };
 
   // Get latest test of a specific type for a patient
-  const getLatestTestByType = (uhid, testType) => {
-    const patientTests = labTests
-      .filter((test) => test.uhid === uhid && test.testType === testType)
-      .sort((a, b) => new Date(b.completedDate) - new Date(a.completedDate));
-    return patientTests[0] || null;
+  // Fetches all tests for patient and filters client-side
+  const getLatestTestByType = async (uhid, testType) => {
+    try {
+      const response = await labService.getByPatient(uhid, { testType, status: 'Completed' });
+      if (response.success) {
+        const tests = response.data.labTests || response.data;
+        // Sort by completedDate descending and return first
+        const sorted = tests.sort((a, b) =>
+          new Date(b.completedDate || b.orderedDate) - new Date(a.completedDate || a.orderedDate)
+        );
+        return sorted[0] || null;
+      }
+      return null;
+    } catch (err) {
+      console.error('Get latest test error:', err.message);
+      return null;
+    }
   };
 
-  // Get all critical results
-  const getCriticalTests = () => {
-    return labTests.filter((test) => test.isCritical);
+  // Get all critical results (via API)
+  const getCriticalTests = async () => {
+    try {
+      const response = await labService.getCritical();
+      if (response.success) {
+        return response.data.labTests || response.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Get critical tests error:', err.message);
+      return [];
+    }
   };
 
-  // Get pending tests (for lab portal)
-  const [pendingTests, setPendingTests] = useState([
-    {
-      id: 1,
-      uhid: "CDC001",
-      patientName: "John Doe",
-      age: 45,
-      gender: "Male",
-      testType: "HbA1c",
-      sampleType: "Blood",
-      orderedBy: "Dr. Ahmed Hassan",
-      orderedDate: "2024-12-09",
-      orderedTime: "09:30 AM",
-      priority: "Routine",
-      status: "Sample Collected",
-      notes: "Patient is fasting",
-    },
-    {
-      id: 2,
-      uhid: "CDC005",
-      patientName: "Mary Johnson",
-      age: 61,
-      gender: "Female",
-      testType: "Fasting Glucose",
-      sampleType: "Blood",
-      orderedBy: "Dr. Ahmed Hassan",
-      orderedDate: "2024-12-09",
-      orderedTime: "08:15 AM",
-      priority: "Urgent",
-      status: "Sample Collected",
-      notes: "Repeat test - previous result was borderline",
-    },
-  ]);
-
-  // Get pending tests
+  // Get pending tests (local filter from state)
   const getPendingTests = () => pendingTests;
 
-  // Remove test from pending after completion
-  const removePendingTest = (testId) => {
-    setPendingTests(pendingTests.filter((test) => test.id !== testId));
+  // Remove test from pending (update status via API)
+  const removePendingTest = async (testId) => {
+    // This is handled by enterResults - when results are entered, test moves from pending
+    setPendingTests(prev => prev.filter(test => test.id !== testId));
   };
 
   // Add pending test (when doctor orders a test)
-  const addPendingTest = (testOrder) => {
-    const newPendingTest = {
-      id: pendingTests.length + 1,
-      orderedDate: new Date().toISOString().split("T")[0],
-      orderedTime: new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      status: "Sample Collected", // Default status
-      ...testOrder,
-    };
-
-    setPendingTests([newPendingTest, ...pendingTests]);
-    return newPendingTest;
+  const addPendingTest = async (testOrder) => {
+    const result = await addLabTest(testOrder);
+    return result;
   };
 
-  // Get statistics
-  const getLabStats = () => {
-    const completed = labTests.filter((t) => t.status === "Completed").length;
+  // Get statistics (via API)
+  const getLabStats = async () => {
+    try {
+      const response = await labService.getStats();
+      if (response.success) {
+        return response.data;
+      }
+      // Fallback to local calculation
+      return getLocalLabStats();
+    } catch (err) {
+      console.error('Get lab stats error:', err.message);
+      return getLocalLabStats();
+    }
+  };
+
+  // Local stats calculation (synchronous fallback)
+  const getLocalLabStats = () => {
+    const completed = labTests.filter(t => t.status === 'Completed').length;
     const pending = pendingTests.length;
-    const critical = labTests.filter((t) => t.isCritical).length;
-    const normal = labTests.filter((t) => t.interpretation === "Normal").length;
-    const abnormal = labTests.filter(
-      (t) => t.interpretation === "Abnormal"
-    ).length;
+    const critical = labTests.filter(t => t.isCritical).length;
+    const normal = labTests.filter(t => t.interpretation === 'Normal').length;
+    const abnormal = labTests.filter(t => t.interpretation === 'Abnormal').length;
 
     return {
       totalTests: labTests.length,
@@ -230,10 +183,34 @@ export const LabProvider = ({ children }) => {
     };
   };
 
+  // Update lab test status - uses update endpoint
+  const updateLabTestStatus = async (testId, status) => {
+    setLoading(true);
+    try {
+      const response = await labService.update(testId, { status });
+      if (response.success) {
+        await fetchLabTests();
+        return { success: true };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value = {
+    // State
     labTests,
     pendingTests,
+    loading,
+    error,
+
+    // Functions
+    fetchLabTests,
     addLabTest,
+    enterResults,
     addPendingTest,
     getTestsByPatient,
     getLatestTestByType,
@@ -241,6 +218,8 @@ export const LabProvider = ({ children }) => {
     getPendingTests,
     removePendingTest,
     getLabStats,
+    getLocalLabStats,
+    updateLabTestStatus,
   };
 
   return <LabContext.Provider value={value}>{children}</LabContext.Provider>;

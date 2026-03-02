@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import queueService from '../services/queueService';
 
 // Create Context
 const QueueContext = createContext();
@@ -15,95 +16,119 @@ export const useQueueContext = () => {
 // Provider Component
 export const QueueProvider = ({ children }) => {
   const [queue, setQueue] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Calculate estimated wait time based on queue position
-  const calculateWait = (position) => {
-    // Assume 15 minutes per patient
-    const minutesPerPatient = 15;
-    const waitMinutes = position * minutesPerPatient;
-    return `${waitMinutes} min`;
-  };
+  // ============================================
+  // FETCH QUEUE FROM API
+  // ============================================
+
+  // Load queue from API
+  const fetchQueue = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await queueService.getAll();
+      if (response.success) {
+        setQueue(response.data.queue || response.data);
+      }
+      return response;
+    } catch (err) {
+      setError(err.message);
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load queue on mount
+  useEffect(() => {
+    fetchQueue();
+  }, [fetchQueue]);
+
+  // ============================================
+  // QUEUE OPERATIONS (API)
+  // ============================================
 
   // Add patient to queue
-  const addToQueue = (patient, priority = 'Normal', reason = '') => {
-    // Check if patient already in queue
-    const existingIndex = queue.findIndex(item => item.uhid === patient.uhid);
-    if (existingIndex !== -1) {
-      return { 
-        success: false, 
-        message: 'Patient is already in the queue' 
-      };
+  const addToQueue = async (patient, priority = 'Normal', reason = '', assignedDoctorId = null) => {
+    setLoading(true);
+    try {
+      const response = await queueService.add({
+        uhid: patient.uhid,
+        priority,
+        reason: reason || 'Routine checkup',
+        assignedDoctorId,
+      });
+
+      if (response.success) {
+        // Refresh queue
+        await fetchQueue();
+        return {
+          success: true,
+          message: `${patient.name} added to queue`,
+          queueItem: response.data
+        };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
     }
-
-    const now = new Date();
-    const queueItem = {
-      id: Date.now(),
-      uhid: patient.uhid,
-      name: patient.name,
-      age: patient.age,
-      gender: patient.gender,
-      arrivalTime: now.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-      }),
-      priority: priority,
-      status: 'Waiting',
-      reason: reason || 'Routine checkup',
-      estimatedWait: calculateWait(queue.filter(q => q.status === 'Waiting').length),
-      assignedDoctorId: null,
-      assignedDoctorName: null,
-      createdAt: new Date().toISOString()
-    };
-
-    // If urgent, add to front (after any other urgent cases)
-    if (priority === 'Urgent') {
-      const urgentCount = queue.filter(q => q.priority === 'Urgent').length;
-      const newQueue = [...queue];
-      newQueue.splice(urgentCount, 0, queueItem);
-      setQueue(newQueue);
-    } else {
-      // Normal priority - add to end
-      setQueue([...queue, queueItem]);
-    }
-
-    return { 
-      success: true, 
-      message: `${patient.name} added to queue`,
-      queueItem 
-    };
   };
 
   // Update queue item status
-  const updateQueueStatus = (uhid, newStatus) => {
-    setQueue(prevQueue =>
-      prevQueue.map(item =>
-        item.uhid === uhid
-          ? {
-              ...item,
-              status: newStatus,
-              ...(newStatus === 'Completed' ? { consultationEndTime: new Date().toISOString() } : {})
-            }
-          : item
-      )
-    );
+  const updateQueueStatus = async (queueId, newStatus, assignedDoctorId = null) => {
+    setLoading(true);
+    try {
+      const updateData = { status: newStatus };
+      if (assignedDoctorId) {
+        updateData.assignedDoctorId = assignedDoctorId;
+      }
+
+      const response = await queueService.update(queueId, updateData);
+
+      if (response.success) {
+        // Update local state
+        setQueue(prev =>
+          prev.map(item =>
+            item.id === queueId
+              ? { ...item, ...response.data.queue || response.data }
+              : item
+          )
+        );
+        return { success: true };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Start consultation - record start time (only if not already started)
-  const startConsultation = (uhid) => {
-    setQueue(prevQueue =>
-      prevQueue.map(item =>
-        item.uhid === uhid && !item.consultationStartTime
-          ? { ...item, consultationStartTime: new Date().toISOString() }
-          : item
-      )
-    );
+  // Start consultation - update status to "With Doctor"
+  const startConsultation = async (queueId) => {
+    return updateQueueStatus(queueId, 'With Doctor');
   };
 
   // Remove patient from queue
-  const removeFromQueue = (uhid) => {
-    setQueue(prevQueue => prevQueue.filter(item => item.uhid !== uhid));
-    return { success: true, message: 'Patient removed from queue' };
+  const removeFromQueue = async (queueId) => {
+    setLoading(true);
+    try {
+      const response = await queueService.remove(queueId);
+
+      if (response.success) {
+        setQueue(prev => prev.filter(item => item.id !== queueId));
+        return { success: true, message: 'Patient removed from queue' };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Get next patient in queue (first with status 'Waiting')
@@ -111,7 +136,7 @@ export const QueueProvider = ({ children }) => {
     return queue.find(item => item.status === 'Waiting');
   };
 
-  // Get queue by status
+  // Get queue by status (local filter)
   const getQueueByStatus = (status) => {
     return queue.filter(item => item.status === status);
   };
@@ -123,8 +148,30 @@ export const QueueProvider = ({ children }) => {
     return position !== -1 ? position + 1 : null;
   };
 
-  // Get queue statistics
-  const getQueueStats = () => {
+  // Get queue statistics (via API)
+  const getQueueStats = async () => {
+    try {
+      const response = await queueService.getStats();
+      if (response.success) {
+        return response.data;
+      }
+      // Fallback to local calculation
+      return {
+        total: queue.length,
+        waiting: queue.filter(q => q.status === 'Waiting').length,
+        inTriage: queue.filter(q => q.status === 'In Triage').length,
+        withDoctor: queue.filter(q => q.status === 'With Doctor').length,
+        completed: queue.filter(q => q.status === 'Completed').length,
+        urgent: queue.filter(q => q.priority === 'Urgent').length,
+      };
+    } catch (err) {
+      console.error('Get queue stats error:', err.message);
+      return null;
+    }
+  };
+
+  // Local queue stats (synchronous)
+  const getLocalQueueStats = () => {
     return {
       total: queue.length,
       waiting: queue.filter(q => q.status === 'Waiting').length,
@@ -140,28 +187,31 @@ export const QueueProvider = ({ children }) => {
     return queue.some(item => item.uhid === uhid);
   };
 
-  // Call next patient (move from Waiting to In Triage)
-  const callNextPatient = () => {
-    const nextPatient = getNextPatient();
-    if (nextPatient) {
-      updateQueueStatus(nextPatient.uhid, 'In Triage');
-      return { success: true, patient: nextPatient };
+  // Call next patient (via API)
+  const callNextPatient = async () => {
+    setLoading(true);
+    try {
+      const response = await queueService.callNext();
+
+      if (response.success) {
+        // Refresh queue
+        await fetchQueue();
+        return { success: true, patient: response.data };
+      }
+      return { success: false, message: response.message || 'No patients waiting' };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
     }
-    return { success: false, message: 'No patients waiting' };
   };
 
   // Assign doctor to queue item
-  const assignDoctorToQueue = (uhid, doctorId, doctorName) => {
-    setQueue(prevQueue => 
-      prevQueue.map(item => 
-        item.uhid === uhid 
-          ? { ...item, assignedDoctorId: doctorId, assignedDoctorName: doctorName }
-          : item
-      )
-    );
+  const assignDoctorToQueue = async (queueId, doctorId) => {
+    return updateQueueStatus(queueId, null, doctorId);
   };
 
-  // Get queue by doctor
+  // Get queue by doctor (local filter)
   const getQueueByDoctor = (doctorId) => {
     return queue.filter(item => item.assignedDoctorId === doctorId);
   };
@@ -169,8 +219,11 @@ export const QueueProvider = ({ children }) => {
   const value = {
     // State
     queue,
-    
+    loading,
+    error,
+
     // Functions
+    fetchQueue,
     addToQueue,
     updateQueueStatus,
     startConsultation,
@@ -179,6 +232,7 @@ export const QueueProvider = ({ children }) => {
     getQueueByStatus,
     getPatientPosition,
     getQueueStats,
+    getLocalQueueStats,
     isInQueue,
     callNextPatient,
     assignDoctorToQueue,

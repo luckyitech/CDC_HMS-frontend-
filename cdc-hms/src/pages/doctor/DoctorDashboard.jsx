@@ -183,17 +183,17 @@ const DoctorDashboard = () => {
         <Card title="⚡ Quick Actions">
           <div className="space-y-3">
             <button 
-              onClick={() => navigate('/doctor/my-patients')}
+              onClick={() => navigate('/doctor/patients')}
               className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500"
             >
               <p className="font-semibold text-blue-700">👥 View All Patients</p>
             </button>
-            <button 
+            {/* <button 
               onClick={() => navigate('/doctor/prescriptions')}
               className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition border-l-4 border-green-500"
             >
               <p className="font-semibold text-green-700">💊 My Prescriptions</p>
-            </button>
+            </button> */}
             <button 
               onClick={() => navigate('/doctor/reports')}
               className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition border-l-4 border-purple-500"

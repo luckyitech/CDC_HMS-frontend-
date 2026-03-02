@@ -75,7 +75,7 @@ useEffect(() => {
     setMedications(newMeds);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate
@@ -112,8 +112,10 @@ useEffect(() => {
       return;
     }
 
+    // Backend expects patientId (DB id), not just uhid
     const newPrescription = {
-      uhid: formData.patientUHID,
+      patientId: selectedPatient?.id,  // Database ID for backend
+      uhid: formData.patientUHID,      // Keep for display purposes
       patientName: formData.patientName,
       diagnosis: formData.diagnosis,
       doctorName: currentDoctor?.name || "Dr. Ahmed Hassan",
@@ -125,31 +127,46 @@ useEffect(() => {
       notes: "",
     };
 
-    addPrescription(newPrescription);
+    // Await the async addPrescription call
+    const result = await addPrescription(newPrescription);
 
-    toast.success("Prescription Created Successfully", {
-      duration: 3000,
-      position: "top-right",
-      icon: "✅",
-      style: {
-        background: "#10B981",
-        color: "#FFFFFF",
-        fontWeight: "bold",
-        padding: "16px",
-      },
-    });
+    if (result) {
+      toast.success("Prescription Created Successfully", {
+        duration: 3000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#10B981",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
 
-    // Clear form
-    setFormData({
-      patientUHID: selectedPatient?.uhid || "",
-      patientName: selectedPatient?.name || "",
-      diagnosis: "",
-    });
-    setMedications([
-      { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
-    ]);
+      // Clear form
+      setFormData({
+        patientUHID: selectedPatient?.uhid || "",
+        patientName: selectedPatient?.name || "",
+        diagnosis: "",
+      });
+      setMedications([
+        { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
+      ]);
 
-    if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess();
+    } else {
+      toast.error("Failed to create prescription. Please try again.", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+    }
   };
 
   return (

@@ -1,9 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Loader2, CalendarDays, Clock, UserSquare2, X } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import { useAppointmentContext } from '../../contexts/AppointmentContext';
+import { useUserContext } from '../../contexts/UserContext';
 
 const MyProfile = () => {
+  const { currentUser } = useUserContext();
+  const { getPatientAppointments, cancelAppointment } = useAppointmentContext();
+
   const [activeTab, setActiveTab] = useState('profile');
+  const [appointments, setAppointments] = useState([]);
+  const [aptsLoading, setAptsLoading] = useState(false);
+  const [cancellingId, setCancellingId] = useState(null);
+
+  const loadAppointments = useCallback(async () => {
+    if (!currentUser?.uhid) return;
+    setAptsLoading(true);
+    try {
+      const data = await getPatientAppointments(currentUser.uhid);
+      setAppointments(Array.isArray(data) ? data : []);
+    } catch {
+      setAppointments([]);
+    } finally {
+      setAptsLoading(false);
+    }
+  }, [currentUser?.uhid, getPatientAppointments]);
+
+  useEffect(() => {
+    if (activeTab === 'appointments') loadAppointments();
+  }, [activeTab, loadAppointments]);
+
+  const handleCancel = async (appointmentId) => {
+    setCancellingId(appointmentId);
+    await cancelAppointment(appointmentId);
+    await loadAppointments();
+    setCancellingId(null);
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+  const upcomingAppointments = appointments
+    .filter(a => (a.status === 'scheduled' || a.status === 'checked-in') && a.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const pastAppointments = appointments
+    .filter(a => a.status === 'completed' || a.status === 'cancelled' || a.date < today)
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   // Mock patient data
   const [patientData] = useState({
@@ -299,61 +340,127 @@ const MyProfile = () => {
 
       {activeTab === 'appointments' && (
         <div className="space-y-6">
-          <Card title="Upcoming Appointments">
-            {patientData.upcomingAppointments.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No upcoming appointments</p>
-            ) : (
-              <div className="space-y-4">
-                {patientData.upcomingAppointments.map((apt, index) => (
-                  <div key={index} className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex-1">
-                        <p className="text-lg font-bold text-gray-800">
-                          {new Date(apt.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {apt.time}
-                        </p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          <span className="font-semibold">Doctor:</span> {apt.doctor} • <span className="font-semibold">Type:</span> {apt.type}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" className="text-sm">Reschedule</Button>
-                        <Button variant="outline" className="text-sm text-red-600 border-red-300 hover:bg-red-50">Cancel</Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {aptsLoading ? (
+            <Card>
+              <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span>Loading appointments...</span>
               </div>
-            )}
-          </Card>
+            </Card>
+          ) : (
+            <>
+              <Card title="Upcoming Appointments">
+                {upcomingAppointments.length === 0 ? (
+                  <div className="text-center py-10">
+                    <CalendarDays className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-gray-500">No upcoming appointments</p>
+                    <p className="text-sm text-gray-400 mt-1">Use "Book Appointment" to schedule one</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {upcomingAppointments.map((apt) => (
+                      <div key={apt.id} className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CalendarDays className="w-4 h-4 text-blue-500" />
+                              <p className="font-bold text-gray-800">
+                                {new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', {
+                                  weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+                                })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1 ml-6">
+                              <Clock className="w-3 h-3" />
+                              <span>{apt.timeSlot}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600 ml-6">
+                              <UserSquare2 className="w-3 h-3" />
+                              <span>{apt.doctorName} · <span className="capitalize">{apt.appointmentType?.replace('-', ' ')}</span></span>
+                            </div>
+                            {apt.reason && (
+                              <p className="text-xs text-gray-500 mt-1 ml-6">
+                                <strong>Reason:</strong> {apt.reason}
+                              </p>
+                            )}
+                            <div className="mt-2 ml-6">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                apt.status === 'checked-in'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {apt.status === 'checked-in' ? 'Checked In' : 'Scheduled'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="text-sm text-red-600 border-red-300 hover:bg-red-50 flex items-center gap-1"
+                              onClick={() => handleCancel(apt.id)}
+                              disabled={cancellingId === apt.id || apt.status === 'checked-in'}
+                            >
+                              {cancellingId === apt.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <X className="w-3 h-3" />
+                              )}
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
 
-          <Card title="Past Appointments">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
-                  <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Doctor</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Type</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Notes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {patientData.pastAppointments.map((apt, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">
-                        {new Date(apt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">{apt.time}</td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium">{apt.doctor}</td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">{apt.type}</td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm text-gray-600">{apt.notes}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+              <Card title="Past Appointments">
+                {pastAppointments.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No past appointments</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b-2 border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Doctor</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {pastAppointments.map((apt) => (
+                          <tr key={apt.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm">
+                              {new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric',
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-sm">{apt.timeSlot}</td>
+                            <td className="px-4 py-3 text-sm font-medium">{apt.doctorName}</td>
+                            <td className="px-4 py-3 text-sm capitalize">{apt.appointmentType?.replace('-', ' ')}</td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{apt.reason || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </>
+          )}
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { mockUsers } from '../data/mockData';
 import { mockPatients } from '../data/mockData';
+import authService from '../services/authService';
 
 // Create Context
 const UserContext = createContext();
@@ -17,6 +18,7 @@ export const useUserContext = () => {
 // Provider Component
 export const UserProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(false);  // NEW: loading state for async operations
   const [doctors] = useState(mockUsers.doctors);
   const [staff] = useState(mockUsers.staff);
   const [labTechs] = useState(mockUsers.labTechs);
@@ -72,45 +74,52 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Login function (mock)
-  const login = (email, password, role) => {
-    // Mock login - in real app, this would call API
+  // Login function - NOW USES REAL API
+  const login = async (email, password, role) => {
+    // Validate inputs
     if (!email || !password) {
       return { success: false, message: 'Email and password are required' };
     }
 
-    // Check if it's a patient login
-    if (role === 'Patient') {
-      const patient = getPatientByEmail(email);
-      if (patient) {
-        const userWithRole = { ...patient, role: 'Patient' };
-        setCurrentUser(userWithRole);
-        localStorage.setItem('currentUser', JSON.stringify(userWithRole));
-        return { success: true, user: userWithRole };
+    setLoading(true);
+
+    try {
+      // Convert role to lowercase for backend (backend expects: doctor, staff, lab, patient, admin)
+      const backendRole = role.toLowerCase();
+
+      // Call real API
+      const response = await authService.login(email, password, backendRole);
+
+      if (response.success) {
+        // Backend returns user data - update state
+        setCurrentUser(response.data.user);
+        return { success: true, user: response.data.user };
+      } else {
+        return { success: false, message: response.message || 'Login failed' };
       }
-      return { success: false, message: 'User not found' };
+    } catch (error) {
+      // Handle API errors
+      console.error('Login error:', error);
+      return { success: false, message: error.message || 'Login failed. Please try again.' };
+    } finally {
+      setLoading(false);
     }
-
-    // For other roles (Doctor, Staff, Lab, Admin)
-    const user = getUserByEmail(email);
-    
-    if (!user) {
-      return { success: false, message: 'User not found' };
-    }
-    
-    if (user.role !== role) {
-      return { success: false, message: 'Invalid role for this user' };
-    }
-
-    setCurrentUser(user);
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    return { success: true, user };
   };
 
-  // Logout function
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+  // Logout function - NOW USES REAL API
+  const logout = async () => {
+    setLoading(true);
+    try {
+      // Call backend to invalidate token
+      await authService.logout();
+    } catch (error) {
+      // Even if API fails, still clear local state
+      console.warn('Logout API error:', error.message);
+    } finally {
+      // Always clear user state
+      setCurrentUser(null);
+      setLoading(false);
+    }
   };
 
   // Check if user is authenticated
@@ -172,11 +181,12 @@ export const UserProvider = ({ children }) => {
   const value = {
     // State
     currentUser,
+    loading,  // NEW: loading state for UI feedback
     doctors,
     staff,
     labTechs,
     admins,
-    
+
     // Authentication Functions
     login,
     logout,

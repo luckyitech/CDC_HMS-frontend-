@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Check,
   AlertCircle,
@@ -31,7 +31,6 @@ import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentCon
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
-import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamination from "./PhysicalExamination";
@@ -40,24 +39,30 @@ import TreatmentPlansList from "../../components/doctor/TreatmentPlansList";
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
+import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 
 const Consultation = () => {
   const { uhid } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const { currentUser } = useUserContext();
-  const { getPatientByUHID } = usePatientContext();
-  const { updateQueueStatus } = useQueueContext();
-  const { saveAssessment, getLatestAssessment } = useInitialAssessmentContext();
-  const { saveExamination, getLatestExamination } = usePhysicalExamContext();
-  const { addTreatmentPlan, getLatestPlan } = useTreatmentPlanContext();
+  const { fetchPatientByUHID } = usePatientContext();
+  const { queue, updateQueueStatus } = useQueueContext();
+  const { getLatestAssessment } = useInitialAssessmentContext();
+  const { getLatestExamination } = usePhysicalExamContext();
+  const { getLatestPlan } = useTreatmentPlanContext();
   const { getPrescriptionsByPatient, addPrescription } =
     usePrescriptionContext();
-  const { getNotesByPatient, searchNotes, addNote } =
-    useConsultationNotesContext();
 
-  // Get patient data
-  const patient = getPatientByUHID(uhid);
+  // Get patient data async
+  const [patient, setPatient] = useState(null);
+  const [loadingPatient, setLoadingPatient] = useState(true);
+
+  useEffect(() => {
+    fetchPatientByUHID(uhid).then(p => {
+      setPatient(p || null);
+      setLoadingPatient(false);
+    });
+  }, [uhid, fetchPatientByUHID]);
 
   // Tab state
   const [activeTab, setActiveTab] = useState("overview");
@@ -73,20 +78,12 @@ const Consultation = () => {
     actions: true, // Always true (just navigation)
   });
 
-  // Tab unsaved changes tracking
-  const [tabsUnsaved, setTabsUnsaved] = useState({
-    assessment: false,
-    exam: false,
-    notes: false,
-    diagnosis: false,
-    prescriptions: false,
-  });
+  // Tab unsaved changes tracking (derived state using useMemo)
+  // Note: This will be computed below after form state is declared
 
-  // Overview tab data (read-only)
-  const previousPlan = getLatestPlan(uhid);
-
-  // Get patient prescriptions
-  const patientPrescriptions = getPrescriptionsByPatient(uhid);
+  // Overview tab data (loaded async)
+  const [previousPlan, setPreviousPlan] = useState(null);
+  const [patientPrescriptions, setPatientPrescriptions] = useState([]);
 
   // Assessment tab data
   const [historyOfPresentIllness, setHistoryOfPresentIllness] = useState("");
@@ -109,55 +106,27 @@ const Consultation = () => {
   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  // Load existing data if available
-  useEffect(() => {
-    if (!patient) return;
-
-    // Load previous assessment
-    const prevAssessment = getLatestAssessment(uhid);
-    if (prevAssessment) {
-      setHistoryOfPresentIllness(prevAssessment.historyOfPresentIllness || "");
-      setReviewOfSystems(prevAssessment.reviewOfSystems || "");
-      setPastMedicalHistory(prevAssessment.pastMedicalHistory || "");
-      setFamilyHistory(prevAssessment.familyHistory || "");
-      setSocialHistory(prevAssessment.socialHistory || "");
-    }
-
-    // Load previous exam
-    const prevExam = getLatestExamination(uhid);
-    if (prevExam) {
-      setGeneralAppearance(prevExam.generalAppearance || "");
-      setCardiovascular(prevExam.cardiovascular || "");
-      setRespiratory(prevExam.respiratory || "");
-      setGastrointestinal(prevExam.gastrointestinal || "");
-      setNeurological(prevExam.neurological || "");
-      setMusculoskeletal(prevExam.musculoskeletal || "");
-      setSkin(prevExam.skin || "");
-      setExamFindings(prevExam.examFindings || "");
-    }
-  }, [uhid, patient]);
-
-  // Track unsaved changes
-  useEffect(() => {
-    setTabsUnsaved({
-      assessment:
-        historyOfPresentIllness !== "" ||
-        reviewOfSystems !== "" ||
-        pastMedicalHistory !== "" ||
-        familyHistory !== "" ||
-        socialHistory !== "",
-      exam:
-        generalAppearance !== "" ||
-        cardiovascular !== "" ||
-        respiratory !== "" ||
-        gastrointestinal !== "" ||
-        neurological !== "" ||
-        musculoskeletal !== "" ||
-        skin !== "" ||
-        examFindings !== "",
-      prescriptions: false, // Handled by component
-    });
-  }, [
+  // Tab unsaved changes tracking (derived state)
+  const tabsUnsaved = useMemo(() => ({
+    assessment:
+      historyOfPresentIllness !== "" ||
+      reviewOfSystems !== "" ||
+      pastMedicalHistory !== "" ||
+      familyHistory !== "" ||
+      socialHistory !== "",
+    exam:
+      generalAppearance !== "" ||
+      cardiovascular !== "" ||
+      respiratory !== "" ||
+      gastrointestinal !== "" ||
+      neurological !== "" ||
+      musculoskeletal !== "" ||
+      skin !== "" ||
+      examFindings !== "",
+    notes: false,
+    diagnosis: false,
+    prescriptions: false,
+  }), [
     historyOfPresentIllness,
     reviewOfSystems,
     pastMedicalHistory,
@@ -172,6 +141,65 @@ const Consultation = () => {
     skin,
     examFindings,
   ]);
+
+  // Load existing data if available (async)
+  useEffect(() => {
+    if (!patient) return;
+    let isMounted = true;
+
+    const loadData = async () => {
+      // Load prescriptions and previous plan
+      const [prescriptions, latestPlan, prevAssessment, prevExam] = await Promise.all([
+        getPrescriptionsByPatient(uhid),
+        getLatestPlan(uhid),
+        getLatestAssessment(uhid),
+        getLatestExamination(uhid),
+      ]);
+
+      if (!isMounted) return;
+
+      // Set prescriptions and plan
+      setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
+      setPreviousPlan(latestPlan || null);
+
+      // Load previous assessment data
+      if (prevAssessment) {
+        setHistoryOfPresentIllness(prevAssessment.historyOfPresentIllness || "");
+        setReviewOfSystems(prevAssessment.reviewOfSystems || "");
+        setPastMedicalHistory(prevAssessment.pastMedicalHistory || "");
+        setFamilyHistory(prevAssessment.familyHistory || "");
+        setSocialHistory(prevAssessment.socialHistory || "");
+      }
+
+      // Load previous exam data
+      if (prevExam) {
+        setGeneralAppearance(prevExam.generalAppearance || "");
+        setCardiovascular(prevExam.cardiovascular || "");
+        setRespiratory(prevExam.respiratory || "");
+        setGastrointestinal(prevExam.gastrointestinal || "");
+        setNeurological(prevExam.neurological || "");
+        setMusculoskeletal(prevExam.musculoskeletal || "");
+        setSkin(prevExam.skin || "");
+        setExamFindings(prevExam.examFindings || "");
+      }
+    };
+
+    loadData();
+    return () => { isMounted = false; };
+  }, [uhid, patient, getPrescriptionsByPatient, getLatestPlan, getLatestAssessment, getLatestExamination]);
+
+  // Loading state
+  if (loadingPatient) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-500">
+        <svg className="animate-spin w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        Loading patient data...
+      </div>
+    );
+  }
 
   // Redirect if patient not found
   if (!patient) {
@@ -195,77 +223,19 @@ const Consultation = () => {
     );
   }
 
-  // Save handlers
-  const handleSaveAssessment = () => {
-    saveAssessment({
-      uhid: patient.uhid,
-      patientName: patient.name,
-      doctorName: currentUser?.name || "Doctor",
-      historyOfPresentIllness,
-      reviewOfSystems,
-      pastMedicalHistory,
-      familyHistory,
-      socialHistory,
-    });
-
-    setTabsCompleted({ ...tabsCompleted, assessment: true });
-    setTabsUnsaved({ ...tabsUnsaved, assessment: false });
-
-    // Show success toast
-    toast.success("Assessment Saved Successfully", {
-      duration: 3000,
-      position: "top-right",
-      icon: "✅",
-      style: {
-        background: "#10B981",
-        color: "#FFFFFF",
-        fontWeight: "bold",
-        padding: "16px",
-      },
-    });
-  };
-
-  const handleSaveExam = () => {
-    saveExamination({
-      uhid: patient.uhid,
-      patientName: patient.name,
-      doctorName: currentUser?.name || "Doctor",
-      generalAppearance,
-      cardiovascular,
-      respiratory,
-      gastrointestinal,
-      neurological,
-      musculoskeletal,
-      skin,
-      examFindings,
-    });
-
-    setTabsCompleted({ ...tabsCompleted, exam: true });
-    setTabsUnsaved({ ...tabsUnsaved, exam: false });
-
-    // Show success toast
-    toast.success("Physical Exam Saved Successfully", {
-      duration: 3000,
-      position: "top-right",
-      icon: "✅",
-      style: {
-        background: "#10B981",
-        color: "#FFFFFF",
-        fontWeight: "bold",
-        padding: "16px",
-      },
-    });
-  };
-
+  // Tab completion handlers
   const handleDiagnosisSuccess = () => {
     setTabsCompleted({ ...tabsCompleted, diagnosis: true });
   };
 
-  const handlePrescriptionSuccess = () => {
+  const handlePrescriptionSuccess = async () => {
     setTabsCompleted({ ...tabsCompleted, prescriptions: true });
+    // Refresh prescriptions list after adding new one
+    const prescriptions = await getPrescriptionsByPatient(uhid);
+    setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
   };
 
-  const handleCompleteConsultation = () => {
+  const handleCompleteConsultation = async () => {
     // Validate required fields - check if diagnosis tab is completed
     if (!tabsCompleted.diagnosis) {
       toast.error(
@@ -286,8 +256,11 @@ const Consultation = () => {
       return;
     }
 
-    // Update queue status to "Completed"
-    updateQueueStatus(patient.uhid, "Completed");
+    // Update queue status to "Completed" — find queue item ID by UHID
+    const queueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
+    if (queueItem) {
+      await updateQueueStatus(queueItem.id, "Completed");
+    }
 
     // Show success message
     setShowSuccessMessage(true);
@@ -317,6 +290,7 @@ const Consultation = () => {
     { id: "diagnosis", label: "Diagnosis & Plan", icon: Target },
     { id: "prescriptions", label: "Prescriptions", icon: Pill },
     { id: "documents", label: "Documents", icon: FileText },
+    { id: "charts", label: "Charts", icon: LineChart },
     { id: "actions", label: "Actions", icon: Zap },
   ];
 
@@ -432,7 +406,7 @@ const Consultation = () => {
             </Card>
 
             {/* Today's Triage Data */}
-            {patient.lastTriageDate && (
+            {patient.vitals && (
               <Card
                 title={
                   <span className="flex items-center gap-2">
@@ -444,22 +418,19 @@ const Consultation = () => {
                 <div className="mb-4 pb-4 border-b">
                   <p className="text-sm text-gray-600">
                     Triaged on:{" "}
-                    {new Date(patient.lastTriageDate).toLocaleString()}
+                    {patient.vitals.recordedAt
+                      ? new Date(patient.vitals.recordedAt).toLocaleString()
+                      : "Today"}
                   </p>
-                  {patient.triageBy && (
-                    <p className="text-sm text-gray-600">
-                      Triaged by: {patient.triageBy}
-                    </p>
-                  )}
                 </div>
 
                 {/* Chief Complaint */}
-                {patient.chiefComplaint && (
+                {patient.vitals.chiefComplaint && (
                   <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
                     <p className="text-sm font-semibold text-gray-700 mb-1">
                       Reason for visit:
                     </p>
-                    <p className="text-gray-800">{patient.chiefComplaint}</p>
+                    <p className="text-gray-800">{patient.vitals.chiefComplaint}</p>
                   </div>
                 )}
 
@@ -798,6 +769,11 @@ const Consultation = () => {
           </div>
         )} 
 
+        {/* Glycemic Charts Tab */}
+        {activeTab === "charts" && (
+          <GlycemicChartPanel patient={patient} />
+        )}
+
         {/* Quick Actions Tab */}
         {activeTab === "actions" && (
           <Card
@@ -946,6 +922,7 @@ const Consultation = () => {
           }}
         />
       )}
+      <Toaster position="top-right" />
     </div>
   );
 };

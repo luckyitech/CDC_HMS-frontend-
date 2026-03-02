@@ -29,13 +29,14 @@ const PatientSearch = () => {
   // Inside component:
   const navigate = useNavigate();
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (searchTerm.trim()) {
-      const results = searchPatients(searchTerm);
-      setSearchResults(results);
+      // searchPatients is now async - need await
+      const results = await searchPatients(searchTerm);
+      setSearchResults(results || []);
       setHasSearched(true);
 
-      if (results.length === 0) {
+      if (!results || results.length === 0) {
         toast.error("No patients found", {
           duration: 3000,
           icon: <Search className="w-5 h-5" />,
@@ -88,9 +89,10 @@ const PatientSearch = () => {
     setShowQueueModal(true);
   };
 
-  const handleConfirmAddToQueue = () => {
+  const handleConfirmAddToQueue = async () => {
     if (selectedPatient) {
-      const result = addToQueue(selectedPatient, queuePriority, queueReason);
+      // addToQueue is now async - need await
+      const result = await addToQueue(selectedPatient, queuePriority, queueReason);
       if (result.success) {
         toast.success(`${selectedPatient.name} added to queue!`, {
           duration: 3000,

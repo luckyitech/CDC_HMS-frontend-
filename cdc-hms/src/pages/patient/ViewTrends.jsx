@@ -1,215 +1,310 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Card from '../../components/shared/Card';
-import Button from '../../components/shared/Button';
+import { usePatientContext } from '../../contexts/PatientContext';
+import { useUserContext } from '../../contexts/UserContext';
+
+// Map backend time slot names to frontend property names
+const BACKEND_TO_FRONTEND = {
+  fasting: "fasting",
+  breakfast: "afterBreakfast",
+  beforeLunch: "beforeLunch",
+  afterLunch: "afterLunch",
+  beforeDinner: "beforeDinner",
+  afterDinner: "afterDinner",
+  bedtime: "beforeBedtime",
+};
+
+/**
+ * Transform backend array response into flat per-day objects for charts.
+ * Backend: [{ date, timeSlot, value }, ...]
+ * Chart:   [{ date, fasting: 142, afterBreakfast: 165, ... }, ...]
+ * Values stay in mg/dL (patient-facing).
+ */
+const transformReadingsForChart = (readings) => {
+  const grouped = {};
+  readings.forEach((r) => {
+    if (!grouped[r.date]) grouped[r.date] = { date: r.date };
+    const key = BACKEND_TO_FRONTEND[r.timeSlot] || r.timeSlot;
+    grouped[r.date][key] = r.value; // keep mg/dL
+  });
+  return Object.values(grouped).sort((a, b) => new Date(a.date) - new Date(b.date));
+};
 
 const ViewTrends = () => {
+  const { getBloodSugarReadings } = usePatientContext();
+  const { currentUser } = useUserContext();
+
+  const currentPatientUHID = currentUser?.uhid;
+
   const [filterPeriod, setFilterPeriod] = useState('7days');
+  const [chartData, setChartData] = useState([]);
+  const [dataLoading, setDataLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Mock patient blood sugar data
-  const getBloodSugarData = (period) => {
-    const data = {
-      '7days': [
-        { date: '2024-12-02', avgReading: 148, status: 'elevated' },
-        { date: '2024-12-03', avgReading: 142, status: 'elevated' },
-        { date: '2024-12-04', avgReading: 156, status: 'high' },
-        { date: '2024-12-05', avgReading: 151, status: 'high' },
-        { date: '2024-12-06', avgReading: 145, status: 'elevated' },
-        { date: '2024-12-07', avgReading: 138, status: 'normal' },
-        { date: '2024-12-08', avgReading: 149, status: 'elevated' },
-      ],
-      '14days': Array.from({ length: 14 }, (_, i) => ({
-        date: new Date(2024, 10, 25 + i).toISOString().split('T')[0],
-        avgReading: 130 + Math.floor(Math.random() * 30),
-        status: Math.random() > 0.6 ? 'elevated' : Math.random() > 0.3 ? 'normal' : 'high',
-      })),
-      '30days': Array.from({ length: 30 }, (_, i) => ({
-        date: new Date(2024, 10, 9 + i).toISOString().split('T')[0],
-        avgReading: 130 + Math.floor(Math.random() * 30),
-        status: Math.random() > 0.6 ? 'elevated' : Math.random() > 0.3 ? 'normal' : 'high',
-      })),
-    };
-    return data[period] || data['7days'];
-  };
+  // Track viewport width so we can disable the scroll wrapper on mobile
+  // (overflow-x-auto intercepts touch events and prevents Recharts tooltips)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
-  const bloodSugarData = getBloodSugarData(filterPeriod);
+  // Fetch real blood sugar data from API when period changes
+  const fetchData = useCallback(async () => {
+    if (!currentPatientUHID) return;
 
-  // Calculate statistics
+    setDataLoading(true);
+    const periodDays = { '7days': 7, '14days': 14, '30days': 30, all: 365 };
+    const days = periodDays[filterPeriod] || 7;
+
+    const readings = await getBloodSugarReadings(currentPatientUHID, { days });
+    if (readings && readings.length > 0) {
+      setChartData(transformReadingsForChart(readings));
+    } else {
+      setChartData([]);
+    }
+    setDataLoading(false);
+  }, [currentPatientUHID, filterPeriod, getBloodSugarReadings]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Calculate statistics from all individual readings (safe for empty data)
   const calculateStats = () => {
-    const readings = bloodSugarData.map(d => d.avgReading);
-    const avg = Math.round(readings.reduce((a, b) => a + b, 0) / readings.length);
-    const min = Math.min(...readings);
-    const max = Math.max(...readings);
-    const normalDays = bloodSugarData.filter(d => d.status === 'normal').length;
-    
-    return { avg, min, max, normalDays, totalDays: bloodSugarData.length };
+    if (chartData.length === 0) {
+      return { avg: 0, min: 0, max: 0, normalDays: 0, totalDays: 0 };
+    }
+
+    const allValues = [];
+    chartData.forEach((day) => {
+      Object.keys(day).forEach((key) => {
+        if (key !== 'date' && day[key] > 0) {
+          allValues.push(day[key]);
+        }
+      });
+    });
+
+    if (allValues.length === 0) {
+      return { avg: 0, min: 0, max: 0, normalDays: 0, totalDays: 0 };
+    }
+
+    const avg = Math.round(allValues.reduce((a, b) => a + b, 0) / allValues.length);
+    const min = Math.round(Math.min(...allValues));
+    const max = Math.round(Math.max(...allValues));
+
+    // A "normal day" = day where the average of all slots is < 130 mg/dL
+    const normalDays = chartData.filter((day) => {
+      const dayValues = Object.keys(day)
+        .filter((k) => k !== 'date')
+        .map((k) => day[k]);
+      if (dayValues.length === 0) return false;
+      const dayAvg = dayValues.reduce((a, b) => a + b, 0) / dayValues.length;
+      return dayAvg < 130;
+    }).length;
+
+    return { avg, min, max, normalDays, totalDays: chartData.length };
   };
 
   const stats = calculateStats();
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'normal': return 'bg-green-500';
-      case 'elevated': return 'bg-yellow-500';
-      case 'high': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'normal': return 'bg-green-100 text-green-700 border-green-300';
-      case 'elevated': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'high': return 'bg-red-100 text-red-700 border-red-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
-
-  const maxValue = Math.max(...bloodSugarData.map(d => d.avgReading), 200);
-
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">My Blood Sugar Trends</h2>
-        <div className="flex gap-2">
-          {['7days', '14days', '30days'].map((period) => (
+      <div className="flex items-center justify-between mb-4 sm:mb-6 gap-3">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">My Blood Sugar Trends</h2>
+        <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap justify-end">
+          {['7days', '14days', '30days', 'all'].map((period) => (
             <button
               key={period}
               onClick={() => setFilterPeriod(period)}
-              className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition text-sm sm:text-base ${
+              className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-[11px] sm:text-sm ${
                 filterPeriod === period
                   ? 'bg-primary text-white shadow-lg'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              {period === '7days' ? '7 Days' : period === '14days' ? '14 Days' : '30 Days'}
+              {period === '7days' ? '7 Days' : period === '14days' ? '14 Days' : period === '30days' ? '30 Days' : 'All'}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Loading State */}
+      {dataLoading && (
+        <div className="text-center py-10 sm:py-16">
+          <div className="animate-spin w-8 h-8 sm:w-10 sm:h-10 border-4 border-primary border-t-transparent rounded-full mx-auto mb-3 sm:mb-4"></div>
+          <p className="text-gray-500 text-sm sm:text-lg">Loading your blood sugar trends...</p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!dataLoading && chartData.length === 0 && (
+        <div className="text-center py-10 sm:py-16 px-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+          <p className="text-gray-500 text-base sm:text-xl mb-2">No blood sugar data available</p>
+          <p className="text-gray-400 text-xs sm:text-sm">Start logging your readings in the "Log Blood Sugar" page to see your trends here.</p>
+        </div>
+      )}
+
+      {/* Content — only show when we have data */}
+      {!dataLoading && chartData.length > 0 && (<>
+
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Average</p>
-          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-2">{stats.avg}</p>
-          <p className="text-[10px] sm:text-xs opacity-75 mt-1">mg/dL</p>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-5 mb-4 sm:mb-6">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
+          <p className="text-[10px] sm:text-xs opacity-90">Average</p>
+          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.avg}</p>
+          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">mg/dL</p>
         </div>
-        
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Lowest</p>
-          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-2">{stats.min}</p>
-          <p className="text-[10px] sm:text-xs opacity-75 mt-1">mg/dL</p>
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
+          <p className="text-[10px] sm:text-xs opacity-90">Lowest</p>
+          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.min}</p>
+          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">mg/dL</p>
         </div>
-        
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Highest</p>
-          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-2">{stats.max}</p>
-          <p className="text-[10px] sm:text-xs opacity-75 mt-1">mg/dL</p>
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
+          <p className="text-[10px] sm:text-xs opacity-90">Highest</p>
+          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.max}</p>
+          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">mg/dL</p>
         </div>
-        
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Normal Days</p>
-          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-2">{stats.normalDays}/{stats.totalDays}</p>
-          <p className="text-[10px] sm:text-xs opacity-75 mt-1">Days</p>
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
+          <p className="text-[10px] sm:text-xs opacity-90">Normal Days</p>
+          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.normalDays}/{stats.totalDays}</p>
+          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">Days</p>
         </div>
-        
-        <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Control Rate</p>
-          <p className="text-2xl sm:text-3xl lg:text-4xl font-bold mt-2">
-            {Math.round((stats.normalDays / stats.totalDays) * 100)}%
+        <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
+          <p className="text-[10px] sm:text-xs opacity-90">Control Rate</p>
+          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">
+            {stats.totalDays > 0 ? Math.round((stats.normalDays / stats.totalDays) * 100) : 0}%
           </p>
-          <p className="text-[10px] sm:text-xs opacity-75 mt-1">Success</p>
+          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">Success</p>
         </div>
       </div>
 
-      {/* Simple Bar Chart */}
-      <Card title="📊 Daily Average Blood Sugar">
+      {/* Glycemic Chart */}
+      <Card title="📊 Blood Sugar Trends by Time of Day">
         <div className="mb-4 p-3 sm:p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
           <p className="text-xs sm:text-sm text-gray-700">
-            <strong>Target Range:</strong> Keep your average blood sugar between <span className="text-green-600 font-bold">70-130 mg/dL</span> (fasting) 
+            <strong>Target Range:</strong> Keep your blood sugar between <span className="text-green-600 font-bold">70-130 mg/dL</span> (fasting)
             and below <span className="text-green-600 font-bold">180 mg/dL</span> (after meals) for good control.
           </p>
         </div>
 
-        <div className="space-y-3 sm:space-y-4">
-          {bloodSugarData.map((day, index) => (
-            <div key={index} className="flex items-center gap-2 sm:gap-4">
-              <div className="w-16 sm:w-24 text-xs sm:text-sm font-medium text-gray-600 flex-shrink-0">
-                {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </div>
-              
-              <div className="flex-1 relative">
-                <div className="w-full bg-gray-200 rounded-full h-8 sm:h-10 overflow-hidden">
-                  <div
-                    className={`${getStatusColor(day.status)} h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2 sm:pr-3`}
-                    style={{ width: `${(day.avgReading / maxValue) * 100}%` }}
-                  >
-                    <span className="text-white font-bold text-xs sm:text-sm">{day.avgReading}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <span className={`px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold border capitalize ${getStatusBadge(day.status)} flex-shrink-0`}>
-                {day.status}
-              </span>
-            </div>
-          ))}
-        </div>
-
         {/* Legend */}
-        <div className="mt-6 pt-4 border-t flex flex-wrap gap-4 sm:gap-6 text-xs sm:text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <span className="text-gray-600">Normal (&lt;130 mg/dL)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-            <span className="text-gray-600">Elevated (130-180 mg/dL)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-500 rounded"></div>
-            <span className="text-gray-600">High (&gt;180 mg/dL)</span>
+        <div className="mb-3 sm:mb-4">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-4 gap-y-1.5 sm:gap-4 text-[10px] sm:text-xs lg:text-sm font-semibold">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-600 rounded flex-shrink-0"></div>
+              <span>Fasting</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-gray-400 rounded flex-shrink-0"></div>
+              <span>After Breakfast</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-yellow-500 rounded flex-shrink-0"></div>
+              <span>Before Lunch</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-6 h-0.5 sm:w-8 sm:h-1 bg-red-600 flex-shrink-0"></div>
+              <span>After Lunch</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-green-600 rounded flex-shrink-0"></div>
+              <span>Before Dinner</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-900 rounded flex-shrink-0"></div>
+              <span>After Dinner</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 bg-orange-700 rounded flex-shrink-0"></div>
+              <span>Before Bedtime</span>
+            </div>
           </div>
         </div>
-      </Card>
 
-      {/* Data Table */}
-      <Card title="📋 Detailed Readings" className="mt-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b-2 border-gray-200">
-              <tr>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Avg Reading</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {bloodSugarData.map((day, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium">
-                    {new Date(day.date).toLocaleDateString('en-US', { 
-                      weekday: 'short',
-                      month: 'short', 
+        {/* Chart */}
+        <div className="relative bg-white border border-gray-200 sm:border-2 sm:border-gray-300 rounded-lg p-1.5 sm:p-4 lg:p-8">
+          <div className="overflow-x-auto -mx-1 px-1">
+            <div className="h-[280px] sm:h-[400px]" style={{ minWidth: `${Math.max(chartData.length * (isMobile ? 45 : 90), 320)}px` }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart
+                  data={chartData.map((reading) => ({
+                    date: new Date(reading.date).toLocaleDateString('en-US', {
+                      month: 'numeric',
                       day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </td>
-                  <td className="px-4 sm:px-6 py-3 sm:py-4">
-                    <span className="text-base sm:text-lg font-bold text-gray-800">
-                      {day.avgReading} <span className="text-xs sm:text-sm text-gray-500">mg/dL</span>
-                    </span>
-                  </td>
-                  <td className="px-4 sm:px-6 py-3 sm:py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border capitalize ${getStatusBadge(day.status)}`}>
-                      {day.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    }),
+                    fullDate: new Date(reading.date).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    }),
+                    fasting: reading.fasting,
+                    afterBreakfast: reading.afterBreakfast,
+                    beforeLunch: reading.beforeLunch,
+                    afterLunch: reading.afterLunch,
+                    beforeDinner: reading.beforeDinner,
+                    afterDinner: reading.afterDinner,
+                    beforeBedtime: reading.beforeBedtime,
+                  }))}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#374151"
+                    style={{ fontSize: '10px', fontWeight: 'bold' }}
+                    tick={{ fontSize: 10 }}
+                  />
+                  <YAxis
+                    domain={[0, 300]}
+                    ticks={[0, 100, 130, 180, 300]}
+                    stroke="#374151"
+                    style={{ fontSize: '10px' }}
+                    tick={{ fontSize: 10 }}
+                    width={35}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1f2937',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '12px',
+                      maxWidth: '220px',
+                    }}
+                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullDate || label}
+                    formatter={(value) => `${Math.round(value)} mg/dL`}
+                  />
+
+                  {/* Bars for each time slot */}
+                  <Bar dataKey="fasting" name="Fasting" fill="#2563eb" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="afterBreakfast" name="After Breakfast" fill="#9ca3af" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="beforeLunch" name="Before Lunch" fill="#eab308" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="afterLunch" name="After Lunch" fill="#dc2626" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="beforeDinner" name="Before Dinner" fill="#16a34a" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="afterDinner" name="After Dinner" fill="#1e3a8a" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="beforeBedtime" name="Before Bedtime" fill="#c2410c" radius={[2, 2, 0, 0]} />
+
+                  {/* Trend line for After Lunch */}
+                  <Line
+                    type="monotone"
+                    dataKey="afterLunch"
+                    name="After Lunch (Trend)"
+                    stroke="#dc2626"
+                    strokeWidth={2}
+                    dot={{ fill: '#dc2626', stroke: '#fff', strokeWidth: 1, r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
+        {/* Y-axis label shown below chart on mobile for context */}
+        <p className="text-[10px] text-gray-400 mt-1 sm:hidden text-center">Values in mg/dL</p>
       </Card>
 
       {/* Health Insights */}
@@ -259,6 +354,7 @@ const ViewTrends = () => {
           </ul>
         </Card>
       </div>
+      </>)}
     </div>
   );
 };
