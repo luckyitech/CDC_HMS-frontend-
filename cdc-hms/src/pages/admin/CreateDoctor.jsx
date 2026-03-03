@@ -4,6 +4,7 @@ import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 
 const CreateDoctor = () => {
   const navigate = useNavigate();
@@ -62,49 +63,71 @@ const CreateDoctor = () => {
     'Surgery',
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
     if (!doctorData.firstName || !doctorData.lastName || !doctorData.email || !doctorData.licenseNumber) {
       toast.error('Please fill in all required fields', {
         duration: 3000,
         position: 'top-right',
-        icon: '❌',
-        style: {
-          background: '#EF4444',
-          color: '#FFFFFF',
-          fontWeight: 'bold',
-          padding: '16px',
-        },
+        style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
       });
       return;
     }
 
-    toast.success(
-      `Doctor Account Created Successfully!\n\nName: Dr. ${doctorData.firstName} ${doctorData.lastName}\nEmail: ${doctorData.email}\nSpecialty: ${doctorData.specialty}\n\nLogin credentials have been sent to the doctor's email.`,
-      {
-        duration: 5000,
-        position: 'top-right',
-        icon: '✅',
-        style: {
-          background: '#10B981',
-          color: '#FFFFFF',
-          fontWeight: 'bold',
-          padding: '16px',
-          whiteSpace: 'pre-line',
-        },
+    setIsSubmitting(true);
+    try {
+      const response = await api.post('/users/doctors', {
+        firstName: doctorData.firstName,
+        lastName: doctorData.lastName,
+        email: doctorData.email,
+        phone: doctorData.phone,
+        licenseNumber: doctorData.licenseNumber,
+        specialty: doctorData.specialty,
+        subSpecialty: doctorData.subSpecialty || null,
+        department: doctorData.department,
+        qualification: doctorData.qualification,
+        medicalSchool: doctorData.medicalSchool || null,
+        yearsExperience: doctorData.yearsOfExperience ? parseInt(doctorData.yearsOfExperience) : 0,
+        employmentType: doctorData.employmentType,
+        startDate: doctorData.startDate || null,
+        address: doctorData.address || null,
+        city: doctorData.city || null,
+        password: doctorData.temporaryPassword || undefined,
+      });
+
+      if (response.success) {
+        toast.success(
+          `Doctor Account Created!\n\nName: Dr. ${doctorData.firstName} ${doctorData.lastName}\nEmail: ${doctorData.email}\nPassword: ${response.data.tempPassword}`,
+          {
+            duration: 8000,
+            position: 'top-right',
+            style: { background: '#10B981', color: '#FFFFFF', fontWeight: 'bold', padding: '16px', whiteSpace: 'pre-line' },
+          }
+        );
+        setDoctorData({
+          firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
+          licenseNumber: '', specialty: '', subSpecialty: '', yearsOfExperience: '', qualification: '', medicalSchool: '',
+          department: '', employmentType: '', startDate: '',
+          address: '', city: '', emergencyContact: '', emergencyPhone: '',
+          username: '', temporaryPassword: '',
+        });
       }
-    );
-    
-    // Reset form
-    setDoctorData({
-      firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
-      licenseNumber: '', specialty: '', subSpecialty: '', yearsOfExperience: '', qualification: '', medicalSchool: '',
-      department: '', employmentType: '', startDate: '',
-      address: '', city: '', emergencyContact: '', emergencyPhone: '',
-      username: '', temporaryPassword: '',
-    });
+    } catch (err) {
+      const isEmailTaken = err.message?.toLowerCase().includes('email already in use');
+      toast.error(
+        isEmailTaken
+          ? `Email "${doctorData.email}" is already registered. Please use a different email.`
+          : err.message || 'Failed to create doctor account',
+        {
+          duration: 5000,
+          position: 'top-right',
+          style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
+        }
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const generateUsername = () => {
@@ -113,6 +136,8 @@ const CreateDoctor = () => {
       setDoctorData({ ...doctorData, username });
     }
   };
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
@@ -410,8 +435,8 @@ const CreateDoctor = () => {
           >
             Cancel
           </Button>
-          <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700">
-            ✓ Create Doctor Account
+          <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : '✓ Create Doctor Account'}
           </Button>
         </div>
       </form>

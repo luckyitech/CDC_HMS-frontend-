@@ -56,7 +56,11 @@ api.interceptors.response.use(
 
       // Redirect to portal selection (only if not already there)
       // The main login/portal page is at "/" not "/login"
-      if (window.location.pathname !== '/' && !window.location.pathname.startsWith('/login')) {
+      if (
+        window.location.pathname !== '/' &&
+        !window.location.pathname.startsWith('/login') &&
+        !window.location.pathname.startsWith('/forgot-password')
+      ) {
         window.location.href = '/';
       }
     }

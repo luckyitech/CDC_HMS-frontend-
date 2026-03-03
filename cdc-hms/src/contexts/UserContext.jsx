@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { mockUsers } from '../data/mockData';
 import { mockPatients } from '../data/mockData';
 import authService from '../services/authService';
+import api from '../services/api';
 
 // Create Context
 const UserContext = createContext();
@@ -19,7 +20,7 @@ export const useUserContext = () => {
 export const UserProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);  // NEW: loading state for async operations
-  const [doctors] = useState(mockUsers.doctors);
+  const [doctors, setDoctors] = useState([]);
   const [staff] = useState(mockUsers.staff);
   const [labTechs] = useState(mockUsers.labTechs);
   const [admins] = useState(mockUsers.admins);
@@ -35,6 +36,13 @@ export const UserProvider = ({ children }) => {
         localStorage.removeItem('currentUser');
       }
     }
+  }, []);
+
+  // Fetch real doctors from API on mount
+  useEffect(() => {
+    api.get('/users/doctors')
+      .then(res => { if (res.success) setDoctors(Array.isArray(res.data) ? res.data : []); })
+      .catch(() => {});
   }, []);
 
   // Get all users combined

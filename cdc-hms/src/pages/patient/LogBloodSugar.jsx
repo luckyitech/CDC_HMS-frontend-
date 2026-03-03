@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sunrise, Coffee, Clock3, Utensils, Clock6, Moon, BedDouble, Calendar, CheckCircle, AlertCircle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Card from "../../components/shared/Card";
@@ -18,7 +18,7 @@ const SLOT_TO_BACKEND = {
 };
 
 const LogBloodSugar = () => {
-  const { addBloodSugarReading } = usePatientContext();
+  const { addBloodSugarReading, getBloodSugarReadings } = usePatientContext();
   const { currentUser } = useUserContext();
 
   // Get patient UHID from logged-in user
@@ -28,16 +28,15 @@ const LogBloodSugar = () => {
     new Date().toISOString().split("T")[0]
   );
 
-  // Mock logged dates (dates that have entries)
-  const [loggedDates] = useState([
-    "2024-12-02",
-    "2024-12-03",
-    "2024-12-04",
-    "2024-12-05",
-    "2024-12-06",
-    "2024-12-07",
-    "2024-12-08",
-  ]);
+  const [loggedDates, setLoggedDates] = useState([]);
+
+  useEffect(() => {
+    if (!currentPatientUHID) return;
+    getBloodSugarReadings(currentPatientUHID).then((data) => {
+      const dates = [...new Set((data || []).map((r) => r.date))];
+      setLoggedDates(dates);
+    });
+  }, [currentPatientUHID]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Blood sugar entries for selected date
   const [readings, setReadings] = useState({

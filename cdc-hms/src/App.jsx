@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 // Import Providers(use contexts)
 import { UserProvider } from "./contexts/UserContext";
@@ -39,6 +40,7 @@ import PhysicalExamination from "./pages/doctor/PhysicalExamination";
 import GlycemicCharts from "./pages/doctor/GlycemicCharts";
 import PatientProfile from "./pages/doctor/PatientProfile";
 import MedicalDocuments from "./pages/shared/MedicalDocuments";
+import ChangePasswordPage from "./pages/shared/ChangePasswordPage";
 
 // Patient pages
 import PatientDashboard from "./pages/patient/PatientDashboard";
@@ -69,6 +71,7 @@ import ManageUsers from "./pages/admin/ManageUsers";
 function App() {
   return (
     <BrowserRouter>
+    <Toaster />
     <ConsultationNotesProvider>
       <LabProvider>
         <InitialAssessmentProvider>
@@ -110,6 +113,7 @@ function App() {
                         />
                         <Route path="/staff/patient-profile/:uhid" element={<StaffPatientProfile />} />
                         <Route path="medical-documents" element={<MedicalDocuments />} />
+                        <Route path="change-password" element={<ChangePasswordPage />} />
                       </Route>
 
                       {/* Doctor Portal */}
@@ -145,6 +149,7 @@ function App() {
                           path="glycemic-charts"
                           element={<GlycemicCharts />}
                         />
+                        <Route path="change-password" element={<ChangePasswordPage />} />
                       </Route>
 
                       {/* Patient Portal */}
@@ -174,6 +179,7 @@ function App() {
                           path="upload-results"
                           element={<UploadResults />}
                         />
+                        <Route path="change-password" element={<ChangePasswordPage />} />
                       </Route>
 
                       {/* Lab portal */}
@@ -199,6 +205,7 @@ function App() {
                           path="critical-alerts"
                           element={<CriticalAlerts />}
                         />
+                        <Route path="change-password" element={<ChangePasswordPage />} />
                       </Route>
 
                       {/* Admin portal */}
@@ -219,6 +226,7 @@ function App() {
                         />
                         <Route path="manage-users" element={<ManageUsers />} />
                         <Route path="reports" element={<Reports />} />
+                        <Route path="change-password" element={<ChangePasswordPage />} />
                       </Route>
                     </Routes>
                     </TreatmentPlanProvider>

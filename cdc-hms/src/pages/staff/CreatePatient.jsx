@@ -77,7 +77,7 @@ const CreatePatient = () => {
     'Self-Pay',
   ];
 
-  const doctors = getDoctors().map(d => d.name);
+  const doctors = getDoctors();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uhidMode, setUhidMode] = useState('generate'); // 'generate' or 'manual'
@@ -160,6 +160,8 @@ const CreatePatient = () => {
       diabetesType: patientData.diabetesType || null,
       diagnosisDate: patientData.diagnosisDate || null,
       referredBy: patientData.referredBy || null,
+      primaryDoctorId: patientData.primaryDoctor ? parseInt(patientData.primaryDoctor) : null,
+      password: patientData.temporaryPassword || null,
       address: patientData.address ? `${patientData.address}${patientData.city ? ', ' + patientData.city : ''}` : null,
       // Structure emergency contact as JSON
       emergencyContact: patientData.emergencyContactName ? {
@@ -191,17 +193,18 @@ const CreatePatient = () => {
           },
         });
 
-        // Info toast with UHID
+        // Info toast with UHID and login credentials
         toast(
-          `UHID: ${result.patient.uhid}`,
+          `UHID: ${result.patient.uhid}\nEmail: ${patientData.email}\nTemp Password: ${result.patient.tempPassword}`,
           {
-            duration: 5000,
+            duration: 8000,
             icon: <Sparkles className="w-5 h-5" />,
             style: {
               background: '#DBEAFE',
               color: '#1E40AF',
               fontWeight: 'bold',
               padding: '16px',
+              whiteSpace: 'pre-line',
             },
           }
         );
@@ -472,7 +475,6 @@ const CreatePatient = () => {
                 value={patientData.diabetesType}
                 onChange={(e) => setPatientData({ ...patientData, diabetesType: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-                required
               >
                 <option value="">Select diabetes type</option>
                 {diabetesTypes.map((type) => (
@@ -506,7 +508,7 @@ const CreatePatient = () => {
               >
                 <option value="">Select primary doctor</option>
                 {doctors.map((doctor) => (
-                  <option key={doctor} value={doctor}>{doctor}</option>
+                  <option key={doctor.id} value={doctor.id}>{doctor.name}</option>
                 ))}
               </select>
             </div>

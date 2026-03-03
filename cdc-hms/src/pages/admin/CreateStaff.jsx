@@ -4,6 +4,7 @@ import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 
 const CreateStaff = () => {
   const navigate = useNavigate();
@@ -58,55 +59,67 @@ const CreateStaff = () => {
     'Records',
   ];
 
-  const shifts = [
-    'Morning (7AM - 3PM)',
-    'Afternoon (3PM - 11PM)',
-    'Night (11PM - 7AM)',
-    'Rotating',
-  ];
+  const shifts = ['Morning', 'Afternoon', 'Night'];
 
-  const handleSubmit = (e) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
     if (!staffData.firstName || !staffData.lastName || !staffData.email || !staffData.role) {
       toast.error('Please fill in all required fields', {
         duration: 3000,
         position: 'top-right',
-        icon: '❌',
-        style: {
-          background: '#EF4444',
-          color: '#FFFFFF',
-          fontWeight: 'bold',
-          padding: '16px',
-        },
+        style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
       });
       return;
     }
 
-    toast.success(
-      `Staff Account Created Successfully!\n\nName: ${staffData.firstName} ${staffData.lastName}\nRole: ${staffData.role}\nEmail: ${staffData.email}\n\nLogin credentials have been sent to the staff member's email.`,
-      {
-        duration: 5000,
-        position: 'top-right',
-        icon: '✅',
-        style: {
-          background: '#10B981',
-          color: '#FFFFFF',
-          fontWeight: 'bold',
-          padding: '16px',
-          whiteSpace: 'pre-line',
-        },
+    setIsSubmitting(true);
+    try {
+      const response = await api.post('/users/staff', {
+        firstName: staffData.firstName,
+        lastName: staffData.lastName,
+        email: staffData.email,
+        phone: staffData.phone,
+        position: staffData.role,       // form uses 'role', backend expects 'position'
+        department: staffData.department,
+        shift: staffData.shift,
+        startDate: staffData.startDate || null,
+        password: staffData.temporaryPassword || undefined,
+      });
+
+      if (response.success) {
+        toast.success(
+          `Staff Account Created!\n\nName: ${staffData.firstName} ${staffData.lastName}\nEmail: ${staffData.email}\nPassword: ${response.data.tempPassword}`,
+          {
+            duration: 8000,
+            position: 'top-right',
+            style: { background: '#10B981', color: '#FFFFFF', fontWeight: 'bold', padding: '16px', whiteSpace: 'pre-line' },
+          }
+        );
+        setStaffData({
+          firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
+          role: '', department: '', employmentType: '', startDate: '', shift: '',
+          address: '', city: '', emergencyContact: '', emergencyPhone: '',
+          username: '', temporaryPassword: '',
+        });
       }
-    );
-    
-    // Reset form
-    setStaffData({
-      firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
-      role: '', department: '', employmentType: '', startDate: '', shift: '',
-      address: '', city: '', emergencyContact: '', emergencyPhone: '',
-      username: '', temporaryPassword: '',
-    });
+    } catch (err) {
+      const isEmailTaken = err.message?.toLowerCase().includes('email already in use');
+      toast.error(
+        isEmailTaken
+          ? `Email "${staffData.email}" is already registered. Please use a different email.`
+          : err.message || 'Failed to create staff account',
+        {
+          duration: 5000,
+          position: 'top-right',
+          style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
+        }
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const generateUsername = () => {
@@ -409,8 +422,8 @@ const CreateStaff = () => {
           >
             Cancel
           </Button>
-          <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700">
-            ✓ Create Staff Account
+          <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : '✓ Create Staff Account'}
           </Button>
         </div>
       </form>

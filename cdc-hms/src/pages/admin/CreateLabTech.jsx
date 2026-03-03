@@ -4,6 +4,7 @@ import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 
 const CreateLabTech = () => {
   const navigate = useNavigate();
@@ -59,56 +60,71 @@ const CreateLabTech = () => {
     'Certificate in Laboratory Technology',
   ];
 
-  const shifts = [
-    'Morning (7AM - 3PM)',
-    'Afternoon (3PM - 11PM)',
-    'Night (11PM - 7AM)',
-    'Rotating',
-  ];
+  const shifts = ['Morning', 'Afternoon', 'Night'];
 
-  const handleSubmit = (e) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
     if (!labTechData.firstName || !labTechData.lastName || !labTechData.email || !labTechData.certificationNumber) {
       toast.error('Please fill in all required fields', {
         duration: 3000,
         position: 'top-right',
-        icon: '❌',
-        style: {
-          background: '#EF4444',
-          color: '#FFFFFF',
-          fontWeight: 'bold',
-          padding: '16px',
-        },
+        style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
       });
       return;
     }
 
-    toast.success(
-      `Lab Technician Account Created Successfully!\n\nName: ${labTechData.firstName} ${labTechData.lastName}\nEmail: ${labTechData.email}\nSpecialization: ${labTechData.specialization}\n\nLogin credentials have been sent to the lab technician's email.`,
-      {
-        duration: 5000,
-        position: 'top-right',
-        icon: '✅',
-        style: {
-          background: '#10B981',
-          color: '#FFFFFF',
-          fontWeight: 'bold',
-          padding: '16px',
-          whiteSpace: 'pre-line',
-        },
+    setIsSubmitting(true);
+    try {
+      const response = await api.post('/users/lab-techs', {
+        firstName: labTechData.firstName,
+        lastName: labTechData.lastName,
+        email: labTechData.email,
+        phone: labTechData.phone,
+        specialization: labTechData.specialization,
+        certificationNumber: labTechData.certificationNumber,
+        qualification: labTechData.qualification,
+        institution: labTechData.institution || null,
+        yearsExperience: labTechData.yearsOfExperience ? parseInt(labTechData.yearsOfExperience) : 0,
+        shift: labTechData.shift,
+        startDate: labTechData.startDate || null,
+        password: labTechData.temporaryPassword || undefined,
+      });
+
+      if (response.success) {
+        toast.success(
+          `Lab Technician Account Created!\n\nName: ${labTechData.firstName} ${labTechData.lastName}\nEmail: ${labTechData.email}\nPassword: ${response.data.tempPassword}`,
+          {
+            duration: 8000,
+            position: 'top-right',
+            style: { background: '#10B981', color: '#FFFFFF', fontWeight: 'bold', padding: '16px', whiteSpace: 'pre-line' },
+          }
+        );
+        setLabTechData({
+          firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
+          certificationNumber: '', specialization: '', qualification: '', institution: '', yearsOfExperience: '',
+          employmentType: '', startDate: '', shift: '',
+          address: '', city: '', emergencyContact: '', emergencyPhone: '',
+          username: '', temporaryPassword: '',
+        });
       }
-    );
-    
-    // Reset form
-    setLabTechData({
-      firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
-      certificationNumber: '', specialization: '', qualification: '', institution: '', yearsOfExperience: '',
-      employmentType: '', startDate: '', shift: '',
-      address: '', city: '', emergencyContact: '', emergencyPhone: '',
-      username: '', temporaryPassword: '',
-    });
+    } catch (err) {
+      const isEmailTaken = err.message?.toLowerCase().includes('email already in use');
+      toast.error(
+        isEmailTaken
+          ? `Email "${labTechData.email}" is already registered. Please use a different email.`
+          : err.message || 'Failed to create lab technician account',
+        {
+          duration: 5000,
+          position: 'top-right',
+          style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
+        }
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const generateUsername = () => {
@@ -446,8 +462,8 @@ const CreateLabTech = () => {
           >
             Cancel
           </Button>
-          <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700">
-            ✓ Create Lab Technician Account
+          <Button type="submit" className="flex-1 bg-green-600 hover:bg-green-700" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : '✓ Create Lab Technician Account'}
           </Button>
         </div>
       </form>

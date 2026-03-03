@@ -5,10 +5,12 @@ import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import { useNavigate } from 'react-router-dom';
 import { usePatientContext } from '../../contexts/PatientContext';
+import { useUserContext } from '../../contexts/UserContext';
 
 const CreatePatient = () => {
   const navigate = useNavigate();
   const { addPatient } = usePatientContext();
+  const { getDoctors } = useUserContext();
   
   const [patientData, setPatientData] = useState({
     // Personal Information
@@ -63,12 +65,7 @@ const CreatePatient = () => {
     'Self-Pay',
   ];
 
-  const doctors = [
-    'Dr. Ahmed Hassan',
-    'Dr. Sarah Kamau',
-    'Dr. James Omondi',
-    'Dr. Peter Mwangi',
-  ];
+  const doctors = getDoctors();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uhidMode, setUhidMode] = useState('generate'); // 'generate' or 'manual'
@@ -139,6 +136,8 @@ const CreatePatient = () => {
       diabetesType: patientData.diabetesType || null,
       diagnosisDate: patientData.diagnosisDate || null,
       referredBy: patientData.referredBy || null,
+      primaryDoctorId: patientData.primaryDoctor ? parseInt(patientData.primaryDoctor) : null,
+      password: patientData.temporaryPassword || null,
       address: patientData.address ? `${patientData.address}${patientData.city ? ', ' + patientData.city : ''}` : null,
       // Structure emergency contact as JSON
       emergencyContact: patientData.emergencyContactName ? {
@@ -159,9 +158,9 @@ const CreatePatient = () => {
 
       if (result.success) {
         toast.success(
-          `Patient Account Created Successfully!\n\nUHID: ${result.patient.uhid}\nName: ${patientData.firstName} ${patientData.lastName}\nEmail: ${patientData.email}`,
+          `Patient Account Created Successfully!\n\nUHID: ${result.patient.uhid}\nName: ${patientData.firstName} ${patientData.lastName}\nEmail: ${patientData.email}\nTemp Password: ${result.patient.tempPassword}`,
           {
-            duration: 5000,
+            duration: 8000,
             position: 'top-right',
             style: {
               background: '#10B981',
@@ -394,7 +393,6 @@ const CreatePatient = () => {
                 value={patientData.diabetesType}
                 onChange={(e) => setPatientData({ ...patientData, diabetesType: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-                required
               >
                 <option value="">Select diabetes type</option>
                 {diabetesTypes.map((type) => (
@@ -428,7 +426,7 @@ const CreatePatient = () => {
               >
                 <option value="">Select primary doctor</option>
                 {doctors.map((doctor) => (
-                  <option key={doctor} value={doctor}>{doctor}</option>
+                  <option key={doctor.id} value={doctor.id}>{doctor.name}</option>
                 ))}
               </select>
             </div>
