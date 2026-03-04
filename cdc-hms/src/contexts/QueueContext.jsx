@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import queueService from '../services/queueService';
 
 // Create Context
@@ -180,18 +180,18 @@ export const QueueProvider = ({ children }) => {
     }
   };
 
-  // Local queue stats (synchronous)
-  const getLocalQueueStats = () => {
-    return {
-      total: queue.length,
-      waiting: queue.filter(q => q.status === 'Waiting').length,
-      inTriage: queue.filter(q => q.status === 'In Triage').length,
-      withDoctor: queue.filter(q => q.status === 'With Doctor').length,
-      pendingBilling: queue.filter(q => q.status === 'Pending Billing').length,
-      completed: queue.filter(q => q.status === 'Completed').length,
-      urgent: queue.filter(q => q.priority === 'Urgent').length,
-    };
-  };
+  // Local queue stats — memoized, only recomputes when queue changes
+  const localQueueStats = useMemo(() => ({
+    total: queue.length,
+    waiting: queue.filter(q => q.status === 'Waiting').length,
+    inTriage: queue.filter(q => q.status === 'In Triage').length,
+    withDoctor: queue.filter(q => q.status === 'With Doctor').length,
+    pendingBilling: queue.filter(q => q.status === 'Pending Billing').length,
+    completed: queue.filter(q => q.status === 'Completed').length,
+    urgent: queue.filter(q => q.priority === 'Urgent').length,
+  }), [queue]);
+
+  const getLocalQueueStats = () => localQueueStats;
 
   // Check if patient is actively in queue (excludes Completed/discharged)
   const isInQueue = (uhid) => {

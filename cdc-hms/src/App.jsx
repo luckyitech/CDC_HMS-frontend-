@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./components/shared/ErrorFallback";
+import NotFound from "./pages/shared/NotFound";
 
 // Contexts
 import { UserProvider } from "./contexts/UserContext";
@@ -187,6 +188,8 @@ function App() {
                                 <Route path="reports" element={<Reports />} />
                                 <Route path="change-password" element={<ChangePasswordPage />} />
                               </Route>
+                              {/* 404 — catch all unmatched routes */}
+                              <Route path="*" element={<NotFound />} />
                             </Routes>
                           </Suspense>
                           </ErrorBoundary>

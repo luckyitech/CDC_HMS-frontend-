@@ -7,6 +7,7 @@ import {
   AlertCircle,
   X,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -18,6 +19,7 @@ const PatientSearch = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [showQueueModal, setShowQueueModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [queuePriority, setQueuePriority] = useState("Normal");
@@ -31,8 +33,9 @@ const PatientSearch = () => {
 
   const handleSearch = async () => {
     if (searchTerm.trim()) {
-      // searchPatients is now async - need await
+      setIsSearching(true);
       const results = await searchPatients(searchTerm);
+      setIsSearching(false);
       setSearchResults(results || []);
       setHasSearched(true);
 
@@ -76,7 +79,7 @@ const PatientSearch = () => {
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       handleSearch();
     }
@@ -139,13 +142,15 @@ const PatientSearch = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="Enter patient name, UHID, or phone number..."
             className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary text-base"
           />
-          <Button onClick={handleSearch} className="sm:w-auto">
-            <Search className="w-4 h-4 mr-2" />
-            Search
+          <Button onClick={handleSearch} className="sm:w-auto" disabled={isSearching}>
+            {isSearching
+              ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              : <Search className="w-4 h-4 mr-2" />}
+            {isSearching ? 'Searching...' : 'Search'}
           </Button>
         </div>
       </Card>
