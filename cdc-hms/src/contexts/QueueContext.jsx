@@ -177,14 +177,15 @@ export const QueueProvider = ({ children }) => {
       waiting: queue.filter(q => q.status === 'Waiting').length,
       inTriage: queue.filter(q => q.status === 'In Triage').length,
       withDoctor: queue.filter(q => q.status === 'With Doctor').length,
+      pendingBilling: queue.filter(q => q.status === 'Pending Billing').length,
       completed: queue.filter(q => q.status === 'Completed').length,
       urgent: queue.filter(q => q.priority === 'Urgent').length,
     };
   };
 
-  // Check if patient is in queue
+  // Check if patient is actively in queue (excludes Completed/discharged)
   const isInQueue = (uhid) => {
-    return queue.some(item => item.uhid === uhid);
+    return queue.some(item => item.uhid === uhid && item.status !== 'Completed');
   };
 
   // Call next patient (via API)
@@ -209,6 +210,33 @@ export const QueueProvider = ({ children }) => {
   // Assign doctor to queue item
   const assignDoctorToQueue = async (queueId, doctorId) => {
     return updateQueueStatus(queueId, null, doctorId);
+  };
+
+  // Doctor completes consultation — sends charges checklist and moves to Pending Billing
+  const sendToBilling = async (queueId, selectedCharges, selectedProcedures) => {
+    setLoading(true);
+    try {
+      const response = await queueService.update(queueId, {
+        status: 'Pending Billing',
+        selectedCharges,
+        selectedProcedures,
+      });
+      if (response.success) {
+        setQueue(prev =>
+          prev.map(item =>
+            item.id === queueId
+              ? { ...item, ...response.data.queue || response.data }
+              : item
+          )
+        );
+        return { success: true };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Get queue by doctor (local filter)
@@ -237,6 +265,7 @@ export const QueueProvider = ({ children }) => {
     callNextPatient,
     assignDoctorToQueue,
     getQueueByDoctor,
+    sendToBilling,
   };
 
   return (

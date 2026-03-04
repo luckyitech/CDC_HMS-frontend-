@@ -46,7 +46,7 @@ const Consultation = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
   const { fetchPatientByUHID } = usePatientContext();
-  const { queue, updateQueueStatus } = useQueueContext();
+  const { queue, sendToBilling } = useQueueContext();
   const { getLatestAssessment } = useInitialAssessmentContext();
   const { getLatestExamination } = usePhysicalExamContext();
   const { getLatestPlan } = useTreatmentPlanContext();
@@ -105,6 +105,19 @@ const Consultation = () => {
   // Modal state
   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const [selectedCharges, setSelectedCharges] = useState([]);
+  const [selectedProcedures, setSelectedProcedures] = useState([]);
+  const [billingSubmitting, setBillingSubmitting] = useState(false);
+
+  const CHARGE_OPTIONS = [
+    'Consultation Fee',
+    'Random Blood Sugar',
+    'Ketones',
+    'HbA1c',
+    'Thyroid Ultrasound',
+  ];
+  const PROCEDURE_OPTIONS = ['PNS', 'ABI', 'ANS'];
 
   // Tab unsaved changes tracking (derived state)
   const tabsUnsaved = useMemo(() => ({
@@ -235,7 +248,7 @@ const Consultation = () => {
     setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
   };
 
-  const handleCompleteConsultation = async () => {
+  const handleCompleteConsultation = () => {
     // Validate required fields - check if diagnosis tab is completed
     if (!tabsCompleted.diagnosis) {
       toast.error(
@@ -255,21 +268,33 @@ const Consultation = () => {
       setActiveTab("diagnosis");
       return;
     }
+    // Open billing checklist modal
+    setSelectedCharges([]);
+    setSelectedProcedures([]);
+    setShowBillingModal(true);
+  };
 
-    // Update queue status to "Completed" — find queue item ID by UHID
+  const handleBillingSubmit = async () => {
+    setBillingSubmitting(true);
     const queueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
     if (queueItem) {
-      await updateQueueStatus(queueItem.id, "Completed");
+      await sendToBilling(queueItem.id, selectedCharges, selectedProcedures);
     }
-
-    // Show success message
+    setBillingSubmitting(false);
+    setShowBillingModal(false);
     setShowSuccessMessage(true);
-
-    // Navigate back after 3 seconds
-    setTimeout(() => {
-      navigate("/doctor/dashboard");
-    }, 3000);
+    setTimeout(() => navigate("/doctor/dashboard"), 3000);
   };
+
+  const toggleCharge = (item) =>
+    setSelectedCharges(prev =>
+      prev.includes(item) ? prev.filter(c => c !== item) : [...prev, item]
+    );
+
+  const toggleProcedure = (item) =>
+    setSelectedProcedures(prev =>
+      prev.includes(item) ? prev.filter(p => p !== item) : [...prev, item]
+    );
 
   const handleNavigateWithPatient = (path) => {
     navigate(path, {
@@ -911,6 +936,93 @@ const Consultation = () => {
           </span>
         </Button>
       </div>
+
+      {/* Billing Checklist Modal */}
+      {showBillingModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Complete Consultation</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Select charges and procedures for this visit</p>
+              </div>
+              <button
+                onClick={() => setShowBillingModal(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-5">
+              {/* Charges */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                  Charges
+                </h3>
+                <div className="space-y-2">
+                  {CHARGE_OPTIONS.map(item => (
+                    <label
+                      key={item}
+                      className="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCharges.includes(item)}
+                        onChange={() => toggleCharge(item)}
+                        className="w-4 h-4 accent-blue-600 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Procedures */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                  Procedures
+                </h3>
+                <div className="space-y-2">
+                  {PROCEDURE_OPTIONS.map(item => (
+                    <label
+                      key={item}
+                      className="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedProcedures.includes(item)}
+                        onChange={() => toggleProcedure(item)}
+                        className="w-4 h-4 accent-blue-600 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 p-5 border-t">
+              <button
+                onClick={() => setShowBillingModal(false)}
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBillingSubmit}
+                disabled={billingSubmitting}
+                className="flex-1 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60"
+              >
+                {billingSubmitting ? 'Submitting…' : 'Confirm & Send to Billing'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Order Lab Test Modal */}
       {showOrderLabModal && (

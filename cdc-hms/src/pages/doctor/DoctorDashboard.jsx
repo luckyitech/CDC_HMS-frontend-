@@ -1,19 +1,16 @@
-import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
-import { usePatientContext } from '../../contexts/PatientContext';
-
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
-  const { getQueueByStatus, startConsultation } = useQueueContext();
-  const { getPatientByUHID } = usePatientContext();
+  const { queue, startConsultation } = useQueueContext();
   
+  // Returns false when date is missing (prevents old records leaking through)
   const isToday = (dateString) => {
-    if (!dateString) return true;
+    if (!dateString) return false;
     return new Date(dateString).toDateString() === new Date().toDateString();
   };
 
@@ -28,33 +25,37 @@ const DoctorDashboard = () => {
     return `${diffMins}m`;
   };
 
-  // Get today's patients only
-  const withDoctorQueue = getQueueByStatus('With Doctor').filter(q => isToday(q.createdAt));
-  const completedQueue = getQueueByStatus('Completed').filter(q => isToday(q.createdAt));
-  const todayQueue = [...withDoctorQueue, ...completedQueue];
+  // Active (non-Completed) patients from ANY day — handles patients admitted today
+  // but not yet discharged by tomorrow
+  const activePatients = queue.filter(q => q.status !== 'Completed');
 
-  // Calculate stats for current doctor
-  const myWithDoctor = withDoctorQueue.filter(q => q.assignedDoctorId === currentUser?.id);
-  const myCompleted = completedQueue.filter(q => q.assignedDoctorId === currentUser?.id);
+  // Completed (discharged) patients from TODAY only — for day-of reference
+  const todayCompleted = queue.filter(q => q.status === 'Completed' && isToday(q.createdAt));
+
+  // Combined today's queue, sorted by arrival time
+  const todayQueue = [...activePatients, ...todayCompleted]
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+
+  // Stats scoped to this doctor only
+  const myWithDoctor     = activePatients.filter(q => q.status === 'With Doctor'     && q.assignedDoctorId === currentUser?.id);
+  const myPendingBilling = activePatients.filter(q => q.status === 'Pending Billing' && q.assignedDoctorId === currentUser?.id);
+  const myCompleted      = todayCompleted.filter(q => q.assignedDoctorId === currentUser?.id);
 
   const stats = [
-    { title: 'Today\'s Patients', value: (myWithDoctor.length + myCompleted.length).toString(), icon: '👥', gradient: 'from-blue-500 to-blue-600' },
-    { title: 'Waiting', value: myWithDoctor.length.toString(), icon: '⏳', gradient: 'from-cyan-500 to-cyan-600' },
-    { title: 'Completed', value: myCompleted.length.toString(), icon: '✅', gradient: 'from-green-500 to-green-600' },
-    { title: 'Total Queue', value: todayQueue.length.toString(), icon: '📋', gradient: 'from-purple-500 to-purple-600' },
+    { title: 'Today\'s Patients', value: (myWithDoctor.length + myPendingBilling.length + myCompleted.length).toString(), icon: '👥', gradient: 'from-blue-500 to-blue-600' },
+    { title: 'With Doctor',       value: myWithDoctor.length.toString(),     icon: '⏳', gradient: 'from-cyan-500 to-cyan-600' },
+    { title: 'Completed',         value: (myPendingBilling.length + myCompleted.length).toString(), icon: '✅', gradient: 'from-green-500 to-green-600' },
+    { title: 'Total Queue',       value: todayQueue.length.toString(),        icon: '📋', gradient: 'from-purple-500 to-purple-600' },
   ];
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed':
-        return 'bg-green-100 text-green-700 border-green-300';
-      case 'In Progress':
-        return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'Waiting':
-      case 'With Doctor':
-        return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      default:
-        return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'Waiting':         return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'In Triage':       return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'With Doctor':     return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'Pending Billing': return 'bg-amber-100 text-amber-700 border-amber-300';
+      case 'Completed':       return 'bg-green-100 text-green-700 border-green-300';
+      default:                return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
@@ -109,9 +110,9 @@ const DoctorDashboard = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {todayQueue.map((queueItem) => {
-                  const patient = getPatientByUHID(queueItem.uhid);
                   const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
-                  
+                  const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
+
                   return (
                     <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient ? 'bg-blue-50' : ''}`}>
                       <td className="px-4 lg:px-6 py-4 text-sm font-semibold text-gray-700">{queueItem.arrivalTime}</td>
@@ -135,7 +136,7 @@ const DoctorDashboard = () => {
                         </span>
                       </td>
                       <td className="px-4 lg:px-6 py-4 text-sm">
-                        {queueItem.status === 'Completed'
+                        {consultationDone
                           ? <span className="text-green-600 font-semibold">{formatDuration(queueItem.consultationStartTime, queueItem.consultationEndTime)}</span>
                           : queueItem.consultationStartTime
                             ? <span className="text-blue-600 font-semibold">In Progress</span>
@@ -146,6 +147,10 @@ const DoctorDashboard = () => {
                         {queueItem.status === 'Completed' ? (
                           <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">
                             Done
+                          </span>
+                        ) : queueItem.status === 'Pending Billing' ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">
+                            Awaiting Billing
                           </span>
                         ) : isMyPatient ? (
                           <Button
@@ -207,7 +212,6 @@ const DoctorDashboard = () => {
           {myWithDoctor.length > 0 ? (
             <div className="space-y-3">
               {myWithDoctor.slice(0, 3).map((queueItem) => {
-                const patient = getPatientByUHID(queueItem.uhid);
                 return (
                   <div key={queueItem.id} className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
                     <p className="font-semibold text-blue-700">Patient Waiting</p>
