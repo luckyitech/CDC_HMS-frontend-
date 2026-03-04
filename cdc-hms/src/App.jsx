@@ -41,6 +41,7 @@ import GlycemicCharts from "./pages/doctor/GlycemicCharts";
 import PatientProfile from "./pages/doctor/PatientProfile";
 import MedicalDocuments from "./pages/shared/MedicalDocuments";
 import ChangePasswordPage from "./pages/shared/ChangePasswordPage";
+import ProtectedRoute from "./components/shared/ProtectedRoute";
 
 // Patient pages
 import PatientDashboard from "./pages/patient/PatientDashboard";
@@ -101,7 +102,7 @@ function App() {
                       {/* Staff Portal */}
                       <Route
                         path="/staff"
-                        element={<MainLayout userRole="Staff" />}
+                        element={<ProtectedRoute requiredRole="staff"><MainLayout userRole="Staff" /></ProtectedRoute>}
                       >
                         <Route path="dashboard" element={<StaffDashboard />} />
                         <Route path="patients" element={<PatientSearch />} />
@@ -119,7 +120,7 @@ function App() {
                       {/* Doctor Portal */}
                       <Route
                         path="/doctor"
-                        element={<MainLayout userRole="Doctor" />}
+                        element={<ProtectedRoute requiredRole="doctor"><MainLayout userRole="Doctor" /></ProtectedRoute>}
                       >
                         <Route path="dashboard" element={<DoctorDashboard />} />
                         <Route path="patients" element={<MyPatients />} />
@@ -155,7 +156,7 @@ function App() {
                       {/* Patient Portal */}
                       <Route
                         path="/patient"
-                        element={<MainLayout userRole="Patient" />}
+                        element={<ProtectedRoute requiredRole="patient"><MainLayout userRole="Patient" /></ProtectedRoute>}
                       >
                         <Route
                           path="dashboard"
@@ -185,7 +186,7 @@ function App() {
                       {/* Lab portal */}
                       <Route
                         path="/lab"
-                        element={<MainLayout userRole="Lab" />}
+                        element={<ProtectedRoute requiredRole="lab"><MainLayout userRole="Lab" /></ProtectedRoute>}
                       >
                         <Route path="dashboard" element={<LabDashboard />} />
                         <Route
@@ -211,7 +212,7 @@ function App() {
                       {/* Admin portal */}
                       <Route
                         path="/admin"
-                        element={<MainLayout userRole="Admin" />}
+                        element={<ProtectedRoute requiredRole="admin"><MainLayout userRole="Admin" /></ProtectedRoute>}
                       >
                         <Route path="dashboard" element={<AdminDashboard />} />
                         <Route

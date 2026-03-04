@@ -18,25 +18,23 @@ export const useUserContext = () => {
 
 // Provider Component
 export const UserProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
+  // Initialise synchronously from sessionStorage so ProtectedRoute never sees a
+  // false null on the first render (prevents flash-redirect on page refresh).
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('currentUser');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      sessionStorage.removeItem('currentUser');
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(false);  // NEW: loading state for async operations
   const [doctors, setDoctors] = useState([]);
   const [staff] = useState(mockUsers.staff);
   const [labTechs] = useState(mockUsers.labTechs);
   const [admins] = useState(mockUsers.admins);
 
-  // Load user from localStorage on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      try {
-        setCurrentUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Error loading user from localStorage:', error);
-        localStorage.removeItem('currentUser');
-      }
-    }
-  }, []);
 
   // Fetch real doctors from API on mount
   useEffect(() => {

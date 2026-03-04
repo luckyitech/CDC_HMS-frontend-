@@ -41,9 +41,19 @@ export const QueueProvider = ({ children }) => {
     }
   }, []);
 
-  // Load queue on mount
+  // Load queue on mount and subscribe to live updates via SSE
   useEffect(() => {
     fetchQueue();
+
+    const SSE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/sse`;
+    const source = new EventSource(SSE_URL);
+
+    source.addEventListener('queue_updated', () => {
+      fetchQueue();
+    });
+
+    // EventSource auto-reconnects on error — no manual handling needed
+    return () => source.close();
   }, [fetchQueue]);
 
   // ============================================

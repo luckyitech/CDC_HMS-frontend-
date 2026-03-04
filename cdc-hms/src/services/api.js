@@ -17,8 +17,8 @@ const api = axios.create({
 // ============================================
 api.interceptors.request.use(
   (config) => {
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
+    // Get token from sessionStorage
+    const token = sessionStorage.getItem('token');
 
     // If token exists, add it to the request header
     if (token) {
@@ -51,8 +51,8 @@ api.interceptors.response.use(
     // Handle 401 Unauthorized - token expired or invalid
     if (status === 401) {
       // Clear stored auth data
-      localStorage.removeItem('token');
-      localStorage.removeItem('currentUser');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('currentUser');
 
       // Redirect to portal selection (only if not already there)
       // The main login/portal page is at "/" not "/login"

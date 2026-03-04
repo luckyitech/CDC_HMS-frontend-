@@ -16,10 +16,10 @@ export const authService = {
   login: async (email, password, role) => {
     const response = await api.post('/auth/login', { email, password, role });
 
-    // If login successful, store token and user in localStorage
+    // If login successful, store token and user in sessionStorage
     if (response.success && response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+      sessionStorage.setItem('token', response.data.token);
+      sessionStorage.setItem('currentUser', JSON.stringify(response.data.user));
     }
 
     return response;
@@ -38,8 +38,8 @@ export const authService = {
       console.warn('Logout API call failed:', error.message);
     } finally {
       // Always clear local storage
-      localStorage.removeItem('token');
-      localStorage.removeItem('currentUser');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('currentUser');
     }
   },
 

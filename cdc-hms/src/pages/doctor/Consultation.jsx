@@ -44,6 +44,7 @@ import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 const Consultation = () => {
   const { uhid } = useParams();
   const navigate = useNavigate();
+  const DRAFT_KEY = `consultation_progress_${uhid}`;
   const { currentUser } = useUserContext();
   const { fetchPatientByUHID } = usePatientContext();
   const { queue, sendToBilling } = useQueueContext();
@@ -67,15 +68,23 @@ const Consultation = () => {
   // Tab state
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Tab completion tracking
-  const [tabsCompleted, setTabsCompleted] = useState({
-    overview: true, // Always true (read-only)
-    assessment: false,
-    exam: false,
-    notes: false,
-    diagnosis: false,
-    prescriptions: false,
-    actions: true, // Always true (just navigation)
+  // Tab completion tracking — restored from sessionStorage so navigating away
+  // and coming back doesn't lose the doctor's progress.
+  const [tabsCompleted, setTabsCompleted] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(`consultation_progress_${uhid}`) || '{}');
+      return {
+        overview:      true,
+        assessment:    false,
+        exam:          false,
+        notes:         false,
+        diagnosis:     saved.diagnosis     || false,
+        prescriptions: saved.prescriptions || false,
+        actions:       true,
+      };
+    } catch {
+      return { overview: true, assessment: false, exam: false, notes: false, diagnosis: false, prescriptions: false, actions: true };
+    }
   });
 
   // Tab unsaved changes tracking (derived state using useMemo)
@@ -237,13 +246,21 @@ const Consultation = () => {
   }
 
   // Tab completion handlers
+  const saveDraftProgress = (updates) => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '{}');
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...saved, ...updates }));
+    } catch (e) { void e; /* sessionStorage unavailable — progress won't persist across navigation */ }
+  };
+
   const handleDiagnosisSuccess = () => {
-    setTabsCompleted({ ...tabsCompleted, diagnosis: true });
+    setTabsCompleted(prev => ({ ...prev, diagnosis: true }));
+    saveDraftProgress({ diagnosis: true });
   };
 
   const handlePrescriptionSuccess = async () => {
-    setTabsCompleted({ ...tabsCompleted, prescriptions: true });
-    // Refresh prescriptions list after adding new one
+    setTabsCompleted(prev => ({ ...prev, prescriptions: true }));
+    saveDraftProgress({ prescriptions: true });
     const prescriptions = await getPrescriptionsByPatient(uhid);
     setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
   };
@@ -280,6 +297,7 @@ const Consultation = () => {
     if (queueItem) {
       await sendToBilling(queueItem.id, selectedCharges, selectedProcedures);
     }
+    sessionStorage.removeItem(DRAFT_KEY);
     setBillingSubmitting(false);
     setShowBillingModal(false);
     setShowSuccessMessage(true);
