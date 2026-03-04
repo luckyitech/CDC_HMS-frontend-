@@ -20,9 +20,13 @@ api.interceptors.request.use(
     // Get token from sessionStorage
     const token = sessionStorage.getItem('token');
 
-    // If token exists, add it to the request header
     if (token) {
+      // If token exists, add it to the request header
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (!config.url?.startsWith('/auth/')) {
+      // No token and not an auth endpoint — cancel silently
+      // Prevents 401 console noise on the portal selection page before login
+      return Promise.reject({ message: 'Not authenticated', status: 401 });
     }
 
     return config;
