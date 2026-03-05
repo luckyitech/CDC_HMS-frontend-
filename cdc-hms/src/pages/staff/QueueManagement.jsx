@@ -18,6 +18,12 @@ import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useQueueContext } from '../../contexts/QueueContext';
 
+const formatArrival = (iso) => {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+};
+
 const QueueManagement = () => {
   const { queue, loading, fetchQueue, callNextPatient, removeFromQueue, updateQueueStatus, getLocalQueueStats } = useQueueContext();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -220,7 +226,7 @@ const QueueManagement = () => {
                       {patient.name}
                       {patient.age && <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>}
                     </td>
-                    <td className="hidden md:table-cell px-3 lg:px-6 py-4 text-sm">{patient.arrivalTime}</td>
+                    <td className="hidden md:table-cell px-3 lg:px-6 py-4 text-sm">{formatArrival(patient.createdAt)}</td>
                     <td className="hidden md:table-cell px-3 lg:px-6 py-4 text-sm text-gray-500">
                       {patient.estimatedWait || '—'}
                     </td>

@@ -79,11 +79,6 @@ const StaffLoginPage = () => {
             </button>
           </div>
 
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-            <p className="font-semibold text-blue-900 mb-2">Demo Credentials:</p>
-            <p className="text-blue-700">📧 mary.njeri@cdc.com</p>
-            <p className="text-blue-700">🔑 Any password</p>
-          </div>
         </form>
         
         <button

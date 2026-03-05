@@ -14,6 +14,12 @@ const DoctorDashboard = () => {
     return new Date(dateString).toDateString() === new Date().toDateString();
   };
 
+  const formatArrival = (iso) => {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
   const formatDuration = (startTime, endTime) => {
     if (!startTime || !endTime) return '-';
     const diffMins = Math.round((new Date(endTime) - new Date(startTime)) / 60000);
@@ -115,7 +121,7 @@ const DoctorDashboard = () => {
 
                   return (
                     <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient ? 'bg-blue-50' : ''}`}>
-                      <td className="px-4 lg:px-6 py-4 text-sm font-semibold text-gray-700">{queueItem.arrivalTime}</td>
+                      <td className="px-4 lg:px-6 py-4 text-sm font-semibold text-gray-700">{formatArrival(queueItem.createdAt)}</td>
                       <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{queueItem.uhid}</td>
                       <td className="px-4 lg:px-6 py-4 text-sm font-medium">{queueItem.name}</td>
                       <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{queueItem.age} yrs</td>
@@ -199,12 +205,12 @@ const DoctorDashboard = () => {
             >
               <p className="font-semibold text-green-700">💊 My Prescriptions</p>
             </button> */}
-            <button 
+            {/* <button 
               onClick={() => navigate('/doctor/reports')}
               className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition border-l-4 border-purple-500"
             >
               <p className="font-semibold text-purple-700">📊 Generate Reports</p>
-            </button>
+            </button> */}
           </div>
         </Card>
 
@@ -216,7 +222,7 @@ const DoctorDashboard = () => {
                   <div key={queueItem.id} className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
                     <p className="font-semibold text-blue-700">Patient Waiting</p>
                     <p className="text-sm text-blue-600 mt-1">
-                      {queueItem.name} ({queueItem.uhid}) - Arrived at {queueItem.arrivalTime}
+                      {queueItem.name} ({queueItem.uhid}) - Arrived at {formatArrival(queueItem.createdAt)}
                     </p>
                   </div>
                 );

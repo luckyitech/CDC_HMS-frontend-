@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUserContext } from "../../contexts/UserContext";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { physicalExamSections } from "./physicalExamData";
@@ -52,6 +53,7 @@ const PhysicalExamEntry = ({
   initialData = {},
   readOnly = false,
 }) => {
+  const { currentUser } = useUserContext();
   // Auto-fill vitals from triage data when creating a new exam (no initialData.vitalSigns)
   // Backend returns patient.vitals with names like heartRate, temperature, oxygenSaturation
   // and values with units appended (e.g., "80 bpm", "36.5°C", "98%")
@@ -196,7 +198,7 @@ const PhysicalExamEntry = ({
         bodyArea: selectedBodyArea,
         caption: imageCaption,
         timestamp: new Date().toISOString(),
-        doctorName: "Dr. Ahmed Hassan", // TODO: Get from user context
+        doctorName: currentUser?.name || currentUser?.email || 'Doctor',
       };
 
       setClinicalImages([...clinicalImages, newImage]);
