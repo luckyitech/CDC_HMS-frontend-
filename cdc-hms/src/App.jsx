@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./components/shared/ErrorFallback";
@@ -86,123 +86,137 @@ const PageLoader = () => (
   </div>
 );
 
+// All data providers that require authentication are wrapped here.
+// This component only mounts when navigating to an authenticated portal route,
+// so no API calls or SSE connections are made on the public login/portal pages.
+const AuthenticatedLayout = () => (
+  <ConsultationNotesProvider>
+    <LabProvider>
+      <InitialAssessmentProvider>
+        <PhysicalExamProvider>
+          <QueueProvider>
+            <AppointmentProvider>
+              <PatientProvider>
+                <PrescriptionProvider>
+                  <TreatmentPlanProvider>
+                    <Outlet />
+                  </TreatmentPlanProvider>
+                </PrescriptionProvider>
+              </PatientProvider>
+            </AppointmentProvider>
+          </QueueProvider>
+        </PhysicalExamProvider>
+      </InitialAssessmentProvider>
+    </LabProvider>
+  </ConsultationNotesProvider>
+);
+
 function App() {
   return (
     <BrowserRouter>
       <Toaster />
-      <ConsultationNotesProvider>
-        <LabProvider>
-          <InitialAssessmentProvider>
-            <PhysicalExamProvider>
-              <QueueProvider>
-                <AppointmentProvider>
-                  <UserProvider>
-                    <PatientProvider>
-                      <PrescriptionProvider>
-                        <TreatmentPlanProvider>
-                          <ErrorBoundary FallbackComponent={ErrorFallback}>
-                          <Suspense fallback={<PageLoader />}>
-                            <Routes>
-                              {/* Auth (public) */}
-                              <Route path="/" element={<LoginPage />} />
-                              <Route path="/login/staff" element={<StaffLoginPage />} />
-                              <Route path="/login/doctor" element={<DoctorLoginPage />} />
-                              <Route path="/login/lab" element={<LabLoginPage />} />
-                              <Route path="/login/patient" element={<PatientLoginPage />} />
-                              <Route path="/login/admin" element={<AdminLoginPage />} />
-                              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      {/* UserProvider stays at the top level — needed by ProtectedRoute and login pages */}
+      <UserProvider>
+        <ErrorBoundary FallbackComponent={ErrorFallback}>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public (auth) routes — no data providers active here */}
+              <Route path="/" element={<LoginPage />} />
+              <Route path="/login/staff" element={<StaffLoginPage />} />
+              <Route path="/login/doctor" element={<DoctorLoginPage />} />
+              <Route path="/login/lab" element={<LabLoginPage />} />
+              <Route path="/login/patient" element={<PatientLoginPage />} />
+              <Route path="/login/admin" element={<AdminLoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-                              {/* Staff Portal */}
-                              <Route
-                                path="/staff"
-                                element={<ProtectedRoute requiredRole="staff"><MainLayout userRole="Staff" /></ProtectedRoute>}
-                              >
-                                <Route path="dashboard" element={<StaffDashboard />} />
-                                <Route path="patients" element={<PatientSearch />} />
-                                <Route path="queue" element={<QueueManagement />} />
-                                <Route path="triage" element={<Triage />} />
-                                <Route path="create-patient" element={<StaffCreatePatient />} />
-                                <Route path="/staff/patient-profile/:uhid" element={<StaffPatientProfile />} />
-                                <Route path="medical-documents" element={<MedicalDocuments />} />
-                                <Route path="change-password" element={<ChangePasswordPage />} />
-                              </Route>
+              {/* Authenticated portal routes — data providers mount only here */}
+              <Route element={<AuthenticatedLayout />}>
 
-                              {/* Doctor Portal */}
-                              <Route
-                                path="/doctor"
-                                element={<ProtectedRoute requiredRole="doctor"><MainLayout userRole="Doctor" /></ProtectedRoute>}
-                              >
-                                <Route path="dashboard" element={<DoctorDashboard />} />
-                                <Route path="patients" element={<MyPatients />} />
-                                <Route path="patient-profile/:uhid" element={<PatientProfile />} />
-                                <Route path="consultation/:uhid" element={<Consultation />} />
-                                <Route path="initial-assessment" element={<InitialAssessment />} />
-                                <Route path="prescriptions" element={<DoctorPrescriptions />} />
-                                <Route path="reports" element={<Reports />} />
-                                <Route path="medical-documents" element={<MedicalDocuments />} />
-                                <Route path="physical-exam" element={<PhysicalExamination />} />
-                                <Route path="glycemic-charts" element={<GlycemicCharts />} />
-                                <Route path="change-password" element={<ChangePasswordPage />} />
-                              </Route>
+                {/* Staff Portal */}
+                <Route
+                  path="/staff"
+                  element={<ProtectedRoute requiredRole="staff"><MainLayout userRole="Staff" /></ProtectedRoute>}
+                >
+                  <Route path="dashboard" element={<StaffDashboard />} />
+                  <Route path="patients" element={<PatientSearch />} />
+                  <Route path="queue" element={<QueueManagement />} />
+                  <Route path="triage" element={<Triage />} />
+                  <Route path="create-patient" element={<StaffCreatePatient />} />
+                  <Route path="/staff/patient-profile/:uhid" element={<StaffPatientProfile />} />
+                  <Route path="medical-documents" element={<MedicalDocuments />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
 
-                              {/* Patient Portal */}
-                              <Route
-                                path="/patient"
-                                element={<ProtectedRoute requiredRole="patient"><MainLayout userRole="Patient" /></ProtectedRoute>}
-                              >
-                                <Route path="dashboard" element={<PatientDashboard />} />
-                                <Route path="log-blood-sugar" element={<LogBloodSugar />} />
-                                <Route path="trends" element={<ViewTrends />} />
-                                <Route path="profile" element={<MyProfile />} />
-                                <Route path="prescriptions" element={<PatientPrescriptions />} />
-                                <Route path="book-appointment" element={<BookAppointment />} />
-                                <Route path="upload-results" element={<UploadResults />} />
-                                <Route path="change-password" element={<ChangePasswordPage />} />
-                              </Route>
+                {/* Doctor Portal */}
+                <Route
+                  path="/doctor"
+                  element={<ProtectedRoute requiredRole="doctor"><MainLayout userRole="Doctor" /></ProtectedRoute>}
+                >
+                  <Route path="dashboard" element={<DoctorDashboard />} />
+                  <Route path="patients" element={<MyPatients />} />
+                  <Route path="patient-profile/:uhid" element={<PatientProfile />} />
+                  <Route path="consultation/:uhid" element={<Consultation />} />
+                  <Route path="initial-assessment" element={<InitialAssessment />} />
+                  <Route path="prescriptions" element={<DoctorPrescriptions />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="medical-documents" element={<MedicalDocuments />} />
+                  <Route path="physical-exam" element={<PhysicalExamination />} />
+                  <Route path="glycemic-charts" element={<GlycemicCharts />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
 
-                              {/* Lab Portal */}
-                              <Route
-                                path="/lab"
-                                element={<ProtectedRoute requiredRole="lab"><MainLayout userRole="Lab" /></ProtectedRoute>}
-                              >
-                                <Route path="dashboard" element={<LabDashboard />} />
-                                <Route path="pending-tests" element={<PendingTests />} />
-                                <Route path="enter-results" element={<EnterResults />} />
-                                <Route path="test-history" element={<TestHistory />} />
-                                <Route path="generate-reports" element={<GenerateReports />} />
-                                <Route path="critical-alerts" element={<CriticalAlerts />} />
-                                <Route path="change-password" element={<ChangePasswordPage />} />
-                              </Route>
+                {/* Patient Portal */}
+                <Route
+                  path="/patient"
+                  element={<ProtectedRoute requiredRole="patient"><MainLayout userRole="Patient" /></ProtectedRoute>}
+                >
+                  <Route path="dashboard" element={<PatientDashboard />} />
+                  <Route path="log-blood-sugar" element={<LogBloodSugar />} />
+                  <Route path="trends" element={<ViewTrends />} />
+                  <Route path="profile" element={<MyProfile />} />
+                  <Route path="prescriptions" element={<PatientPrescriptions />} />
+                  <Route path="book-appointment" element={<BookAppointment />} />
+                  <Route path="upload-results" element={<UploadResults />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
 
-                              {/* Admin Portal */}
-                              <Route
-                                path="/admin"
-                                element={<ProtectedRoute requiredRole="admin"><MainLayout userRole="Admin" /></ProtectedRoute>}
-                              >
-                                <Route path="dashboard" element={<AdminDashboard />} />
-                                <Route path="create-doctor" element={<CreateDoctor />} />
-                                <Route path="create-staff" element={<CreateStaff />} />
-                                <Route path="create-lab" element={<CreateLabTech />} />
-                                <Route path="create-patient" element={<AdminCreatePatient />} />
-                                <Route path="manage-users" element={<ManageUsers />} />
-                                <Route path="reports" element={<Reports />} />
-                                <Route path="change-password" element={<ChangePasswordPage />} />
-                              </Route>
-                              {/* 404 — catch all unmatched routes */}
-                              <Route path="*" element={<NotFound />} />
-                            </Routes>
-                          </Suspense>
-                          </ErrorBoundary>
-                        </TreatmentPlanProvider>
-                      </PrescriptionProvider>
-                    </PatientProvider>
-                  </UserProvider>
-                </AppointmentProvider>
-              </QueueProvider>
-            </PhysicalExamProvider>
-          </InitialAssessmentProvider>
-        </LabProvider>
-      </ConsultationNotesProvider>
+                {/* Lab Portal */}
+                <Route
+                  path="/lab"
+                  element={<ProtectedRoute requiredRole="lab"><MainLayout userRole="Lab" /></ProtectedRoute>}
+                >
+                  <Route path="dashboard" element={<LabDashboard />} />
+                  <Route path="pending-tests" element={<PendingTests />} />
+                  <Route path="enter-results" element={<EnterResults />} />
+                  <Route path="test-history" element={<TestHistory />} />
+                  <Route path="generate-reports" element={<GenerateReports />} />
+                  <Route path="critical-alerts" element={<CriticalAlerts />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
+
+                {/* Admin Portal */}
+                <Route
+                  path="/admin"
+                  element={<ProtectedRoute requiredRole="admin"><MainLayout userRole="Admin" /></ProtectedRoute>}
+                >
+                  <Route path="dashboard" element={<AdminDashboard />} />
+                  <Route path="create-doctor" element={<CreateDoctor />} />
+                  <Route path="create-staff" element={<CreateStaff />} />
+                  <Route path="create-lab" element={<CreateLabTech />} />
+                  <Route path="create-patient" element={<AdminCreatePatient />} />
+                  <Route path="manage-users" element={<ManageUsers />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
+
+              </Route>{/* end AuthenticatedLayout */}
+
+              {/* 404 — catch all unmatched routes */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
+      </UserProvider>
     </BrowserRouter>
   );
 }

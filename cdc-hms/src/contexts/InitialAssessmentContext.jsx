@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import assessmentService from '../services/assessmentService';
 
 const InitialAssessmentContext = createContext();
@@ -38,10 +38,6 @@ export const InitialAssessmentProvider = ({ children }) => {
     }
   }, []);
 
-  // Load assessments on mount
-  useEffect(() => {
-    fetchAssessments();
-  }, [fetchAssessments]);
 
   // ============================================
   // ASSESSMENT OPERATIONS (API)

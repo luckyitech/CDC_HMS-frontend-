@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import physicalExamService from '../services/physicalExamService';
 
 const PhysicalExamContext = createContext();
@@ -38,10 +38,6 @@ export const PhysicalExamProvider = ({ children }) => {
     }
   }, []);
 
-  // Load examinations on mount
-  useEffect(() => {
-    fetchExaminations();
-  }, [fetchExaminations]);
 
   // ============================================
   // PHYSICAL EXAM OPERATIONS (API)

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import consultationNotesService from '../services/consultationNotesService';
 
 const ConsultationNotesContext = createContext();
@@ -38,10 +38,6 @@ export const ConsultationNotesProvider = ({ children }) => {
     }
   }, []);
 
-  // Load consultation notes on mount
-  useEffect(() => {
-    fetchConsultationNotes();
-  }, [fetchConsultationNotes]);
 
   // ============================================
   // CONSULTATION NOTES OPERATIONS (API)

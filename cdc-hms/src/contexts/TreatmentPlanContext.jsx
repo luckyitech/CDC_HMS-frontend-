@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback } from 'react';
 import treatmentPlanService from '../services/treatmentPlanService';
 
 const TreatmentPlanContext = createContext();
@@ -38,10 +38,6 @@ export const TreatmentPlanProvider = ({ children }) => {
     }
   }, []);
 
-  // Load treatment plans on mount
-  useEffect(() => {
-    fetchTreatmentPlans();
-  }, [fetchTreatmentPlans]);
 
   // ============================================
   // TREATMENT PLAN OPERATIONS (API)

@@ -19,6 +19,7 @@ import { usePatientContext } from '../../contexts/PatientContext';
 import { useQueueContext } from '../../contexts/QueueContext';
 import { useNavigate } from 'react-router-dom';
 
+
 const StaffDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
