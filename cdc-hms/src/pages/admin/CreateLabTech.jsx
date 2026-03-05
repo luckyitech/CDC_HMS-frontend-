@@ -95,7 +95,7 @@ const CreateLabTech = () => {
 
       if (response.success) {
         toast.success(
-          `Lab Technician Account Created!\n\nName: ${labTechData.firstName} ${labTechData.lastName}\nEmail: ${labTechData.email}\nPassword: ${response.data.tempPassword}`,
+          `Lab Technician Account Created!\n\nName: ${labTechData.firstName} ${labTechData.lastName}\nEmail: ${labTechData.email}\n\nLogin credentials have been sent to their email.`,
           {
             duration: 8000,
             position: 'top-right',

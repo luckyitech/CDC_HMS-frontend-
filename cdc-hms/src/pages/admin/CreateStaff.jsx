@@ -91,7 +91,7 @@ const CreateStaff = () => {
 
       if (response.success) {
         toast.success(
-          `Staff Account Created!\n\nName: ${staffData.firstName} ${staffData.lastName}\nEmail: ${staffData.email}\nPassword: ${response.data.tempPassword}`,
+          `Staff Account Created!\n\nName: ${staffData.firstName} ${staffData.lastName}\nEmail: ${staffData.email}\n\nLogin credentials have been sent to their email.`,
           {
             duration: 8000,
             position: 'top-right',

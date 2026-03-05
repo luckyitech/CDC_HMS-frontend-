@@ -98,7 +98,7 @@ const CreateDoctor = () => {
 
       if (response.success) {
         toast.success(
-          `Doctor Account Created!\n\nName: Dr. ${doctorData.firstName} ${doctorData.lastName}\nEmail: ${doctorData.email}\nPassword: ${response.data.tempPassword}`,
+          `Doctor Account Created!\n\nName: Dr. ${doctorData.firstName} ${doctorData.lastName}\nEmail: ${doctorData.email}\n\nLogin credentials have been sent to their email.`,
           {
             duration: 8000,
             position: 'top-right',
