@@ -334,7 +334,7 @@ const Consultation = () => {
     { id: "prescriptions", label: "Prescriptions", icon: Pill },
     { id: "documents", label: "Documents", icon: FileText },
     { id: "charts", label: "Charts", icon: LineChart },
-    { id: "actions", label: "Actions", icon: Zap },
+    // { id: "actions", label: "Actions", icon: Zap },
   ];
 
   // Success message overlay

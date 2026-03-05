@@ -322,9 +322,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
         icon: ChartNoAxesCombined ,
       },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
-      { name: "Reports", path: "/doctor/reports", icon: FileText },
-      { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
-      { name: "Change Password", path: "/doctor/change-password", icon: KeyRound },
+      // { name: "Reports", path: "/doctor/reports", icon: FileText },
+      // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
+      // { name: "Change Password", path: "/doctor/change-password", icon: KeyRound },
     ],
     patient: [
       { name: "Home", path: "/patient/dashboard", icon: Home },
