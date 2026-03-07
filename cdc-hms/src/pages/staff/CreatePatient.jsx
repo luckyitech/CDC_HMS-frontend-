@@ -1,17 +1,13 @@
 import { useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { 
-  ArrowLeft, 
-  User, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  IdCard, 
-  Activity, 
-  MapPin, 
-  AlertCircle, 
-  Shield, 
-  Key, 
+import {
+  User,
+  IdCard,
+  Activity,
+  MapPin,
+  AlertCircle,
+  Shield,
+  Key,
   CheckCircle2,
   RefreshCw,
   Sparkles
@@ -64,10 +60,10 @@ const CreatePatient = () => {
   });
 
   const diabetesTypes = [
-    'Type 1 Diabetes',
-    'Type 2 Diabetes',
-    'Gestational Diabetes',
-    'Pre-Diabetes',
+    { label: 'Type 1 Diabetes', value: 'Type 1' },
+    { label: 'Type 2 Diabetes', value: 'Type 2' },
+    { label: 'Gestational Diabetes', value: 'Gestational' },
+    { label: 'Pre-Diabetes', value: 'Pre-diabetes' },
   ];
 
   const insuranceProviders = [
@@ -81,18 +77,21 @@ const CreatePatient = () => {
     'Self-Pay',
   ];
 
-  const doctors = getDoctors().map(d => d.name);
+  const doctors = getDoctors();
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uhidMode, setUhidMode] = useState('generate'); // 'generate' or 'manual'
   const [generatedUHID, setGeneratedUHID] = useState('');
+  const [manualUHID, setManualUHID] = useState('');
 
   const generateUHID = () => {
     // Generate UHID in format CDC### (e.g., CDC001, CDC002)
     const randomNum = Math.floor(Math.random() * 900) + 100; // 100-999
     const uhid = `CDC${randomNum}`;
     setGeneratedUHID(uhid);
-    
-    toast.success('UHID Generated Successfully!', {
-      duration: 3000,
+
+    toast.success('UHID Generated!', {
+      duration: 2000,
       icon: <Sparkles className="w-5 h-5" />,
       style: {
         background: '#DBEAFE',
@@ -101,13 +100,20 @@ const CreatePatient = () => {
         padding: '16px',
       },
     });
-    
+
     return uhid;
   };
 
-  const handleSubmit = (e) => {
+  const getUHID = () => {
+    if (uhidMode === 'manual') {
+      return manualUHID.trim();
+    }
+    return generatedUHID;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validation with toast notifications
     if (!patientData.firstName || !patientData.lastName || !patientData.email || !patientData.phone) {
       toast.error('Please fill in all required fields', {
@@ -123,8 +129,10 @@ const CreatePatient = () => {
       return;
     }
 
-    if (!generatedUHID) {
-      toast.error('Please generate UHID first', {
+    // Validate UHID
+    const uhid = getUHID();
+    if (!uhid) {
+      toast.error(uhidMode === 'manual' ? 'Please enter a UHID' : 'Please generate a UHID first', {
         duration: 4000,
         icon: <AlertCircle className="w-5 h-5" />,
         style: {
@@ -137,85 +145,111 @@ const CreatePatient = () => {
       return;
     }
 
-    const uhid = generatedUHID || generateUHID();
-    
-    // Create patient using context
-    const newPatient = {
-      uhid,
-      name: `${patientData.firstName} ${patientData.lastName}`,
+    setIsSubmitting(true);
+
+    // Build the patient data object for API
+    const apiPatientData = {
+      uhid, // Include UHID from frontend
+      firstName: patientData.firstName,
+      lastName: patientData.lastName,
       email: patientData.email,
       phone: patientData.phone,
-      dateOfBirth: patientData.dateOfBirth,
-      gender: patientData.gender,
-      idNumber: patientData.idNumber,
-      age: new Date().getFullYear() - new Date(patientData.dateOfBirth).getFullYear(),
-      diabetesType: patientData.diabetesType,
-      diagnosisDate: patientData.diagnosisDate,
-      referredBy: patientData.referredBy,
-      primaryDoctor: patientData.primaryDoctor,
-      address: `${patientData.address}, ${patientData.city}`,
-      emergencyContact: {
+      dateOfBirth: patientData.dateOfBirth || null,
+      gender: patientData.gender || null,
+      idNumber: patientData.idNumber || null,
+      diabetesType: patientData.diabetesType || null,
+      diagnosisDate: patientData.diagnosisDate || null,
+      referredBy: patientData.referredBy || null,
+      primaryDoctorId: patientData.primaryDoctor ? parseInt(patientData.primaryDoctor) : null,
+      password: patientData.temporaryPassword || null,
+      address: patientData.address ? `${patientData.address}${patientData.city ? ', ' + patientData.city : ''}` : null,
+      // Structure emergency contact as JSON
+      emergencyContact: patientData.emergencyContactName ? {
         name: patientData.emergencyContactName,
         relationship: patientData.emergencyContactRelationship,
-        phone: patientData.emergencyContactPhone
-      },
-      insurance: {
+        phone: patientData.emergencyContactPhone,
+      } : null,
+      // Structure insurance as JSON
+      insurance: patientData.insuranceProvider ? {
         provider: patientData.insuranceProvider,
         policyNumber: patientData.policyNumber,
-        type: patientData.insuranceType
-      },
-      hba1c: 'Not yet tested',
-      riskLevel: 'Medium',
-      lastVisit: new Date().toISOString().split('T')[0],
-      nextVisit: '',
-      vitals: {},
-      medications: [],
-      allergies: 'None reported',
-      comorbidities: []
+        type: patientData.insuranceType,
+      } : null,
     };
-    
-    addPatient(newPatient);
-    
-    // Success toast with details
-    toast.success('Patient Account Created Successfully!', {
-      duration: 4000,
-      icon: <CheckCircle2 className="w-5 h-5" />,
-      style: {
-        background: '#D1FAE5',
-        color: '#065F46',
-        fontWeight: 'bold',
-        padding: '16px',
-      },
-    });
 
-    // Info toast with credentials
-    toast(
-      `Credentials sent to ${patientData.email}`,
-      {
-        duration: 5000,
-        icon: <Mail className="w-5 h-5" />,
+    try {
+      const result = await addPatient(apiPatientData);
+
+      if (result.success) {
+        // Success toast with details
+        toast.success('Patient Account Created Successfully!', {
+          duration: 4000,
+          icon: <CheckCircle2 className="w-5 h-5" />,
+          style: {
+            background: '#D1FAE5',
+            color: '#065F46',
+            fontWeight: 'bold',
+            padding: '16px',
+          },
+        });
+
+        // Info toast with UHID and login credentials
+        toast(
+          `UHID: ${result.patient.uhid}\nEmail: ${patientData.email}\nTemp Password: ${result.patient.tempPassword}`,
+          {
+            duration: 8000,
+            icon: <Sparkles className="w-5 h-5" />,
+            style: {
+              background: '#DBEAFE',
+              color: '#1E40AF',
+              fontWeight: 'bold',
+              padding: '16px',
+              whiteSpace: 'pre-line',
+            },
+          }
+        );
+
+        // Reset form
+        setPatientData({
+          firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
+          diabetesType: '', diagnosisDate: '', referredBy: '', primaryDoctor: '',
+          address: '', city: '',
+          emergencyContactName: '', emergencyContactRelationship: '', emergencyContactPhone: '',
+          insuranceProvider: '', policyNumber: '', insuranceType: '',
+          username: '', temporaryPassword: '',
+        });
+        setGeneratedUHID('');
+        setManualUHID('');
+        setUhidMode('generate');
+
+        // Navigate after delay
+        setTimeout(() => navigate('/staff/dashboard'), 2000);
+      } else {
+        toast.error(result.message || 'Failed to create patient', {
+          duration: 4000,
+          icon: <AlertCircle className="w-5 h-5" />,
+          style: {
+            background: '#FEE2E2',
+            color: '#991B1B',
+            fontWeight: 'bold',
+            padding: '16px',
+          },
+        });
+      }
+    } catch (error) {
+      toast.error(error.message || 'An error occurred', {
+        duration: 4000,
+        icon: <AlertCircle className="w-5 h-5" />,
         style: {
-          background: '#DBEAFE',
-          color: '#1E40AF',
+          background: '#FEE2E2',
+          color: '#991B1B',
           fontWeight: 'bold',
           padding: '16px',
         },
-      }
-    );
-    
-    // Reset form
-    setPatientData({
-      firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
-      diabetesType: '', diagnosisDate: '', referredBy: '', primaryDoctor: '',
-      address: '', city: '',
-      emergencyContactName: '', emergencyContactRelationship: '', emergencyContactPhone: '',
-      insuranceProvider: '', policyNumber: '', insuranceType: '',
-      username: '', temporaryPassword: '',
-    });
-    setGeneratedUHID('');
-    
-    // Navigate after delay
-    setTimeout(() => navigate('/staff/dashboard'), 2000);
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const generateUsername = () => {
@@ -276,37 +310,77 @@ const CreatePatient = () => {
         </Button>
       </div>
 
-      {/* UHID Display */}
-      {generatedUHID && (
-        <div className="mb-6 p-4 lg:p-6 bg-blue-50 border-2 border-blue-500 rounded-lg">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-gray-700 font-semibold flex items-center gap-2">
-                <IdCard className="w-4 h-4" />
-                Generated UHID (Universal Health ID)
-              </p>
-              <p className="text-3xl font-bold text-primary mt-2">{generatedUHID}</p>
-            </div>
-            <button
-              type="button"
-              onClick={generateUHID}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold flex items-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Generate New
-            </button>
-          </div>
+      {/* UHID Section */}
+      <div className="mb-6 p-4 lg:p-6 bg-blue-50 border-2 border-blue-300 rounded-lg">
+        <div className="flex items-center gap-2 mb-4">
+          <IdCard className="w-5 h-5 text-blue-600" />
+          <h3 className="font-semibold text-gray-800">Patient UHID (Universal Health ID)</h3>
         </div>
-      )}
 
-      {!generatedUHID && (
-        <div className="mb-6">
-          <Button onClick={generateUHID} className="w-full sm:w-auto">
-            {/* <Sparkles className="w-4 h-4 mr-2" /> */}
-            Generate UHID First
-          </Button>
+        {/* Mode Toggle */}
+        <div className="flex gap-4 mb-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="uhidMode"
+              value="generate"
+              checked={uhidMode === 'generate'}
+              onChange={() => setUhidMode('generate')}
+              className="w-4 h-4 text-primary"
+            />
+            <span className="text-sm font-medium text-gray-700">Generate New UHID</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="uhidMode"
+              value="manual"
+              checked={uhidMode === 'manual'}
+              onChange={() => setUhidMode('manual')}
+              className="w-4 h-4 text-primary"
+            />
+            <span className="text-sm font-medium text-gray-700">Enter Existing UHID</span>
+          </label>
         </div>
-      )}
+
+        {/* Generate Mode */}
+        {uhidMode === 'generate' && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {generatedUHID ? (
+              <>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-600">Generated UHID:</p>
+                  <p className="text-2xl font-bold text-primary">{generatedUHID}</p>
+                </div>
+                <Button type="button" onClick={generateUHID} variant="outline" className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  Regenerate
+                </Button>
+              </>
+            ) : (
+              <Button type="button" onClick={generateUHID} className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Generate UHID
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Manual Entry Mode */}
+        {uhidMode === 'manual' && (
+          <div>
+            <p className="text-sm text-gray-600 mb-2">Enter the UHID from the patient's physical file:</p>
+            <input
+              type="text"
+              value={manualUHID}
+              onChange={(e) => setManualUHID(e.target.value.toUpperCase())}
+              placeholder="e.g., OLD-12345 or existing ID"
+              className="w-full max-w-xs px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary text-lg font-semibold"
+            />
+            <p className="text-xs text-gray-500 mt-1">For patients with existing physical files</p>
+          </div>
+        )}
+      </div>
 
       <form onSubmit={handleSubmit}>
         {/* Personal Information */}
@@ -401,11 +475,10 @@ const CreatePatient = () => {
                 value={patientData.diabetesType}
                 onChange={(e) => setPatientData({ ...patientData, diabetesType: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-                required
               >
                 <option value="">Select diabetes type</option>
                 {diabetesTypes.map((type) => (
-                  <option key={type} value={type}>{type}</option>
+                  <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
               </select>
             </div>
@@ -435,7 +508,7 @@ const CreatePatient = () => {
               >
                 <option value="">Select primary doctor</option>
                 {doctors.map((doctor) => (
-                  <option key={doctor} value={doctor}>{doctor}</option>
+                  <option key={doctor.id} value={doctor.id}>{doctor.name}</option>
                 ))}
               </select>
             </div>
@@ -657,13 +730,12 @@ const CreatePatient = () => {
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             className="flex-1 bg-green-600 hover:bg-green-700"
-            disabled={!generatedUHID}
+            disabled={isSubmitting}
           >
-            {/* <CheckCircle2 className="w-4 h-4 mr-2" /> */}
-            Create Patient Account
+            {isSubmitting ? 'Creating...' : 'Create Patient Account'}
           </Button>
         </div>
       </form>

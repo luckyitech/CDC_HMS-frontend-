@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, FileEdit, AlertCircle, Printer } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
@@ -8,22 +8,23 @@ import VoiceInput from "../shared/VoiceInput";
 import TreatmentPlanPrint from "./TreatmentPlanPrint";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 
-const TreatmentPlansList = ({ 
-  patient, 
+const TreatmentPlansList = ({
+  patient,
   showStatistics = true,
   showCreateForm = false,
   currentUser = null,
   onSuccess = null,
 }) => {
   const { getPlansByPatient, addTreatmentPlan } = useTreatmentPlanContext();
-  const treatmentPlans = getPlansByPatient(patient.uhid);
+
+  // State for treatment plans (loaded async)
+  const [treatmentPlans, setTreatmentPlans] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  
+
   // State for collapsible plans (first plan expanded by default)
-  const [expandedPlans, setExpandedPlans] = useState(
-    new Set(treatmentPlans.length > 0 ? [treatmentPlans[0].id] : [])
-  );
+  const [expandedPlans, setExpandedPlans] = useState(new Set());
 
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -31,6 +32,31 @@ const TreatmentPlansList = ({
   // State for creating new plan
   const [diagnosis, setDiagnosis] = useState("");
   const [treatmentPlan, setTreatmentPlan] = useState("");
+
+  // Load treatment plans on mount and when patient changes
+  useEffect(() => {
+    let isMounted = true;
+    const loadPlans = async () => {
+      setIsLoading(true);
+      try {
+        const plans = await getPlansByPatient(patient.uhid);
+        if (!isMounted) return;
+        const plansArray = Array.isArray(plans) ? plans : [];
+        setTreatmentPlans(plansArray);
+        // Expand first plan by default if exists
+        if (plansArray.length > 0) {
+          setExpandedPlans((prev) => (prev.size === 0 ? new Set([plansArray[0].id]) : prev));
+        }
+      } catch (err) {
+        console.error("Error loading treatment plans:", err);
+        if (isMounted) setTreatmentPlans([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadPlans();
+    return () => { isMounted = false; };
+  }, [patient.uhid, getPlansByPatient]);
 
   // Toggle plan expansion
   const togglePlan = (planId) => {
@@ -49,7 +75,7 @@ const TreatmentPlansList = ({
   };
 
   // Save diagnosis & treatment plan
-  const handleSaveDiagnosis = () => {
+  const handleSaveDiagnosis = async () => {
     if (!diagnosis.trim()) {
       toast.error("❌ Please enter a diagnosis", {
         duration: 3000,
@@ -65,7 +91,8 @@ const TreatmentPlansList = ({
       return;
     }
 
-    addTreatmentPlan({
+    // Await the async API call
+    const result = await addTreatmentPlan({
       uhid: patient.uhid,
       patientName: patient.name,
       doctorName: currentUser?.name || "Doctor",
@@ -73,22 +100,38 @@ const TreatmentPlansList = ({
       plan: treatmentPlan,
     });
 
-    // Show success toast
-    toast.success("✅ Diagnosis & Plan Saved Successfully!", {
-      duration: 2000,
-      position: "top-right",
-    });
+    if (result) {
+      // Show success toast
+      toast.success("✅ Diagnosis & Plan Saved Successfully!", {
+        duration: 2000,
+        position: "top-right",
+      });
 
-    // Clear form
-    setDiagnosis("");
-    setTreatmentPlan("");
+      // Refresh the treatment plans list
+      const plans = await getPlansByPatient(patient.uhid);
+      const plansArray = Array.isArray(plans) ? plans : [];
+      setTreatmentPlans(plansArray);
+      // Expand the new plan (first in sorted list)
+      if (plansArray.length > 0) {
+        setExpandedPlans(new Set([plansArray[0].id]));
+      }
 
-    // Close modal
-    setShowCreateModal(false);
+      // Clear form
+      setDiagnosis("");
+      setTreatmentPlan("");
 
-    // Call success callback (for Consultation tab completion)
-    if (onSuccess) {
-      onSuccess();
+      // Close modal
+      setShowCreateModal(false);
+
+      // Call success callback (for Consultation tab completion)
+      if (onSuccess) {
+        onSuccess();
+      }
+    } else {
+      toast.error("❌ Failed to save treatment plan. Please try again.", {
+        duration: 3000,
+        position: "top-right",
+      });
     }
   };
 
@@ -98,6 +141,18 @@ const TreatmentPlansList = ({
     setDiagnosis("");
     setTreatmentPlan("");
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="text-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading treatment plans...</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (treatmentPlans.length === 0 && !showCreateForm) {
     return (

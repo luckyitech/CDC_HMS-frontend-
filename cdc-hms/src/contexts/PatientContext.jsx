@@ -1,5 +1,6 @@
-import { createContext, useContext, useState } from "react";
-import { mockPatients, mockBloodSugarReadings } from "../data/mockData";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import patientService from "../services/patientService";
+import documentService from "../services/documentService";
 
 // ========================================
 // DOCUMENT CATEGORIES
@@ -13,8 +14,10 @@ const DOCUMENT_CATEGORIES = [
   "Ophthalmology Report",
   "Neuropathy Screening Test",
   "Specialist Consultation Report",
+  "Patient File",
   "Other Medical Document",
 ];
+
 
 // Create Context
 const PatientContext = createContext();
@@ -30,391 +33,284 @@ export const usePatientContext = () => {
 
 // Provider Component
 export const PatientProvider = ({ children }) => {
-  const [patients, setPatients] = useState(mockPatients);
-  const [bloodSugarReadings, setBloodSugarReadings] = useState(
-    mockBloodSugarReadings
-  );
+  // State
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Get all patients
+  // ============================================
+  // FETCH PATIENTS FROM API
+  // ============================================
+
+  // Load all patients from API
+  const fetchPatients = useCallback(async (params = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await patientService.getAll(params);
+      if (response.success) {
+        setPatients(response.data.patients || response.data);
+      }
+      return response;
+    } catch (err) {
+      setError(err.message);
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load patients on mount
+  useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
+
+  // ============================================
+  // PATIENT CRUD (API)
+  // ============================================
+
+  // Get all patients (from state - already loaded)
   const getAllPatients = () => patients;
 
-  // Get patient by UHID
+  // Get patient by UHID (SYNC - from local state)
+  // Use this for render-time lookups
   const getPatientByUHID = (uhid) => {
     return patients.find((patient) => patient.uhid === uhid);
   };
 
-  // Get patient by ID
+  // Fetch patient by UHID (ASYNC - from API for fresh data)
+  // Use this when you need guaranteed fresh data
+  const fetchPatientByUHID = async (uhid) => {
+    try {
+      const response = await patientService.getByUHID(uhid);
+      if (response.success) {
+        return response.data.patient || response.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('Fetch patient error:', err.message);
+      return null;
+    }
+  };
+
+  // Get patient by ID (from local state)
   const getPatientById = (id) => {
     return patients.find((patient) => patient.id === id);
   };
 
-  // Search patients (by name, UHID, phone)
-  const searchPatients = (searchTerm) => {
-    const term = searchTerm.toLowerCase();
-    return patients.filter(
-      (patient) =>
-        patient.name.toLowerCase().includes(term) ||
-        patient.uhid.toLowerCase().includes(term) ||
-        patient.phone.includes(term) ||
-        patient.email.toLowerCase().includes(term)
-    );
+  // Search patients (via API)
+  const searchPatients = async (searchTerm) => {
+    try {
+      const response = await patientService.getAll({ search: searchTerm });
+      if (response.success) {
+        return response.data.patients || response.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Search error:', err.message);
+      return [];
+    }
   };
 
-  // Filter patients by doctor
+  // Filter patients by doctor (local filter)
   const getPatientsByDoctor = (doctorName) => {
     return patients.filter((patient) => patient.primaryDoctor === doctorName);
   };
 
-  // Filter patients by risk level
+  // Filter patients by risk level (local filter)
   const getPatientsByRiskLevel = (riskLevel) => {
     return patients.filter((patient) => patient.riskLevel === riskLevel);
   };
 
-  // Filter patients by status
-  const getPatientsByStatus = (status) => {
-    return patients.filter((patient) => patient.status === status);
-  };
-
-  // Add new patient
-  const addPatient = (patientData) => {
-    const newPatient = {
-      id: patients.length + 1,
-      ...patientData,
-      status: "Active",
-      // Initialize medical equipment structure
-      medicalEquipment: {
-        insulinPump: {
-          hasPump: false,
-          current: null,
-          transmitter: null,
-          history: [],
-        },
-      },
-    };
-    setPatients([...patients, newPatient]);
-    return newPatient;
-  };
-
-  // Update patient
-  const updatePatient = (uhid, updatedData) => {
-    setPatients(
-      patients.map((patient) =>
-        patient.uhid === uhid ? { ...patient, ...updatedData } : patient
-      )
-    );
-  };
-
-  // Update patient vitals (from triage)
-  const updatePatientVitals = (uhid, triageData) => {
-    // Calculate BMI
-    let bmi = "";
-    if (triageData.weight && triageData.height) {
-      const weightKg = parseFloat(triageData.weight);
-      const heightM = parseFloat(triageData.height) / 100;
-      bmi = (weightKg / (heightM * heightM)).toFixed(1) + " kg/m²";
+  // Filter patients by status (via API)
+  const getPatientsByStatus = async (status) => {
+    try {
+      const response = await patientService.getAll({ status });
+      if (response.success) {
+        return response.data.patients || response.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Filter error:', err.message);
+      return [];
     }
-
-    setPatients((prevPatients) =>
-      prevPatients.map((patient) =>
-        patient.uhid === uhid
-          ? {
-              ...patient,
-              currentVitals: {
-                bp: triageData.bp,
-                hr: triageData.heartRate.replace(" bpm", ""),
-                rr: "18",
-                temp: triageData.temperature.replace("°C", ""),
-                spo2: triageData.oxygenSaturation.replace("%", ""),
-                bmi: bmi.replace(" kg/m²", ""),
-                waistCircumference: triageData.waistCircumference
-                  ? triageData.waistCircumference.replace(" cm", "")
-                  : "",
-                waistHeightRatio: triageData.waistHeightRatio || "",
-                rbs: triageData.rbs
-                  ? triageData.rbs.replace(" mmol/L", "")
-                  : "",
-                hba1c: triageData.hba1c
-                  ? triageData.hba1c.replace("%", "")
-                  : "",
-                ketones: triageData.ketones
-                  ? triageData.ketones.replace(" mmol/L", "")
-                  : "",
-                recordedBy: triageData.triageBy,
-                recordedAt: triageData.lastTriageDate,
-                source: "triage",
-              },
-              vitals: {
-                bp: triageData.bp,
-                heartRate: triageData.heartRate,
-                temperature: triageData.temperature,
-                weight: triageData.weight,
-                height: triageData.height,
-                oxygenSaturation: triageData.oxygenSaturation,
-                bmi: bmi,
-                waistCircumference: triageData.waistCircumference || "",
-                waistHeightRatio: triageData.waistHeightRatio || "",
-                rbs: triageData.rbs || "",
-                hba1c: triageData.hba1c || "",
-                ketones: triageData.ketones || "",
-              },
-              chiefComplaint: triageData.chiefComplaint,
-              allergies: triageData.allergies || patient.allergies,
-              lastTriageDate: triageData.lastTriageDate,
-              triageBy: triageData.triageBy,
-            }
-          : patient
-      )
-    );
-    return { success: true, message: "Vitals updated successfully" };
   };
 
-  // Delete patient
-  const deletePatient = (uhid) => {
-    setPatients(patients.filter((patient) => patient.uhid !== uhid));
+  // Add new patient (via API)
+  const addPatient = async (patientData) => {
+    setLoading(true);
+    try {
+      const response = await patientService.create(patientData);
+      if (response.success) {
+        // Refresh patient list
+        await fetchPatients();
+        return { success: true, patient: response.data.patient || response.data };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Update patient (via API)
+  const updatePatient = async (uhid, updatedData) => {
+    setLoading(true);
+    try {
+      const response = await patientService.update(uhid, updatedData);
+      if (response.success) {
+        // Update local state
+        setPatients(prev =>
+          prev.map(p => p.uhid === uhid ? { ...p, ...response.data.patient || response.data } : p)
+        );
+        return { success: true, patient: response.data.patient || response.data };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update patient vitals (via API)
+  const updatePatientVitals = async (uhid, vitalsData) => {
+    setLoading(true);
+    try {
+      const response = await patientService.recordVitals(uhid, vitalsData);
+      if (response.success) {
+        // Refresh patient to get updated vitals
+        await fetchPatients();
+        return { success: true, message: "Vitals updated successfully" };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete patient (via API)
+  const deletePatient = async (uhid) => {
+    setLoading(true);
+    try {
+      const response = await patientService.delete(uhid);
+      if (response.success) {
+        setPatients(prev => prev.filter(p => p.uhid !== uhid));
+        return { success: true, message: "Patient deleted successfully" };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================
+  // BLOOD SUGAR (API)
+  // ============================================
 
   // Get blood sugar readings for patient
-  const getBloodSugarReadings = (uhid) => {
-    return bloodSugarReadings[uhid] || [];
+  const getBloodSugarReadings = async (uhid, params = {}) => {
+    try {
+      const response = await patientService.getBloodSugar(uhid, params);
+      if (response.success) {
+        return response.data.readings || response.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Get blood sugar error:', err.message);
+      return [];
+    }
   };
 
   // Add blood sugar reading
-  const addBloodSugarReading = (uhid, reading) => {
-    setBloodSugarReadings({
-      ...bloodSugarReadings,
-      [uhid]: [...(bloodSugarReadings[uhid] || []), reading],
-    });
+  const addBloodSugarReading = async (uhid, reading) => {
+    try {
+      const response = await patientService.addBloodSugar(uhid, reading);
+      return response;
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
   };
 
-  // Get patient statistics
-  const getPatientStats = () => {
-    return {
-      total: patients.length,
-      active: patients.filter((p) => p.status === "Active").length,
-      inactive: patients.filter((p) => p.status === "Inactive").length,
-      highRisk: patients.filter((p) => p.riskLevel === "High").length,
-      mediumRisk: patients.filter((p) => p.riskLevel === "Medium").length,
-      lowRisk: patients.filter((p) => p.riskLevel === "Low").length,
-      type1: patients.filter((p) => p.diabetesType === "Type 1").length,
-      type2: patients.filter((p) => p.diabetesType === "Type 2").length,
-    };
+  // Get patient statistics (via API)
+  const getPatientStats = async () => {
+    try {
+      const response = await patientService.getStats();
+      if (response.success) {
+        return response.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('Get stats error:', err.message);
+      return null;
+    }
   };
 
   // ========================================
-  // MEDICAL EQUIPMENT FUNCTIONS
+  // MEDICAL EQUIPMENT FUNCTIONS (API)
   // ========================================
+
+  // Get equipment for patient
+  const getEquipment = async (uhid) => {
+    try {
+      const response = await patientService.getEquipment(uhid);
+      if (response.success) {
+        return response.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('Get equipment error:', err.message);
+      return null;
+    }
+  };
 
   // Add insulin pump or transmitter
-  const addMedicalEquipment = (uhid, equipmentData, userName) => {
-    setPatients((prevPatients) =>
-      prevPatients.map((patient) => {
-        if (patient.uhid !== uhid) return patient;
-
-        const now = new Date().toISOString();
-        const equipment = patient.medicalEquipment?.insulinPump || {
-          hasPump: false,
-          current: null,
-          transmitter: null,
-          history: [],
-        };
-
-        // Add insulin pump
-        if (equipmentData.deviceType === "pump") {
-          return {
-            ...patient,
-            medicalEquipment: {
-              ...patient.medicalEquipment,
-              insulinPump: {
-                ...equipment,
-                hasPump: true,
-                current: {
-                  ...equipmentData,
-                  addedBy: userName,
-                  addedDate: now,
-                  lastUpdatedBy: userName,
-                  lastUpdatedDate: now,
-                },
-              },
-            },
-          };
-        }
-
-        // Add transmitter
-        if (equipmentData.deviceType === "transmitter") {
-          return {
-            ...patient,
-            medicalEquipment: {
-              ...patient.medicalEquipment,
-              insulinPump: {
-                ...equipment,
-                transmitter: {
-                  ...equipmentData,
-                  hasTransmitter: true,
-                  addedBy: userName,
-                  addedDate: now,
-                  lastUpdatedBy: userName,
-                  lastUpdatedDate: now,
-                },
-              },
-            },
-          };
-        }
-
-        return patient;
-      })
-    );
-
-    return { success: true, message: "Medical equipment added successfully" };
+  const addMedicalEquipment = async (uhid, equipmentData) => {
+    try {
+      const response = await patientService.addEquipment(uhid, equipmentData);
+      return response;
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
   };
 
   // Update insulin pump or transmitter
-  const updateMedicalEquipment = (uhid, equipmentData, userName) => {
-    setPatients((prevPatients) =>
-      prevPatients.map((patient) => {
-        if (patient.uhid !== uhid) return patient;
-
-        const now = new Date().toISOString();
-        const equipment = patient.medicalEquipment?.insulinPump;
-
-        if (!equipment) return patient;
-
-        // Update pump
-        if (equipmentData.deviceType === "pump" && equipment.current) {
-          return {
-            ...patient,
-            medicalEquipment: {
-              ...patient.medicalEquipment,
-              insulinPump: {
-                ...equipment,
-                current: {
-                  ...equipment.current,
-                  ...equipmentData,
-                  lastUpdatedBy: userName,
-                  lastUpdatedDate: now,
-                },
-              },
-            },
-          };
-        }
-
-        // Update transmitter
-        if (
-          equipmentData.deviceType === "transmitter" &&
-          equipment.transmitter
-        ) {
-          return {
-            ...patient,
-            medicalEquipment: {
-              ...patient.medicalEquipment,
-              insulinPump: {
-                ...equipment,
-                transmitter: {
-                  ...equipment.transmitter,
-                  ...equipmentData,
-                  lastUpdatedBy: userName,
-                  lastUpdatedDate: now,
-                },
-              },
-            },
-          };
-        }
-
-        return patient;
-      })
-    );
-
-    return { success: true, message: "Medical equipment updated successfully" };
+  const updateMedicalEquipment = async (uhid, equipmentId, equipmentData) => {
+    try {
+      const response = await patientService.updateEquipment(uhid, equipmentId, equipmentData);
+      return response;
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
   };
 
   // Replace insulin pump or transmitter (archives old one)
-  const replaceMedicalEquipment = (uhid, equipmentData, reason, userName) => {
-    setPatients((prevPatients) =>
-      prevPatients.map((patient) => {
-        if (patient.uhid !== uhid) return patient;
-
-        const now = new Date().toISOString();
-        const equipment = patient.medicalEquipment?.insulinPump;
-
-        if (!equipment) return patient;
-
-        // Replace pump
-        if (equipmentData.deviceType === "pump" && equipment.current) {
-          const archivedPump = {
-            ...equipment.current,
-            deviceType: "pump",
-            endDate: now,
-            reason: reason,
-            archivedBy: userName,
-            archivedDate: now,
-          };
-
-          return {
-            ...patient,
-            medicalEquipment: {
-              ...patient.medicalEquipment,
-              insulinPump: {
-                ...equipment,
-                current: {
-                  ...equipmentData,
-                  addedBy: userName,
-                  addedDate: now,
-                  lastUpdatedBy: userName,
-                  lastUpdatedDate: now,
-                },
-                history: [...equipment.history, archivedPump],
-              },
-            },
-          };
-        }
-
-        // Replace transmitter
-        if (
-          equipmentData.deviceType === "transmitter" &&
-          equipment.transmitter
-        ) {
-          const archivedTransmitter = {
-            ...equipment.transmitter,
-            deviceType: "transmitter",
-            endDate: now,
-            reason: reason,
-            archivedBy: userName,
-            archivedDate: now,
-          };
-
-          return {
-            ...patient,
-            medicalEquipment: {
-              ...patient.medicalEquipment,
-              insulinPump: {
-                ...equipment,
-                transmitter: {
-                  ...equipmentData,
-                  hasTransmitter: true,
-                  addedBy: userName,
-                  addedDate: now,
-                  lastUpdatedBy: userName,
-                  lastUpdatedDate: now,
-                },
-                history: [...equipment.history, archivedTransmitter],
-              },
-            },
-          };
-        }
-
-        return patient;
-      })
-    );
-
-    return {
-      success: true,
-      message: "Medical equipment replaced successfully",
-    };
+  const replaceMedicalEquipment = async (uhid, equipmentId, equipmentData) => {
+    try {
+      const response = await patientService.replaceEquipment(uhid, equipmentId, equipmentData);
+      return response;
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
   };
 
   // Get equipment history
-  const getMedicalEquipmentHistory = (uhid) => {
-    const patient = getPatientByUHID(uhid);
-    return patient?.medicalEquipment?.insulinPump?.history || [];
+  const getMedicalEquipmentHistory = async (uhid) => {
+    try {
+      const response = await patientService.getEquipmentHistory(uhid);
+      if (response.success) {
+        return response.data.history || response.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Get equipment history error:', err.message);
+      return [];
+    }
   };
 
   // Get warranty status for equipment
@@ -450,93 +346,67 @@ export const PatientProvider = ({ children }) => {
   };
 
   // ========================================
-  // MEDICAL DOCUMENTS FUNCTIONS
+  // MEDICAL DOCUMENTS FUNCTIONS (API)
   // ========================================
 
-  // Upload Medical Document
-  const uploadMedicalDocument = (uhid, documentData, currentUser) => {
-    setPatients((prevPatients) =>
-      prevPatients.map((p) => {
-        if (p.uhid === uhid) {
-          const newDocument = {
-            id: `DOC-${Date.now()}`,
-            fileName: documentData.fileName,
-            documentCategory: documentData.documentCategory,
-            testType: documentData.testType,
-            labName: documentData.labName || "Not specified",
-            testDate: documentData.testDate,
-            uploadDate: new Date().toISOString(),
-            uploadedBy: currentUser?.name || "Unknown User",
-            uploadedByRole: currentUser?.role || "Unknown",
-            fileSize: documentData.fileSize,
-            fileUrl: documentData.fileUrl, // In real app, this would be from file upload
-            status:
-              currentUser?.role === "Patient" ? "Pending Review" : "Reviewed",
-            reviewedBy:
-              currentUser?.role === "Patient" ? null : currentUser?.name,
-            reviewDate:
-              currentUser?.role === "Patient" ? null : new Date().toISOString(),
-            notes: documentData.notes || null,
-          };
+  // Upload Medical Document (via API)
+  const uploadMedicalDocument = async (uhid, documentData, file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('uhid', uhid);
+      formData.append('documentCategory', documentData.documentCategory);
 
-          return {
-            ...p,
-            medicalDocuments: [...(p.medicalDocuments || []), newDocument],
-          };
-        }
-        return p;
-      })
-    );
-    return { success: true, message: "Document uploaded successfully" };
+      // Optional fields
+      if (documentData.testType) formData.append('testType', documentData.testType);
+      if (documentData.labName) formData.append('labName', documentData.labName);
+      if (documentData.testDate) formData.append('testDate', documentData.testDate);
+      if (documentData.notes) formData.append('notes', documentData.notes);
+
+      const response = await documentService.upload(formData);
+      return response;
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
   };
 
-  // Get Medical Documents
-  const getMedicalDocuments = (uhid) => {
-    const patient = patients.find((p) => p.uhid === uhid);
-    return patient?.medicalDocuments || [];
+  // Get Medical Documents (via API)
+  const getMedicalDocuments = async (uhid, params = {}) => {
+    try {
+      const response = await documentService.getByPatient(uhid, params);
+      if (response.success) {
+        return response.data.documents || response.data;
+      }
+      return [];
+    } catch (err) {
+      console.error('Get documents error:', err.message);
+      return [];
+    }
   };
 
-  // Update Document Status
-  const updateDocumentStatus = (uhid, documentId, status, reviewedBy) => {
-    setPatients((prevPatients) =>
-      prevPatients.map((p) => {
-        if (p.uhid === uhid) {
-          return {
-            ...p,
-            medicalDocuments: (p.medicalDocuments || []).map((doc) =>
-              doc.id === documentId
-                ? {
-                    ...doc,
-                    status,
-                    reviewedBy,
-                    reviewDate: new Date().toISOString(),
-                  }
-                : doc
-            ),
-          };
-        }
-        return p;
-      })
-    );
-    return { success: true, message: "Document status updated" };
+  // Update Document Status (via API)
+  const updateDocumentStatus = async (documentId, status) => {
+    try {
+      const response = await documentService.updateStatus(documentId, { status });
+      return response;
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
   };
 
-  // Delete Medical Document
-  const deleteMedicalDocument = (uhid, documentId) => {
-    setPatients((prevPatients) =>
-      prevPatients.map((p) => {
-        if (p.uhid === uhid) {
-          return {
-            ...p,
-            medicalDocuments: (p.medicalDocuments || []).filter(
-              (doc) => doc.id !== documentId
-            ),
-          };
-        }
-        return p;
-      })
-    );
-    return { success: true, message: "Document deleted successfully" };
+  // Delete Medical Document (via API)
+  const deleteMedicalDocument = async (documentId) => {
+    try {
+      const response = await documentService.delete(documentId);
+      return response;
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  };
+
+  // Get document file URL
+  const getDocumentFileUrl = (filename) => {
+    return documentService.getFileUrl(filename);
   };
 
   // Sort Documents by Date
@@ -557,11 +427,14 @@ export const PatientProvider = ({ children }) => {
   const value = {
     // State
     patients,
-    bloodSugarReadings,
+    loading,
+    error,
 
     // Patient Functions
+    fetchPatients,
     getAllPatients,
     getPatientByUHID,
+    fetchPatientByUHID,
     getPatientById,
     searchPatients,
     getPatientsByDoctor,
@@ -575,7 +448,8 @@ export const PatientProvider = ({ children }) => {
     addBloodSugarReading,
     getPatientStats,
 
-    // NEW: Medical Equipment Functions
+    // Medical Equipment Functions
+    getEquipment,
     addMedicalEquipment,
     updateMedicalEquipment,
     replaceMedicalEquipment,
@@ -588,6 +462,7 @@ export const PatientProvider = ({ children }) => {
     getMedicalDocuments,
     updateDocumentStatus,
     deleteMedicalDocument,
+    getDocumentFileUrl,
     sortDocumentsByDate,
     filterDocumentsByCategory,
   };

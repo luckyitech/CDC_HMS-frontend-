@@ -13,14 +13,15 @@ const LabLoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const result = login(formData.email, formData.password, 'Lab');
-      
+      // login() is now async - need await
+      const result = await login(formData.email, formData.password, 'Lab');
+
       if (result.success) {
         navigate('/lab/dashboard');
       } else {
@@ -78,11 +79,6 @@ const LabLoginPage = () => {
             </button>
           </div>
 
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-            <p className="font-semibold text-blue-900 mb-2">Demo Credentials:</p>
-            <p className="text-blue-700">📧 sarah.mwangi@cdc.com</p>
-            <p className="text-blue-700">🔑 Any password</p>
-          </div>
         </form>
         
         <button

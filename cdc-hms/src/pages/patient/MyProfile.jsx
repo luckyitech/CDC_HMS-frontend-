@@ -1,89 +1,157 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Loader2, CalendarDays, Clock, UserSquare2, X,
+  User, Stethoscope, Calendar, BarChart2, FlaskConical, Pill, Bell,
+  Phone, Mail,
+} from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import { useAppointmentContext } from '../../contexts/AppointmentContext';
+import { useUserContext } from '../../contexts/UserContext';
+import { usePatientContext } from '../../contexts/PatientContext';
+import { usePrescriptionContext } from '../../contexts/PrescriptionContext';
+import { useLabContext } from '../../contexts/LabContext';
 
 const MyProfile = () => {
+  const { currentUser } = useUserContext();
+  const { fetchPatientByUHID } = usePatientContext();
+  const { getPatientAppointments, cancelAppointment } = useAppointmentContext();
+  const { getActivePrescriptions, getPrescriptionsByPatient } = usePrescriptionContext();
+  const { getTestsByPatient } = useLabContext();
+
+  const uhid = currentUser?.uhid;
+
   const [activeTab, setActiveTab] = useState('profile');
 
-  // Mock patient data
-  const [patientData] = useState({
-    // Personal Info
-    photo: null,
-    name: 'John Doe',
-    dob: '1979-05-15',
-    gender: 'Male',
-    age: 45,
-    idNumber: 'ID123456789',
-    phone: '+254 712 345 678',
-    email: 'john.doe@email.com',
-    address: '123 Nairobi Street, Westlands, Nairobi',
-    emergencyContact: {
-      name: 'Jane Doe',
-      relationship: 'Spouse',
-      phone: '+254 723 456 789'
-    },
-    insurance: {
-      provider: 'NHIF',
-      policyNumber: 'NHIF-2024-12345',
-      type: 'Insurance'
-    },
-    
-    // Medical Info
-    diabetesType: 'Type 2',
-    diagnosisDate: '2020-03-15',
-    currentHbA1c: '7.2%',
-    lastHbA1cDate: '2024-11-15',
-    allergies: 'Penicillin, Sulfa drugs',
-    comorbidities: 'Hypertension, High Cholesterol',
-    
-    // Current Medications
-    medications: [
-      { name: 'Metformin', dosage: '500mg', frequency: 'Twice daily', prescribedBy: 'Dr. Ahmed Hassan', startDate: '2020-03-20' },
-      { name: 'Glimepiride', dosage: '2mg', frequency: 'Once daily (morning)', prescribedBy: 'Dr. Ahmed Hassan', startDate: '2022-06-10' },
-      { name: 'Atorvastatin', dosage: '20mg', frequency: 'Once daily (evening)', prescribedBy: 'Dr. Sarah Kamau', startDate: '2021-01-15' },
-    ],
-    
-    // Doctors
-    doctors: [
-      { name: 'Dr. Ahmed Hassan', specialty: 'Endocrinologist', role: 'Primary', phone: '+254 720 111 222', email: 'ahmed.hassan@cdc.com' },
-      { name: 'Dr. Sarah Kamau', specialty: 'Cardiologist', role: 'Specialist', phone: '+254 720 333 444', email: 'sarah.kamau@cdc.com' },
-    ],
-    
-    // Appointments
-    upcomingAppointments: [
-      { date: '2024-12-15', time: '10:00 AM', doctor: 'Dr. Ahmed Hassan', type: 'Follow-up', status: 'Confirmed' },
-      { date: '2024-12-20', time: '2:00 PM', doctor: 'Dr. Sarah Kamau', type: 'Consultation', status: 'Pending' },
-    ],
-    
-    pastAppointments: [
-      { date: '2024-11-15', time: '10:00 AM', doctor: 'Dr. Ahmed Hassan', type: 'Follow-up', notes: 'HbA1c test done. Adjusted medication dosage.' },
-      { date: '2024-10-10', time: '3:00 PM', doctor: 'Dr. Ahmed Hassan', type: 'Regular Checkup', notes: 'Blood pressure stable. Continue current medications.' },
-    ],
-    
-    // Lab Reports
-    labReports: [
-      { date: '2024-11-15', type: 'HbA1c Test', result: '7.2%', status: 'High', doctor: 'Dr. Ahmed Hassan' },
-      { date: '2024-11-15', type: 'Fasting Glucose', result: '145 mg/dL', status: 'Elevated', doctor: 'Dr. Ahmed Hassan' },
-      { date: '2024-10-01', type: 'Lipid Profile', result: 'Normal', status: 'Normal', doctor: 'Dr. Sarah Kamau' },
-    ],
-    
-    // Notifications
-    notifications: [
-      { date: '2024-12-08', type: 'Appointment Reminder', message: 'Upcoming appointment with Dr. Ahmed Hassan on Dec 15 at 10:00 AM', read: false },
-      { date: '2024-12-05', type: 'Lab Results', message: 'Your HbA1c test results are available', read: true },
-      { date: '2024-12-01', type: 'Medication Reminder', message: 'Time to refill your Metformin prescription', read: true },
-    ],
-  });
+  // Patient profile data
+  const [patient, setPatient] = useState(null);
+  const [patientLoading, setPatientLoading] = useState(true);
+
+  // Appointments
+  const [appointments, setAppointments] = useState([]);
+  const [aptsLoading, setAptsLoading] = useState(false);
+  const [cancellingId, setCancellingId] = useState(null);
+
+  // Medical tab — active prescriptions (medications list)
+  const [activeMeds, setActiveMeds] = useState([]);
+  const [medsLoading, setMedsLoading] = useState(false);
+
+  // Lab tab
+  const [labTests, setLabTests] = useState([]);
+  const [labLoading, setLabLoading] = useState(false);
+
+  // Prescriptions tab
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [prescLoading, setPrescLoading] = useState(false);
+
+  // Load patient profile on mount
+  useEffect(() => {
+    if (!uhid) return;
+    setPatientLoading(true);
+    fetchPatientByUHID(uhid).then(data => {
+      setPatient(data);
+      setPatientLoading(false);
+    });
+  }, [uhid, fetchPatientByUHID]);
+
+  // Lazy-load per tab
+  const loadAppointments = useCallback(async () => {
+    if (!uhid) return;
+    setAptsLoading(true);
+    try {
+      const data = await getPatientAppointments(uhid);
+      setAppointments(Array.isArray(data) ? data : []);
+    } finally {
+      setAptsLoading(false);
+    }
+  }, [uhid, getPatientAppointments]);
+
+  const loadActiveMeds = useCallback(async () => {
+    if (!uhid) return;
+    setMedsLoading(true);
+    try {
+      const data = await getActivePrescriptions(uhid);
+      setActiveMeds(Array.isArray(data) ? data : []);
+    } finally {
+      setMedsLoading(false);
+    }
+  }, [uhid, getActivePrescriptions]);
+
+  const loadLabTests = useCallback(async () => {
+    if (!uhid) return;
+    setLabLoading(true);
+    try {
+      const data = await getTestsByPatient(uhid);
+      setLabTests(Array.isArray(data) ? data : []);
+    } finally {
+      setLabLoading(false);
+    }
+  }, [uhid, getTestsByPatient]);
+
+  const loadPrescriptions = useCallback(async () => {
+    if (!uhid) return;
+    setPrescLoading(true);
+    try {
+      const data = await getPrescriptionsByPatient(uhid);
+      setPrescriptions(Array.isArray(data) ? data : []);
+    } finally {
+      setPrescLoading(false);
+    }
+  }, [uhid, getPrescriptionsByPatient]);
+
+  useEffect(() => {
+    if (activeTab === 'appointments') loadAppointments();
+    if (activeTab === 'medical' && activeMeds.length === 0) loadActiveMeds();
+    if (activeTab === 'lab' && labTests.length === 0) loadLabTests();
+    if (activeTab === 'prescriptions' && prescriptions.length === 0) loadPrescriptions();
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCancel = async (appointmentId) => {
+    setCancellingId(appointmentId);
+    await cancelAppointment(appointmentId);
+    await loadAppointments();
+    setCancellingId(null);
+  };
+
+  const today = new Date().toISOString().split('T')[0];
+  const upcomingAppointments = appointments
+    .filter(a => (a.status === 'scheduled' || a.status === 'checked-in') && a.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const pastAppointments = appointments
+    .filter(a => a.status === 'completed' || a.status === 'cancelled' || a.date < today)
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  // Format date string "YYYY-MM-DD" or ISO → "Jan 1, 2025"
+  const fmtDate = (dateStr) => {
+    if (!dateStr) return '—';
+    const [y, m, d] = dateStr.split('T')[0].split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d))
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Flatten all medication items from a list of prescriptions
+  const getMedItems = (prescList) => {
+    const items = [];
+    prescList.forEach(presc => {
+      (presc.medications || []).forEach(med => {
+        items.push({ ...med, doctorName: presc.doctorName, prescribedDate: presc.prescribedDate || presc.createdAt });
+      });
+    });
+    return items;
+  };
 
   const tabs = [
-    { key: 'profile', label: 'My Profile', icon: '👤' },
-    { key: 'medical', label: 'Medical Info', icon: '🏥' },
-    { key: 'appointments', label: 'Appointments', icon: '📅' },
-    { key: 'monitoring', label: 'Monitoring', icon: '📊' },
-    { key: 'lab', label: 'Lab Reports', icon: '🔬' },
-    { key: 'prescriptions', label: 'Prescriptions', icon: '💊' },
-    { key: 'notifications', label: 'Notifications', icon: '🔔' },
+    { key: 'profile',       label: 'My Profile',    Icon: User },
+    { key: 'medical',       label: 'Medical Info',  Icon: Stethoscope },
+    { key: 'appointments',  label: 'Appointments',  Icon: Calendar },
+    { key: 'monitoring',    label: 'Monitoring',    Icon: BarChart2 },
+    { key: 'lab',           label: 'Lab Reports',   Icon: FlaskConical },
+    { key: 'prescriptions', label: 'Prescriptions', Icon: Pill },
+    { key: 'notifications', label: 'Notifications', Icon: Bell },
   ];
+
+  const displayName = patient?.name || currentUser?.name || '—';
+  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <div>
@@ -96,271 +164,341 @@ const MyProfile = () => {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 sm:px-6 py-3 rounded-lg font-semibold transition whitespace-nowrap text-sm sm:text-base ${
+              className={`flex items-center gap-2 px-4 sm:px-5 py-3 rounded-lg font-semibold transition whitespace-nowrap text-sm sm:text-base ${
                 activeTab === tab.key
                   ? 'bg-primary text-white shadow-lg'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <tab.Icon className="w-4 h-4 flex-shrink-0" />
               {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Tab Content */}
+      {/* ── PROFILE TAB ── */}
       {activeTab === 'profile' && (
         <div className="space-y-6">
-          <Card title="Personal Information">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Photo */}
-              <div className="md:col-span-2 flex items-center gap-4">
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-4xl font-bold">
-                  {patientData.name.split(' ').map(n => n[0]).join('')}
+          {patientLoading ? (
+            <Card>
+              <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span>Loading profile...</span>
+              </div>
+            </Card>
+          ) : (
+            <>
+              <Card title="Personal Information">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2 flex items-center gap-4">
+                    <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-3xl font-bold flex-shrink-0">
+                      {initials}
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-gray-800">{displayName}</p>
+                      <p className="text-sm text-gray-600">UHID: {uhid || '—'}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
+                    <input type="text" value={displayName} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Date of Birth</label>
+                    <input type="text" value={fmtDate(patient?.dateOfBirth || patient?.dob)} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
+                    <input type="text" value={patient?.gender || '—'} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Age</label>
+                    <input type="text" value={patient?.age ? `${patient.age} years` : '—'} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+                    <input type="tel" defaultValue={patient?.phone || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                    <input type="email" defaultValue={patient?.email || currentUser?.email || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Residential Address</label>
+                    <textarea defaultValue={patient?.address || ''} rows="2" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-800">{patientData.name}</p>
-                  <p className="text-sm text-gray-600">UHID: CDC001</p>
-                  <Button variant="outline" className="mt-2 text-sm">Change Photo</Button>
+              </Card>
+
+              <Card title="Emergency Contact">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
+                    <input type="text" defaultValue={patient?.emergencyContactName || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Relationship</label>
+                    <input type="text" defaultValue={patient?.emergencyContactRelationship || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+                    <input type="tel" defaultValue={patient?.emergencyContactPhone || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                  </div>
                 </div>
-              </div>
+              </Card>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-                <input type="text" value={patientData.name} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Date of Birth</label>
-                <input type="date" value={patientData.dob} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Gender</label>
-                <input type="text" value={patientData.gender} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Age</label>
-                <input type="text" value={`${patientData.age} years`} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">ID/Passport Number</label>
-                <input type="text" value={patientData.idNumber} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                <input type="tel" value={patientData.phone} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                <input type="email" value={patientData.email} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Residential Address</label>
-                <textarea value={patientData.address} rows="2" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"></textarea>
-              </div>
-            </div>
-          </Card>
-
-          <Card title="Emergency Contact">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
-                <input type="text" value={patientData.emergencyContact.name} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Relationship</label>
-                <input type="text" value={patientData.emergencyContact.relationship} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                <input type="tel" value={patientData.emergencyContact.phone} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
-              </div>
-            </div>
-          </Card>
-
-          <Card title="Insurance & Payment">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Insurance Provider</label>
-                <input type="text" value={patientData.insurance.provider} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Policy Number</label>
-                <input type="text" value={patientData.insurance.policyNumber} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Type</label>
-                <select value={patientData.insurance.type} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary">
-                  <option value="Insurance">Insurance</option>
-                  <option value="Cash">Cash</option>
-                </select>
-              </div>
-            </div>
-          </Card>
-
-          <div className="flex justify-end gap-3">
-            <Button variant="outline">Cancel</Button>
-            <Button>Save Changes</Button>
-          </div>
+              <Card title="Insurance & Payment">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Insurance Provider</label>
+                    <input type="text" defaultValue={patient?.insuranceProvider || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Policy Number</label>
+                    <input type="text" defaultValue={patient?.policyNumber || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Type</label>
+                    <input type="text" value={patient?.paymentType || '—'} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+                </div>
+              </Card>
+            </>
+          )}
         </div>
       )}
 
+      {/* ── MEDICAL TAB ── */}
       {activeTab === 'medical' && (
         <div className="space-y-6">
-          <Card title="Diabetes Information">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Diabetes Type</label>
-                <input type="text" value={patientData.diabetesType} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+          {patientLoading ? (
+            <Card>
+              <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span>Loading medical info...</span>
               </div>
+            </Card>
+          ) : (
+            <>
+              <Card title="Diabetes Information">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Diabetes Type</label>
+                    <input type="text" value={patient?.diabetesType || '—'} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Diagnosis Date</label>
+                    <input type="text" value={fmtDate(patient?.diagnosisDate)} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Known Allergies</label>
+                    <textarea value={patient?.allergies || 'None reported'} disabled readOnly rows="2" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Other Conditions (Comorbidities)</label>
+                    <textarea value={patient?.comorbidities || 'None reported'} disabled readOnly rows="2" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                  </div>
+                </div>
+              </Card>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Diagnosis Date</label>
-                <input type="date" value={patientData.diagnosisDate} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-              </div>
+              <Card title="Current Medications">
+                {medsLoading ? (
+                  <div className="flex items-center gap-3 py-8 justify-center text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Loading medications...</span>
+                  </div>
+                ) : getMedItems(activeMeds).length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-8">No active medications on record.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {getMedItems(activeMeds).map((med, index) => (
+                      <div key={index} className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary transition">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1">
+                            <p className="text-lg font-bold text-gray-800">{med.name}</p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              <span className="font-semibold">Dosage:</span> {med.dosage} •{' '}
+                              <span className="font-semibold">Frequency:</span> {med.frequency}
+                            </p>
+                            {med.duration && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                <span className="font-semibold">Duration:</span> {med.duration}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">
+                              Prescribed by: {med.doctorName || '—'} · Started: {fmtDate(med.prescribedDate)}
+                            </p>
+                          </div>
+                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold self-start">Active</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Current HbA1c</label>
-                <input type="text" value={patientData.currentHbA1c} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Last HbA1c Test</label>
-                <input type="date" value={patientData.lastHbA1cDate} disabled className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Known Allergies</label>
-                <textarea value={patientData.allergies} disabled rows="2" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50"></textarea>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Other Conditions (Comorbidities)</label>
-                <textarea value={patientData.comorbidities} disabled rows="2" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50"></textarea>
-              </div>
-            </div>
-          </Card>
-
-          <Card title="Current Medications">
-            <div className="space-y-4">
-              {patientData.medications.map((med, index) => (
-                <div key={index} className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary transition">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div className="flex-1">
-                      <p className="text-lg font-bold text-gray-800">{med.name}</p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        <span className="font-semibold">Dosage:</span> {med.dosage} • <span className="font-semibold">Frequency:</span> {med.frequency}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Prescribed by: {med.prescribedBy} • Started: {new Date(med.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                      </p>
+              <Card title="Your Healthcare Team">
+                {patient?.primaryDoctor ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary transition">
+                      <div className="flex items-start justify-between mb-2">
+                        <p className="text-lg font-bold text-gray-800">{patient.primaryDoctor}</p>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Primary</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">Diabetes Specialist</p>
+                      <div className="space-y-1 text-xs text-gray-500">
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3 h-3" />
+                          <span>Contact clinic for details</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-3 h-3" />
+                          <span>Contact clinic for details</span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold self-start">Active</span>
                   </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card title="Your Healthcare Team">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {patientData.doctors.map((doctor, index) => (
-                <div key={index} className="p-4 border-2 border-gray-200 rounded-lg hover:border-primary transition">
-                  <div className="flex items-start justify-between mb-2">
-                    <p className="text-lg font-bold text-gray-800">{doctor.name}</p>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      doctor.role === 'Primary' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                    }`}>
-                      {doctor.role}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-3">{doctor.specialty}</p>
-                  <div className="space-y-1 text-xs text-gray-500">
-                    <p>📞 {doctor.phone}</p>
-                    <p>📧 {doctor.email}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ) : (
+                  <p className="text-gray-400 text-sm text-center py-8">No primary doctor assigned yet.</p>
+                )}
+              </Card>
+            </>
+          )}
         </div>
       )}
 
+      {/* ── APPOINTMENTS TAB ── */}
       {activeTab === 'appointments' && (
         <div className="space-y-6">
-          <Card title="Upcoming Appointments">
-            {patientData.upcomingAppointments.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No upcoming appointments</p>
-            ) : (
-              <div className="space-y-4">
-                {patientData.upcomingAppointments.map((apt, index) => (
-                  <div key={index} className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex-1">
-                        <p className="text-lg font-bold text-gray-800">
-                          {new Date(apt.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} at {apt.time}
-                        </p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          <span className="font-semibold">Doctor:</span> {apt.doctor} • <span className="font-semibold">Type:</span> {apt.type}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" className="text-sm">Reschedule</Button>
-                        <Button variant="outline" className="text-sm text-red-600 border-red-300 hover:bg-red-50">Cancel</Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          {aptsLoading ? (
+            <Card>
+              <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span>Loading appointments...</span>
               </div>
-            )}
-          </Card>
+            </Card>
+          ) : (
+            <>
+              <Card title="Upcoming Appointments">
+                {upcomingAppointments.length === 0 ? (
+                  <div className="text-center py-10">
+                    <CalendarDays className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-gray-500">No upcoming appointments</p>
+                    <p className="text-sm text-gray-400 mt-1">Use "Book Appointment" to schedule one</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {upcomingAppointments.map((apt) => (
+                      <div key={apt.id} className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CalendarDays className="w-4 h-4 text-blue-500" />
+                              <p className="font-bold text-gray-800">
+                                {new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', {
+                                  weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+                                })}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600 mb-1 ml-6">
+                              <Clock className="w-3 h-3" />
+                              <span>{apt.timeSlot}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600 ml-6">
+                              <UserSquare2 className="w-3 h-3" />
+                              <span>{apt.doctorName} · <span className="capitalize">{apt.appointmentType?.replace('-', ' ')}</span></span>
+                            </div>
+                            {apt.reason && (
+                              <p className="text-xs text-gray-500 mt-1 ml-6">
+                                <strong>Reason:</strong> {apt.reason}
+                              </p>
+                            )}
+                            <div className="mt-2 ml-6">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                apt.status === 'checked-in' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {apt.status === 'checked-in' ? 'Checked In' : 'Scheduled'}
+                              </span>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            className="text-sm text-red-600 border-red-300 hover:bg-red-50 flex items-center gap-1"
+                            onClick={() => handleCancel(apt.id)}
+                            disabled={cancellingId === apt.id || apt.status === 'checked-in'}
+                          >
+                            {cancellingId === apt.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
 
-          <Card title="Past Appointments">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
-                  <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Doctor</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Type</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Notes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {patientData.pastAppointments.map((apt, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">
-                        {new Date(apt.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">{apt.time}</td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium">{apt.doctor}</td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">{apt.type}</td>
-                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm text-gray-600">{apt.notes}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+              <Card title="Past Appointments">
+                {pastAppointments.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No past appointments</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b-2 border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Doctor</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {pastAppointments.map((apt) => (
+                          <tr key={apt.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm">
+                              {new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric',
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-sm">{apt.timeSlot}</td>
+                            <td className="px-4 py-3 text-sm font-medium">{apt.doctorName}</td>
+                            <td className="px-4 py-3 text-sm capitalize">{apt.appointmentType?.replace('-', ' ')}</td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{apt.reason || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </>
+          )}
         </div>
       )}
 
+      {/* ── MONITORING TAB ── */}
       {activeTab === 'monitoring' && (
         <Card title="Blood Sugar Monitoring History">
           <div className="text-center py-12">
-            <p className="text-6xl mb-4">📊</p>
+            <BarChart2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <p className="text-xl font-bold text-gray-800 mb-2">Your monitoring data is in the "View Trends" page</p>
             <p className="text-gray-600 mb-6">View your complete blood sugar history, trends, and statistics</p>
             <Button onClick={() => window.location.href = '/patient/trends'}>
@@ -370,116 +508,130 @@ const MyProfile = () => {
         </Card>
       )}
 
+      {/* ── LAB TAB ── */}
       {activeTab === 'lab' && (
         <Card title="Laboratory Reports">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200">
-                <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Test Type</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Result</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Doctor</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {patientData.labReports.map((report, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">
-                      {new Date(report.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium">{report.type}</td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm font-bold">{report.result}</td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        report.status === 'Normal' ? 'bg-green-100 text-green-700' :
-                        report.status === 'Elevated' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        {report.status}
-                      </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">{report.doctor}</td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4">
-                      <div className="flex gap-2">
-                        <Button variant="outline" className="text-xs py-1 px-3">View</Button>
-                        <Button variant="outline" className="text-xs py-1 px-3">Download</Button>
-                      </div>
-                    </td>
+          {labLoading ? (
+            <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
+              <Loader2 className="w-6 h-6 animate-spin" />
+              <span>Loading lab reports...</span>
+            </div>
+          ) : labTests.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-10">No lab tests on record.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                  <tr>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Test Type</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Interpretation</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Ordered By</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {labTests.map((test) => (
+                    <tr key={test.id} className="hover:bg-gray-50">
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">
+                        {fmtDate(test.completedDate || test.orderedDate)}
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium">{test.testType}</td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        {test.interpretation ? (
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            test.interpretation === 'Normal'   ? 'bg-green-100 text-green-700' :
+                            test.interpretation === 'Critical' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {test.interpretation}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">Pending</span>
+                        )}
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          test.status === 'Completed' ? 'bg-green-100 text-green-700' :
+                          test.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {test.status}
+                        </span>
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">{test.doctorName || test.orderedBy || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       )}
 
+      {/* ── PRESCRIPTIONS TAB ── */}
       {activeTab === 'prescriptions' && (
         <Card title="My Prescriptions">
-          <div className="space-y-4">
-            {patientData.medications.map((med, index) => (
-              <div key={index} className="p-4 sm:p-6 border-2 border-gray-200 rounded-lg hover:shadow-md transition">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-start gap-3">
-                      <span className="text-3xl sm:text-4xl">💊</span>
-                      <div className="flex-1">
-                        <p className="text-lg sm:text-xl font-bold text-gray-800">{med.name}</p>
-                        <div className="mt-2 space-y-1 text-sm text-gray-600">
-                          <p><span className="font-semibold">Dosage:</span> {med.dosage}</p>
-                          <p><span className="font-semibold">Frequency:</span> {med.frequency}</p>
-                          <p><span className="font-semibold">Prescribed by:</span> {med.prescribedBy}</p>
-                          <p><span className="font-semibold">Start Date:</span> {new Date(med.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          {prescLoading ? (
+            <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
+              <Loader2 className="w-6 h-6 animate-spin" />
+              <span>Loading prescriptions...</span>
+            </div>
+          ) : prescriptions.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-10">No prescriptions on record.</p>
+          ) : (
+            <div className="space-y-4">
+              {prescriptions.map((presc) => (
+                <div key={presc.id} className="p-4 sm:p-6 border-2 border-gray-200 rounded-lg hover:shadow-md transition">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">{presc.diagnosis}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Prescribed by {presc.doctorName || '—'} · {fmtDate(presc.prescribedDate || presc.createdAt)}
+                      </p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      presc.status === 'Active'     ? 'bg-green-100 text-green-700' :
+                      presc.status === 'Completed'  ? 'bg-gray-100 text-gray-600' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {presc.status}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {(presc.medications || []).map((med, mIdx) => (
+                      <div key={mIdx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                        <Pill className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="font-bold text-gray-800 text-sm">{med.name}</p>
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            {med.dosage} · {med.frequency}
+                            {med.duration ? ` · ${med.duration}` : ''}
+                          </p>
+                          {med.instructions && (
+                            <p className="text-xs text-gray-500 mt-0.5 italic">{med.instructions}</p>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col gap-2">
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold whitespace-nowrap">Active</span>
-                    <Button variant="outline" className="text-xs py-1 px-3">Download Rx</Button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
+      {/* ── NOTIFICATIONS TAB ── */}
       {activeTab === 'notifications' && (
         <Card title="Notifications & Reminders">
-          <div className="space-y-3">
-            {patientData.notifications.map((notif, index) => (
-              <div key={index} className={`p-4 rounded-lg border-l-4 ${
-                notif.read 
-                  ? 'bg-gray-50 border-gray-400' 
-                  : 'bg-blue-50 border-blue-500'
-              }`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                        notif.type === 'Appointment Reminder' ? 'bg-blue-100 text-blue-700' :
-                        notif.type === 'Lab Results' ? 'bg-green-100 text-green-700' :
-                        'bg-orange-100 text-orange-700'
-                      }`}>
-                        {notif.type}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(notif.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-800">{notif.message}</p>
-                  </div>
-                  {!notif.read && (
-                    <button className="text-xs text-blue-600 hover:underline whitespace-nowrap">
-                      Mark as read
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="text-center py-12">
+            <Bell className="w-16 h-16 mx-auto mb-4 text-gray-200" />
+            <p className="text-lg font-semibold text-gray-700 mb-2">Notifications Coming Soon</p>
+            <p className="text-sm text-gray-400">
+              You will receive appointment reminders, lab result alerts,<br />
+              and medication reminders here in a future update.
+            </p>
           </div>
         </Card>
       )}

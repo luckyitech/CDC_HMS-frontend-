@@ -45,8 +45,9 @@ const PhysicalExamFindings = ({
   onPrint,
   onClose,
 }) => {
-  const { uhid, patientName, doctorName, date, time, data, clinicalImages } =
-    examinationData;
+  const { uhid, patientName, doctorName, date, time, data } = examinationData;
+  // clinicalImages is stored inside the data JSON column, so extract from there
+  const clinicalImages = examinationData.clinicalImages || data?.clinicalImages || [];
 
   // State for image viewer
   const [selectedImage, setSelectedImage] = useState(null);
@@ -67,6 +68,7 @@ const PhysicalExamFindings = ({
             icon: section.icon,
             title: section.title,
             findings: prose,
+            notes: data[section.id]?.notes || null,
           });
         }
       }
@@ -226,6 +228,12 @@ const PhysicalExamFindings = ({
                     <p className="text-gray-700 leading-relaxed">
                       {finding.findings}
                     </p>
+                    {finding.notes && (
+                      <p className="text-gray-600 text-sm mt-2 pt-2 border-t border-gray-200 italic">
+                        <span className="font-semibold not-italic text-gray-700">Notes: </span>
+                        {finding.notes}
+                      </p>
+                    )}
                   </td>
                 </tr>
               ))}

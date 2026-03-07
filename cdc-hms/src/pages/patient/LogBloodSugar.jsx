@@ -1,31 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sunrise, Coffee, Clock3, Utensils, Clock6, Moon, BedDouble, Calendar, CheckCircle, AlertCircle } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from '../../contexts/PatientContext';
+import { useUserContext } from '../../contexts/UserContext';
+
+// Map frontend slot keys to backend enum values
+const SLOT_TO_BACKEND = {
+  fasting: "fasting",
+  afterBreakfast: "breakfast",
+  beforeLunch: "beforeLunch",
+  afterLunch: "afterLunch",
+  beforeDinner: "beforeDinner",
+  afterDinner: "afterDinner",
+  beforeBedtime: "bedtime",
+};
 
 const LogBloodSugar = () => {
   const { addBloodSugarReading, getBloodSugarReadings } = usePatientContext();
-  
-  // TODO: In production, get this from logged-in patient
-  // For demo, we'll use CDC001 (John Doe)
-  const currentPatientUHID = "CDC001";
+  const { currentUser } = useUserContext();
+
+  // Get patient UHID from logged-in user
+  const currentPatientUHID = currentUser?.uhid;
   
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
-  // Mock logged dates (dates that have entries)
-  const [loggedDates] = useState([
-    "2024-12-02",
-    "2024-12-03",
-    "2024-12-04",
-    "2024-12-05",
-    "2024-12-06",
-    "2024-12-07",
-    "2024-12-08",
-  ]);
+  const [loggedDates, setLoggedDates] = useState([]);
+
+  useEffect(() => {
+    if (!currentPatientUHID) return;
+    getBloodSugarReadings(currentPatientUHID).then((data) => {
+      const dates = [...new Set((data || []).map((r) => r.date))];
+      setLoggedDates(dates);
+    });
+  }, [currentPatientUHID]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Blood sugar entries for selected date
   const [readings, setReadings] = useState({
@@ -38,7 +49,7 @@ const LogBloodSugar = () => {
     beforeBedtime: "",
   });
 
-  const [notes, setNotes] = useState("");
+  const [, setNotes] = useState("");
 
   const timeSlots = [
     {
@@ -92,68 +103,94 @@ const LogBloodSugar = () => {
     }
   };
 
-  const handleSave = (slotKey) => {
+  const handleSave = async (slotKey) => {
     const value = readings[slotKey];
     if (!value) {
       toast.error("Please enter a blood sugar value");
       return;
     }
-    toast.success(
-      `Saved ${timeSlots.find((s) => s.key === slotKey).label}: ${value} mg/dL`,
-      { duration: 3000, icon: '✅' }
-    );
+    if (!currentPatientUHID) {
+      toast.error("Patient not identified. Please log in again.");
+      return;
+    }
+
+    const now = new Date();
+    const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+    const apiData = {
+      date: selectedDate,
+      timeSlot: SLOT_TO_BACKEND[slotKey],
+      value: parseFloat(value),
+      time,
+    };
+
+    const result = await addBloodSugarReading(currentPatientUHID, apiData);
+    if (result?.success) {
+      toast.success(
+        `Saved ${timeSlots.find((s) => s.key === slotKey).label}: ${value} mg/dL`,
+        { duration: 3000, icon: '✅' }
+      );
+    } else {
+      toast.error(result?.message || "Failed to save reading. Please try again.");
+    }
   };
 
-  const handleSaveAll = () => {
-    // eslint-disable-next-line no-unused-vars
-    const enteredReadings = Object.entries(readings).filter(([_, value]) => value !== '');
+  const handleSaveAll = async () => {
+    const enteredReadings = Object.entries(readings).filter(([, value]) => value !== '');
     if (enteredReadings.length === 0) {
       toast.error("Please enter at least one reading", { icon: '⚠️' });
       return;
     }
-    
-    // Create reading object with date and values (in mg/dL)
-    const reading = {
+    if (!currentPatientUHID) {
+      toast.error("Patient not identified. Please log in again.");
+      return;
+    }
+
+    // Transform flat object to backend bulk format with correct slot names
+    const now = new Date();
+    const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+    const readingsArray = enteredReadings.map(([key, value]) => ({
+      timeSlot: SLOT_TO_BACKEND[key],
+      value: parseFloat(value),
+      time,
+    }));
+
+    const apiData = {
       date: selectedDate,
-      fasting: readings.fasting ? parseFloat(readings.fasting) : null,
-      afterBreakfast: readings.afterBreakfast ? parseFloat(readings.afterBreakfast) : null,
-      beforeLunch: readings.beforeLunch ? parseFloat(readings.beforeLunch) : null,
-      afterLunch: readings.afterLunch ? parseFloat(readings.afterLunch) : null,
-      beforeDinner: readings.beforeDinner ? parseFloat(readings.beforeDinner) : null,
-      afterDinner: readings.afterDinner ? parseFloat(readings.afterDinner) : null,
-      beforeBedtime: readings.beforeBedtime ? parseFloat(readings.beforeBedtime) : null,
+      readings: readingsArray,
     };
-    
-    // Save to PatientContext
-    addBloodSugarReading(currentPatientUHID, reading);
-    
-    toast.success(
-      `Successfully saved ${enteredReadings.length} reading(s) for ${new Date(selectedDate).toLocaleDateString()}`,
-      { 
-        duration: 4000,
-        icon: '🎉',
-        style: {
-          background: '#10b981',
-          color: '#fff',
+
+    const result = await addBloodSugarReading(currentPatientUHID, apiData);
+
+    if (result?.success) {
+      toast.success(
+        `Successfully saved ${enteredReadings.length} reading(s) for ${new Date(selectedDate).toLocaleDateString()}`,
+        {
+          duration: 4000,
+          icon: '🎉',
+          style: { background: '#10b981', color: '#fff' },
         }
-      }
-    );
-    
-    toast('Your doctor can now view this data in Glycemic Charts', {
-      duration: 3000,
-      icon: '👨‍⚕️',
-    });
-    
-    // Clear form
-    setReadings({
-      fasting: "",
-      afterBreakfast: "",
-      beforeLunch: "",
-      afterLunch: "",
-      beforeDinner: "",
-      afterDinner: "",
-      beforeBedtime: "",
-    });
+      );
+
+      toast('Your doctor can now view this data in Glycemic Charts', {
+        duration: 3000,
+        icon: '👨‍⚕️',
+      });
+
+      // Clear form
+      setReadings({
+        fasting: "",
+        afterBreakfast: "",
+        beforeLunch: "",
+        afterLunch: "",
+        beforeDinner: "",
+        afterDinner: "",
+        beforeBedtime: "",
+      });
+    } else {
+      toast.error(result?.message || "Failed to save readings. Please try again.");
+    }
   };
 
 
@@ -168,9 +205,9 @@ const LogBloodSugar = () => {
   const getStatusText = (value) => {
     if (!value) return "";
     const numValue = parseInt(value);
-    if (numValue < 100) return "âœ… Normal";
-    if (numValue < 140) return "âš ï¸ Elevated";
-    return "âŒ High";
+    if (numValue < 100) return "Normal";
+    if (numValue < 140) return "Elevated";
+    return "High";
   };
 
   // Generate calendar days for current month

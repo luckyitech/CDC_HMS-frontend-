@@ -88,7 +88,6 @@ const AddEquipmentModal = ({
     };
 
     onSave(equipmentData, formData.reason);
-    onClose();
   };
 
   const getTitle = () => {

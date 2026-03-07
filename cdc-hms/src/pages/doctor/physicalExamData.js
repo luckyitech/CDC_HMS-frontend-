@@ -479,11 +479,6 @@ export const generateFindingsProse = (sectionId, data) => {
     prose += findings.join(', ');
   }
 
-  // Add custom notes if present
-  if (data.notes) {
-    prose += prose ? `. ${data.notes}` : data.notes;
-  }
-
   // Capitalize first letter
   return prose ? prose.charAt(0).toUpperCase() + prose.slice(1) : 'No findings recorded';
 };
