@@ -252,30 +252,8 @@ const CreatePatient = () => {
     }
   };
 
-  const generateUsername = () => {
-    if (patientData.firstName && patientData.lastName) {
-      const username = `${patientData.firstName.toLowerCase()}.${patientData.lastName.toLowerCase()}`;
-      setPatientData({ ...patientData, username });
-      
-      toast.success('Username generated!', {
-        duration: 2000,
-        style: {
-          background: '#D1FAE5',
-          color: '#065F46',
-          padding: '12px',
-        },
-      });
-    } else {
-      toast.error('Please enter first and last name first', {
-        duration: 3000,
-        style: {
-          background: '#FEE2E2',
-          color: '#991B1B',
-          padding: '12px',
-        },
-      });
-    }
-  };
+  // TODO: Uncomment when username field is re-enabled
+  // const generateUsername = () => { ... };
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
@@ -499,12 +477,11 @@ const CreatePatient = () => {
             />
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Primary Doctor *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Primary Doctor</label>
               <select
                 value={patientData.primaryDoctor}
                 onChange={(e) => setPatientData({ ...patientData, primaryDoctor: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-                required
               >
                 <option value="">Select primary doctor</option>
                 {doctors.map((doctor) => (
@@ -635,6 +612,8 @@ const CreatePatient = () => {
           </span>
         } className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* TODO: Username field — backend does not support username yet (auth is by email).
+                Uncomment and wire up once username support is added to the User model.
             <div>
               <Input
                 label="Username *"
@@ -653,6 +632,7 @@ const CreatePatient = () => {
                 Generate from name
               </button>
             </div>
+            */}
 
             <div>
               <Input
