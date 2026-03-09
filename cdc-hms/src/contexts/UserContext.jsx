@@ -36,12 +36,13 @@ export const UserProvider = ({ children }) => {
   const [admins] = useState(mockUsers.admins);
 
 
-  // Fetch real doctors from API on mount
+  // Fetch doctors whenever a user logs in (requires valid token)
   useEffect(() => {
+    if (!currentUser) return;
     api.get('/users/doctors')
       .then(res => { if (res.success) setDoctors(Array.isArray(res.data) ? res.data : []); })
       .catch(() => {});
-  }, []);
+  }, [currentUser]);
 
   // Get all users combined
   const getAllUsers = () => {
