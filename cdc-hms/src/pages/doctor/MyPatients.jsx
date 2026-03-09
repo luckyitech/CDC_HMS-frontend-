@@ -164,7 +164,7 @@ const MyPatients = () => {
                     <p className="text-xs text-gray-500">{patient.phone}</p>
                   </td>
                   <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 hidden md:table-cell">
-                    {patient.age} yrs â€¢ {patient.gender}
+                    {patient.age} yrs &middot; {patient.gender}
                   </td>
                   <td className="px-4 lg:px-6 py-4 text-sm hidden lg:table-cell">
                     <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">

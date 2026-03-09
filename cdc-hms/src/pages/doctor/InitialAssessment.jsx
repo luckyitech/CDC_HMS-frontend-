@@ -244,7 +244,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                           {patient.name}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
-                          {patient.age} yrs â€¢ {patient.gender}
+                          {patient.age} yrs &middot; {patient.gender}
                         </p>
                       </div>
                     </div>

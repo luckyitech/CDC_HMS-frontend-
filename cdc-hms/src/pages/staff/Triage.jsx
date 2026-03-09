@@ -490,7 +490,7 @@ const Triage = () => {
                       <div>
                         <p className="text-sm text-gray-600">Age / Gender</p>
                         <p className="font-semibold">
-                          {selectedPatient.age} yrs â€¢ {selectedPatient.gender}
+                          {selectedPatient.age} yrs &middot; {selectedPatient.gender}
                         </p>
                       </div>
                       <div>
