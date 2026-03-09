@@ -275,13 +275,13 @@ const ManageUsers = () => {
       </Card>
 
       {/* Bulk Actions */}
-      <Card title="⚡ Bulk Actions" className="mt-6">
+      {/* <Card title="⚡ Bulk Actions" className="mt-6">
         <div className="flex flex-col sm:flex-row gap-3">
           <Button variant="outline" className="flex-1">📧 Send Email to All Active Users</Button>
           <Button variant="outline" className="flex-1">📊 Export User List (Excel)</Button>
           <Button variant="outline" className="flex-1">📄 Generate User Report (PDF)</Button>
         </div>
-      </Card>
+      </Card> */}
     </div>
   );
 };
