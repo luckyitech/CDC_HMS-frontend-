@@ -373,6 +373,8 @@ const CreateLabTech = () => {
         {/* Account Settings */}
         <Card title="🔐 Account Settings" className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* TODO: Username field — backend does not support username yet (auth is by email).
+                Uncomment and wire up once username support is added to the User model.
             <div>
               <Input
                 label="Username *"
@@ -390,6 +392,7 @@ const CreateLabTech = () => {
                 Generate from name
               </button>
             </div>
+            */}
 
             <div>
               <Input
