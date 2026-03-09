@@ -276,3 +276,97 @@ npm run build     # Production build to dist/
 npm run preview   # Preview production build locally
 npm run lint      # Run ESLint
 ```
+
+---
+
+## Production Deployment
+
+This guide documents how the CDC HMS frontend is deployed on the Host Africa VPS (Ubuntu 24.04, IP `102.68.87.18`).
+
+### Server Requirements
+
+- Node.js 20+ (for building on the server)
+- Nginx (to serve the static files)
+
+### 1. Clone the Repository on the Server
+
+```bash
+cd /var/www/cdc
+git clone https://github.com/luckyitech/CDC_HMS-frontend-.git frontend-repo
+cd frontend-repo/cdc-hms
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Build for Production
+
+Pass the production API URL as an environment variable at build time:
+
+```bash
+VITE_API_URL=https://api.cdiabetescentre.com/api npm run build
+```
+
+This generates a `dist/` folder with the compiled static files.
+
+### 4. Copy to Nginx Web Root
+
+```bash
+mkdir -p /var/www/cdc/web
+cp -r dist/* /var/www/cdc/web/
+```
+
+### 5. Configure Nginx
+
+```bash
+nano /etc/nginx/sites-available/cdiabetescentre
+```
+
+Add the frontend server block:
+
+```nginx
+server {
+    listen 80;
+    server_name cdiabetescentre.com www.cdiabetescentre.com;
+    root /var/www/cdc/web;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+> The `try_files ... /index.html` rule is essential for React Router — it ensures all routes (e.g. `/doctor/dashboard`) serve `index.html` and let the frontend handle routing.
+
+Enable and reload:
+
+```bash
+ln -s /etc/nginx/sites-available/cdiabetescentre /etc/nginx/sites-enabled/
+nginx -t
+systemctl reload nginx
+```
+
+### 6. DNS
+
+On your domain registrar (one.com), add A records:
+
+| Type | Name | Value |
+|------|------|-------|
+| A | @ | 102.68.87.18 |
+| A | www | 102.68.87.18 |
+
+### Updating the Frontend
+
+Whenever you push new code, on the server:
+
+```bash
+cd /var/www/cdc/frontend-repo
+git pull
+cd cdc-hms
+VITE_API_URL=https://api.cdiabetescentre.com/api npm run build
+cp -r dist/* /var/www/cdc/web/
+```
