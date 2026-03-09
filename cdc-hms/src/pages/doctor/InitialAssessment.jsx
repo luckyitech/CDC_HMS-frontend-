@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { Eye } from "lucide-react";
+import toast from "react-hot-toast";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
-import { useUserContext } from "../../contexts/UserContext";
+import cdcLogo from "../../assets/cdc_web_logo1.svg";
 
 const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const location = useLocation();
@@ -13,7 +15,6 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const { uhid: urlUHID } = useParams();
   const { getPatientByUHID, patients } = usePatientContext();
   const { saveAssessment, getLatestAssessment } = useInitialAssessmentContext();
-  const { currentUser } = useUserContext();
 
   // Get patient from URL params OR navigation state (flexible!)
   const patientUHID = propUHID || urlUHID || location.state?.patientUHID;
@@ -26,24 +27,6 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [alreadyAssessed, setAlreadyAssessed] = useState(false);
   const [viewMode, setViewMode] = useState(false);
-
-  // Auto-select patient if coming from Consultations
-  useEffect(() => {
-    if (patientUHID) {
-      const patient = getPatientByUHID(patientUHID);
-      if (patient) {
-        // Check if already assessed
-        const existingAssessment = getLatestAssessment(patient.uhid);
-        if (existingAssessment) {
-          setAlreadyAssessed(true);
-          setViewMode(true);
-          // Load the existing data
-          setAssessmentData(existingAssessment.data);
-        }
-        setSelectedPatient(patient);
-      }
-    }
-  }, [patientUHID, getPatientByUHID, getLatestAssessment]);
 
   const allPatients = patients;
 
@@ -81,6 +64,39 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     substanceUse: "",
   });
 
+  // Auto-select patient if coming from Consultations
+  useEffect(() => {
+    if (!patientUHID) return;
+    let isMounted = true;
+
+    const loadPatientData = async () => {
+      const patient = getPatientByUHID(patientUHID);
+      if (!patient || !isMounted) return;
+
+      // Check if already assessed (async)
+      const existingAssessment = await getLatestAssessment(patient.uhid);
+      if (!isMounted) return;
+
+      if (existingAssessment) {
+        setAlreadyAssessed(true);
+        setViewMode(true);
+        // Load the existing data
+        setAssessmentData(existingAssessment.data || existingAssessment);
+      } else if (fromConsultation) {
+        // No assessment yet + coming from consultation → allow doctor to fill it out
+        setAlreadyAssessed(true); // show the form (not the "No Assessment Yet" message)
+        setViewMode(false);       // editable
+      } else {
+        // No assessment yet + viewing from patient profile → just show empty state
+        setViewMode(true);
+      }
+      setSelectedPatient(patient);
+    };
+
+    loadPatientData();
+    return () => { isMounted = false; };
+  }, [patientUHID, getPatientByUHID, getLatestAssessment, fromConsultation]);
+
   const handleCheckboxChange = (field) => {
     setAssessmentData({ ...assessmentData, [field]: !assessmentData[field] });
   };
@@ -89,16 +105,16 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     setAssessmentData({ ...assessmentData, [field]: value });
   };
 
-  const handleSelectPatient = (patient) => {
-    // Check if patient already has an initial assessment
-    const existingAssessment = getLatestAssessment(patient.uhid);
+  const handleSelectPatient = async (patient) => {
+    // Check if patient already has an initial assessment (async)
+    const existingAssessment = await getLatestAssessment(patient.uhid);
 
     if (existingAssessment) {
       setAlreadyAssessed(true);
       setViewMode(true);
       setSelectedPatient(patient);
       // Load existing data
-      setAssessmentData(existingAssessment.data);
+      setAssessmentData(existingAssessment.data || existingAssessment);
       return;
     }
 
@@ -134,34 +150,58 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Save to context
-    const savedAssessment = saveAssessment({
+    // Save to backend (async)
+    const savedAssessment = await saveAssessment({
       uhid: selectedPatient.uhid,
-      patientName: selectedPatient.name,
-      doctorName: currentUser?.name || "Dr. Ahmed Hassan",
       data: assessmentData,
     });
 
-    // Show success message
-    const successDiv = document.createElement("div");
-    successDiv.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce";
-    successDiv.innerHTML = `âœ… Initial Assessment completed for ${selectedPatient.name}!`;
-    document.body.appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 3000);
+    if (savedAssessment) {
+      // Show success message
+      toast.success(`Initial Assessment Completed for ${selectedPatient.name}`, {
+        duration: 3000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#10B981",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
 
-    // Navigate back or clear
-    if (fromConsultation && embedded) {
-      // Stay in embedded tab - don't navigate
-      return;
-    } else if (fromConsultation) {
-      // Navigate back to the consultation page with tabs
-      navigate(`/doctor/consultation/${selectedPatient.uhid}`);
+      // Mark as already assessed
+      setAlreadyAssessed(true);
+      setViewMode(true);
+
+      // Navigate back or clear
+      if (fromConsultation && embedded) {
+        // Stay in embedded tab - don't navigate
+        return;
+      } else if (fromConsultation) {
+        navigate(`/doctor/consultation/${selectedPatient.uhid}`);
+      } else {
+        setSelectedPatient(null);
+      }
     } else {
-      setSelectedPatient(null);
+      toast.error("Failed to save assessment. Please try again.", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
     }
   };
 
@@ -226,6 +266,19 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                 </p>
               </div>
             </Card>
+          ) : !alreadyAssessed ? (
+            /* No assessment exists yet — show empty state */
+            <Card>
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">📋</div>
+                <p className="text-gray-500 text-lg mb-2">
+                  No Initial Assessment Yet
+                </p>
+                <p className="text-gray-400 text-sm">
+                  The initial diabetic assessment will be completed during the patient's first consultation.
+                </p>
+              </div>
+            </Card>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* View Mode Banner */}
@@ -233,13 +286,13 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                 <Card>
                   <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="text-3xl">👁️</div>
+                      <Eye className="w-8 h-8 text-blue-500" />
                       <div>
                         <p className="text-sm font-bold text-blue-900">
                           VIEW MODE - Initial Assessment (Read Only)
                         </p>
                         <p className="text-xs text-blue-700 mt-1">
-                          This assessment was completed on {new Date().toLocaleDateString()}. 
+                          This assessment was completed during the patient's first visit.
                           Initial assessments cannot be edited as they are one-time comprehensive evaluations.
                         </p>
                       </div>
@@ -576,6 +629,152 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                 </div>
               </Card>
 
+            {/* Print-only content */}
+              {viewMode && (
+                <div id="ia-print-content" className="hidden print:block">
+                  {/* Hospital Header */}
+                  <div className="flex justify-between items-center mb-8 border-b-2 border-primary pb-4">
+                    <div>
+                      <h1 className="text-3xl font-bold text-primary">CDC DIABETES CLINIC</h1>
+                      <p className="text-sm text-gray-600 mt-2">Comprehensive Diabetes Centre • Excellence in Diabetes Care</p>
+                      <p className="text-sm text-gray-600">Tel: +254 700 000 000 • Email: info@cdc-diabetes.com</p>
+                    </div>
+                    <img src={cdcLogo} alt="CDC Logo" className="w-40 h-40 object-contain py-4" />
+                  </div>
+
+                  {/* Document Title */}
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">INITIAL DIABETIC ASSESSMENT</h2>
+                  </div>
+
+                  {/* Patient Info */}
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                    <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase">Patient Information</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div><p className="text-gray-600">Name:</p><p className="font-semibold">{selectedPatient?.name}</p></div>
+                      <div><p className="text-gray-600">UHID:</p><p className="font-semibold">{selectedPatient?.uhid}</p></div>
+                      <div><p className="text-gray-600">Age / Gender:</p><p className="font-semibold">{selectedPatient?.age} yrs • {selectedPatient?.gender}</p></div>
+                      <div><p className="text-gray-600">Diabetes Type:</p><p className="font-semibold">{selectedPatient?.diabetesType || "—"}</p></div>
+                    </div>
+                  </div>
+
+                  {/* Presenting Complaints */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase border-b pb-1">Presenting Complaints</h3>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      {[
+                        { key: "weightLoss", label: "Weight Loss" },
+                        { key: "visualDisturbances", label: "Visual Disturbances" },
+                        { key: "increasedThirst", label: "Increased Thirst (Polydipsia)" },
+                        { key: "fatigue", label: "Fatigue" },
+                        { key: "nocturia", label: "Nocturia" },
+                        { key: "paresthesia", label: "Paresthesia (Numbness/Tingling)" },
+                        { key: "dizziness", label: "Dizziness" },
+                        { key: "legCramps", label: "Leg Cramps" },
+                        { key: "constipation", label: "Constipation" },
+                        { key: "diarrhea", label: "Diarrhea" },
+                        { key: "decreasedLibido", label: "Decreased Libido" },
+                      ].map(({ key, label }) => (
+                        <div key={key} className="flex items-center gap-2">
+                          <span className={assessmentData[key] ? "text-green-600 font-bold" : "text-gray-400"}>
+                            {assessmentData[key] ? "✓" : "✗"}
+                          </span>
+                          <span className={assessmentData[key] ? "text-gray-800 font-semibold" : "text-gray-400"}>{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {assessmentData.otherComplaints && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded border-l-4 border-primary">
+                        <p className="text-xs font-bold text-gray-700 mb-1">Other Complaints:</p>
+                        <p className="text-sm text-gray-800">{assessmentData.otherComplaints}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Diabetic Complications */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase border-b pb-1">Diabetic Complications Screening</h3>
+                    <table className="w-full text-sm border-collapse border border-gray-300">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Complication</th>
+                          <th className="border border-gray-300 px-3 py-2 text-left font-semibold">Findings</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { label: "Retinopathy", key: "retinopathy" },
+                          { label: "Cerebrovascular Disease", key: "cerebrovascularDisease" },
+                          { label: "Cardiovascular Disease", key: "cardiovascularDisease" },
+                          { label: "Nephropathy", key: "nephropathy" },
+                          { label: "Neuropathy – Peripheral", key: "neuropathyPeripheral" },
+                          { label: "Neuropathy – Autonomic", key: "neuropathyAutonomic" },
+                        ].map(({ label, key }) => (
+                          <tr key={key}>
+                            <td className="border border-gray-300 px-3 py-2 font-medium text-gray-700">{label}</td>
+                            <td className="border border-gray-300 px-3 py-2 text-gray-800">{assessmentData[key] || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Family & Social History */}
+                  <div className="grid grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-700 mb-2 uppercase border-b pb-1">Family History</h3>
+                      <p className="text-sm text-gray-800 p-3 bg-gray-50 rounded">{assessmentData.familyHistory || "—"}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-700 mb-2 uppercase border-b pb-1">Social History</h3>
+                      <div className="space-y-1 text-sm">
+                        <p><span className="font-medium text-gray-600">Alcohol:</span> {assessmentData.alcoholIntake || "—"}</p>
+                        <p><span className="font-medium text-gray-600">Smoking:</span> {assessmentData.cigaretteSmoking || "—"}</p>
+                        <p><span className="font-medium text-gray-600">Diet:</span> {assessmentData.dietType || "—"}</p>
+                        <p><span className="font-medium text-gray-600">Exercise:</span> {assessmentData.exercisePlan || "—"}</p>
+                        <p><span className="font-medium text-gray-600">Substance Use:</span> {assessmentData.substanceUse || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Signature */}
+                  <div className="grid grid-cols-2 gap-8 mt-10 pt-6 border-t-2 border-gray-300">
+                    <div>
+                      <div className="border-t-2 border-gray-400 pt-2">
+                        <p className="text-sm font-semibold">Doctor's Signature</p>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="border-t-2 border-gray-400 pt-2">
+                        <p className="text-sm font-semibold">Date</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="text-center mt-6 pt-4 border-t border-gray-300">
+                    <p className="text-xs text-gray-500">This assessment is confidential and intended for the patient named above.</p>
+                    <p className="text-xs text-gray-500 mt-1">CDC Diabetes Clinic • Nairobi, Kenya</p>
+                  </div>
+
+                  {/* Print Styles */}
+                  <style>{`
+                    @media print {
+                      body * { visibility: hidden; }
+                      #ia-print-content, #ia-print-content * { visibility: visible; }
+                      #ia-print-content {
+                        position: absolute;
+                        top: 0; left: 0;
+                        width: 100%;
+                        padding: 1cm;
+                        background: white;
+                      }
+                      @page { margin: 1cm; }
+                    }
+                  `}</style>
+                </div>
+              )}
+
             {/* Action Buttons */}
               <div className="flex gap-4">
                 {!viewMode ? (
@@ -608,6 +807,13 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                   </>
                 ) : (
                   <>
+                    <Button
+                      type="button"
+                      onClick={handlePrint}
+                      className="flex items-center gap-2"
+                    >
+                      🖨️ Print Assessment
+                    </Button>
                     {fromConsultation && embedded ? (
                       // Embedded in tabs - just show close
                       <Button

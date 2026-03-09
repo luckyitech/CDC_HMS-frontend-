@@ -27,7 +27,7 @@ const DocumentCard = ({ doc, showPatientBadge = false, isStaff, onView, onDownlo
                 {doc.patientName}
               </span>
               <span className="px-2 py-0.5 bg-gray-100 border border-gray-200 text-gray-600 rounded-full text-xs font-medium">
-                {doc.patientUHID}
+                {doc.uhid}
               </span>
             </div>
           )}
@@ -57,7 +57,7 @@ const DocumentCard = ({ doc, showPatientBadge = false, isStaff, onView, onDownlo
             </div>
             <div>
               <p className="text-gray-600">Upload Date</p>
-              <p className="font-semibold text-gray-800">{formatDate(doc.uploadDate)}</p>
+              <p className="font-semibold text-gray-800">{formatDate(doc.uploadedAt)}</p>
             </div>
           </div>
 

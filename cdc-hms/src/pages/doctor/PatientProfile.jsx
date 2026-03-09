@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { Phone, Mail, Microscope, ArrowLeft } from "lucide-react";
+import {
+  Phone, Mail, Microscope, ArrowLeft,
+  ClipboardList, Zap, FileEdit, Stethoscope, TrendingUp, Pill,
+  FileText, MessageSquare, BarChart2, AlertTriangle,
+  AlertCircle, CheckCircle, Radio, Printer, BookOpen,
+} from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
@@ -64,16 +70,16 @@ const PatientProfile = () => {
   }
 
   const tabs = [
-    { id: "overview", name: "Overview", icon: "📋" },
-    { id: "equipment", name: "Medical Equipment", icon: "🔋" },
-    { id: "initial-assessment", name: "Initial Assessment", icon: "📝" },
-    { id: "physical-exam", name: "Physical Exam", icon: "🩺" },
-    { id: "glycemic-charts", name: "Glycemic Charts", icon: "📈" },
-    { id: "prescriptions", name: "Prescriptions", icon: "💊" },
-    { id: "treatment-plans", name: "Treatment Plans", icon: "📝" },
-    { id: "consultation-notes", name: "Consultation Notes", icon: "💬" },
-     { id: "medical-documents", name: "Medical Documents", icon: "📄" },
-    { id: "reports", name: "Reports", icon: "📄" },
+    { id: "overview", name: "Overview", Icon: ClipboardList },
+    { id: "equipment", name: "Medical Equipment", Icon: Zap },
+    { id: "initial-assessment", name: "Initial Assessment", Icon: FileEdit },
+    { id: "physical-exam", name: "Physical Exam", Icon: Stethoscope },
+    { id: "glycemic-charts", name: "Glycemic Charts", Icon: TrendingUp },
+    { id: "prescriptions", name: "Prescriptions", Icon: Pill },
+    { id: "treatment-plans", name: "Treatment Plans", Icon: FileText },
+    { id: "consultation-notes", name: "Consultation Notes", Icon: MessageSquare },
+    { id: "medical-documents", name: "Medical Documents", Icon: FileText },
+    { id: "reports", name: "Reports", Icon: BarChart2 },
   ];
 
   return (
@@ -210,7 +216,7 @@ const PatientProfile = () => {
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
+              <tab.Icon className="w-4 h-4 inline mr-2" />
               {tab.name}
             </button>
           ))}
@@ -257,7 +263,7 @@ const OverviewTab = ({ patient }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card title="📋 Personal Information">
+        <Card title="Personal Information">
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-600">Full Name</p>
@@ -288,7 +294,7 @@ const OverviewTab = ({ patient }) => {
           </div>
         </Card>
 
-        <Card title="🏥 Medical Information">
+        <Card title="Medical Information">
           <div className="space-y-3">
             <div>
               <p className="text-sm text-gray-600">Diabetes Type</p>
@@ -334,51 +340,59 @@ const OverviewTab = ({ patient }) => {
         </Card>
       </div>
 
-      <Card title="🚨 Emergency Contact">
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-gray-600">Name</p>
-            <p className="font-semibold text-gray-800">
-              {patient.emergencyContact.name}
-            </p>
+      <Card title="Emergency Contact">
+        {patient.emergencyContact ? (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm text-gray-600">Name</p>
+              <p className="font-semibold text-gray-800">
+                {patient.emergencyContact.name || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Relationship</p>
+              <p className="font-semibold text-gray-800">
+                {patient.emergencyContact.relationship || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Phone</p>
+              <p className="font-semibold text-gray-800">
+                {patient.emergencyContact.phone || 'N/A'}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-gray-600">Relationship</p>
-            <p className="font-semibold text-gray-800">
-              {patient.emergencyContact.relationship}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Phone</p>
-            <p className="font-semibold text-gray-800">
-              {patient.emergencyContact.phone}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-gray-500">No emergency contact on file</p>
+        )}
       </Card>
 
-      <Card title="💊 Current Medications">
-        <ul className="space-y-2">
-          {patient.medications.map((med, index) => (
-            <li
-              key={index}
-              className="flex items-start p-3 bg-gray-50 rounded-lg"
-            >
-              <span className="text-blue-600 mr-2">💊</span>
-              <span className="text-sm font-medium text-gray-800">{med}</span>
-            </li>
-          ))}
-        </ul>
+      <Card title="Current Medications">
+        {patient.medications && patient.medications.length > 0 ? (
+          <ul className="space-y-2">
+            {patient.medications.map((med, index) => (
+              <li
+                key={index}
+                className="flex items-start p-3 bg-gray-50 rounded-lg"
+              >
+                <Pill className="w-4 h-4 text-blue-600 mr-2 flex-shrink-0" />
+                <span className="text-sm font-medium text-gray-800">{med}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-gray-500">No current medications on file</p>
+        )}
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card title="⚠️ Allergies">
+        <Card title="Allergies">
           <p className="text-sm font-semibold text-red-600">
-            {patient.allergies}
+            {patient.allergies || 'None reported'}
           </p>
         </Card>
 
-        <Card title="🏥 Comorbidities">
+        <Card title="Comorbidities">
           {patient.comorbidities && patient.comorbidities.length > 0 ? (
             <ul className="space-y-1">
               {patient.comorbidities.map((condition, index) => (
@@ -393,24 +407,25 @@ const OverviewTab = ({ patient }) => {
         </Card>
       </div>
 
-      <Card title="📊 Latest Vitals">
+      <Card title="Latest Vitals">
+        {patient.vitals ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg text-center">
             <p className="text-xs text-gray-600 uppercase">Blood Pressure</p>
             <p className="text-lg font-bold text-blue-700 mt-1">
-              {patient.vitals.bp}
+              {patient.vitals.bp || 'N/A'}
             </p>
           </div>
           <div className="bg-green-50 p-4 rounded-lg text-center">
             <p className="text-xs text-gray-600 uppercase">Heart Rate</p>
             <p className="text-lg font-bold text-green-700 mt-1">
-              {patient.vitals.heartRate}
+              {patient.vitals.heartRate || 'N/A'}
             </p>
           </div>
           <div className="bg-red-50 p-4 rounded-lg text-center">
             <p className="text-xs text-gray-600 uppercase">Temperature</p>
             <p className="text-lg font-bold text-red-700 mt-1">
-              {patient.vitals.temperature}
+              {patient.vitals.temperature || 'N/A'}
             </p>
           </div>
           <div className="bg-purple-50 p-4 rounded-lg text-center">
@@ -422,24 +437,24 @@ const OverviewTab = ({ patient }) => {
           <div className="bg-indigo-50 p-4 rounded-lg text-center">
             <p className="text-xs text-gray-600 uppercase">Weight</p>
             <p className="text-lg font-bold text-indigo-700 mt-1">
-              {patient.vitals.weight}
+              {patient.vitals.weight || 'N/A'}
             </p>
           </div>
           <div className="bg-cyan-50 p-4 rounded-lg text-center">
             <p className="text-xs text-gray-600 uppercase">Height</p>
             <p className="text-lg font-bold text-cyan-700 mt-1">
-              {patient.vitals.height}
+              {patient.vitals.height || 'N/A'}
             </p>
           </div>
           <div className="bg-orange-50 p-4 rounded-lg text-center border-2 border-orange-200">
             <p className="text-xs text-gray-600 uppercase">BMI</p>
             <p className="text-lg font-bold text-orange-700 mt-1">
-              {patient.vitals.bmi}
+              {patient.vitals.bmi || 'N/A'}
             </p>
           </div>
 
           {/* NEW: Waist Circumference */}
-          {patient.vitals.waistCircumference && (
+          {patient.vitals?.waistCircumference && (
             <div className="bg-pink-50 p-4 rounded-lg text-center border-2 border-pink-200">
               <p className="text-xs text-gray-600 uppercase">Waist Circ.</p>
               <p className="text-lg font-bold text-pink-700 mt-1">
@@ -449,7 +464,7 @@ const OverviewTab = ({ patient }) => {
           )}
 
           {/* NEW: Waist-to-Height Ratio */}
-          {patient.vitals.waistHeightRatio && (
+          {patient.vitals?.waistHeightRatio && (
             <div className="bg-yellow-50 p-4 rounded-lg text-center border-2 border-yellow-200">
               <p className="text-xs text-gray-600 uppercase">Waist/Height</p>
               <p className="text-lg font-bold text-yellow-700 mt-1">
@@ -466,7 +481,7 @@ const OverviewTab = ({ patient }) => {
           )}
 
           {/* RBS */}
-          {patient.vitals.rbs && (
+          {patient.vitals?.rbs && (
             <div className="bg-rose-50 p-4 rounded-lg text-center border-2 border-rose-200">
               <p className="text-xs text-gray-600 uppercase">RBS</p>
               <p className="text-lg font-bold text-rose-700 mt-1">
@@ -476,7 +491,7 @@ const OverviewTab = ({ patient }) => {
           )}
 
           {/* HbA1c */}
-          {patient.vitals.hba1c && (
+          {patient.vitals?.hba1c && (
             <div className="bg-red-50 p-4 rounded-lg text-center border-2 border-red-300">
               <p className="text-xs text-gray-600 uppercase">HbA1c</p>
               <p className="text-lg font-bold text-red-700 mt-1">
@@ -486,7 +501,7 @@ const OverviewTab = ({ patient }) => {
           )}
 
           {/* Ketones */}
-          {patient.vitals.ketones && (
+          {patient.vitals?.ketones && (
             <div className="bg-amber-50 p-4 rounded-lg text-center">
               <p className="text-xs text-gray-600 uppercase">Ketones</p>
               <p className="text-lg font-bold text-amber-700 mt-1">
@@ -495,17 +510,20 @@ const OverviewTab = ({ patient }) => {
             </div>
           )}
         </div>
+        ) : (
+          <p className="text-sm text-gray-500">No vitals recorded yet</p>
+        )}
       </Card>
       {/* NEW: Medical Equipment Summary */}
       {patient.medicalEquipment?.insulinPump?.hasPump && (
-        <Card title="🔋 Medical Equipment">
+        <Card title="Medical Equipment">
           <div className="space-y-4">
             {/* Pump Summary */}
             {patient.medicalEquipment.insulinPump.current && (
               <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-bold text-gray-800 flex items-center gap-2">
-                    ⚡ Insulin Pump
+                    <Zap className="w-4 h-4 text-yellow-500" /> Insulin Pump
                   </p>
                   <span className="text-xs px-2 py-1 bg-blue-200 text-blue-800 rounded">
                     Active
@@ -535,7 +553,7 @@ const OverviewTab = ({ patient }) => {
               <div className="p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-bold text-gray-800 flex items-center gap-2">
-                    📡 Transmitter
+                    <Radio className="w-4 h-4 text-purple-500" /> Transmitter
                   </p>
                   <span className="text-xs px-2 py-1 bg-purple-200 text-purple-800 rounded">
                     Active
@@ -594,11 +612,35 @@ const TreatmentPlansTab = ({ patient }) => {
 
 const ReportsTab = ({ patient }) => {
   const { getTestsByPatient } = useLabContext();
-  const labTests = getTestsByPatient(patient.uhid);
 
   const [selectedTest, setSelectedTest] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+
+  // State for lab tests loaded async
+  const [labTests, setLabTests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load lab tests on mount
+  useEffect(() => {
+    let isMounted = true;
+    const loadLabTests = async () => {
+      setIsLoading(true);
+      try {
+        const tests = await getTestsByPatient(patient.uhid);
+        if (isMounted) {
+          setLabTests(Array.isArray(tests) ? tests : []);
+        }
+      } catch (err) {
+        console.error('Error loading lab tests:', err);
+        if (isMounted) setLabTests([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadLabTests();
+    return () => { isMounted = false; };
+  }, [patient.uhid, getTestsByPatient]);
 
   const handleViewFullReport = (test) => {
     setSelectedTest(test);
@@ -612,23 +654,40 @@ const ReportsTab = ({ patient }) => {
 
   const handleEmail = (test) => {
     // Show "Not implemented" message
-    const notificationDiv = document.createElement("div");
-    notificationDiv.className =
-      "fixed top-4 right-4 bg-blue-500 text-white px-6 py-4 rounded-lg shadow-lg z-50";
-    notificationDiv.innerHTML = `
-      <p class="font-bold">📧 Email Feature</p>
-      <p class="text-sm mt-1">Email functionality will be implemented with backend integration.</p>
-      <p class="text-sm">Test: ${test.testType} for ${test.patientName}</p>
-    `;
-    document.body.appendChild(notificationDiv);
-    setTimeout(() => notificationDiv.remove(), 4000);
+    toast.info(
+      `Email Feature\nEmail functionality will be implemented with backend integration.\nTest: ${test.testType} for ${test.patientName}`,
+      {
+        duration: 4000,
+        position: "top-right",
+        icon: "📧",
+        style: {
+          background: "#3B82F6",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+          whiteSpace: "pre-line",
+        },
+      }
+    );
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="text-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading lab reports...</p>
+        </div>
+      </Card>
+    );
+  }
 
   if (labTests.length === 0) {
     return (
       <Card>
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">🔬</div>
+          <Microscope className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 text-lg mb-2">No Lab Reports Available</p>
           <p className="text-gray-400 text-sm">
             This patient has no lab test results yet.
@@ -691,7 +750,7 @@ const ReportsTab = ({ patient }) => {
       {labTests.some((t) => t.isCritical) && (
         <Card className="border-2 border-red-500">
           <div className="flex items-start gap-3 mb-4">
-            <div className="text-3xl">🚨</div>
+            <AlertTriangle className="w-8 h-8 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
               <h3 className="text-lg font-bold text-red-700">
                 Critical Results Alert
@@ -742,7 +801,7 @@ const ReportsTab = ({ patient }) => {
       )}
 
       {/* Lab Reports List */}
-      <Card title="🔬 Laboratory Test Results">
+      <Card title="Laboratory Test Results">
         <div className="space-y-4">
           {labTests.map((test, index) => (
             <div
@@ -772,8 +831,8 @@ const ReportsTab = ({ patient }) => {
                       {test.interpretation}
                     </span>
                     {test.isCritical && (
-                      <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
-                        🚨 CRITICAL
+                      <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> CRITICAL
                       </span>
                     )}
                   </div>
@@ -871,24 +930,24 @@ const ReportsTab = ({ patient }) => {
                 <div className="flex flex-col gap-2 lg:items-end">
                   <Button
                     variant="outline"
-                    className="w-full lg:w-auto text-sm"
+                    className="w-full lg:w-auto text-sm flex items-center gap-2"
                     onClick={() => handleViewFullReport(test)}
                   >
-                    📄 View Full Report
+                    <FileText className="w-4 h-4" /> View Full Report
                   </Button>
                   <Button
                     variant="outline"
-                    className="w-full lg:w-auto text-sm"
+                    className="w-full lg:w-auto text-sm flex items-center gap-2"
                     onClick={() => handlePrint(test)}
                   >
-                    🖨️ Print
+                    <Printer className="w-4 h-4" /> Print
                   </Button>
                   <Button
                     variant="outline"
-                    className="w-full lg:w-auto text-sm"
+                    className="w-full lg:w-auto text-sm flex items-center gap-2"
                     onClick={() => handleEmail(test)}
                   >
-                    📧 Email
+                    <Mail className="w-4 h-4" /> Email
                   </Button>
                 </div>
               </div>
@@ -898,24 +957,24 @@ const ReportsTab = ({ patient }) => {
       </Card>
 
       {/* Reference Guide */}
-      <Card title="📚 Interpretation Guide">
+      <Card title="Interpretation Guide">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div className="p-3 bg-green-50 rounded-lg border-l-4 border-green-500">
-            <p className="font-bold text-gray-800 mb-1">✅ Normal</p>
+            <p className="font-bold text-gray-800 mb-1 flex items-center gap-1"><CheckCircle className="w-4 h-4 text-green-600" /> Normal</p>
             <p className="text-gray-600">
               Test results are within the normal reference range. No immediate
               action required.
             </p>
           </div>
           <div className="p-3 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
-            <p className="font-bold text-gray-800 mb-1">⚠️ Abnormal</p>
+            <p className="font-bold text-gray-800 mb-1 flex items-center gap-1"><AlertCircle className="w-4 h-4 text-yellow-600" /> Abnormal</p>
             <p className="text-gray-600">
               Results are outside normal range. May require follow-up testing or
               treatment adjustment.
             </p>
           </div>
           <div className="p-3 bg-red-50 rounded-lg border-l-4 border-red-500">
-            <p className="font-bold text-gray-800 mb-1">🚨 Critical</p>
+            <p className="font-bold text-gray-800 mb-1 flex items-center gap-1"><AlertTriangle className="w-4 h-4 text-red-600" /> Critical</p>
             <p className="text-gray-600">
               Significantly abnormal values requiring immediate medical
               attention and intervention.
@@ -954,8 +1013,22 @@ const PrescriptionsTab = ({ patient }) => {
   const { currentUser } = useUserContext();
   const { getPrescriptionsByPatient, addPrescription } =
     usePrescriptionContext();
+  const [patientPrescriptions, setPatientPrescriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const patientPrescriptions = getPrescriptionsByPatient(patient.uhid);
+  useEffect(() => {
+    const fetchPrescriptions = async () => {
+      setLoading(true);
+      const prescriptions = await getPrescriptionsByPatient(patient.uhid);
+      setPatientPrescriptions(prescriptions || []);
+      setLoading(false);
+    };
+    fetchPrescriptions();
+  }, [patient.uhid, getPrescriptionsByPatient]);
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">Loading prescriptions...</div>;
+  }
 
   return (
     <PrescriptionManagement
@@ -963,8 +1036,10 @@ const PrescriptionsTab = ({ patient }) => {
       patientPrescriptions={patientPrescriptions}
       addPrescription={addPrescription}
       currentUser={currentUser}
-      onSuccess={() => {
-        console.log("Prescription created successfully");
+      onSuccess={async () => {
+        // Refresh prescriptions after creating new one
+        const prescriptions = await getPrescriptionsByPatient(patient.uhid);
+        setPatientPrescriptions(prescriptions || []);
       }}
     />
   );

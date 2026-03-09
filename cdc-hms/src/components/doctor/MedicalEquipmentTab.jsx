@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Battery,
   Zap,
@@ -23,6 +23,7 @@ import toast, { Toaster } from "react-hot-toast";
 const MedicalEquipmentTab = ({ patient }) => {
   const { currentUser } = useUserContext();
   const {
+    getEquipment,
     addMedicalEquipment,
     updateMedicalEquipment,
     replaceMedicalEquipment,
@@ -40,15 +41,47 @@ const MedicalEquipmentTab = ({ patient }) => {
     useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-  const equipment = patient?.medicalEquipment?.insulinPump;
+  // Equipment data fetched from API (not from patient object)
+  const [equipmentData, setEquipmentData] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch equipment and history from API
+  useEffect(() => {
+    let isMounted = true;
+    const loadAll = async () => {
+      if (!patient?.uhid) return;
+      setLoading(true);
+      try {
+        const [eqData, historyData] = await Promise.all([
+          getEquipment(patient.uhid),
+          getMedicalEquipmentHistory(patient.uhid),
+        ]);
+        if (isMounted) {
+          setEquipmentData(eqData?.insulinPump || null);
+          setHistory(Array.isArray(historyData) ? historyData : []);
+        }
+      } catch (err) {
+        console.error("Error loading equipment:", err);
+        if (isMounted) {
+          setEquipmentData(null);
+          setHistory([]);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadAll();
+    return () => { isMounted = false; };
+  }, [patient?.uhid, getEquipment, getMedicalEquipmentHistory]);
+
+  // Derive display flags from API data
+  const equipment = equipmentData;
   const hasPump = equipment?.hasPump && equipment?.current;
   const hasTransmitter = equipment?.transmitter?.hasTransmitter;
-  const history = getMedicalEquipmentHistory(patient?.uhid);
 
-
-
-  // Check if user is staff (can delete/replace)
-  const isStaff = currentUser?.role === "Staff";
+  // Both staff and doctors can replace equipment
+  const canReplace = ["staff", "doctor"].includes(currentUser?.role?.toLowerCase());
 
   // Format date helper
   const formatDate = (dateString) => {
@@ -66,99 +99,115 @@ const MedicalEquipmentTab = ({ patient }) => {
     return Math.floor((today - start) / (1000 * 60 * 60 * 24));
   };
 
-  // Handle Add Pump
-  const handleAddPump = (equipmentData) => {
-    const userName = currentUser?.name || "Unknown User";
-    const result = addMedicalEquipment(patient.uhid, equipmentData, userName);
+  // Helper: refresh equipment + history from API after a mutation
+  const refreshEquipment = async () => {
+    try {
+      const [eqData, historyData] = await Promise.all([
+        getEquipment(patient.uhid),
+        getMedicalEquipmentHistory(patient.uhid),
+      ]);
+      setEquipmentData(eqData?.insulinPump || null);
+      setHistory(Array.isArray(historyData) ? historyData : []);
+    } catch (err) {
+      console.error("Error refreshing equipment:", err);
+    }
+  };
 
+  // Handle Add Pump
+  const handleAddPump = async (eqData) => {
+    const result = await addMedicalEquipment(patient.uhid, eqData);
     if (result.success) {
-      toast.success("✅ Insulin pump added successfully!");
+      toast.success("Insulin pump added successfully!");
       setShowAddPumpModal(false);
+      await refreshEquipment();
     } else {
-      toast.error("❌ Failed to add insulin pump");
+      toast.error(result.message || "Failed to add insulin pump");
     }
   };
 
   // Handle Add Transmitter
-  const handleAddTransmitter = (equipmentData) => {
-    const userName = currentUser?.name || "Unknown User";
-    const result = addMedicalEquipment(patient.uhid, equipmentData, userName);
-
+  const handleAddTransmitter = async (eqData) => {
+    const result = await addMedicalEquipment(patient.uhid, eqData);
     if (result.success) {
-      toast.success("✅ Transmitter added successfully!");
+      toast.success("Transmitter added successfully!");
       setShowAddTransmitterModal(false);
+      await refreshEquipment();
     } else {
-      toast.error("❌ Failed to add transmitter");
+      toast.error(result.message || "Failed to add transmitter");
     }
   };
 
   // Handle Edit Pump
-  const handleEditPump = (equipmentData) => {
-    const userName = currentUser?.name || "Unknown User";
-    const result = updateMedicalEquipment(
-      patient.uhid,
-      equipmentData,
-      userName
-    );
-
+  const handleEditPump = async (eqData) => {
+    const pumpId = equipment?.current?.id;
+    if (!pumpId) {
+      toast.error("Cannot update: equipment ID not found");
+      return;
+    }
+    const result = await updateMedicalEquipment(patient.uhid, pumpId, eqData);
     if (result.success) {
-      toast.success("✅ Insulin pump updated successfully!");
+      toast.success("Insulin pump updated successfully!");
       setShowEditPumpModal(false);
+      await refreshEquipment();
     } else {
-      toast.error("❌ Failed to update insulin pump");
+      toast.error(result.message || "Failed to update insulin pump");
     }
   };
 
   // Handle Edit Transmitter
-  const handleEditTransmitter = (equipmentData) => {
-    const userName = currentUser?.name || "Unknown User";
-    const result = updateMedicalEquipment(
-      patient.uhid,
-      equipmentData,
-      userName
-    );
-
+  const handleEditTransmitter = async (eqData) => {
+    const transmitterId = equipment?.transmitter?.id;
+    if (!transmitterId) {
+      toast.error("Cannot update: equipment ID not found");
+      return;
+    }
+    const result = await updateMedicalEquipment(patient.uhid, transmitterId, eqData);
     if (result.success) {
-      toast.success("✅ Transmitter updated successfully!");
+      toast.success("Transmitter updated successfully!");
       setShowEditTransmitterModal(false);
+      await refreshEquipment();
     } else {
-      toast.error("❌ Failed to update transmitter");
+      toast.error(result.message || "Failed to update transmitter");
     }
   };
 
   // Handle Replace Pump
-  const handleReplacePump = (equipmentData, reason) => {
-    const userName = currentUser?.name || "Unknown User";
-    const result = replaceMedicalEquipment(
-      patient.uhid,
-      equipmentData,
+  const handleReplacePump = async (eqData, reason) => {
+    const pumpId = equipment?.current?.id;
+    if (!pumpId) {
+      toast.error("Cannot replace: equipment ID not found");
+      return;
+    }
+    const result = await replaceMedicalEquipment(patient.uhid, pumpId, {
+      ...eqData,
       reason,
-      userName
-    );
-
+    });
     if (result.success) {
-      toast.success("✅ Insulin pump replaced successfully!");
+      toast.success("Insulin pump replaced successfully!");
       setShowReplacePumpModal(false);
+      await refreshEquipment();
     } else {
-      toast.error("❌ Failed to replace insulin pump");
+      toast.error(result.message || "Failed to replace insulin pump");
     }
   };
 
   // Handle Replace Transmitter
-  const handleReplaceTransmitter = (equipmentData, reason) => {
-    const userName = currentUser?.name || "Unknown User";
-    const result = replaceMedicalEquipment(
-      patient.uhid,
-      equipmentData,
+  const handleReplaceTransmitter = async (eqData, reason) => {
+    const transmitterId = equipment?.transmitter?.id;
+    if (!transmitterId) {
+      toast.error("Cannot replace: equipment ID not found");
+      return;
+    }
+    const result = await replaceMedicalEquipment(patient.uhid, transmitterId, {
+      ...eqData,
       reason,
-      userName
-    );
-
+    });
     if (result.success) {
-      toast.success("✅ Transmitter replaced successfully!");
+      toast.success("Transmitter replaced successfully!");
       setShowReplaceTransmitterModal(false);
+      await refreshEquipment();
     } else {
-      toast.error("❌ Failed to replace transmitter");
+      toast.error(result.message || "Failed to replace transmitter");
     }
   };
 
@@ -193,8 +242,17 @@ const MedicalEquipmentTab = ({ patient }) => {
   return (
     <div className="space-y-6">
       <Toaster position="top-right" />
+
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-16">
+          <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500 text-lg">Loading equipment data...</p>
+        </div>
+      )}
+
       {/* Empty State */}
-      {!hasPump && !hasTransmitter && (
+      {!loading && !hasPump && !hasTransmitter && (
         <Card>
           <div className="text-center py-12">
             <Battery className="w-16 h-16 mx-auto mb-4 text-gray-400" />
@@ -223,7 +281,7 @@ const MedicalEquipmentTab = ({ patient }) => {
       )}
 
       {/* Insulin Pump Card */}
-      {hasPump && (
+      {!loading && hasPump && (
         <Card>
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -354,7 +412,7 @@ const MedicalEquipmentTab = ({ patient }) => {
               <Edit className="w-4 h-4 mr-2" />
               Edit Details
             </Button>
-            {isStaff && (
+            {canReplace && (
               <Button
                 variant="outline"
                 onClick={() => setShowReplacePumpModal(true)}
@@ -368,7 +426,7 @@ const MedicalEquipmentTab = ({ patient }) => {
       )}
 
       {/* Add Pump Button (when no pump) */}
-      {!hasPump && hasTransmitter && (
+      {!loading && !hasPump && hasTransmitter && (
         <Card>
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">No insulin pump registered</p>
@@ -381,7 +439,7 @@ const MedicalEquipmentTab = ({ patient }) => {
       )}
 
       {/* Transmitter Card */}
-      {hasTransmitter && (
+      {!loading && hasTransmitter && (
         <Card>
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -477,7 +535,7 @@ const MedicalEquipmentTab = ({ patient }) => {
               <Edit className="w-4 h-4 mr-2" />
               Edit Details
             </Button>
-            {isStaff && (
+            {canReplace && (
               <Button
                 variant="outline"
                 onClick={() => setShowReplaceTransmitterModal(true)}
@@ -491,7 +549,7 @@ const MedicalEquipmentTab = ({ patient }) => {
       )}
 
       {/* Add Transmitter Button (when no transmitter) */}
-      {hasPump && !hasTransmitter && (
+      {!loading && hasPump && !hasTransmitter && (
         <Card>
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">No transmitter registered</p>
@@ -553,6 +611,11 @@ const MedicalEquipmentTab = ({ patient }) => {
                     Archived
                   </span>
                 </div>
+                {item.reason && (
+                  <p className="text-xs text-gray-600 mt-1 ml-6 italic">
+                    Reason: {item.reason}
+                  </p>
+                )}
               </div>
             ))}
           </div>

@@ -5,23 +5,32 @@ import {
   CheckCircle2,
   AlertCircle,
   UserCircle,
+  Loader2,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useQueueContext } from "../../contexts/QueueContext";
-import { useUserContext } from "../../contexts/UserContext";
 import { useAppointmentContext } from "../../contexts/AppointmentContext";
+import api from "../../services/api";
 
 const Triage = () => {
-  const { currentUser, getDoctors } = useUserContext();
-  const { getPatientByUHID, updatePatientVitals } = usePatientContext();
-  const { getQueueByStatus, updateQueueStatus, assignDoctorToQueue } =
-    useQueueContext();
+  const { fetchPatientByUHID, updatePatientVitals } = usePatientContext();
+  const { getQueueByStatus, updateQueueStatus } = useQueueContext();
   const { getTodayAppointment, checkInAppointment } = useAppointmentContext();
 
+  const [allDoctors, setAllDoctors] = useState([]);
+  const [loadingPatient, setLoadingPatient] = useState(false);
+
+  useEffect(() => {
+    api.get('/users/doctors')
+      .then(res => { if (res.success) setAllDoctors(Array.isArray(res.data) ? res.data : []); })
+      .catch(() => {});
+  }, []);
+
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedQueueItem, setSelectedQueueItem] = useState(null); // Track queue item for API calls
   const [todayAppointment, setTodayAppointment] = useState(null);
   const [assignedDoctor, setAssignedDoctor] = useState("");
   const [vitals, setVitals] = useState({
@@ -93,33 +102,34 @@ const Triage = () => {
     return { text: "High Risk", color: "text-red-700", bg: "bg-red-50" };
   };
 
-  // Get all doctors for dropdown
-  const allDoctors = getDoctors();
-
   // Get patients waiting or in triage
   const waitingPatients = getQueueByStatus("Waiting");
   const inTriagePatients = getQueueByStatus("In Triage");
 
-  const handleSelectPatient = (uhid) => {
-    const patient = getPatientByUHID(uhid);
-    setSelectedPatient(patient);
+  const handleSelectPatient = async (queueItem) => {
+    setLoadingPatient(true);
+    const patient = await fetchPatientByUHID(queueItem.uhid);
+    // Fall back to queue item fields if patient fetch fails
+    setSelectedPatient(patient || { uhid: queueItem.uhid, name: queueItem.name, age: queueItem.age, gender: queueItem.gender });
+    setLoadingPatient(false);
+    setSelectedQueueItem(queueItem); // Store queue item for API calls
 
     // Check if patient has appointment today
-    const appointment = getTodayAppointment(uhid);
+    const appointment = getTodayAppointment(queueItem.uhid);
     setTodayAppointment(appointment);
 
-    // Update queue status to "In Triage"
-    updateQueueStatus(uhid, "In Triage");
+    // Update queue status to "In Triage" using queue item ID
+    await updateQueueStatus(queueItem.id, "In Triage");
 
     // Check for saved draft data in localStorage
-    const triageKey = `triage_draft_${uhid}`;
+    const triageKey = `triage_draft_${queueItem.uhid}`;
     const savedDraft = localStorage.getItem(triageKey);
 
     if (savedDraft) {
       // Restore saved data
       const draftData = JSON.parse(savedDraft);
       setVitals(draftData.vitals);
-      setChiefComplaint(draftData.chiefComplaint);
+      setChiefComplaint(draftData.chiefComplaint || queueItem.reason || "");
       setAllergies(draftData.allergies || "");
       setAssignedDoctor(draftData.assignedDoctor || "");
 
@@ -155,12 +165,12 @@ const Triage = () => {
         ketones: "",
         waistCircumference: "",
       });
-      setChiefComplaint("");
+      setChiefComplaint(queueItem.reason || "");
       setAllergies("");
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate all required fields with toast notifications
@@ -250,47 +260,40 @@ const Triage = () => {
       },
     });
 
-    // Prepare triage data
+    // Prepare triage data — send raw numbers, NOT strings with units
+    // Backend model columns are INTEGER/DECIMAL and validation requires isInt/isFloat
+    // Units are added by the backend's formatVitals() in the API response
     const triageData = {
       bp: vitals.bloodPressure,
-      heartRate: vitals.heartRate + " bpm",
-      temperature: vitals.temperature + "°C",
-      weight: vitals.weight + " kg",
-      height: vitals.height + " cm",
-      bmi: bmi ? bmi + " kg/m²" : "",
-      waistCircumference: vitals.waistCircumference
-        ? vitals.waistCircumference + " cm"
-        : "",
-      waistHeightRatio: waistHeightRatio || "",
-      oxygenSaturation: vitals.oxygenSaturation + "%",
-      rbs: vitals.rbs ? vitals.rbs + " mmol/L" : "", // SIMPLE - always mmol/L
-      hba1c: vitals.hba1c ? vitals.hba1c + "%" : "",
-      ketones: vitals.ketones ? vitals.ketones + " mmol/L" : "",
-      allergies: allergies,
+      heartRate: parseInt(vitals.heartRate),
+      temperature: parseFloat(vitals.temperature),
+      weight: parseFloat(vitals.weight),
+      height: parseFloat(vitals.height),
+      oxygenSaturation: vitals.oxygenSaturation ? parseInt(vitals.oxygenSaturation) : null,
+      waistCircumference: vitals.waistCircumference ? parseFloat(vitals.waistCircumference) : null,
+      rbs: vitals.rbs ? parseFloat(vitals.rbs) : null,
+      hba1c: vitals.hba1c ? parseFloat(vitals.hba1c) : null,
+      ketones: vitals.ketones ? parseFloat(vitals.ketones) : null,
       chiefComplaint: chiefComplaint,
-      lastTriageDate: new Date().toISOString(),
-      triageBy: currentUser?.name || "Staff",
-      assignedDoctorId: parseInt(assignedDoctor),
-      assignedDoctorName:
-        allDoctors.find((d) => d.id === parseInt(assignedDoctor))?.name || "",
     };
 
     // Save vitals to patient record
-    const result = updatePatientVitals(selectedPatient.uhid, triageData);
+    const result = await updatePatientVitals(selectedPatient.uhid, triageData);
 
-    // Update queue status to "With Doctor" - ORIGINAL BEHAVIOR
-    updateQueueStatus(selectedPatient.uhid, "With Doctor");
+    // Save allergies to patient record if entered
+    if (allergies.trim()) {
+      await api.put(`/patients/${selectedPatient.uhid}`, { allergies: allergies.trim() });
+    }
 
-    // Assign doctor to queue item
-    assignDoctorToQueue(
-      selectedPatient.uhid,
-      parseInt(assignedDoctor),
-      allDoctors.find((d) => d.id === parseInt(assignedDoctor))?.name || ""
-    );
+    // Update queue status to "With Doctor" and assign doctor using queue item ID
+    await updateQueueStatus(selectedQueueItem.id, "With Doctor", parseInt(assignedDoctor));
+
+    // Also update assignedDoctorName via separate call if needed (backend handles both)
+    // assignDoctorToQueue is now handled by updateQueueStatus with assignedDoctorId param
 
     // Check-in appointment if exists
     if (todayAppointment) {
-      checkInAppointment(selectedPatient.uhid);
+      await checkInAppointment(selectedPatient.uhid);
     }
 
     if (result.success) {
@@ -324,21 +327,23 @@ const Triage = () => {
     }
 
     setSelectedPatient(null);
+    setSelectedQueueItem(null);
     setTodayAppointment(null);
     setAssignedDoctor("");
   };
 
-  const handleCancel = () => {
-    if (selectedPatient) {
+  const handleCancel = async () => {
+    if (selectedPatient && selectedQueueItem) {
       const patientName = selectedPatient.name;
 
       // Clear the draft from localStorage
       const triageKey = `triage_draft_${selectedPatient.uhid}`;
       localStorage.removeItem(triageKey);
 
-      // Move patient back to "Waiting" - ORIGINAL BEHAVIOR
-      updateQueueStatus(selectedPatient.uhid, "Waiting");
+      // Move patient back to "Waiting" using queue item ID
+      await updateQueueStatus(selectedQueueItem.id, "Waiting");
       setSelectedPatient(null);
+      setSelectedQueueItem(null);
       setTodayAppointment(null);
       setAssignedDoctor("");
 
@@ -380,32 +385,32 @@ const Triage = () => {
           <Card title="Waiting Patients">
             {waitingPatients.length > 0 ? (
               <div className="space-y-3">
-                {waitingPatients.map((patient) => (
+                {waitingPatients.map((queueItem) => (
                   <button
-                    key={patient.id}
-                    onClick={() => handleSelectPatient(patient.uhid)}
+                    key={queueItem.id}
+                    onClick={() => handleSelectPatient(queueItem)}
                     className={`w-full text-left p-4 rounded-lg border-2 transition ${
-                      selectedPatient?.uhid === patient.uhid
+                      selectedPatient?.uhid === queueItem.uhid
                         ? "border-primary bg-blue-50"
                         : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <p className="font-bold text-primary">{patient.uhid}</p>
-                      {patient.priority === "Urgent" && (
+                      <p className="font-bold text-primary">{queueItem.uhid}</p>
+                      {queueItem.priority === "Urgent" && (
                         <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
                           URGENT
                         </span>
                       )}
                     </div>
                     <p className="font-semibold text-gray-800 mt-1">
-                      {patient.name}
+                      {queueItem.name}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {patient.age} yrs {patient.gender}
+                      {queueItem.age} yrs {queueItem.gender}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Arrived: {patient.arrivalTime}
+                      Arrived: {queueItem.arrivalTime}
                     </p>
                   </button>
                 ))}
@@ -421,18 +426,18 @@ const Triage = () => {
           {inTriagePatients.length > 0 && (
             <Card title="In Triage" className="mt-4">
               <div className="space-y-2">
-                {inTriagePatients.map((patient) => (
+                {inTriagePatients.map((queueItem) => (
                   <button
-                    key={patient.id}
-                    onClick={() => handleSelectPatient(patient.uhid)}
+                    key={queueItem.id}
+                    onClick={() => handleSelectPatient(queueItem)}
                     className={`w-full text-left p-3 rounded-lg border-2 transition ${
-                      selectedPatient?.uhid === patient.uhid
+                      selectedPatient?.uhid === queueItem.uhid
                         ? "border-primary bg-blue-100"
                         : "border-blue-200 bg-blue-50 hover:border-blue-400 hover:bg-blue-100"
                     }`}
                   >
-                    <p className="font-semibold text-sm">{patient.name}</p>
-                    <p className="text-xs text-gray-600">{patient.uhid}</p>
+                    <p className="font-semibold text-sm">{queueItem.name}</p>
+                    <p className="text-xs text-gray-600">{queueItem.uhid}</p>
                     <p className="text-xs text-blue-600 mt-1">
                       Click to continue triage
                     </p>
@@ -445,7 +450,14 @@ const Triage = () => {
 
         {/* Triage Form */}
         <div className="lg:col-span-2">
-          {!selectedPatient ? (
+          {loadingPatient ? (
+            <Card>
+              <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span>Loading patient data...</span>
+              </div>
+            </Card>
+          ) : !selectedPatient ? (
             <Card>
               <div className="text-center py-12">
                 <div className="flex justify-center mb-4">

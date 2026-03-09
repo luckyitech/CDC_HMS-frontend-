@@ -1,24 +1,48 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
 import VoiceInput from "../shared/VoiceInput";
 import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
-import { useUserContext } from "../../contexts/UserContext";
 import { MessageSquare, Plus, ChevronDown, ChevronUp } from "lucide-react";
 
 const ConsultationNotesList = ({
   patient,
   showStatistics = false,
-  compact = false,
 }) => {
-  const { currentUser } = useUserContext();
   const { getNotesByPatient, searchNotes, addNote } =
     useConsultationNotesContext();
   const [notesSearchTerm, setNotesSearchTerm] = useState("");
   const [consultationNotes, setConsultationNotes] = useState("");
   const [showWriteModal, setShowWriteModal] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState(new Set([0])); // First note expanded by default
+
+  // State for notes loaded async
+  const [filteredNotes, setFilteredNotes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load notes on mount and when search term changes
+  useEffect(() => {
+    let isMounted = true;
+    const loadNotes = async () => {
+      setIsLoading(true);
+      try {
+        const notes = notesSearchTerm.trim()
+          ? await searchNotes(patient.uhid, notesSearchTerm)
+          : await getNotesByPatient(patient.uhid);
+        if (!isMounted) return;
+        setFilteredNotes(Array.isArray(notes) ? notes : []);
+      } catch (err) {
+        console.error("Error loading notes:", err);
+        if (isMounted) setFilteredNotes([]);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadNotes();
+    return () => { isMounted = false; };
+  }, [patient.uhid, notesSearchTerm, getNotesByPatient, searchNotes]);
 
   // Toggle note expansion
   const toggleNoteExpansion = (index) => {
@@ -31,31 +55,61 @@ const ConsultationNotesList = ({
     setExpandedNotes(newExpanded);
   };
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     if (!consultationNotes.trim()) {
-      alert("Please enter consultation notes");
+      toast.error("Please enter consultation notes", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
       return;
     }
 
-    // Save note
-    addNote({
+    // Save note (async) — assessment & plan are optional, handled by other tabs
+    const newNote = await addNote({
       uhid: patient.uhid,
-      patientName: patient.name,
-      doctorName: currentUser?.name || "Doctor",
       notes: consultationNotes,
     });
 
-    // Clear form and close modal
-    setConsultationNotes("");
-    setShowWriteModal(false);
+    if (newNote) {
+      // Add new note to the top of the list
+      setFilteredNotes((prev) => [newNote, ...prev]);
 
-    // Show success toast
-    const toast = document.createElement("div");
-    toast.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "✅ Consultation Notes Saved";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+      // Clear form and close modal
+      setConsultationNotes("");
+      setShowWriteModal(false);
+
+      // Show success toast
+      toast.success("Consultation Notes Saved Successfully", {
+        duration: 3000,
+        position: "top-right",
+        icon: "✅",
+        style: {
+          background: "#10B981",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+    } else {
+      toast.error("Failed to save consultation note. Please try again.", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+    }
   };
 
   const handleCancelWrite = () => {
@@ -73,10 +127,17 @@ const ConsultationNotesList = ({
     }
   };
 
-  // Get filtered notes
-  const filteredNotes = notesSearchTerm.trim()
-    ? searchNotes(patient.uhid, notesSearchTerm)
-    : getNotesByPatient(patient.uhid);
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="text-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading consultation notes...</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -285,7 +346,7 @@ const ConsultationNotesList = ({
                 rows={15}
               />
               <p className="text-xs text-gray-500 mt-2">
-                💬 Document your clinical reasoning, concerns, observations, or
+                Document your clinical reasoning, concerns, observations, or
                 any information that should remain confidential between
                 healthcare providers.
               </p>

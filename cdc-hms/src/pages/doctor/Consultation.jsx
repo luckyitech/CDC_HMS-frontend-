@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Check,
   AlertCircle,
@@ -31,7 +31,6 @@ import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentCon
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
-import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamination from "./PhysicalExamination";
@@ -40,53 +39,60 @@ import TreatmentPlansList from "../../components/doctor/TreatmentPlansList";
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
+import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 
 const Consultation = () => {
   const { uhid } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
+  const DRAFT_KEY = `consultation_progress_${uhid}`;
   const { currentUser } = useUserContext();
-  const { getPatientByUHID } = usePatientContext();
-  const { updateQueueStatus } = useQueueContext();
-  const { saveAssessment, getLatestAssessment } = useInitialAssessmentContext();
-  const { saveExamination, getLatestExamination } = usePhysicalExamContext();
-  const { addTreatmentPlan, getLatestPlan } = useTreatmentPlanContext();
+  const { fetchPatientByUHID } = usePatientContext();
+  const { queue, sendToBilling } = useQueueContext();
+  const { getLatestAssessment } = useInitialAssessmentContext();
+  const { getLatestExamination } = usePhysicalExamContext();
+  const { getLatestPlan } = useTreatmentPlanContext();
   const { getPrescriptionsByPatient, addPrescription } =
     usePrescriptionContext();
-  const { getNotesByPatient, searchNotes, addNote } =
-    useConsultationNotesContext();
 
-  // Get patient data
-  const patient = getPatientByUHID(uhid);
+  // Get patient data async
+  const [patient, setPatient] = useState(null);
+  const [loadingPatient, setLoadingPatient] = useState(true);
+
+  useEffect(() => {
+    fetchPatientByUHID(uhid).then(p => {
+      setPatient(p || null);
+      setLoadingPatient(false);
+    });
+  }, [uhid, fetchPatientByUHID]);
 
   // Tab state
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Tab completion tracking
-  const [tabsCompleted, setTabsCompleted] = useState({
-    overview: true, // Always true (read-only)
-    assessment: false,
-    exam: false,
-    notes: false,
-    diagnosis: false,
-    prescriptions: false,
-    actions: true, // Always true (just navigation)
+  // Tab completion tracking — restored from sessionStorage so navigating away
+  // and coming back doesn't lose the doctor's progress.
+  const [tabsCompleted, setTabsCompleted] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(`consultation_progress_${uhid}`) || '{}');
+      return {
+        overview:      true,
+        assessment:    false,
+        exam:          false,
+        notes:         false,
+        diagnosis:     saved.diagnosis     || false,
+        prescriptions: saved.prescriptions || false,
+        actions:       true,
+      };
+    } catch {
+      return { overview: true, assessment: false, exam: false, notes: false, diagnosis: false, prescriptions: false, actions: true };
+    }
   });
 
-  // Tab unsaved changes tracking
-  const [tabsUnsaved, setTabsUnsaved] = useState({
-    assessment: false,
-    exam: false,
-    notes: false,
-    diagnosis: false,
-    prescriptions: false,
-  });
+  // Tab unsaved changes tracking (derived state using useMemo)
+  // Note: This will be computed below after form state is declared
 
-  // Overview tab data (read-only)
-  const previousPlan = getLatestPlan(uhid);
-
-  // Get patient prescriptions
-  const patientPrescriptions = getPrescriptionsByPatient(uhid);
+  // Overview tab data (loaded async)
+  const [previousPlan, setPreviousPlan] = useState(null);
+  const [patientPrescriptions, setPatientPrescriptions] = useState([]);
 
   // Assessment tab data
   const [historyOfPresentIllness, setHistoryOfPresentIllness] = useState("");
@@ -108,56 +114,41 @@ const Consultation = () => {
   // Modal state
   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const [selectedCharges, setSelectedCharges] = useState([]);
+  const [selectedProcedures, setSelectedProcedures] = useState([]);
+  const [billingSubmitting, setBillingSubmitting] = useState(false);
 
-  // Load existing data if available
-  useEffect(() => {
-    if (!patient) return;
+  const CHARGE_OPTIONS = [
+    'Consultation Fee',
+    'Random Blood Sugar',
+    'Ketones',
+    'HbA1c',
+    'Thyroid Ultrasound',
+  ];
+  const PROCEDURE_OPTIONS = ['PNS', 'ABI', 'ANS'];
 
-    // Load previous assessment
-    const prevAssessment = getLatestAssessment(uhid);
-    if (prevAssessment) {
-      setHistoryOfPresentIllness(prevAssessment.historyOfPresentIllness || "");
-      setReviewOfSystems(prevAssessment.reviewOfSystems || "");
-      setPastMedicalHistory(prevAssessment.pastMedicalHistory || "");
-      setFamilyHistory(prevAssessment.familyHistory || "");
-      setSocialHistory(prevAssessment.socialHistory || "");
-    }
-
-    // Load previous exam
-    const prevExam = getLatestExamination(uhid);
-    if (prevExam) {
-      setGeneralAppearance(prevExam.generalAppearance || "");
-      setCardiovascular(prevExam.cardiovascular || "");
-      setRespiratory(prevExam.respiratory || "");
-      setGastrointestinal(prevExam.gastrointestinal || "");
-      setNeurological(prevExam.neurological || "");
-      setMusculoskeletal(prevExam.musculoskeletal || "");
-      setSkin(prevExam.skin || "");
-      setExamFindings(prevExam.examFindings || "");
-    }
-  }, [uhid, patient]);
-
-  // Track unsaved changes
-  useEffect(() => {
-    setTabsUnsaved({
-      assessment:
-        historyOfPresentIllness !== "" ||
-        reviewOfSystems !== "" ||
-        pastMedicalHistory !== "" ||
-        familyHistory !== "" ||
-        socialHistory !== "",
-      exam:
-        generalAppearance !== "" ||
-        cardiovascular !== "" ||
-        respiratory !== "" ||
-        gastrointestinal !== "" ||
-        neurological !== "" ||
-        musculoskeletal !== "" ||
-        skin !== "" ||
-        examFindings !== "",
-      prescriptions: false, // Handled by component
-    });
-  }, [
+  // Tab unsaved changes tracking (derived state)
+  const tabsUnsaved = useMemo(() => ({
+    assessment:
+      historyOfPresentIllness !== "" ||
+      reviewOfSystems !== "" ||
+      pastMedicalHistory !== "" ||
+      familyHistory !== "" ||
+      socialHistory !== "",
+    exam:
+      generalAppearance !== "" ||
+      cardiovascular !== "" ||
+      respiratory !== "" ||
+      gastrointestinal !== "" ||
+      neurological !== "" ||
+      musculoskeletal !== "" ||
+      skin !== "" ||
+      examFindings !== "",
+    notes: false,
+    diagnosis: false,
+    prescriptions: false,
+  }), [
     historyOfPresentIllness,
     reviewOfSystems,
     pastMedicalHistory,
@@ -172,6 +163,65 @@ const Consultation = () => {
     skin,
     examFindings,
   ]);
+
+  // Load existing data if available (async)
+  useEffect(() => {
+    if (!patient) return;
+    let isMounted = true;
+
+    const loadData = async () => {
+      // Load prescriptions and previous plan
+      const [prescriptions, latestPlan, prevAssessment, prevExam] = await Promise.all([
+        getPrescriptionsByPatient(uhid),
+        getLatestPlan(uhid),
+        getLatestAssessment(uhid),
+        getLatestExamination(uhid),
+      ]);
+
+      if (!isMounted) return;
+
+      // Set prescriptions and plan
+      setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
+      setPreviousPlan(latestPlan || null);
+
+      // Load previous assessment data
+      if (prevAssessment) {
+        setHistoryOfPresentIllness(prevAssessment.historyOfPresentIllness || "");
+        setReviewOfSystems(prevAssessment.reviewOfSystems || "");
+        setPastMedicalHistory(prevAssessment.pastMedicalHistory || "");
+        setFamilyHistory(prevAssessment.familyHistory || "");
+        setSocialHistory(prevAssessment.socialHistory || "");
+      }
+
+      // Load previous exam data
+      if (prevExam) {
+        setGeneralAppearance(prevExam.generalAppearance || "");
+        setCardiovascular(prevExam.cardiovascular || "");
+        setRespiratory(prevExam.respiratory || "");
+        setGastrointestinal(prevExam.gastrointestinal || "");
+        setNeurological(prevExam.neurological || "");
+        setMusculoskeletal(prevExam.musculoskeletal || "");
+        setSkin(prevExam.skin || "");
+        setExamFindings(prevExam.examFindings || "");
+      }
+    };
+
+    loadData();
+    return () => { isMounted = false; };
+  }, [uhid, patient, getPrescriptionsByPatient, getLatestPlan, getLatestAssessment, getLatestExamination]);
+
+  // Loading state
+  if (loadingPatient) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-500">
+        <svg className="animate-spin w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        Loading patient data...
+      </div>
+    );
+  }
 
   // Redirect if patient not found
   if (!patient) {
@@ -195,87 +245,74 @@ const Consultation = () => {
     );
   }
 
-  // Save handlers
-  const handleSaveAssessment = () => {
-    saveAssessment({
-      uhid: patient.uhid,
-      patientName: patient.name,
-      doctorName: currentUser?.name || "Doctor",
-      historyOfPresentIllness,
-      reviewOfSystems,
-      pastMedicalHistory,
-      familyHistory,
-      socialHistory,
-    });
-
-    setTabsCompleted({ ...tabsCompleted, assessment: true });
-    setTabsUnsaved({ ...tabsUnsaved, assessment: false });
-
-    // Show success toast
-    const toast = document.createElement("div");
-    toast.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "âœ… Assessment Saved";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
-  };
-
-  const handleSaveExam = () => {
-    saveExamination({
-      uhid: patient.uhid,
-      patientName: patient.name,
-      doctorName: currentUser?.name || "Doctor",
-      generalAppearance,
-      cardiovascular,
-      respiratory,
-      gastrointestinal,
-      neurological,
-      musculoskeletal,
-      skin,
-      examFindings,
-    });
-
-    setTabsCompleted({ ...tabsCompleted, exam: true });
-    setTabsUnsaved({ ...tabsUnsaved, exam: false });
-
-    // Show success toast
-    const toast = document.createElement("div");
-    toast.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-    toast.innerHTML = "âœ… Physical Exam Saved";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
+  // Tab completion handlers
+  const saveDraftProgress = (updates) => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '{}');
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ ...saved, ...updates }));
+    } catch (e) { void e; /* sessionStorage unavailable — progress won't persist across navigation */ }
   };
 
   const handleDiagnosisSuccess = () => {
-    setTabsCompleted({ ...tabsCompleted, diagnosis: true });
+    setTabsCompleted(prev => ({ ...prev, diagnosis: true }));
+    saveDraftProgress({ diagnosis: true });
   };
 
-  const handlePrescriptionSuccess = () => {
-    setTabsCompleted({ ...tabsCompleted, prescriptions: true });
+  const handlePrescriptionSuccess = async () => {
+    setTabsCompleted(prev => ({ ...prev, prescriptions: true }));
+    saveDraftProgress({ prescriptions: true });
+    const prescriptions = await getPrescriptionsByPatient(uhid);
+    setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
   };
 
   const handleCompleteConsultation = () => {
     // Validate required fields - check if diagnosis tab is completed
     if (!tabsCompleted.diagnosis) {
-      alert(
-        "Please complete Diagnosis & Treatment Plan tab before completing consultation"
+      toast.error(
+        "Please complete Diagnosis & Treatment Plan tab before completing consultation",
+        {
+          duration: 4000,
+          position: "top-right",
+          icon: "❌",
+          style: {
+            background: "#EF4444",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        }
       );
       setActiveTab("diagnosis");
       return;
     }
-
-    // Update queue status to "Completed"
-    updateQueueStatus(patient.uhid, "Completed");
-
-    // Show success message
-    setShowSuccessMessage(true);
-
-    // Navigate back after 3 seconds
-    setTimeout(() => {
-      navigate("/doctor/dashboard");
-    }, 3000);
+    // Open billing checklist modal
+    setSelectedCharges([]);
+    setSelectedProcedures([]);
+    setShowBillingModal(true);
   };
+
+  const handleBillingSubmit = async () => {
+    setBillingSubmitting(true);
+    const queueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
+    if (queueItem) {
+      await sendToBilling(queueItem.id, selectedCharges, selectedProcedures);
+    }
+    sessionStorage.removeItem(DRAFT_KEY);
+    setBillingSubmitting(false);
+    setShowBillingModal(false);
+    setShowSuccessMessage(true);
+    setTimeout(() => navigate("/doctor/dashboard"), 3000);
+  };
+
+  const toggleCharge = (item) =>
+    setSelectedCharges(prev =>
+      prev.includes(item) ? prev.filter(c => c !== item) : [...prev, item]
+    );
+
+  const toggleProcedure = (item) =>
+    setSelectedProcedures(prev =>
+      prev.includes(item) ? prev.filter(p => p !== item) : [...prev, item]
+    );
 
   const handleNavigateWithPatient = (path) => {
     navigate(path, {
@@ -296,7 +333,8 @@ const Consultation = () => {
     { id: "diagnosis", label: "Diagnosis & Plan", icon: Target },
     { id: "prescriptions", label: "Prescriptions", icon: Pill },
     { id: "documents", label: "Documents", icon: FileText },
-    { id: "actions", label: "Actions", icon: Zap },
+    { id: "charts", label: "Charts", icon: LineChart },
+    // { id: "actions", label: "Actions", icon: Zap },
   ];
 
   // Success message overlay
@@ -411,7 +449,7 @@ const Consultation = () => {
             </Card>
 
             {/* Today's Triage Data */}
-            {patient.lastTriageDate && (
+            {patient.vitals && (
               <Card
                 title={
                   <span className="flex items-center gap-2">
@@ -423,22 +461,19 @@ const Consultation = () => {
                 <div className="mb-4 pb-4 border-b">
                   <p className="text-sm text-gray-600">
                     Triaged on:{" "}
-                    {new Date(patient.lastTriageDate).toLocaleString()}
+                    {patient.vitals.recordedAt
+                      ? new Date(patient.vitals.recordedAt).toLocaleString()
+                      : "Today"}
                   </p>
-                  {patient.triageBy && (
-                    <p className="text-sm text-gray-600">
-                      Triaged by: {patient.triageBy}
-                    </p>
-                  )}
                 </div>
 
                 {/* Chief Complaint */}
-                {patient.chiefComplaint && (
+                {patient.vitals.chiefComplaint && (
                   <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
                     <p className="text-sm font-semibold text-gray-700 mb-1">
                       Reason for visit:
                     </p>
-                    <p className="text-gray-800">{patient.chiefComplaint}</p>
+                    <p className="text-gray-800">{patient.vitals.chiefComplaint}</p>
                   </div>
                 )}
 
@@ -777,6 +812,11 @@ const Consultation = () => {
           </div>
         )} 
 
+        {/* Glycemic Charts Tab */}
+        {activeTab === "charts" && (
+          <GlycemicChartPanel patient={patient} />
+        )}
+
         {/* Quick Actions Tab */}
         {activeTab === "actions" && (
           <Card
@@ -915,6 +955,93 @@ const Consultation = () => {
         </Button>
       </div>
 
+      {/* Billing Checklist Modal */}
+      {showBillingModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b">
+              <div>
+                <h2 className="text-lg font-bold text-gray-800">Complete Consultation</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Select charges and procedures for this visit</p>
+              </div>
+              <button
+                onClick={() => setShowBillingModal(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-5">
+              {/* Charges */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                  Charges
+                </h3>
+                <div className="space-y-2">
+                  {CHARGE_OPTIONS.map(item => (
+                    <label
+                      key={item}
+                      className="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedCharges.includes(item)}
+                        onChange={() => toggleCharge(item)}
+                        className="w-4 h-4 accent-blue-600 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Procedures */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                  Procedures
+                </h3>
+                <div className="space-y-2">
+                  {PROCEDURE_OPTIONS.map(item => (
+                    <label
+                      key={item}
+                      className="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedProcedures.includes(item)}
+                        onChange={() => toggleProcedure(item)}
+                        className="w-4 h-4 accent-blue-600 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 p-5 border-t">
+              <button
+                onClick={() => setShowBillingModal(false)}
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBillingSubmit}
+                disabled={billingSubmitting}
+                className="flex-1 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60"
+              >
+                {billingSubmitting ? 'Submitting…' : 'Confirm & Send to Billing'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Order Lab Test Modal */}
       {showOrderLabModal && (
         <OrderLabTestModal
@@ -925,6 +1052,7 @@ const Consultation = () => {
           }}
         />
       )}
+      <Toaster position="top-right" />
     </div>
   );
 };

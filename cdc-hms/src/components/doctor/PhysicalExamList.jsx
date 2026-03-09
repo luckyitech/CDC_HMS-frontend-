@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
-import { useUserContext } from "../../contexts/UserContext";
+import { usePatientContext } from "../../contexts/PatientContext";
 import PhysicalExamEntry from "../../pages/doctor/PhysicalExamEntry";
 import PhysicalExamFindings from "../../pages/doctor/PhysicalExamFindings";
 import { Search, FileText, Stethoscope } from "lucide-react";
 
-const PhysicalExamList = ({ patient, embedded = false }) => {
-  const { currentUser } = useUserContext();
+const PhysicalExamList = ({ patient }) => {
   const {
     getExaminationsByPatient,
     getLatestExamination,
@@ -16,31 +16,81 @@ const PhysicalExamList = ({ patient, embedded = false }) => {
     updateExamination,
     saveExamination,
   } = usePhysicalExamContext();
+  const { fetchPatientByUHID } = usePatientContext();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedExamId, setSelectedExamId] = useState(null);
   const [viewMode, setViewMode] = useState("entry"); // "entry" or "findings" or "new"
   const [showNewExamForm, setShowNewExamForm] = useState(false);
   const [currentExamination, setCurrentExamination] = useState(null);
+  const [freshPatient, setFreshPatient] = useState(null);
 
-  // Get all exams for this patient
-  const allExams = getExaminationsByPatient(patient.uhid);
-  const latestExam = getLatestExamination(patient.uhid);
+  // State for exams loaded async
+  const [allExams, setAllExams] = useState([]);
+  const [latestExam, setLatestExam] = useState(null);
+  const [filteredExams, setFilteredExams] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Get filtered exams
-  const filteredExams = searchTerm.trim()
-    ? searchExaminations(patient.uhid, searchTerm)
-    : allExams;
-
-  // Auto-select latest exam on load
+  // Load exams on mount and when patient/search changes
   useEffect(() => {
-    if (latestExam && !selectedExamId && !showNewExamForm) {
-      setSelectedExamId(latestExam.id);
-      setCurrentExamination(latestExam);
-      // Show findings if latest exam exists (user probably wants to see it)
-      setViewMode("findings");
-    }
-  }, [latestExam, selectedExamId, showNewExamForm]);
+    let isMounted = true;
+    const loadExams = async () => {
+      setIsLoading(true);
+      try {
+        const [exams, latest] = await Promise.all([
+          getExaminationsByPatient(patient.uhid),
+          getLatestExamination(patient.uhid),
+        ]);
+        if (!isMounted) return;
+
+        const examsArray = Array.isArray(exams) ? exams : [];
+        setAllExams(examsArray);
+        setLatestExam(latest || null);
+        setFilteredExams(examsArray);
+
+        // Auto-select latest exam on load
+        if (latest && !selectedExamId && !showNewExamForm) {
+          setSelectedExamId(latest.id);
+          setCurrentExamination(latest);
+          setViewMode("findings");
+        }
+      } catch (err) {
+        console.error("Error loading exams:", err);
+        if (isMounted) {
+          setAllExams([]);
+          setLatestExam(null);
+          setFilteredExams([]);
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    loadExams();
+    return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patient.uhid, getExaminationsByPatient, getLatestExamination]);
+
+  // Handle search filtering
+  useEffect(() => {
+    let isMounted = true;
+    const filterExams = async () => {
+      if (!searchTerm.trim()) {
+        setFilteredExams(allExams);
+        return;
+      }
+      try {
+        const results = await searchExaminations(patient.uhid, searchTerm);
+        if (isMounted) {
+          setFilteredExams(Array.isArray(results) ? results : []);
+        }
+      } catch (err) {
+        console.error("Error searching exams:", err);
+        if (isMounted) setFilteredExams(allExams);
+      }
+    };
+    filterExams();
+    return () => { isMounted = false; };
+  }, [searchTerm, allExams, patient.uhid, searchExaminations]);
 
   // Handle exam selection from dropdown
   const handleExamSelect = (examId) => {
@@ -55,62 +105,105 @@ const PhysicalExamList = ({ patient, embedded = false }) => {
   };
 
   // Handle save (update existing exam or create new)
-  const handleSave = (examData, generateFindings) => {
+  const handleSave = async (examData, generateFindings) => {
     if (showNewExamForm) {
-      // Save new exam
-      const newExam = saveExamination(examData);
-      setShowNewExamForm(false);
-      setSelectedExamId(newExam.id);
-      setCurrentExamination(newExam);
+      // Save new exam (async)
+      const newExam = await saveExamination(examData);
+      if (newExam) {
+        setShowNewExamForm(false);
+        setSelectedExamId(newExam.id);
+        setCurrentExamination(newExam);
+        setLatestExam(newExam);
+        setAllExams((prev) => [newExam, ...prev]);
+        setFilteredExams((prev) => [newExam, ...prev]);
 
-      if (generateFindings) {
-        setViewMode("findings");
+        if (generateFindings) {
+          setViewMode("findings");
+        } else {
+          setViewMode("entry");
+        }
+
+        toast.success("Physical Examination Saved Successfully", {
+          duration: 3000,
+          position: "top-right",
+          icon: "✅",
+          style: {
+            background: "#10B981",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        });
       } else {
-        setViewMode("entry");
-      }
-
-      // Show success toast
-      const toast = document.createElement("div");
-      toast.className =
-        "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-      toast.innerHTML = "✅ Physical Examination Saved";
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
-    } else {
-      // Update existing exam
-      updateExamination(selectedExamId, examData);
-
-      // Reload the updated exam
-      const updatedExam = allExams.find((e) => e.id === selectedExamId);
-      if (updatedExam) {
-        setCurrentExamination({
-          ...updatedExam,
-          data: examData.data,
+        toast.error("Failed to save physical examination. Please try again.", {
+          duration: 3000,
+          position: "top-right",
+          icon: "❌",
+          style: {
+            background: "#EF4444",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
         });
       }
+    } else {
+      // Update existing exam (async)
+      const updatedExam = await updateExamination(selectedExamId, examData);
 
-      if (generateFindings) {
-        setViewMode("findings");
+      if (updatedExam) {
+        setCurrentExamination(updatedExam);
+        // Update in allExams list
+        setAllExams((prev) =>
+          prev.map((e) => (e.id === selectedExamId ? updatedExam : e))
+        );
+        setFilteredExams((prev) =>
+          prev.map((e) => (e.id === selectedExamId ? updatedExam : e))
+        );
+
+        if (generateFindings) {
+          setViewMode("findings");
+        } else {
+          setViewMode("entry");
+        }
+
+        toast.success("Physical Examination Updated Successfully", {
+          duration: 3000,
+          position: "top-right",
+          icon: "✅",
+          style: {
+            background: "#10B981",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        });
       } else {
-        setViewMode("entry");
+        toast.error("Failed to update physical examination. Please try again.", {
+          duration: 3000,
+          position: "top-right",
+          icon: "❌",
+          style: {
+            background: "#EF4444",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        });
       }
-
-      // Show success toast
-      const toast = document.createElement("div");
-      toast.className =
-        "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-bounce";
-      toast.innerHTML = "✅ Physical Examination Updated";
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 2000);
     }
   };
 
-  // Handle new exam
-  const handleNewExam = () => {
-    setShowNewExamForm(true);
+  // Handle new exam — fetch fresh patient data so triage vitals are up-to-date
+  const handleNewExam = async () => {
     setSelectedExamId(null);
     setCurrentExamination(null);
+    setFreshPatient(null);        // clear so loading spinner shows
+    setShowNewExamForm(true);
     setViewMode("entry");
+    // Fetch fresh patient data BEFORE the form mounts (vitals included)
+    const fresh = await fetchPatientByUHID(patient.uhid);
+    if (fresh) setFreshPatient(fresh);
   };
 
   // Handle cancel
@@ -143,6 +236,18 @@ const PhysicalExamList = ({ patient, embedded = false }) => {
   const isLatestExam =
     currentExamination && latestExam && currentExamination.id === latestExam.id;
   const isReadOnly = !isLatestExam && !showNewExamForm;
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="text-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading physical examinations...</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -288,13 +393,22 @@ const PhysicalExamList = ({ patient, embedded = false }) => {
 
       {/* Physical Exam Entry Form (for editing or new) */}
       {(viewMode === "entry" || showNewExamForm) && (
-        <PhysicalExamEntry
-          patientData={patient}
-          initialData={showNewExamForm ? {} : currentExamination?.data || {}}
-          onSave={handleSave}
-          onCancel={handleCancel}
-          readOnly={isReadOnly}
-        />
+        showNewExamForm && !freshPatient ? (
+          <Card>
+            <div className="text-center py-12">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-gray-500">Loading patient vitals...</p>
+            </div>
+          </Card>
+        ) : (
+          <PhysicalExamEntry
+            patientData={showNewExamForm && freshPatient ? freshPatient : patient}
+            initialData={showNewExamForm ? {} : currentExamination?.data || {}}
+            onSave={handleSave}
+            onCancel={handleCancel}
+            readOnly={isReadOnly}
+          />
+        )
       )}
 
       {/* Physical Exam Findings (summary view) */}

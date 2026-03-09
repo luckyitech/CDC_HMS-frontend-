@@ -1,3 +1,5 @@
+import cdcLogo from "../../assets/cdc_web_logo1.svg";
+
 const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
   const handlePrint = () => {
     window.print();
@@ -26,18 +28,25 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
         </div>
 
         {/* Print Content */}
-        <div className="p-8">
+        <div id="treatment-plan-print-content" className="p-8">
           {/* Hospital Header */}
-          <div className="text-center mb-8 border-b-2 border-primary pb-4">
-            <h1 className="text-3xl font-bold text-primary">
-              CDC DIABETES CLINIC
-            </h1>
-            <p className="text-sm text-gray-600 mt-2">
-              Comprehensive Diabetes Centre • Excellence in Diabetes Care
-            </p>
-            <p className="text-sm text-gray-600">
-              Tel: +254 700 000 000 • Email: info@cdc-diabetes.com
-            </p>
+          <div className="flex justify-between items-center mb-8 border-b-2 border-primary pb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-primary">
+                CDC DIABETES CLINIC
+              </h1>
+              <p className="text-sm text-gray-600 mt-2">
+                Comprehensive Diabetes Centre • Excellence in Diabetes Care
+              </p>
+              <p className="text-sm text-gray-600">
+                Tel: +254 700 000 000 • Email: info@cdc-diabetes.com
+              </p>
+            </div>
+            <img
+              src={cdcLogo}
+              alt="CDC Logo"
+              className="w-40 h-40 object-contain py-4"
+            />
           </div>
 
           {/* Document Title */}
@@ -157,19 +166,16 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
             body * {
               visibility: hidden;
             }
-            .print\\:hidden {
-              display: none !important;
-            }
-            div[class*="fixed inset-0"] {
-              position: static !important;
-              background: white !important;
-            }
-            div[class*="fixed inset-0"] > div {
-              max-height: none !important;
-              box-shadow: none !important;
-            }
-            div[class*="fixed inset-0"] * {
+            #treatment-plan-print-content,
+            #treatment-plan-print-content * {
               visibility: visible;
+            }
+            #treatment-plan-print-content {
+              position: fixed;
+              top: 0;
+              left: 0;
+              width: 100%;
+              padding: 1cm;
             }
             @page {
               margin: 1cm;

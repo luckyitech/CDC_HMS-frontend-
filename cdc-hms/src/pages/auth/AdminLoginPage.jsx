@@ -16,14 +16,15 @@ const AdminLoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
-      const result = login(credentials.email, credentials.password, 'Admin');
-      
+      // login() is now async - need await
+      const result = await login(credentials.email, credentials.password, 'Admin');
+
       if (result.success) {
         navigate('/admin/dashboard');
       } else {
@@ -91,11 +92,6 @@ const AdminLoginPage = () => {
             </button>
           </div>
 
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-            <p className="font-semibold text-blue-900 mb-2">Demo Credentials:</p>
-            <p className="text-blue-700">📧 admin@cdc.com</p>
-            <p className="text-blue-700">🔑 Any password</p>
-          </div>
         </form>
 
         <div className="mt-6 text-center">

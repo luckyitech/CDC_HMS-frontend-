@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useUserContext } from "../../contexts/UserContext";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { physicalExamSections } from "./physicalExamData";
@@ -52,7 +53,43 @@ const PhysicalExamEntry = ({
   initialData = {},
   readOnly = false,
 }) => {
-  const [examData, setExamData] = useState(initialData);
+  const { currentUser } = useUserContext();
+  // Auto-fill vitals from triage data when creating a new exam (no initialData.vitalSigns)
+  // Backend returns patient.vitals with names like heartRate, temperature, oxygenSaturation
+  // and values with units appended (e.g., "80 bpm", "36.5°C", "98%")
+  // Physical exam form expects short names (hr, temp, spo2) with raw numeric values
+  const computeInitialData = () => {
+    if (initialData.vitalSigns) return initialData; // Editing existing exam — use its data
+    const vitals = patientData.currentVitals || patientData.vitals;
+    if (!vitals) return initialData; // No triage vitals available
+
+    const strip = (val) => {
+      if (!val) return "";
+      return String(val).replace(/\s*(mmHg|bpm|°C|%|kg|cm|kg\/m²|mmol\/L)\s*$/i, "").trim();
+    };
+
+    return {
+      ...initialData,
+      vitalSigns: {
+        bp: strip(vitals.bp) || "",
+        hr: strip(vitals.heartRate || vitals.hr) || "",
+        rr: "18",
+        temp: strip(vitals.temperature || vitals.temp) || "",
+        spo2: strip(vitals.oxygenSaturation || vitals.spo2) || "",
+        bmi: strip(vitals.bmi) || "",
+        waistCircumference: strip(vitals.waistCircumference) || "",
+        waistHeightRatio: strip(vitals.waistHeightRatio) || "",
+        rbs: strip(vitals.rbs) || "",
+        hba1c: strip(vitals.hba1c) || "",
+        ketones: strip(vitals.ketones) || "",
+        _autoFilled: true,
+        _recordedBy: vitals.recordedBy,
+        _recordedAt: vitals.recordedAt,
+      },
+    };
+  };
+
+  const [examData, setExamData] = useState(computeInitialData);
   const [expandedSections, setExpandedSections] = useState(["vitalSigns"]); // Vital signs open by default
   const [completedSections, setCompletedSections] = useState([]);
 
@@ -64,31 +101,6 @@ const PhysicalExamEntry = ({
   const [imageCaption, setImageCaption] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
-
-  // Auto-fill vitals from triage
-useEffect(() => {
-  if (patientData.currentVitals && !initialData.vitalSigns) {
-    setExamData((prevData) => ({
-      ...prevData,
-      vitalSigns: {
-        bp: patientData.currentVitals.bp || "",
-        hr: patientData.currentVitals.hr || "",
-        rr: patientData.currentVitals.rr || "18",
-        temp: patientData.currentVitals.temp || "",
-        spo2: patientData.currentVitals.spo2 || "",
-        bmi: patientData.currentVitals.bmi || "",
-        waistCircumference: patientData.currentVitals.waistCircumference || "",
-        waistHeightRatio: patientData.currentVitals.waistHeightRatio || "", 
-        rbs: patientData.currentVitals.rbs || "",
-        hba1c: patientData.currentVitals.hba1c || "",
-        ketones: patientData.currentVitals.ketones || "",
-        _autoFilled: true,
-        _recordedBy: patientData.currentVitals.recordedBy,
-        _recordedAt: patientData.currentVitals.recordedAt,
-      },
-    }));
-  }
-}, [patientData.currentVitals, initialData.vitalSigns]);
   // Toggle section expansion
   const toggleSection = (sectionId) => {
     if (expandedSections.includes(sectionId)) {
@@ -186,7 +198,7 @@ useEffect(() => {
         bodyArea: selectedBodyArea,
         caption: imageCaption,
         timestamp: new Date().toISOString(),
-        doctorName: "Dr. Ahmed Hassan", // TODO: Get from user context
+        doctorName: currentUser?.name || currentUser?.email || 'Doctor',
       };
 
       setClinicalImages([...clinicalImages, newImage]);
@@ -280,13 +292,14 @@ useEffect(() => {
       cleanedExamData.vitalSigns = cleanedVitals;
     }
 
+    // Include clinical images in the data so they persist in the database
+    if (clinicalImages.length > 0) {
+      cleanedExamData.clinicalImages = clinicalImages;
+    }
+
     const saveData = {
       uhid: patientData.uhid,
-      patientName: patientData.name,
-      doctorName: "Dr. Ahmed Hassan",
       data: cleanedExamData,
-      clinicalImages: clinicalImages, // Include images
-      completedSections,
     };
     onSave(saveData, generateFindings);
   };
@@ -438,10 +451,9 @@ useEffect(() => {
                                 ✓ Auto-filled from Triage
                               </span>
                               <span className="text-sm text-gray-600">
-                                Recorded by {examData.vitalSigns._recordedBy} at{" "}
-                                {new Date(
-                                  examData.vitalSigns._recordedAt
-                                ).toLocaleTimeString()}
+                                {examData.vitalSigns._recordedAt
+                                  ? `Recorded on ${new Date(examData.vitalSigns._recordedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} at ${new Date(examData.vitalSigns._recordedAt).toLocaleTimeString()}`
+                                  : ""}
                               </span>
                             </div>
                             <Button

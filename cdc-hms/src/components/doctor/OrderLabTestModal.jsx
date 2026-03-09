@@ -1,14 +1,13 @@
 // OrderLabTestModal.jsx - Modal for doctors to order lab tests
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 import Button from "../shared/Button";
 import { useLabContext } from "../../contexts/LabContext";
-import { useUserContext } from "../../contexts/UserContext";
 import VoiceInput from "../shared/VoiceInput";
 
 const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
   const { addPendingTest } = useLabContext();
-  const { currentUser } = useUserContext();
   
   const [selectedTest, setSelectedTest] = useState("");
   const [priority, setPriority] = useState("Routine");
@@ -30,9 +29,19 @@ const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
   //   return 
   // })
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedTest) {
-      alert("Please select a test type");
+      toast.error("Please select a test type", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
       return;
     }
 
@@ -41,37 +50,51 @@ const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
     // Create pending test order
     const testOrder = {
       uhid: patient.uhid,
-      patientName: patient.name,
-      age: patient.age,
-      gender: patient.gender,
       testType: selectedTest,
       sampleType: selectedTestData.sample,
-      orderedBy: currentUser?.name || "Dr. Ahmed Hassan",
       priority: priority,
       notes: notes || "",
     };
 
-    // Add to pending tests
-    addPendingTest(testOrder);
+    // Await the async API call
+    const result = await addPendingTest(testOrder);
 
-    // Show success notification
-    const successDiv = document.createElement("div");
-    successDiv.className =
-      "fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce";
-    successDiv.innerHTML = `
-      <p class="font-bold">✅ Lab Test Ordered Successfully!</p>
-      <p class="text-sm mt-1">Patient: ${patient.name}</p>
-      <p class="text-sm">Test: ${selectedTest}</p>
-      <p class="text-sm">Priority: ${priority}</p>
-    `;
-    document.body.appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 4000);
+    if (result) {
+      // Show success notification
+      toast.success(
+        `Lab Test Ordered Successfully!\nPatient: ${patient.name}\nTest: ${selectedTest}\nPriority: ${priority}`,
+        {
+          duration: 4000,
+          position: "top-right",
+          icon: "✅",
+          style: {
+            background: "#10B981",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+            whiteSpace: "pre-line",
+          },
+        }
+      );
 
-    // Call success callback
-    if (onSuccess) onSuccess();
+      // Call success callback
+      if (onSuccess) onSuccess();
 
-    // Close modal
-    onClose();
+      // Close modal
+      onClose();
+    } else {
+      toast.error("Failed to order lab test. Please try again.", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+        style: {
+          background: "#EF4444",
+          color: "#FFFFFF",
+          fontWeight: "bold",
+          padding: "16px",
+        },
+      });
+    }
   };
 
   return (

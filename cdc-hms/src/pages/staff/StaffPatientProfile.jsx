@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -23,9 +23,29 @@ const StaffPatientProfile = () => {
   const navigate = useNavigate();
   const { uhid } = useParams();
   const [activeTab, setActiveTab] = useState("overview");
+  const [patient, setPatient] = useState(null);
+  const [loadingPatient, setLoadingPatient] = useState(true);
 
-  const { getPatientByUHID } = usePatientContext();
-  const patient = getPatientByUHID(uhid);
+  const { fetchPatientByUHID } = usePatientContext();
+
+  useEffect(() => {
+    fetchPatientByUHID(uhid).then(p => {
+      setPatient(p || null);
+      setLoadingPatient(false);
+    });
+  }, [uhid]);
+
+  if (loadingPatient) {
+    return (
+      <div className="flex items-center justify-center py-16 text-gray-500">
+        <svg className="animate-spin w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        Loading patient profile...
+      </div>
+    );
+  }
 
   if (!patient) {
     return (
@@ -249,26 +269,30 @@ const OverviewTab = ({ patient, setActiveTab }) => {
           <AlertTriangle className="w-5 h-5 text-red-600" />
           <h3 className="text-lg font-bold text-gray-800">Emergency Contact</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-gray-600">Name</p>
-            <p className="font-semibold text-gray-800">
-              {patient.emergencyContact.name}
-            </p>
+        {patient.emergencyContact ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-gray-600">Name</p>
+              <p className="font-semibold text-gray-800">
+                {patient.emergencyContact.name || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Relationship</p>
+              <p className="font-semibold text-gray-800">
+                {patient.emergencyContact.relationship || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-600">Phone</p>
+              <p className="font-semibold text-gray-800">
+                {patient.emergencyContact.phone || 'N/A'}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-gray-600">Relationship</p>
-            <p className="font-semibold text-gray-800">
-              {patient.emergencyContact.relationship}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Phone</p>
-            <p className="font-semibold text-gray-800">
-              {patient.emergencyContact.phone}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <p className="text-sm text-gray-500">No emergency contact on file</p>
+        )}
       </Card>
 
       {/* Current Medications */}
@@ -277,17 +301,21 @@ const OverviewTab = ({ patient, setActiveTab }) => {
           <Pill className="w-5 h-5 text-purple-600" />
           <h3 className="text-lg font-bold text-gray-800">Current Medications</h3>
         </div>
-        <ul className="space-y-2">
-          {patient.medications.map((med, index) => (
-            <li
-              key={index}
-              className="flex items-start p-3 bg-gray-50 rounded-lg"
-            >
-              <Pill className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-800">{med}</span>
-            </li>
-          ))}
-        </ul>
+        {patient.medications && patient.medications.length > 0 ? (
+          <ul className="space-y-2">
+            {patient.medications.map((med, index) => (
+              <li
+                key={index}
+                className="flex items-start p-3 bg-gray-50 rounded-lg"
+              >
+                <Pill className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                <span className="text-sm font-medium text-gray-800">{med}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-gray-500">No current medications on file</p>
+        )}
       </Card>
 
       {/* Allergies & Comorbidities */}
@@ -299,7 +327,7 @@ const OverviewTab = ({ patient, setActiveTab }) => {
           </div>
           <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
             <p className="text-sm font-semibold text-red-700">
-              {patient.allergies}
+              {patient.allergies || 'None reported'}
             </p>
           </div>
         </Card>
@@ -329,59 +357,63 @@ const OverviewTab = ({ patient, setActiveTab }) => {
           <BarChart3 className="w-5 h-5 text-indigo-600" />
           <h3 className="text-lg font-bold text-gray-800">Latest Vitals</h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg text-center">
-            <p className="text-xs text-gray-600 uppercase">Blood Pressure</p>
-            <p className="text-lg font-bold text-blue-700 mt-1">
-              {patient.vitals.bp}
-            </p>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg text-center">
-            <p className="text-xs text-gray-600 uppercase">Heart Rate</p>
-            <p className="text-lg font-bold text-green-700 mt-1">
-              {patient.vitals.heartRate}
-            </p>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg text-center">
-            <p className="text-xs text-gray-600 uppercase">Temperature</p>
-            <p className="text-lg font-bold text-red-700 mt-1">
-              {patient.vitals.temperature}
-            </p>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg text-center">
-            <p className="text-xs text-gray-600 uppercase">O2 Saturation</p>
-            <p className="text-lg font-bold text-purple-700 mt-1">
-              {patient.vitals.oxygenSaturation || "N/A"}
-            </p>
-          </div>
-          <div className="bg-indigo-50 p-4 rounded-lg text-center">
-            <p className="text-xs text-gray-600 uppercase">Weight</p>
-            <p className="text-lg font-bold text-indigo-700 mt-1">
-              {patient.vitals.weight}
-            </p>
-          </div>
-          <div className="bg-cyan-50 p-4 rounded-lg text-center">
-            <p className="text-xs text-gray-600 uppercase">Height</p>
-            <p className="text-lg font-bold text-cyan-700 mt-1">
-              {patient.vitals.height}
-            </p>
-          </div>
-          <div className="bg-orange-50 p-4 rounded-lg text-center border-2 border-orange-200">
-            <p className="text-xs text-gray-600 uppercase">BMI</p>
-            <p className="text-lg font-bold text-orange-700 mt-1">
-              {patient.vitals.bmi}
-            </p>
-          </div>
-
-          {patient.vitals.waistCircumference && (
-            <div className="bg-pink-50 p-4 rounded-lg text-center border-2 border-pink-200">
-              <p className="text-xs text-gray-600 uppercase">Waist Circ.</p>
-              <p className="text-lg font-bold text-pink-700 mt-1">
-                {patient.vitals.waistCircumference}
+        {patient.vitals ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="bg-blue-50 p-4 rounded-lg text-center">
+              <p className="text-xs text-gray-600 uppercase">Blood Pressure</p>
+              <p className="text-lg font-bold text-blue-700 mt-1">
+                {patient.vitals.bp || 'N/A'}
               </p>
             </div>
-          )}
-        </div>
+            <div className="bg-green-50 p-4 rounded-lg text-center">
+              <p className="text-xs text-gray-600 uppercase">Heart Rate</p>
+              <p className="text-lg font-bold text-green-700 mt-1">
+                {patient.vitals.heartRate || 'N/A'}
+              </p>
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg text-center">
+              <p className="text-xs text-gray-600 uppercase">Temperature</p>
+              <p className="text-lg font-bold text-red-700 mt-1">
+                {patient.vitals.temperature || 'N/A'}
+              </p>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg text-center">
+              <p className="text-xs text-gray-600 uppercase">O2 Saturation</p>
+              <p className="text-lg font-bold text-purple-700 mt-1">
+                {patient.vitals.oxygenSaturation || "N/A"}
+              </p>
+            </div>
+            <div className="bg-indigo-50 p-4 rounded-lg text-center">
+              <p className="text-xs text-gray-600 uppercase">Weight</p>
+              <p className="text-lg font-bold text-indigo-700 mt-1">
+                {patient.vitals.weight || 'N/A'}
+              </p>
+            </div>
+            <div className="bg-cyan-50 p-4 rounded-lg text-center">
+              <p className="text-xs text-gray-600 uppercase">Height</p>
+              <p className="text-lg font-bold text-cyan-700 mt-1">
+                {patient.vitals.height || 'N/A'}
+              </p>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg text-center border-2 border-orange-200">
+              <p className="text-xs text-gray-600 uppercase">BMI</p>
+              <p className="text-lg font-bold text-orange-700 mt-1">
+                {patient.vitals.bmi || 'N/A'}
+              </p>
+            </div>
+
+            {patient.vitals?.waistCircumference && (
+              <div className="bg-pink-50 p-4 rounded-lg text-center border-2 border-pink-200">
+                <p className="text-xs text-gray-600 uppercase">Waist Circ.</p>
+                <p className="text-lg font-bold text-pink-700 mt-1">
+                  {patient.vitals.waistCircumference}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">No vitals recorded yet</p>
+        )}
       </Card>
 
       {/* Medical Equipment Summary */}

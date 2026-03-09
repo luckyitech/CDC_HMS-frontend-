@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useNavigate } from 'react-router-dom';
@@ -112,7 +113,17 @@ const EnterResults = () => {
 
   const handleSubmit = () => {
     if (!selectedPatient) {
-      alert('Please select a patient');
+      toast.error('Please select a patient', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
@@ -120,7 +131,17 @@ const EnterResults = () => {
     const allFieldsFilled = template.fields.every(field => testResults[field.name]);
 
     if (!allFieldsFilled) {
-      alert('Please fill in all test fields');
+      toast.error('Please fill in all test fields', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
@@ -148,12 +169,17 @@ const EnterResults = () => {
     removePendingTest(selectedPatient.id);
 
     // Show success message
-    const successDiv = document.createElement('div');
-    successDiv.className =
-      'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-bounce';
-    successDiv.innerHTML = `✅ Test results saved successfully for ${selectedPatient.patientName}!`;
-    document.body.appendChild(successDiv);
-    setTimeout(() => successDiv.remove(), 3000);
+    toast.success(`Test Results Saved Successfully for ${selectedPatient.patientName}`, {
+      duration: 3000,
+      position: 'top-right',
+      icon: '✅',
+      style: {
+        background: '#10B981',
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        padding: '16px',
+      },
+    });
     
     // Reset form
     setSelectedPatient(null);

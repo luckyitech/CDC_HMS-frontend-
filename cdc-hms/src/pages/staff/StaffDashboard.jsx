@@ -1,11 +1,11 @@
-import toast, { Toaster } from 'react-hot-toast';
-import { 
-  Users, 
-  Clock, 
-  CheckCircle, 
-  AlertTriangle, 
-  UserPlus, 
-  Search, 
+import { useState, useEffect, useMemo } from 'react';
+import {
+  Users,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  UserPlus,
+  Search,
   ClipboardList,
   Activity,
   Calendar,
@@ -19,20 +19,43 @@ import { usePatientContext } from '../../contexts/PatientContext';
 import { useQueueContext } from '../../contexts/QueueContext';
 import { useNavigate } from 'react-router-dom';
 
+
 const StaffDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
-  const { getPatientStats } = usePatientContext();
-  const { getQueueByStatus, getQueueStats } = useQueueContext();
-  
-  const stats = getPatientStats();
-  const queueStats = getQueueStats();
+  const { patients, getPatientStats } = usePatientContext();
+  const { queue, getLocalQueueStats, getQueueByStatus } = useQueueContext();
+
+  const [patientStats, setPatientStats] = useState({ total: 0, active: 0, highRisk: 0 });
+
+  // Fetch patient stats from API once on mount
+  useEffect(() => {
+    getPatientStats().then(data => {
+      if (data) setPatientStats(data);
+    });
+  }, []); // getPatientStats is a stable context function — safe to omit
+
+  // Queue stats computed from local state — always in sync, no extra API call
+  const queueStats = getLocalQueueStats();
   const waitingPatients = getQueueByStatus('Waiting');
+
+  // Today's date string for filtering
+  const todayStr = new Date().toDateString();
+
+  // New patients registered today
+  const newRegistrationsToday = useMemo(
+    () => patients.filter(p => new Date(p.createdAt).toDateString() === todayStr).length,
+    [patients, todayStr]
+  );
+
+  // Queue entries completed today
+  const completedTriageToday = useMemo(
+    () => queue.filter(q => q.status === 'Completed' && new Date(q.updatedAt).toDateString() === todayStr).length,
+    [queue, todayStr]
+  );
 
   return (
     <div>
-      <Toaster position="top-right" />
-
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Staff Dashboard</h2>
@@ -53,7 +76,7 @@ const StaffDashboard = () => {
             <h3 className="text-sm lg:text-lg font-semibold opacity-90">Total Patients</h3>
             <Users className="w-6 h-6 lg:w-8 lg:h-8" />
           </div>
-          <p className="text-4xl lg:text-5xl font-bold">{stats.total}</p>
+          <p className="text-4xl lg:text-5xl font-bold">{patientStats.total ?? 0}</p>
         </div>
 
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-xl p-4 lg:p-6 text-white">
@@ -69,7 +92,7 @@ const StaffDashboard = () => {
             <h3 className="text-sm lg:text-lg font-semibold opacity-90">Active Patients</h3>
             <CheckCircle className="w-6 h-6 lg:w-8 lg:h-8" />
           </div>
-          <p className="text-4xl lg:text-5xl font-bold">{stats.active}</p>
+          <p className="text-4xl lg:text-5xl font-bold">{patientStats.active ?? 0}</p>
         </div>
 
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-xl p-4 lg:p-6 text-white">
@@ -77,7 +100,7 @@ const StaffDashboard = () => {
             <h3 className="text-sm lg:text-lg font-semibold opacity-90">High Risk</h3>
             <AlertTriangle className="w-6 h-6 lg:w-8 lg:h-8" />
           </div>
-          <p className="text-4xl lg:text-5xl font-bold">{stats.highRisk}</p>
+          <p className="text-4xl lg:text-5xl font-bold">{patientStats.highRisk ?? 0}</p>
         </div>
       </div>
 
@@ -108,20 +131,19 @@ const StaffDashboard = () => {
                     <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">{patient.arrivalTime}</td>
                     <td className="px-4 lg:px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        patient.priority === 'Urgent' 
-                          ? 'bg-red-100 text-red-700' 
+                        patient.priority === 'Urgent'
+                          ? 'bg-red-100 text-red-700'
                           : 'bg-green-100 text-green-700'
                       }`}>
                         {patient.priority}
                       </span>
                     </td>
                     <td className="px-4 lg:px-6 py-4">
-                      <Button 
-                        variant="primary" 
+                      <Button
+                        variant="primary"
                         className="text-xs py-1 px-3"
                         onClick={() => navigate('/staff/triage')}
                       >
-                        {/* <Stethoscope className="w-3 h-3 mr-1" /> */}
                         Start Triage
                       </Button>
                     </td>
@@ -149,21 +171,21 @@ const StaffDashboard = () => {
           </span>
         }>
           <div className="space-y-3">
-            <button 
+            <button
               onClick={() => navigate('/staff/create-patient')}
               className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500 flex items-center gap-3"
             >
               <UserPlus className="w-5 h-5 text-blue-600" />
               <p className="font-semibold text-blue-700">Register New Patient</p>
             </button>
-            <button 
+            <button
               onClick={() => navigate('/staff/patients')}
               className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition border-l-4 border-green-500 flex items-center gap-3"
             >
               <Search className="w-5 h-5 text-green-600" />
               <p className="font-semibold text-green-700">Search Patient</p>
             </button>
-            <button 
+            <button
               onClick={() => navigate('/staff/queue')}
               className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition border-l-4 border-purple-500 flex items-center gap-3"
             >
@@ -185,14 +207,14 @@ const StaffDashboard = () => {
                 <UserPlus className="w-5 h-5 text-blue-600" />
                 <p className="text-sm text-gray-600">New Registrations</p>
               </div>
-              <p className="text-3xl font-bold text-blue-600">8</p>
+              <p className="text-3xl font-bold text-blue-600">{newRegistrationsToday}</p>
             </div>
             <div className="p-4 bg-green-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
                 <p className="text-sm text-gray-600">Completed Triage</p>
               </div>
-              <p className="text-3xl font-bold text-green-600">15</p>
+              <p className="text-3xl font-bold text-green-600">{completedTriageToday}</p>
             </div>
             <div className="p-4 bg-purple-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
@@ -204,9 +226,9 @@ const StaffDashboard = () => {
             <div className="p-4 bg-orange-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="w-5 h-5 text-orange-600" />
-                <p className="text-sm text-gray-600">Appointments Booked</p>
+                <p className="text-sm text-gray-600">With Doctor</p>
               </div>
-              <p className="text-3xl font-bold text-orange-600">12</p>
+              <p className="text-3xl font-bold text-orange-600">{queueStats.withDoctor}</p>
             </div>
           </div>
         </Card>

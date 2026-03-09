@@ -14,14 +14,15 @@ const MyPatients = () => {
 
   // Filter patients based on search and risk level
   const filteredPatients = patients.filter((patient) => {
+    const search = searchTerm.toLowerCase();
     const matchesSearch =
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.uhid.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.phone.includes(searchTerm);
+      (patient.name || '').toLowerCase().includes(search) ||
+      (patient.uhid || '').toLowerCase().includes(search) ||
+      (patient.phone || '').includes(searchTerm);
 
     const matchesFilter =
       filterStatus === "all" ||
-      patient.riskLevel.toLowerCase() === filterStatus;
+      (patient.riskLevel || '').toLowerCase() === filterStatus;
 
     return matchesSearch && matchesFilter;
   });

@@ -1,5 +1,8 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import appointmentService from "../services/appointmentService";
+import { useUserContext } from "../contexts/UserContext";
+import toast from "react-hot-toast";
 import {
   LayoutDashboard,
   Search,
@@ -29,15 +32,32 @@ import {
   Info,
   AlertCircle,
   ChartNoAxesCombined,
-  FileStack
+  FileStack,
+  KeyRound,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { currentUser } = useUserContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [doctorApptCount, setDoctorApptCount] = useState(0);
+
+  // For doctor role: fetch today's scheduled appointment count as badge
+  useEffect(() => {
+    if (userRole.toLowerCase() !== 'doctor' || !currentUser?.id) return;
+    appointmentService.getByDoctor(currentUser.id, { date: 'today' })
+      .then(res => {
+        if (res.success) {
+          const scheduled = (res.data.appointments || res.data)
+            .filter(a => a.status === 'scheduled').length;
+          setDoctorApptCount(scheduled);
+        }
+      })
+      .catch(() => {});
+  }, [userRole, currentUser?.id]);
 
   const handleLogout = () => {
     navigate("/");
@@ -208,7 +228,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
   };
 
   const notifications = getNotifications();
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const mockUnread = notifications.filter((n) => !n.read).length;
+  const unreadCount = userRole.toLowerCase() === 'doctor' ? doctorApptCount : mockUnread;
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -238,12 +259,32 @@ const MainLayout = ({ userRole = "Staff" }) => {
     }
   };
 
-  const handleMarkAsRead = (notificationId) => {
-    alert(`Notification ${notificationId} marked as read`);
+  const handleMarkAsRead = () => {
+    toast.success(`Notification Marked as Read`, {
+      duration: 2000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
   };
 
   const handleMarkAllAsRead = () => {
-    alert("All notifications marked as read");
+    toast.success("All Notifications Marked as Read", {
+      duration: 2000,
+      position: "top-right",
+      icon: "✅",
+      style: {
+        background: "#10B981",
+        color: "#FFFFFF",
+        fontWeight: "bold",
+        padding: "16px",
+      },
+    });
     setNotificationsOpen(false);
   };
 
@@ -253,12 +294,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Patient Search", path: "/staff/patients", icon: Search },
       { name: "Queue Management", path: "/staff/queue", icon: ClipboardList },
       { name: "Triage", path: "/staff/triage", icon: Stethoscope },
-      {
-        name: "Register Patient",
-        path: "/staff/create-patient",
-        icon: UserPlus,
-      },
+      { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
       { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
+      { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
     ],
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
@@ -284,8 +322,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
         icon: ChartNoAxesCombined ,
       },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
-      { name: "Reports", path: "/doctor/reports", icon: FileText },
-      { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
+      // { name: "Reports", path: "/doctor/reports", icon: FileText },
+      // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
+      // { name: "Change Password", path: "/doctor/change-password", icon: KeyRound },
     ],
     patient: [
       { name: "Home", path: "/patient/dashboard", icon: Home },
@@ -298,7 +337,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
         path: "/patient/book-appointment",
         icon: Calendar,
       },
-      { name: "Upload Results", path: "/patient/upload-results", icon: Upload },
+      { name: "My Documents", path: "/patient/upload-results", icon: FileText },
+      { name: "Change Password", path: "/patient/change-password", icon: KeyRound },
     ],
     lab: [
       { name: "Dashboard", path: "/lab/dashboard", icon: LayoutDashboard },
@@ -319,6 +359,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         path: "/lab/critical-alerts",
         icon: AlertTriangle,
       },
+      { name: "Change Password", path: "/lab/change-password", icon: KeyRound },
     ],
     admin: [
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
@@ -328,6 +369,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Create Patient", path: "/admin/create-patient", icon: UserPlus },
       { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
       { name: "System Settings", path: "/admin/settings", icon: Settings },
+      { name: "Change Password", path: "/admin/change-password", icon: KeyRound },
     ],
   };
 

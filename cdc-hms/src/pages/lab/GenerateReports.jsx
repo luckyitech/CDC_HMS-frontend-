@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useNavigate } from 'react-router-dom';
@@ -48,22 +49,66 @@ const GenerateReports = () => {
 
   const handleGenerate = () => {
     if (!selectedPatient) {
-      alert('Please select a patient');
+      toast.error('Please select a patient', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
     if (!reportType) {
-      alert('Please select report type');
+      toast.error('Please select report type', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
     if (!dateRange.from || !dateRange.to) {
-      alert('Please select date range');
+      toast.error('Please select date range', {
+        duration: 3000,
+        position: 'top-right',
+        icon: '❌',
+        style: {
+          background: '#EF4444',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+        },
+      });
       return;
     }
 
     const patient = patients.find(p => p.id === parseInt(selectedPatient));
     const report = reportTypes.find(r => r.value === reportType);
-    
-    alert(`Report generated successfully!\n\nPatient: ${patient.name}\nReport Type: ${report.label}\nDate Range: ${dateRange.from} to ${dateRange.to}`);
+
+    toast.success(
+      `Report Generated Successfully!\n\nPatient: ${patient.name}\nReport Type: ${report.label}\nDate Range: ${dateRange.from} to ${dateRange.to}`,
+      {
+        duration: 4000,
+        position: 'top-right',
+        icon: '✅',
+        style: {
+          background: '#10B981',
+          color: '#FFFFFF',
+          fontWeight: 'bold',
+          padding: '16px',
+          whiteSpace: 'pre-line',
+        },
+      }
+    );
   };
 
   // Mock recently generated reports
