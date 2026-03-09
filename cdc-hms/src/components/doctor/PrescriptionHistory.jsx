@@ -127,7 +127,7 @@ const PrescriptionHistory = ({
                           💊 {med.name}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
-                          {med.dosage} • {med.frequency}
+                          {med.dosage} &middot; {med.frequency}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

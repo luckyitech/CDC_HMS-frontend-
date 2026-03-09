@@ -98,7 +98,7 @@ const PhysicalExamFindings = ({
               <span className="font-semibold">{patientName}</span> ({uhid})
             </p>
             <p className="text-sm text-gray-600 mt-1">
-              Date: {date} • Time: {time} • {doctorName}
+              Date: {date} &middot; Time: {time} &middot; {doctorName}
             </p>
           </div>
           <div className="flex gap-2">
@@ -133,10 +133,10 @@ const PhysicalExamFindings = ({
                 CDC DIABETES CLINIC
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Comprehensive Diabetes Centre • Excellence in Diabetes Care
+                Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                Tel: +254 700 000 000 • Email: info@cdc-diabetes.com
+                Tel: +254 700 000 000 &middot; Email: info@cdc-diabetes.com
               </p>
             </div>
 
@@ -157,7 +157,7 @@ const PhysicalExamFindings = ({
             Physical Examination Summary
           </h2>
           <p className="text-sm text-gray-600 mt-2">
-            Date: {date} • Time: {time}
+            Date: {date} &middot; Time: {time}
           </p>
         </div>
 
@@ -296,7 +296,7 @@ const PhysicalExamFindings = ({
                     )}
 
                     <p className="text-xs text-gray-500">
-                      {new Date(image.timestamp).toLocaleDateString()} •{" "}
+                      {new Date(image.timestamp).toLocaleDateString()} &middot;{" "}
                       {new Date(image.timestamp).toLocaleTimeString()}
                     </p>
 
@@ -332,7 +332,7 @@ const PhysicalExamFindings = ({
               This is a computer-generated report
             </p>
             <p className="text-xs text-gray-500 ">
-              CDC Diabetes Clinic • Nairobi, Kenya
+              CDC Diabetes Clinic &middot; Nairobi, Kenya
             </p>
           </div>
         </div>

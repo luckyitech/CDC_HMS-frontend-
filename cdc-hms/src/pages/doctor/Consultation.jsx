@@ -371,7 +371,7 @@ const Consultation = () => {
                 Consultation - {patient.name}
               </h2>
               <p className="text-gray-600 mt-1">
-                UHID: {patient.uhid} â€¢ {patient.age} yrs â€¢ {patient.gender}
+                UHID: {patient.uhid}- {patient.age} yrs {patient.gender}
               </p>
             </div>
             <Button
@@ -680,7 +680,7 @@ const Consultation = () => {
                             year: "numeric",
                           }
                         )}{" "}
-                        â€¢ {previousPlan.time} â€¢ By {previousPlan.doctorName}
+                        -{previousPlan.time} - By {previousPlan.doctorName}
                       </p>
                     </div>
                     <span

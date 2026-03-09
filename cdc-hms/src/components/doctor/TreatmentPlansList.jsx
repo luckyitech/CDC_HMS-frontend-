@@ -258,7 +258,7 @@ const TreatmentPlansList = ({
                               day: "numeric",
                               year: "numeric",
                             })}{" "}
-                            • {plan.time}
+                            &middot; {plan.time}
                           </p>
                           <p className="mt-1">👨‍⚕️ {plan.doctorName}</p>
                         </div>

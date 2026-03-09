@@ -333,7 +333,7 @@ const PhysicalExamEntry = ({
               {patientData.name}
             </h3>
             <p className="text-sm text-gray-600">
-              {patientData.uhid} • {patientData.age} yrs • {patientData.gender}
+              {patientData.uhid} &middot; {patientData.age} yrs &middot; {patientData.gender}
             </p>
           </div>
           {!readOnly && (
@@ -577,7 +577,7 @@ const PhysicalExamEntry = ({
                               />
                             </label>
                             <p className="text-xs text-gray-500 mt-2 text-center">
-                              Max file size: 5MB • Supported: JPG, PNG, GIF
+                              Max file size: 5MB &middot; Supported: JPG, PNG, GIF
                             </p>
                           </div>
                         </div>

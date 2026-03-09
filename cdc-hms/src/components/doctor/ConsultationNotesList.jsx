@@ -260,7 +260,7 @@ const ConsultationNotesList = ({
                             day: "numeric",
                             year: "numeric",
                           })}
-                          {" • "}
+                          {" "}&middot;{" "}
                           {note.time}
                         </span>
                         <span className="text-sm text-gray-600">

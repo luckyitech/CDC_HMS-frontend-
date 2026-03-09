@@ -307,7 +307,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                   {selectedPatient.name}
                 </h3>
                 <p className="text-gray-600 mt-1">
-                  {selectedPatient.uhid} • {selectedPatient.age} yrs • {selectedPatient.gender}
+                  {selectedPatient.uhid} &middot; {selectedPatient.age} yrs &middot; {selectedPatient.gender}
                 </p>
               </Card>
 
@@ -636,8 +636,8 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                   <div className="flex justify-between items-center mb-8 border-b-2 border-primary pb-4">
                     <div>
                       <h1 className="text-3xl font-bold text-primary">CDC DIABETES CLINIC</h1>
-                      <p className="text-sm text-gray-600 mt-2">Comprehensive Diabetes Centre • Excellence in Diabetes Care</p>
-                      <p className="text-sm text-gray-600">Tel: +254 700 000 000 • Email: info@cdc-diabetes.com</p>
+                      <p className="text-sm text-gray-600 mt-2">Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care</p>
+                      <p className="text-sm text-gray-600">Tel: +254 700 000 000 &middot; Email: info@cdc-diabetes.com</p>
                     </div>
                     <img src={cdcLogo} alt="CDC Logo" className="w-40 h-40 object-contain py-4" />
                   </div>
@@ -653,7 +653,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div><p className="text-gray-600">Name:</p><p className="font-semibold">{selectedPatient?.name}</p></div>
                       <div><p className="text-gray-600">UHID:</p><p className="font-semibold">{selectedPatient?.uhid}</p></div>
-                      <div><p className="text-gray-600">Age / Gender:</p><p className="font-semibold">{selectedPatient?.age} yrs • {selectedPatient?.gender}</p></div>
+                      <div><p className="text-gray-600">Age / Gender:</p><p className="font-semibold">{selectedPatient?.age} yrs &middot; {selectedPatient?.gender}</p></div>
                       <div><p className="text-gray-600">Diabetes Type:</p><p className="font-semibold">{selectedPatient?.diabetesType || "—"}</p></div>
                     </div>
                   </div>
@@ -754,7 +754,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                   {/* Footer */}
                   <div className="text-center mt-6 pt-4 border-t border-gray-300">
                     <p className="text-xs text-gray-500">This assessment is confidential and intended for the patient named above.</p>
-                    <p className="text-xs text-gray-500 mt-1">CDC Diabetes Clinic • Nairobi, Kenya</p>
+                    <p className="text-xs text-gray-500 mt-1">CDC Diabetes Clinic &middot; Nairobi, Kenya</p>
                   </div>
 
                   {/* Print Styles */}

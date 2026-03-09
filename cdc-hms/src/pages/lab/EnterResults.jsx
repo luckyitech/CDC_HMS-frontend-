@@ -222,7 +222,7 @@ const EnterResults = () => {
                   <p className="font-bold text-gray-800">{patient.patientName}</p>
                   <p className="text-sm text-primary font-semibold">{patient.uhid}</p>
                   <p className="text-xs text-gray-600 mt-1">
-                    {patient.age}y • {patient.gender}
+                    {patient.age}y &middot; {patient.gender}
                   </p>
                   <div className="mt-2 pt-2 border-t border-gray-200">
                     <p className="text-xs text-gray-500">Test Ordered:</p>

@@ -147,7 +147,7 @@ const PatientDashboard = () => {
               <p className="text-xs sm:text-sm mt-2 sm:mt-3 opacity-90 leading-tight">
                 {SLOT_LABELS[lastReading.timeSlot] || lastReading.timeSlot}
                 <br className="sm:hidden" />
-                <span className="hidden sm:inline"> • </span>
+                <span className="hidden sm:inline"> &middot; </span>
                 {formatDate(lastReading.date)}
               </p>
             </>
@@ -227,7 +227,7 @@ const PatientDashboard = () => {
                     <p className="text-sm font-semibold text-gray-800">
                       {reading.value} <span className="font-normal text-gray-500 text-xs">mg/dL</span>
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">{reading.typeLabel} • {reading.displayTime}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{reading.typeLabel} &middot; {reading.displayTime}</p>
                     <p className="text-xs text-gray-400">{formatDate(reading.date)}</p>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(reading.status)}`}>

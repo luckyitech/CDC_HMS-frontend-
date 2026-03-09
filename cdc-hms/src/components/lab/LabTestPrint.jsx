@@ -243,10 +243,10 @@ const LabTestPrint = ({ test, onClose }) => {
           </div>
           <div className="mt-4 text-center">
             <p className="text-xs text-gray-400">
-              CDC Diabetes Clinic Laboratory • Nairobi, Kenya • www.cdc-diabetes.co.ke
+              CDC Diabetes Clinic Laboratory &middot; Nairobi, Kenya &middot; www.cdc-diabetes.co.ke
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              Generated on {new Date().toLocaleString()} • Page 1 of 1
+              Generated on {new Date().toLocaleString()} &middot; Page 1 of 1
             </p>
           </div>
         </div>

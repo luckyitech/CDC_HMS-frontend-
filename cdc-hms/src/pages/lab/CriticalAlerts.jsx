@@ -198,7 +198,7 @@ const CriticalAlerts = () => {
                           {alert.patientName}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {alert.uhid} • {alert.age}y • {alert.gender}
+                          {alert.uhid} &middot; {alert.age}y &middot; {alert.gender}
                         </p>
                       </div>
 

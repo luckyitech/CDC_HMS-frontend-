@@ -36,10 +36,10 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
                 CDC DIABETES CLINIC
               </h1>
               <p className="text-sm text-gray-600 mt-2">
-                Comprehensive Diabetes Centre • Excellence in Diabetes Care
+                Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care
               </p>
               <p className="text-sm text-gray-600">
-                Tel: +254 700 000 000 • Email: info@cdc-diabetes.com
+                Tel: +254 700 000 000 &middot; Email: info@cdc-diabetes.com
               </p>
             </div>
             <img
@@ -59,7 +59,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
                 day: "numeric",
                 year: "numeric",
               })}{" "}
-              • {plan.time}
+              &middot; {plan.time}
             </p>
           </div>
 
@@ -80,7 +80,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
               <div>
                 <p className="text-gray-600">Age / Gender:</p>
                 <p className="font-semibold">
-                  {patient.age} years • {patient.gender}
+                  {patient.age} years &middot; {patient.gender}
                 </p>
               </div>
               <div>
@@ -155,7 +155,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
               named above.
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              CDC Diabetes Clinic • Nairobi, Kenya
+              CDC Diabetes Clinic &middot; Nairobi, Kenya
             </p>
           </div>
         </div>

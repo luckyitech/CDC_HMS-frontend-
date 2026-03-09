@@ -98,7 +98,7 @@ const StaffPatientProfile = () => {
                 {patient.name}
               </h3>
               <p className="text-sm sm:text-base text-gray-600 mt-0.5 sm:mt-1">
-                {patient.uhid} • {patient.age} yrs • {patient.gender}
+                {patient.uhid} &middot; {patient.age} yrs &middot; {patient.gender}
               </p>
               {/* Contact Info - Stacked on mobile, inline on desktop */}
               <div className="mt-1 sm:mt-1.5 space-y-0.5 sm:space-y-0">
@@ -194,7 +194,7 @@ const OverviewTab = ({ patient, setActiveTab }) => {
             <div>
               <p className="text-sm text-gray-600">Age / Gender</p>
               <p className="font-semibold text-gray-800">
-                {patient.age} years • {patient.gender}
+                {patient.age} years &middot; {patient.gender}
               </p>
             </div>
             <div>
@@ -341,7 +341,7 @@ const OverviewTab = ({ patient, setActiveTab }) => {
             <ul className="space-y-1">
               {patient.comorbidities.map((condition, index) => (
                 <li key={index} className="text-sm text-gray-700">
-                  • {condition}
+                  &middot; {condition}
                 </li>
               ))}
             </ul>

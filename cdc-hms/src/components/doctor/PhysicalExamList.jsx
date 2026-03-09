@@ -293,7 +293,7 @@ const PhysicalExamList = ({ patient }) => {
                         day: "numeric",
                         year: "numeric",
                       })}{" "}
-                      • {exam.time} • {exam.doctorName}
+                      &middot; {exam.time} &middot; {exam.doctorName}
                       {index === 0 && latestExam?.id === exam.id
                         ? " (Latest)"
                         : ""}
@@ -344,7 +344,7 @@ const PhysicalExamList = ({ patient }) => {
                       year: "numeric",
                     }
                   )}{" "}
-                  • {currentExamination.time} • Dr.{" "}
+                  &middot; {currentExamination.time} &middot; Dr.{" "}
                   {currentExamination.doctorName}
                 </p>
               </div>

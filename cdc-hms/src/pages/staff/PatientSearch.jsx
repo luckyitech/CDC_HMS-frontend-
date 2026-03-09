@@ -199,7 +199,7 @@ const PatientSearch = () => {
                         {patient.name}
                       </td>
                       <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">
-                        {patient.age} yrs • {patient.gender}
+                        {patient.age} yrs &middot; {patient.gender}
                       </td>
                       <td className="hidden lg:table-cell px-4 lg:px-6 py-4 text-sm">
                         {patient.phone}
@@ -316,7 +316,7 @@ const PatientSearch = () => {
                 UHID: {selectedPatient.uhid}
               </p>
               <p className="text-sm text-gray-600">
-                {selectedPatient.age} yrs • {selectedPatient.gender}
+                {selectedPatient.age} yrs &middot; {selectedPatient.gender}
               </p>
             </div>
 

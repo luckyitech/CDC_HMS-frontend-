@@ -294,7 +294,7 @@ const PendingTests = () => {
                         <p className="text-sm text-gray-600">Patient</p>
                         <p className="text-lg font-bold text-gray-800">{test.patient}</p>
                         <p className="text-sm text-gray-600">
-                          {test.uhid} • {test.age}y • {test.gender}
+                          {test.uhid} &middot; {test.age}y &middot; {test.gender}
                         </p>
                       </div>
 

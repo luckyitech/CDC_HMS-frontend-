@@ -325,7 +325,7 @@ const MyProfile = () => {
                           <div className="flex-1">
                             <p className="text-lg font-bold text-gray-800">{med.name}</p>
                             <p className="text-sm text-gray-600 mt-1">
-                              <span className="font-semibold">Dosage:</span> {med.dosage} •{' '}
+                              <span className="font-semibold">Dosage:</span> {med.dosage} &middot;{' '}
                               <span className="font-semibold">Frequency:</span> {med.frequency}
                             </p>
                             {med.duration && (
