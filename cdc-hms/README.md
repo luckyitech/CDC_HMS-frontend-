@@ -302,24 +302,34 @@ cd frontend-repo/cdc-hms
 npm install
 ```
 
-### 3. Build for Production
+### 3. Create the Production Environment File
 
-Pass the production API URL as an environment variable at build time:
+Create a `.env.production` file inside `cdc-hms/`. This file is read automatically by Vite when building for production:
 
 ```bash
-VITE_API_URL=https://api.cdiabetescentre.com/api npm run build
+echo "VITE_API_URL=https://api.cdiabetescentre.com/api" > .env.production
 ```
 
-This generates a `dist/` folder with the compiled static files.
+> **Important:** The URL must end with `/api`. The frontend appends paths like `/auth/login` and `/users/doctors` directly to this base URL. Without `/api`, all API calls will return 404.
+>
+> This file only needs to be created once. It stays on the server permanently and is not tracked by git (it is listed in `.gitignore`).
 
-### 4. Copy to Nginx Web Root
+### 4. Build for Production
+
+```bash
+npm run build
+```
+
+This reads `.env.production` automatically and generates a `dist/` folder with the compiled static files.
+
+### 5. Copy to Nginx Web Root
 
 ```bash
 mkdir -p /var/www/cdc/web
 cp -r dist/* /var/www/cdc/web/
 ```
 
-### 5. Configure Nginx
+### 6. Configure Nginx
 
 ```bash
 nano /etc/nginx/sites-available/cdiabetescentre
@@ -350,7 +360,7 @@ nginx -t
 systemctl reload nginx
 ```
 
-### 6. DNS
+### 7. DNS
 
 On your domain registrar (one.com), add A records:
 
@@ -361,12 +371,13 @@ On your domain registrar (one.com), add A records:
 
 ### Updating the Frontend
 
-Whenever you push new code, on the server:
+Whenever you push new code to GitHub, deploy it on the server by running:
 
 ```bash
-cd /var/www/cdc/frontend-repo
-git pull
-cd cdc-hms
-VITE_API_URL=https://api.cdiabetescentre.com/api npm run build
+cd /var/www/cdc/frontend-repo/cdc-hms
+git pull origin main
+npm run build
 cp -r dist/* /var/www/cdc/web/
 ```
+
+> No need to recreate `.env.production` — it stays on the server permanently. Just pull, build, and copy.
