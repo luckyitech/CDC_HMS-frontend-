@@ -68,24 +68,8 @@ const CreatePatient = () => {
   const doctors = getDoctors();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uhidMode, setUhidMode] = useState('generate'); // 'generate' or 'manual'
-  const [generatedUHID, setGeneratedUHID] = useState('');
-  const [manualUHID, setManualUHID] = useState('');
-
-  const generateUHID = () => {
-    // Generate UHID in format CDC### (e.g., CDC001, CDC002)
-    const randomNum = Math.floor(Math.random() * 900) + 100; // 100-999
-    const uhid = `CDC${randomNum}`;
-    setGeneratedUHID(uhid);
-    return uhid;
-  };
-
-  const getUHID = () => {
-    if (uhidMode === 'manual') {
-      return manualUHID.trim();
-    }
-    return generatedUHID;
-  };
+  const [isExistingPatient, setIsExistingPatient] = useState(false);
+  const [existingUHID, setExistingUHID] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -105,10 +89,9 @@ const CreatePatient = () => {
       return;
     }
 
-    // Validate UHID
-    const uhid = getUHID();
-    if (!uhid) {
-      toast.error(uhidMode === 'manual' ? 'Please enter a UHID' : 'Please generate a UHID first', {
+    // Validate UHID only if existing patient mode
+    if (isExistingPatient && !existingUHID.trim()) {
+      toast.error('Please enter the UHID from the patient\'s physical file', {
         duration: 3000,
         position: 'top-right',
         style: {
@@ -125,7 +108,8 @@ const CreatePatient = () => {
 
     // Build the patient data object for API
     const apiPatientData = {
-      uhid, // Include UHID from frontend
+      // Only send uhid if existing patient — backend auto-generates for new patients
+      ...(isExistingPatient && existingUHID.trim() ? { uhid: existingUHID.trim() } : {}),
       firstName: patientData.firstName,
       lastName: patientData.lastName,
       email: patientData.email,
@@ -181,9 +165,8 @@ const CreatePatient = () => {
           insuranceProvider: '', policyNumber: '', insuranceType: '',
           username: '', temporaryPassword: '',
         });
-        setGeneratedUHID('');
-        setManualUHID('');
-        setUhidMode('generate');
+        setIsExistingPatient(false);
+        setExistingUHID('');
       } else {
         toast.error(result.message || 'Failed to create patient', {
           duration: 4000,
@@ -248,65 +231,49 @@ const CreatePatient = () => {
           <h3 className="font-semibold text-gray-800">Patient UHID (Universal Health ID)</h3>
         </div>
 
-        {/* Mode Toggle */}
+        {/* Patient Type Toggle */}
         <div className="flex gap-4 mb-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
-              name="uhidMode"
-              value="generate"
-              checked={uhidMode === 'generate'}
-              onChange={() => setUhidMode('generate')}
+              name="patientType"
+              checked={!isExistingPatient}
+              onChange={() => setIsExistingPatient(false)}
               className="w-4 h-4 text-primary"
             />
-            <span className="text-sm font-medium text-gray-700">Generate New UHID</span>
+            <span className="text-sm font-medium text-gray-700">New Patient</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="radio"
-              name="uhidMode"
-              value="manual"
-              checked={uhidMode === 'manual'}
-              onChange={() => setUhidMode('manual')}
+              name="patientType"
+              checked={isExistingPatient}
+              onChange={() => setIsExistingPatient(true)}
               className="w-4 h-4 text-primary"
             />
-            <span className="text-sm font-medium text-gray-700">Enter Existing UHID</span>
+            <span className="text-sm font-medium text-gray-700">Existing Patient (has physical file)</span>
           </label>
         </div>
 
-        {/* Generate Mode */}
-        {uhidMode === 'generate' && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            {generatedUHID ? (
-              <>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-600">Generated UHID:</p>
-                  <p className="text-2xl font-bold text-primary">{generatedUHID}</p>
-                </div>
-                <Button type="button" onClick={generateUHID} variant="outline">
-                  🔄 Regenerate
-                </Button>
-              </>
-            ) : (
-              <Button type="button" onClick={generateUHID}>
-                🎲 Generate UHID
-              </Button>
-            )}
+        {/* New Patient — auto-assign */}
+        {!isExistingPatient && (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-sm text-green-700 font-medium">✅ UHID will be automatically assigned by the system</p>
           </div>
         )}
 
-        {/* Manual Entry Mode */}
-        {uhidMode === 'manual' && (
+        {/* Existing Patient — manual UHID entry */}
+        {isExistingPatient && (
           <div>
             <p className="text-sm text-gray-600 mb-2">Enter the UHID from the patient's physical file:</p>
             <input
               type="text"
-              value={manualUHID}
-              onChange={(e) => setManualUHID(e.target.value.toUpperCase())}
-              placeholder="e.g., OLD-12345 or existing ID"
+              value={existingUHID}
+              onChange={(e) => setExistingUHID(e.target.value.toUpperCase())}
+              placeholder="e.g., CDC001"
               className="w-full max-w-xs px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary text-lg font-semibold"
             />
-            <p className="text-xs text-gray-500 mt-1">For patients with existing physical files</p>
+            <p className="text-xs text-gray-500 mt-1">For patients who already have a physical file with a UHID</p>
           </div>
         )}
       </div>
