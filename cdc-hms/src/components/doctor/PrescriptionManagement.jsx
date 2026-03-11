@@ -41,8 +41,8 @@ const PrescriptionManagement = ({
     }
 
     setSelectedMedications([...selectedMedications, { ...medication }]);
-    toast.success(`✅ ${medication.name} added`, {
-      duration: 2000,
+    toast.success(`${medication.name} added to new prescription`, {
+      duration: 3000,
       position: "top-right",
     });
   };
@@ -71,6 +71,7 @@ const PrescriptionManagement = ({
               maxDisplay={1}
               showViewPrint={true}
               showAddButtons={true}
+              addedMedications={selectedMedications.map((m) => m.name)}
               onView={(rx) => {
                 setSelectedPrescription(rx);
                 setShowViewModal(true);
@@ -105,6 +106,7 @@ const PrescriptionManagement = ({
               maxDisplay={null}
               showViewPrint={true}
               showAddButtons={true}
+              addedMedications={selectedMedications.map((m) => m.name)}
               onView={(rx) => {
                 setSelectedPrescription(rx);
                 setShowViewModal(true);
@@ -139,7 +141,9 @@ const PrescriptionManagement = ({
               if (onSuccess) onSuccess();
             }}
             initialMedications={selectedMedications}
-            onMedicationsChange={setSelectedMedications}
+            onMedicationRemoved={(name) =>
+              setSelectedMedications((prev) => prev.filter((m) => m.name !== name))
+            }
           />
         </Card>
       </div>

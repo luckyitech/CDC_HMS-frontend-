@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { Pill, ChevronDown, ChevronUp } from "lucide-react";
+import { Pill, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 import Button from "../shared/Button";
 
-const PrescriptionHistory = ({ 
-  prescriptions, 
-  maxDisplay = 5, 
+const PrescriptionHistory = ({
+  prescriptions,
+  maxDisplay = 5,
   showViewPrint = false,
   onView,
   onPrint,
-  showAddButtons = false, // NEW: Show add buttons for continue functionality
-  onAddMedication, // NEW: Callback when medication is added
-  collapsible = false, // NEW: Make prescriptions collapsible
+  showAddButtons = false,
+  onAddMedication,
+  addedMedications = [], // names of medications already added to the new prescription
+  collapsible = false,
 }) => {
   // State for collapsible prescriptions
   const [expandedPrescriptions, setExpandedPrescriptions] = useState(
@@ -135,15 +136,21 @@ const PrescriptionHistory = ({
                           {med.duration}
                         </span>
                         {showAddButtons && onAddMedication && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddMedication(med);
-                            }}
-                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold transition"
-                          >
-                            + Add
-                          </button>
+                          addedMedications.includes(med.name) ? (
+                            <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                            </span>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddMedication(med);
+                              }}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold transition"
+                            >
+                              + Add
+                            </button>
+                          )
                         )}
                       </div>
                     </div>

@@ -12,9 +12,9 @@ const NewPrescriptionForm = ({
   onCancel,
   addPrescription,
   currentDoctor,
-  embedded = false, // New prop for embedded mode (no modal wrapper)
-  initialMedications = [], // NEW: Accept pre-filled medications
-  onMedicationsChange, // NEW: Callback when medications change
+  embedded = false,
+  initialMedications = [],
+  onMedicationRemoved, // called with medication name when doctor removes a med from the form
 }) => {
   const commonMedications = [
     { name: "Metformin", defaultDosage: "500mg", type: "Oral" },
@@ -32,33 +32,43 @@ const NewPrescriptionForm = ({
   });
 
   const [medications, setMedications] = useState([
-  { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
-]);
+    { name: "", customName: "", dosage: "", frequency: "", duration: "", instructions: "" },
+  ]);
 
 // Sync with initialMedications when they change
 useEffect(() => {
   if (initialMedications && initialMedications.length > 0) {
-    setMedications(initialMedications);
+    const knownNames = commonMedications.map((m) => m.name);
+    setMedications(
+      initialMedications.map((med) =>
+        knownNames.includes(med.name)
+          ? { ...med, customName: "" }
+          : { ...med, customName: med.name, name: "Other" }
+      )
+    );
   }
 }, [initialMedications]);
-
-  // Notify parent when medications change
-  useEffect(() => {
-    if (onMedicationsChange) {
-      onMedicationsChange(medications);
-    }
-  }, [medications, onMedicationsChange]);
 
   const handleAddMedication = () => {
     setMedications([
       ...medications,
-      { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
+      { name: "", customName: "", dosage: "", frequency: "", duration: "", instructions: "" },
     ]);
   };
 
   const handleRemoveMedication = (index) => {
-    const newMeds = medications.filter((_, i) => i !== index);
-    setMedications(newMeds);
+    const med = medications[index];
+    const removedName = med?.name === "Other" ? med?.customName : med?.name;
+    setMedications(medications.filter((_, i) => i !== index));
+    if (removedName) {
+      onMedicationRemoved?.(removedName);
+      toast(`${removedName} removed from prescription`, {
+        duration: 2500,
+        position: "top-right",
+        icon: "🗑️",
+        style: { background: "#6B7280", color: "#fff" },
+      });
+    }
   };
 
   const handleMedicationChange = (index, field, value) => {
@@ -66,9 +76,17 @@ useEffect(() => {
     newMeds[index][field] = value;
 
     if (field === "name") {
-      const commonMed = commonMedications.find((m) => m.name === value);
-      if (commonMed) {
-        newMeds[index]["dosage"] = commonMed.defaultDosage;
+      if (value === "Other") {
+        // Clear dosage and customName when switching to Other
+        newMeds[index]["dosage"] = "";
+        newMeds[index]["customName"] = "";
+      } else {
+        // Auto-fill dosage from common medications list
+        const commonMed = commonMedications.find((m) => m.name === value);
+        if (commonMed) {
+          newMeds[index]["dosage"] = commonMed.defaultDosage;
+        }
+        newMeds[index]["customName"] = "";
       }
     }
 
@@ -94,9 +112,10 @@ useEffect(() => {
       return;
     }
 
-    const validMedications = medications.filter(
-      (m) => m.name && m.dosage && m.frequency && m.duration
-    );
+    const validMedications = medications.filter((m) => {
+      const effectiveName = m.name === "Other" ? m.customName?.trim() : m.name;
+      return effectiveName && m.dosage && m.frequency && m.duration;
+    });
     if (validMedications.length === 0) {
       toast.error("Please add at least one complete medication", {
         duration: 3000,
@@ -120,8 +139,9 @@ useEffect(() => {
       diagnosis: formData.diagnosis,
       doctorName: currentDoctor?.name || "Dr. Ahmed Hassan",
       doctorSpecialty: currentDoctor?.specialty || "Endocrinologist",
-      medications: validMedications.map((med) => ({
+      medications: validMedications.map(({ customName, ...med }) => ({
         ...med,
+        name: med.name === "Other" ? customName.trim() : med.name,
         quantity: "30",
       })),
       notes: "",
@@ -150,7 +170,7 @@ useEffect(() => {
         diagnosis: "",
       });
       setMedications([
-        { name: "", dosage: "", frequency: "", duration: "", instructions: "" },
+        { name: "", customName: "", dosage: "", frequency: "", duration: "", instructions: "" },
       ]);
 
       if (onSuccess) onSuccess();
@@ -275,7 +295,21 @@ useEffect(() => {
                         {commonMed.name} ({commonMed.type})
                       </option>
                     ))}
+                    <option value="Other">Other (specify)</option>
                   </select>
+                  {med.name === "Other" && (
+                    <input
+                      type="text"
+                      value={med.customName}
+                      onChange={(e) =>
+                        handleMedicationChange(index, "customName", e.target.value)
+                      }
+                      placeholder="Enter medication name..."
+                      className="mt-2 w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+                      required
+                      autoFocus
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">

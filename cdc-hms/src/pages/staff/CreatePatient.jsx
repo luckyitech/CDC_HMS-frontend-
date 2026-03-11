@@ -488,14 +488,24 @@ const CreatePatient = () => {
               required
             />
 
-            <Input
-              label="Relationship *"
-              type="text"
-              value={patientData.emergencyContactRelationship}
-              onChange={(e) => setPatientData({ ...patientData, emergencyContactRelationship: e.target.value })}
-              placeholder="e.g., Spouse, Parent, Sibling"
-              required
-            />
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Relationship *</label>
+              <select
+                value={patientData.emergencyContactRelationship}
+                onChange={(e) => setPatientData({ ...patientData, emergencyContactRelationship: e.target.value })}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+                required
+              >
+                <option value="">Select relationship</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Parent">Parent</option>
+                <option value="Child">Child</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Guardian">Guardian</option>
+                <option value="Friend">Friend</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
 
             <Input
               label="Phone Number *"

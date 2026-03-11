@@ -38,28 +38,19 @@ const CreateStaff = () => {
   });
 
   const staffRoles = [
-    'Receptionist',
     'Nurse',
-    'Medical Assistant',
-    'Administrative Assistant',
-    'Front Desk Officer',
-    'Records Officer',
-    'Billing Officer',
-    'Pharmacy Assistant',
+    'Admin',
+    'Receptionist',
   ];
 
   const departments = [
-    'Front Desk',
-    'Triage',
-    'Diabetes Care',
-    'Cardiology',
+    'Nursing',
     'Administration',
-    'Billing',
-    'Pharmacy',
-    'Records',
+    'Front Desk',
   ];
 
-  const shifts = ['Morning', 'Afternoon', 'Night'];
+  // TODO: Uncomment when the hospital introduces shifts
+  // const shifts = ['Morning', 'Afternoon', 'Night'];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -84,7 +75,6 @@ const CreateStaff = () => {
         phone: staffData.phone,
         position: staffData.role,       // form uses 'role', backend expects 'position'
         department: staffData.department,
-        shift: staffData.shift,
         startDate: staffData.startDate || null,
         password: staffData.temporaryPassword || undefined,
       });
@@ -122,12 +112,13 @@ const CreateStaff = () => {
     }
   };
 
-  const generateUsername = () => {
-    if (staffData.firstName && staffData.lastName) {
-      const username = `${staffData.firstName.toLowerCase()}.${staffData.lastName.toLowerCase()}`;
-      setStaffData({ ...staffData, username });
-    }
-  };
+  // TODO: Uncomment when username field is re-enabled
+  // const generateUsername = () => {
+  //   if (staffData.firstName && staffData.lastName) {
+  //     const username = `${staffData.firstName.toLowerCase()}.${staffData.lastName.toLowerCase()}`;
+  //     setStaffData({ ...staffData, username });
+  //   }
+  // };
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
@@ -277,6 +268,7 @@ const CreateStaff = () => {
               required
             />
 
+            {/* TODO: Uncomment when the hospital introduces shifts
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Work Shift *</label>
               <select
@@ -291,6 +283,7 @@ const CreateStaff = () => {
                 ))}
               </select>
             </div>
+            */}
           </div>
         </Card>
 

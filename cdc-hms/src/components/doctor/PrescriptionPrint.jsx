@@ -1,3 +1,4 @@
+import { Printer, MapPin, Phone, Mail, Stethoscope, Pill, AlertTriangle, FileText } from "lucide-react";
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
 
 const PrescriptionPrint = ({ prescription, onClose }) => {
@@ -16,9 +17,9 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
           <div className="flex gap-3">
             <button
               onClick={handlePrint}
-              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 font-semibold transition"
+              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 font-semibold transition flex items-center gap-2"
             >
-              🖨️ Print
+              <Printer className="w-4 h-4" /> Print
             </button>
             <button
               onClick={onClose}
@@ -34,11 +35,15 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
           {/* Hospital Header */}
           <div className="flex justify-between items-center border-b-4 border-primary pb-6 mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-primary mb-2">CDC DIABETES CARE CENTER</h1>
+              <h1 className="text-3xl font-bold text-primary mb-2">COMPREHENSIVE DIABETES CENTRE</h1>
               <p className="text-gray-600">Center for Diabetes Care & Management</p>
-              <p className="text-sm text-gray-600 mt-1">
-                📍 123 Medical Plaza, Healthcare District | 📞 +1-234-567-8900 | 📧 info@cdcdiabetes.com
-              </p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mt-1">
+                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> 3rd Floor, Doctors Park, Third Avenue, Nairobi</span>
+                <span className="text-gray-400">|</span>
+                <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> 0711 781299</span>
+                <span className="text-gray-400">|</span>
+                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> info@comprehensivediabetescentre.com</span>
+              </div>
             </div>
             <img
               src={cdcLogo}
@@ -64,7 +69,9 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
             <div className="text-right">
               <p className="font-bold text-gray-800">{prescription.doctorName}</p>
               <p className="text-sm text-gray-600">{prescription.doctorSpecialty}</p>
-              <p className="text-xs text-gray-500 mt-1">Reg. No: MED-12345</p>
+              {prescription.doctorLicenseNumber && (
+                <p className="text-xs text-gray-500 mt-1">Reg. No: {prescription.doctorLicenseNumber}</p>
+              )}
             </div>
           </div>
 
@@ -86,7 +93,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
           {/* Diagnosis */}
           <div className="mb-6">
             <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-              <span className="text-red-600">🩺</span> Diagnosis
+              <Stethoscope className="w-4 h-4 text-red-600" /> Diagnosis
             </h3>
             <p className="text-gray-700 bg-gray-50 p-3 rounded">{prescription.diagnosis}</p>
           </div>
@@ -94,7 +101,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
           {/* Medications Table */}
           <div className="mb-6">
             <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <span className="text-green-600">💊</span> Medications Prescribed
+              <Pill className="w-4 h-4 text-green-600" /> Medications Prescribed
             </h3>
             <table className="w-full border-collapse border-2 border-gray-300">
               <thead>
@@ -123,7 +130,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
           {/* Special Instructions */}
           {prescription.medications.some(med => med.instructions) && (
             <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
-              <h3 className="font-bold text-gray-800 mb-2">⚠️ Special Instructions</h3>
+              <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-yellow-600" /> Special Instructions</h3>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
                 {prescription.medications.filter(med => med.instructions).map((med, index) => (
                   <li key={index}>
@@ -137,16 +144,16 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
           {/* Additional Notes */}
           {prescription.notes && (
             <div className="mb-6">
-              <h3 className="font-bold text-gray-800 mb-2">📝 Additional Notes</h3>
+              <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-600" /> Additional Notes</h3>
               <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">{prescription.notes}</p>
             </div>
           )}
 
           {/* Important Notice */}
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-6">
-            <p className="text-xs text-red-800 font-semibold">
-              ⚠️ This prescription is valid for 30 days from the date of issue. 
-              Do not share medications with others. Complete the full course as prescribed.
+            <p className="text-xs text-red-800 font-semibold flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              This prescription is valid for 30 days from the date of issue. Do not share medications with others. Complete the full course as prescribed.
             </p>
           </div>
 
@@ -157,7 +164,9 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
               <div className="border-b-2 border-gray-400 w-64 h-16 mb-2"></div>
               <p className="font-bold text-gray-800">{prescription.doctorName}</p>
               <p className="text-xs text-gray-600">{prescription.doctorSpecialty}</p>
-              <p className="text-xs text-gray-500 mt-1">Reg. No: MED-12345</p>
+              {prescription.doctorLicenseNumber && (
+                <p className="text-xs text-gray-500 mt-1">Reg. No: {prescription.doctorLicenseNumber}</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-500">This is a computer-generated prescription</p>
