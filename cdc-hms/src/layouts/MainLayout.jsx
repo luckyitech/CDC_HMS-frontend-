@@ -420,7 +420,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         </div>
 
         <nav className="mt-6">
-          {currentMenu.map((item) => {
+          {currentMenu.filter(item => !item.path.includes('change-password')).map((item) => {
             const IconComponent = item.icon;
             const isActive = location.pathname === item.path;
             return (
