@@ -278,9 +278,9 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                   data={chartData.map((reading) => ({
-                    date: new Date(reading.date).toLocaleDateString("en-US", {
-                      month: "numeric",
+                    date: new Date(reading.date).toLocaleDateString("en-GB", {
                       day: "numeric",
+                      month: "numeric",
                     }),
                     fullDate: new Date(reading.date).toLocaleDateString(
                       "en-US",

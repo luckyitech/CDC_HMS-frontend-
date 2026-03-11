@@ -5,7 +5,7 @@ import Button from "../../components/shared/Button";
 import { physicalExamSections } from "./physicalExamData";
 import VoiceInput from "../../components/shared/VoiceInput";
 import ImageViewerModal from "../../components/doctor/ImageViewerModal";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import {
   Camera,
   Tag,
@@ -824,7 +824,6 @@ const PhysicalExamEntry = ({
           }}
         />
       )}
-      <Toaster />
     </div>
   );
 };
