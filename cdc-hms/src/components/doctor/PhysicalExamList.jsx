@@ -117,11 +117,7 @@ const PhysicalExamList = ({ patient }) => {
         setAllExams((prev) => [newExam, ...prev]);
         setFilteredExams((prev) => [newExam, ...prev]);
 
-        if (generateFindings) {
-          setViewMode("findings");
-        } else {
-          setViewMode("entry");
-        }
+        setViewMode("findings");
 
         toast.success("Physical Examination Saved Successfully", {
           duration: 3000,
@@ -161,11 +157,7 @@ const PhysicalExamList = ({ patient }) => {
           prev.map((e) => (e.id === selectedExamId ? updatedExam : e))
         );
 
-        if (generateFindings) {
-          setViewMode("findings");
-        } else {
-          setViewMode("entry");
-        }
+        setViewMode("findings");
 
         toast.success("Physical Examination Updated Successfully", {
           duration: 3000,

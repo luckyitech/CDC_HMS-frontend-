@@ -68,8 +68,18 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
     setCurrentExamination(null);
   };
 
-  const handleSaveExamination = (examData, generateFindings) => {
-    const savedExam = saveExamination(examData);
+  const handleSaveExamination = async (examData, generateFindings) => {
+    const savedExam = await saveExamination(examData);
+
+    if (!savedExam) {
+      toast.error("Failed to save examination. Please try again.", {
+        duration: 4000,
+        position: "top-right",
+        style: { background: "#EF4444", color: "#fff", fontWeight: "bold", padding: "16px" },
+      });
+      return;
+    }
+
     setCurrentExamination(savedExam);
 
     if (generateFindings) {
@@ -79,12 +89,7 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
         duration: 3000,
         position: "top-right",
         icon: "✅",
-        style: {
-          background: "#10B981",
-          color: "#FFFFFF",
-          fontWeight: "bold",
-          padding: "16px",
-        },
+        style: { background: "#10B981", color: "#FFFFFF", fontWeight: "bold", padding: "16px" },
       });
     }
   };

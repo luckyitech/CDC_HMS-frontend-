@@ -45,7 +45,6 @@ export const PhysicalExamProvider = ({ children }) => {
 
   // Save examination (via API)
   const saveExamination = async (examData) => {
-    setLoading(true);
     try {
       const response = await physicalExamService.create(examData);
       if (response.success) {
@@ -57,14 +56,11 @@ export const PhysicalExamProvider = ({ children }) => {
     } catch (err) {
       console.error('Save examination error:', err.message);
       return null;
-    } finally {
-      setLoading(false);
     }
   };
 
   // Update existing examination (via API)
   const updateExamination = async (examId, updatedData) => {
-    setLoading(true);
     try {
       const response = await physicalExamService.update(examId, updatedData);
       if (response.success) {
@@ -80,8 +76,6 @@ export const PhysicalExamProvider = ({ children }) => {
     } catch (err) {
       console.error('Update examination error:', err.message);
       return null;
-    } finally {
-      setLoading(false);
     }
   };
 

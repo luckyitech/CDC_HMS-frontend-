@@ -260,15 +260,34 @@ const PhysicalExamEntry = ({
         ...normalState,
       },
     });
+
+    // Expand the section so doctor can review and add notes
+    if (!expandedSections.includes(sectionId)) {
+      setExpandedSections([...expandedSections, sectionId]);
+    }
+
+    toast.success(`All ${section.title} marked as normal`, {
+      duration: 2000,
+      position: "top-right",
+    });
   };
 
   // Mark section as complete
   const markSectionComplete = (sectionId) => {
     if (readOnly) return; // Don't allow in read-only mode
 
+    const section = physicalExamSections.find((s) => s.id === sectionId);
+
     if (!completedSections.includes(sectionId)) {
       setCompletedSections([...completedSections, sectionId]);
     }
+
+    toast.success(`${section?.title || "Section"} completed`, {
+      duration: 2500,
+      position: "top-right",
+      icon: "✓",
+      style: { background: "#10B981", color: "#fff", fontWeight: "bold" },
+    });
   };
 
   // Calculate progress
