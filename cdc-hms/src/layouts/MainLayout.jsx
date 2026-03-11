@@ -296,7 +296,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Triage", path: "/staff/triage", icon: Stethoscope },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
       { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
-      // { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
     ],
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
@@ -324,7 +323,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
-      // { name: "Change Password", path: "/doctor/change-password", icon: KeyRound },
     ],
     patient: [
       { name: "Home", path: "/patient/dashboard", icon: Home },
@@ -338,7 +336,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
         icon: Calendar,
       },
       { name: "My Documents", path: "/patient/upload-results", icon: FileText },
-      // { name: "Change Password", path: "/patient/change-password", icon: KeyRound },
     ],
     lab: [
       { name: "Dashboard", path: "/lab/dashboard", icon: LayoutDashboard },
@@ -359,7 +356,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
         path: "/lab/critical-alerts",
         icon: AlertTriangle,
       },
-      // { name: "Change Password", path: "/lab/change-password", icon: KeyRound },
     ],
     admin: [
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
@@ -369,7 +365,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Create Patient", path: "/admin/create-patient", icon: UserPlus },
       { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
       { name: "System Settings", path: "/admin/settings", icon: Settings },
-      // { name: "Change Password", path: "/admin/change-password", icon: KeyRound },
     ],
   };
 
