@@ -374,10 +374,14 @@ On your domain registrar (one.com), add A records:
 Whenever you push new code to GitHub, deploy it on the server by running:
 
 ```bash
-cd /var/www/cdc/frontend-repo/cdc-hms
+cd /var/www/cdc/frontend-repo
 git pull origin main
+cd cdc-hms
 npm run build
+rm -rf /var/www/cdc/web/*
 cp -r dist/* /var/www/cdc/web/
 ```
 
 > No need to recreate `.env.production` — it stays on the server permanently. Just pull, build, and copy.
+>
+> **Important:** Always run `git pull` from the repo root (`frontend-repo/`), not from inside `cdc-hms/`. Always clear the web directory with `rm -rf` before copying to prevent stale chunk files from causing MIME errors.
