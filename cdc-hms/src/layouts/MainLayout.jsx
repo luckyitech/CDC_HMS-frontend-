@@ -396,7 +396,10 @@ const MainLayout = ({ userRole = "Staff" }) => {
       >
         <div className="p-6 flex items-center justify-between border-b border-blue-500">
           {/* LEFT SIDE - Logo and Text */}
-          <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => navigate(`/${userRole.toLowerCase()}/dashboard`)}
+          >
             {/* Logo */}
             <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg p-2">
               <img
