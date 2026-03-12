@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { Upload, FileText, Eye, Download, Search, Filter, Clock, CheckCircle, FlaskConical, ScanLine, Stethoscope, Heart, Droplets, Brain, ClipboardList, FolderOpen } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
@@ -134,8 +134,6 @@ const UploadResults = () => {
 
   return (
     <div className="pb-6">
-      <Toaster position="top-right" />
-
       {/* Header — sticky so Upload button stays visible while scrolling */}
       <div className="sticky top-0 z-10 bg-gray-50 pt-1 pb-4 -mx-4 px-4 sm:-mx-8 sm:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>

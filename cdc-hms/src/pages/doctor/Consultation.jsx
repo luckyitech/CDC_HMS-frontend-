@@ -20,7 +20,7 @@ import {
   ClipboardCheck,
   X,
 } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
@@ -1052,7 +1052,6 @@ const Consultation = () => {
           }}
         />
       )}
-      <Toaster position="top-right" />
     </div>
   );
 };

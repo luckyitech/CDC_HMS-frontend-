@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import {
   UserSquare2, CalendarDays, Clock, FileText,
   RefreshCw, Stethoscope, ClipboardCheck, AlertTriangle,
@@ -164,7 +164,6 @@ const BookAppointment = () => {
 
   return (
     <div>
-      <Toaster position="top-right" />
       <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">Book Appointment</h2>
 
       {/* Progress Steps */}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import {
   User,
   IdCard,
@@ -243,8 +243,6 @@ const CreatePatient = () => {
 
   return (
     <div>
-      <Toaster position="top-right" />
-      
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Patient Account</h2>

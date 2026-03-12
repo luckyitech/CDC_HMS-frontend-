@@ -114,7 +114,7 @@ const AuthenticatedLayout = () => (
 function App() {
   return (
     <BrowserRouter>
-      <Toaster />
+      <Toaster position="top-right" />
       {/* UserProvider stays at the top level — needed by ProtectedRoute and login pages */}
       <UserProvider>
         <ErrorBoundary FallbackComponent={ErrorFallback}>

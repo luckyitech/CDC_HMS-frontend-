@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import {
   ClipboardList,
   Users,
@@ -146,8 +146,6 @@ const QueueManagement = () => {
 
   return (
     <div>
-      <Toaster position="top-right" />
-
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <ClipboardList className="w-8 h-8 text-primary" />

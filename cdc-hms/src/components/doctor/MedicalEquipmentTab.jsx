@@ -18,7 +18,7 @@ import AddEquipmentModal from "./AddEquipmentModal";
 import EquipmentHistoryModal from "./EquipmentHistoryModal";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useUserContext } from "../../contexts/UserContext";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 const MedicalEquipmentTab = ({ patient }) => {
   const { currentUser } = useUserContext();
@@ -241,8 +241,6 @@ const MedicalEquipmentTab = ({ patient }) => {
 
   return (
     <div className="space-y-6">
-      <Toaster position="top-right" />
-
       {/* Loading State */}
       {loading && (
         <div className="text-center py-16">

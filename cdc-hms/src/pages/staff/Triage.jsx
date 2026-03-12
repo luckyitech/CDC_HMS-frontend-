@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import {
   UserSquare2,
   CheckCircle2,
@@ -362,19 +362,6 @@ const Triage = () => {
 
   return (
     <div>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3000,
-          style: {
-            background: "#fff",
-            color: "#374151",
-            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-            borderRadius: "0.5rem",
-            padding: "16px",
-          },
-        }}
-      />
       <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">
         Triage
       </h2>

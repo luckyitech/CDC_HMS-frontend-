@@ -1,5 +1,5 @@
 import { useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import {
   Search,
   UserCircle,
@@ -126,8 +126,6 @@ const PatientSearch = () => {
 
   return (
     <div>
-      <Toaster position="top-right" />
-
       <div className="flex items-center gap-3 mb-6">
         <Search className="w-8 h-8 text-primary" />
         <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
