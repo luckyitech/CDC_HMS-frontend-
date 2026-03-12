@@ -167,7 +167,7 @@ const CreatePatient = () => {
           `UHID: ${result.patient.uhid}\nEmail: ${patientData.email}\nTemp Password: ${result.patient.tempPassword}`,
           {
             duration: 8000,
-            icon: <Sparkles className="w-5 h-5" />,
+            icon: <CheckCircle2 className="w-5 h-5" />,
             style: {
               background: '#DBEAFE',
               color: '#1E40AF',

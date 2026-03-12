@@ -114,9 +114,10 @@ const ResetPasswordStep = ({ token }) => {
       });
       return;
     }
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters', {
-        duration: 4000, position: 'top-right',
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+    if (!strongPassword.test(password)) {
+      toast.error('Password must be at least 8 characters and include an uppercase letter, a number, and a special character (e.g. !@#$%)', {
+        duration: 6000, position: 'top-right',
         style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
       });
       return;
@@ -177,7 +178,7 @@ const ResetPasswordStep = ({ token }) => {
             type="password"
             value={form.password}
             onChange={set('password')}
-            placeholder="At least 6 characters"
+            placeholder="Min 8 chars, uppercase, number, special character"
             required
           />
           <Input
