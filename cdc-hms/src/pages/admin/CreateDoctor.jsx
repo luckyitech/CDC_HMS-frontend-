@@ -91,6 +91,7 @@ const CreateDoctor = () => {
         yearsExperience: doctorData.yearsOfExperience ? parseInt(doctorData.yearsOfExperience) : 0,
         employmentType: doctorData.employmentType,
         startDate: doctorData.startDate || null,
+        shift: 'Morning',               // backend requires shift; default until hospital introduces shift scheduling
         address: doctorData.address || null,
         city: doctorData.city || null,
         password: doctorData.temporaryPassword || undefined,

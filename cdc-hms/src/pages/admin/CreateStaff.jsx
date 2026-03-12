@@ -76,6 +76,7 @@ const CreateStaff = () => {
         position: staffData.role,       // form uses 'role', backend expects 'position'
         department: staffData.department,
         startDate: staffData.startDate || null,
+        shift: 'Morning',               // backend requires shift; default until hospital introduces shift scheduling
         password: staffData.temporaryPassword || undefined,
       });
 

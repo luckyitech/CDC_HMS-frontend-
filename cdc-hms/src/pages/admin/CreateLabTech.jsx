@@ -88,7 +88,7 @@ const CreateLabTech = () => {
         qualification: labTechData.qualification,
         institution: labTechData.institution || null,
         yearsExperience: labTechData.yearsOfExperience ? parseInt(labTechData.yearsOfExperience) : 0,
-        shift: labTechData.shift,
+        shift: labTechData.shift || 'Morning',
         startDate: labTechData.startDate || null,
         password: labTechData.temporaryPassword || undefined,
       });
