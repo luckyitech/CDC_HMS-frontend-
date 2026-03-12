@@ -32,7 +32,7 @@ import {
   Info,
   AlertCircle,
   ChartNoAxesCombined,
-  FileStack,
+  // FileStack,
   // KeyRound,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
@@ -295,7 +295,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Queue Management", path: "/staff/queue", icon: ClipboardList },
       { name: "Triage", path: "/staff/triage", icon: Stethoscope },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
-      { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
+      // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
     ],
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
