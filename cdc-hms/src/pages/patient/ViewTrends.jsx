@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { BarChart2, Lightbulb, Target } from 'lucide-react';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Card from '../../components/shared/Card';
 import { usePatientContext } from '../../contexts/PatientContext';
@@ -112,24 +113,7 @@ const ViewTrends = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 sm:mb-6 gap-3">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">My Blood Sugar Trends</h2>
-        <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap justify-end">
-          {['7days', '14days', '30days', 'all'].map((period) => (
-            <button
-              key={period}
-              onClick={() => setFilterPeriod(period)}
-              className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold transition text-[11px] sm:text-sm ${
-                filterPeriod === period
-                  ? 'bg-primary text-white shadow-lg'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {period === '7days' ? '7 Days' : period === '14days' ? '14 Days' : period === '30days' ? '30 Days' : 'All'}
-            </button>
-          ))}
-        </div>
-      </div>
+      <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 sm:mb-6">My Blood Sugar Trends</h2>
 
       {/* Loading State */}
       {dataLoading && (
@@ -150,39 +134,58 @@ const ViewTrends = () => {
       {/* Content — only show when we have data */}
       {!dataLoading && chartData.length > 0 && (<>
 
+      
+
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-5 mb-4 sm:mb-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-[10px] sm:text-xs opacity-90">Average</p>
+          <p className="text-xs sm:text-sm font-semibold opacity-90">Average</p>
           <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.avg}</p>
-          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">mg/dL</p>
+          <p className="text-xs sm:text-sm opacity-75 mt-0.5">mg/dL</p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-[10px] sm:text-xs opacity-90">Lowest</p>
+          <p className="text-xs sm:text-sm font-semibold opacity-90">Lowest</p>
           <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.min}</p>
-          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">mg/dL</p>
+          <p className="text-xs sm:text-sm opacity-75 mt-0.5">mg/dL</p>
         </div>
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-[10px] sm:text-xs opacity-90">Highest</p>
+          <p className="text-xs sm:text-sm font-semibold opacity-90">Highest</p>
           <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.max}</p>
-          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">mg/dL</p>
+          <p className="text-xs sm:text-sm opacity-75 mt-0.5">mg/dL</p>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-[10px] sm:text-xs opacity-90">Normal Days</p>
+          <p className="text-xs sm:text-sm font-semibold opacity-90">Normal Days</p>
           <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.normalDays}/{stats.totalDays}</p>
-          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">Days</p>
+          <p className="text-xs sm:text-sm opacity-75 mt-0.5">Days</p>
         </div>
         <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-[10px] sm:text-xs opacity-90">Control Rate</p>
+          <p className="text-xs sm:text-sm font-semibold opacity-90">Control Rate</p>
           <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">
             {stats.totalDays > 0 ? Math.round((stats.normalDays / stats.totalDays) * 100) : 0}%
           </p>
-          <p className="text-[9px] sm:text-xs opacity-75 mt-0.5">Success</p>
+          <p className="text-xs sm:text-sm opacity-75 mt-0.5">Success</p>
         </div>
       </div>
 
+      {/* Period Filter — placed below stats so user doesn't need to scroll back up */}
+      <div className="flex gap-1.5 sm:gap-2 flex-wrap mb-4 sm:mb-6">
+        {['7days', '14days', '30days', 'all'].map((period) => (
+          <button
+            key={period}
+            onClick={() => setFilterPeriod(period)}
+            className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg font-semibold transition text-[11px] sm:text-sm ${
+              filterPeriod === period
+                ? 'bg-primary text-white shadow-lg'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            {period === '7days' ? '7 Days' : period === '14days' ? '14 Days' : period === '30days' ? '30 Days' : 'All'}
+          </button>
+        ))}
+      </div>
+
       {/* Glycemic Chart */}
-      <Card title="📊 Blood Sugar Trends by Time of Day">
+      <Card title={<span className="flex items-center gap-2"><BarChart2 className="w-5 h-5" />Blood Sugar Trends by Time of Day</span>}>
         <div className="mb-4 p-3 sm:p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
           <p className="text-xs sm:text-sm text-gray-700">
             <strong>Target Range:</strong> Keep your blood sugar between <span className="text-green-600 font-bold">70-130 mg/dL</span> (fasting)
@@ -309,7 +312,7 @@ const ViewTrends = () => {
 
       {/* Health Insights */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mt-6">
-        <Card title="💡 Your Progress">
+        <Card title={<span className="flex items-center gap-2"><Lightbulb className="w-5 h-5" />Your Progress</span>}>
           <div className="space-y-3 sm:space-y-4">
             {stats.normalDays >= stats.totalDays * 0.7 ? (
               <div className="p-3 sm:p-4 bg-green-50 rounded-lg border-l-4 border-green-500">
@@ -333,7 +336,7 @@ const ViewTrends = () => {
           </div>
         </Card>
 
-        <Card title="🎯 Next Steps">
+        <Card title={<span className="flex items-center gap-2"><Target className="w-5 h-5" />Next Steps</span>}>
           <ul className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-gray-700">
             <li className="flex items-start gap-2">
               <span className="text-blue-600 mt-0.5">▸</span>
