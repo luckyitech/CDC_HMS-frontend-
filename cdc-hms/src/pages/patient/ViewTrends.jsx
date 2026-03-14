@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BarChart2, Lightbulb, Target } from 'lucide-react';
+import { BarChart2, Lightbulb, Target, ArrowLeftRight } from 'lucide-react';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
+import { useBloodSugarUnit, toDisplay } from '../../hooks/useBloodSugarUnit';
 
 // Map backend time slot names to frontend property names
 const BACKEND_TO_FRONTEND = {
@@ -35,6 +37,7 @@ const transformReadingsForChart = (readings) => {
 const ViewTrends = () => {
   const { getBloodSugarReadings } = usePatientContext();
   const { currentUser } = useUserContext();
+  const { unit, changeUnit } = useBloodSugarUnit();
 
   const currentPatientUHID = currentUser?.uhid;
 
@@ -111,9 +114,41 @@ const ViewTrends = () => {
 
   const stats = calculateStats();
 
+  // Convert raw mg/dL chart data to the selected display unit
+  const SLOT_KEYS = ['fasting', 'afterBreakfast', 'beforeLunch', 'afterLunch', 'beforeDinner', 'afterDinner', 'beforeBedtime'];
+  const convertedChartData = chartData.map((day) => {
+    const c = { date: day.date };
+    SLOT_KEYS.forEach((k) => { if (day[k] != null) c[k] = toDisplay(day[k], unit); });
+    return c;
+  });
+
+  const yAxis = unit === 'mmol/L'
+    ? { domain: [0, 16.7], ticks: [0, 5.6, 7.2, 10.0, 16.7] }
+    : { domain: [0, 300],  ticks: [0, 100, 130, 180, 300] };
+
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 sm:mb-6">My Blood Sugar Trends</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">My Blood Sugar Trends</h2>
+        <div className="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
+          {['mg/dL', 'mmol/L'].map((u) => (
+            <button
+              key={u}
+              onClick={() => {
+                if (unit !== u) {
+                  changeUnit(u);
+                  toast(`Your readings will now show in ${u}`, { duration: 2000, icon: <ArrowLeftRight className="w-4 h-4 text-primary" /> });
+                }
+              }}
+              className={`px-3 py-1.5 rounded-md text-sm font-semibold transition ${
+                unit === u ? 'bg-white text-primary shadow' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {u}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Loading State */}
       {dataLoading && (
@@ -140,18 +175,18 @@ const ViewTrends = () => {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-5 mb-4 sm:mb-6">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
           <p className="text-xs sm:text-sm font-semibold opacity-90">Average</p>
-          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.avg}</p>
-          <p className="text-xs sm:text-sm opacity-75 mt-0.5">mg/dL</p>
+          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{toDisplay(stats.avg, unit)}</p>
+          <p className="text-xs sm:text-sm opacity-75 mt-0.5">{unit}</p>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
           <p className="text-xs sm:text-sm font-semibold opacity-90">Lowest</p>
-          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.min}</p>
-          <p className="text-xs sm:text-sm opacity-75 mt-0.5">mg/dL</p>
+          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{toDisplay(stats.min, unit)}</p>
+          <p className="text-xs sm:text-sm opacity-75 mt-0.5">{unit}</p>
         </div>
         <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
           <p className="text-xs sm:text-sm font-semibold opacity-90">Highest</p>
-          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.max}</p>
-          <p className="text-xs sm:text-sm opacity-75 mt-0.5">mg/dL</p>
+          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{toDisplay(stats.max, unit)}</p>
+          <p className="text-xs sm:text-sm opacity-75 mt-0.5">{unit}</p>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
           <p className="text-xs sm:text-sm font-semibold opacity-90">Normal Days</p>
@@ -188,8 +223,15 @@ const ViewTrends = () => {
       <Card title={<span className="flex items-center gap-2"><BarChart2 className="w-5 h-5" />Blood Sugar Trends by Time of Day</span>}>
         <div className="mb-4 p-3 sm:p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
           <p className="text-xs sm:text-sm text-gray-700">
-            <strong>Target Range:</strong> Keep your blood sugar between <span className="text-green-600 font-bold">70-130 mg/dL</span> (fasting)
-            and below <span className="text-green-600 font-bold">180 mg/dL</span> (after meals) for good control.
+            <strong>Target Range:</strong> Keep your blood sugar between{' '}
+            <span className="text-green-600 font-bold">
+              {unit === 'mmol/L' ? '3.9–7.2 mmol/L' : '70–130 mg/dL'}
+            </span>{' '}
+            (fasting) and below{' '}
+            <span className="text-green-600 font-bold">
+              {unit === 'mmol/L' ? '10.0 mmol/L' : '180 mg/dL'}
+            </span>{' '}
+            (after meals) for good control.
           </p>
         </div>
 
@@ -233,12 +275,12 @@ const ViewTrends = () => {
             <div className="h-[280px] sm:h-[400px]" style={{ minWidth: `${Math.max(chartData.length * (isMobile ? 45 : 90), 320)}px` }}>
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
-                  data={chartData.map((reading) => ({
-                    date: new Date(reading.date).toLocaleDateString('en-GB', {
+                  data={convertedChartData.map((reading, i) => ({
+                    date: new Date(chartData[i].date).toLocaleDateString('en-GB', {
                       day: 'numeric',
                       month: 'numeric',
                     }),
-                    fullDate: new Date(reading.date).toLocaleDateString('en-US', {
+                    fullDate: new Date(chartData[i].date).toLocaleDateString('en-US', {
                       weekday: 'short',
                       month: 'short',
                       day: 'numeric',
@@ -262,8 +304,8 @@ const ViewTrends = () => {
                     tick={{ fontSize: 10 }}
                   />
                   <YAxis
-                    domain={[0, 300]}
-                    ticks={[0, 100, 130, 180, 300]}
+                    domain={yAxis.domain}
+                    ticks={yAxis.ticks}
                     stroke="#374151"
                     style={{ fontSize: '10px' }}
                     tick={{ fontSize: 10 }}
@@ -279,7 +321,7 @@ const ViewTrends = () => {
                       maxWidth: '220px',
                     }}
                     labelFormatter={(label, payload) => payload?.[0]?.payload?.fullDate || label}
-                    formatter={(value) => `${Math.round(value)} mg/dL`}
+                    formatter={(value) => [`${value} ${unit}`]}
                   />
 
                   {/* Bars for each time slot */}
@@ -307,7 +349,7 @@ const ViewTrends = () => {
           </div>
         </div>
         {/* Y-axis label shown below chart on mobile for context */}
-        <p className="text-[10px] text-gray-400 mt-1 sm:hidden text-center">Values in mg/dL</p>
+        <p className="text-[10px] text-gray-400 mt-1 sm:hidden text-center">Values in {unit}</p>
       </Card>
 
       {/* Health Insights */}

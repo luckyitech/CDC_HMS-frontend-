@@ -6,6 +6,7 @@ import Button from '../../components/shared/Button';
 import { useUserContext } from '../../contexts/UserContext';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
+import { useBloodSugarUnit, toDisplay } from '../../hooks/useBloodSugarUnit';
 
 // Format date string (YYYY-MM-DD) → "Feb 26, 2026"
 const formatDate = (dateStr) => {
@@ -51,6 +52,7 @@ const getStatusColor = (status) => {
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
+  const { unit } = useBloodSugarUnit();
   const { getBloodSugarReadings } = usePatientContext();
   const { getPatientAppointments } = useAppointmentContext();
 
@@ -142,8 +144,8 @@ const PatientDashboard = () => {
           <p className="text-xs sm:text-sm opacity-90">Last Reading</p>
           {lastReading ? (
             <>
-              <p className="text-3xl sm:text-4xl font-bold mt-1 sm:mt-2">{lastReading.value}</p>
-              <p className="text-xs opacity-75">mg/dL</p>
+              <p className="text-3xl sm:text-4xl font-bold mt-1 sm:mt-2">{toDisplay(lastReading.value, unit)}</p>
+              <p className="text-xs opacity-75">{unit}</p>
               <p className="text-xs sm:text-sm mt-2 sm:mt-3 opacity-90 leading-tight">
                 {SLOT_LABELS[lastReading.timeSlot] || lastReading.timeSlot}
                 <br className="sm:hidden" />
@@ -164,8 +166,8 @@ const PatientDashboard = () => {
           <p className="text-xs sm:text-sm opacity-90">Weekly Avg</p>
           {weeklyAverage !== null ? (
             <>
-              <p className="text-3xl sm:text-4xl font-bold mt-1 sm:mt-2">{weeklyAverage}</p>
-              <p className="text-xs opacity-75">mg/dL</p>
+              <p className="text-3xl sm:text-4xl font-bold mt-1 sm:mt-2">{toDisplay(weeklyAverage, unit)}</p>
+              <p className="text-xs opacity-75">{unit}</p>
             </>
           ) : (
             <p className="text-2xl font-bold mt-1 sm:mt-2">—</p>
@@ -225,7 +227,7 @@ const PatientDashboard = () => {
                 <div key={reading.id || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="text-sm font-semibold text-gray-800">
-                      {reading.value} <span className="font-normal text-gray-500 text-xs">mg/dL</span>
+                      {toDisplay(reading.value, unit)} <span className="font-normal text-gray-500 text-xs">{unit}</span>
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">{reading.typeLabel} &middot; {reading.displayTime}</p>
                     <p className="text-xs text-gray-400">{formatDate(reading.date)}</p>
@@ -255,7 +257,7 @@ const PatientDashboard = () => {
                       <td className="px-4 py-3 text-sm">{formatDate(reading.date)}</td>
                       <td className="px-4 py-3 text-sm">{reading.displayTime}</td>
                       <td className="px-4 py-3 text-sm">{reading.typeLabel}</td>
-                      <td className="px-4 py-3 text-sm font-semibold">{reading.value} mg/dL</td>
+                      <td className="px-4 py-3 text-sm font-semibold">{toDisplay(reading.value, unit)} {unit}</td>
                       <td className="px-4 py-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(reading.status)}`}>
                           {reading.status}
