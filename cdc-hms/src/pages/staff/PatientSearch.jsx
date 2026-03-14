@@ -145,7 +145,7 @@ const PatientSearch = () => {
             placeholder="Search by name, UHID, phone, email, or ID/passport number..."
             className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary text-base"
           />
-          <Button onClick={handleSearch} className="sm:w-auto" disabled={isSearching}>
+          <Button onClick={handleSearch} className="sm:w-auto flex items-center justify-center" disabled={isSearching}>
             {isSearching
               ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               : <Search className="w-4 h-4 mr-2" />}
