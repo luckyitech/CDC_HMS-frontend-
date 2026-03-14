@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { Users, Clock, CheckCircle, ClipboardList, Zap, AlertTriangle } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useUserContext } from '../../contexts/UserContext';
@@ -48,10 +49,10 @@ const DoctorDashboard = () => {
   const myCompleted      = todayCompleted.filter(q => q.assignedDoctorId === currentUser?.id);
 
   const stats = [
-    { title: 'Today\'s Patients', value: (myWithDoctor.length + myPendingBilling.length + myCompleted.length).toString(), icon: '👥', gradient: 'from-blue-500 to-blue-600' },
-    { title: 'With Doctor',       value: myWithDoctor.length.toString(),     icon: '⏳', gradient: 'from-cyan-500 to-cyan-600' },
-    { title: 'Completed',         value: (myPendingBilling.length + myCompleted.length).toString(), icon: '✅', gradient: 'from-green-500 to-green-600' },
-    { title: 'Total Queue',       value: todayQueue.length.toString(),        icon: '📋', gradient: 'from-purple-500 to-purple-600' },
+    { title: 'Today\'s Patients', value: (myWithDoctor.length + myPendingBilling.length + myCompleted.length).toString(), Icon: Users,         gradient: 'from-blue-500 to-blue-600' },
+    { title: 'With Doctor',       value: myWithDoctor.length.toString(),                                                  Icon: Clock,         gradient: 'from-cyan-500 to-cyan-600' },
+    { title: 'Completed',         value: (myPendingBilling.length + myCompleted.length).toString(),                       Icon: CheckCircle,   gradient: 'from-green-500 to-green-600' },
+    { title: 'Total Queue',       value: todayQueue.length.toString(),                                                    Icon: ClipboardList, gradient: 'from-purple-500 to-purple-600' },
   ];
 
   const getStatusColor = (status) => {
@@ -90,7 +91,7 @@ const DoctorDashboard = () => {
           <div key={stat.title} className={`bg-gradient-to-br ${stat.gradient} rounded-xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 hover:shadow-2xl`}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base lg:text-lg font-semibold opacity-90">{stat.title}</h3>
-              <span className="text-3xl lg:text-4xl">{stat.icon}</span>
+              <stat.Icon className="w-8 h-8 lg:w-10 lg:h-10" />
             </div>
             <p className="text-4xl lg:text-5xl font-bold">{stat.value}</p>
           </div>
@@ -98,7 +99,7 @@ const DoctorDashboard = () => {
       </div>
 
       {/* Today's Queue - All Patients */}
-      <Card title="📋 Today's Queue">
+      <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5" />Today's Queue</span>}>
         <div className="overflow-x-auto">
           {todayQueue.length > 0 ? (
             <table className="w-full">
@@ -191,13 +192,13 @@ const DoctorDashboard = () => {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        <Card title="⚡ Quick Actions">
+        <Card title={<span className="flex items-center gap-2"><Zap className="w-5 h-5" />Quick Actions</span>}>
           <div className="space-y-3">
             <button 
               onClick={() => navigate('/doctor/patients')}
               className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500"
             >
-              <p className="font-semibold text-blue-700">👥 View All Patients</p>
+              <p className="font-semibold text-blue-700 flex items-center gap-2"><Users className="w-4 h-4" />View All Patients</p>
             </button>
             {/* <button 
               onClick={() => navigate('/doctor/prescriptions')}
@@ -214,7 +215,7 @@ const DoctorDashboard = () => {
           </div>
         </Card>
 
-        <Card title="🚨 Patients Alerts" className="md:col-span-2">
+        <Card title={<span className="flex items-center gap-2"><AlertTriangle className="w-5 h-5" />Patients Alerts</span>} className="md:col-span-2">
           {myWithDoctor.length > 0 ? (
             <div className="space-y-3">
               {myWithDoctor.slice(0, 3).map((queueItem) => {

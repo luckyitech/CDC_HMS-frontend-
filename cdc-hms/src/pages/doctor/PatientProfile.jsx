@@ -4,7 +4,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   Phone, Mail, Microscope, ArrowLeft,
   ClipboardList, Zap, FileEdit, Stethoscope, TrendingUp, Pill,
-  FileText, MessageSquare, BarChart2, AlertTriangle,
+  FileText, MessageSquare, /* BarChart2, */ AlertTriangle,
   AlertCircle, CheckCircle, Radio, Printer, BookOpen,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
@@ -50,7 +50,7 @@ const PatientProfile = () => {
   const [activeTab, setActiveTab] = useState(
     location.state?.activeTab || "overview"
   );
-  const [showOrderLabModal, setShowOrderLabModal] = useState(false);
+  // const [showOrderLabModal, setShowOrderLabModal] = useState(false);
 
   const { getPatientByUHID, getBloodSugarReadings } = usePatientContext();
   const { getPrescriptionsByPatient } = usePrescriptionContext();
@@ -79,7 +79,7 @@ const PatientProfile = () => {
     { id: "treatment-plans", name: "Treatment Plans", Icon: FileText },
     { id: "consultation-notes", name: "Consultation Notes", Icon: MessageSquare },
     { id: "medical-documents", name: "Medical Documents", Icon: FileText },
-    { id: "reports", name: "Reports", Icon: BarChart2 },
+    // { id: "reports", name: "Reports", Icon: BarChart2 },
   ];
 
   return (
@@ -95,13 +95,13 @@ const PatientProfile = () => {
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           {/* Order Lab Test Button */}
-          <Button
+          {/* <Button
             onClick={() => setShowOrderLabModal(true)}
             className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
           >
             <Microscope className="w-5 h-5" />
             <span>Order Lab Test</span>
-          </Button>
+          </Button> */}
 
           {/* Back to Consultation Button */}
           {fromConsultation && (
@@ -242,11 +242,11 @@ const PatientProfile = () => {
           <ConsultationNotesList patient={patient} showStatistics={true} />
         )}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
-        {activeTab === "reports" && <ReportsTab patient={patient} />}
+        {/* {activeTab === "reports" && <ReportsTab patient={patient} />} */}
       </div>
 
       {/* Order Lab Test Modal */}
-      {showOrderLabModal && patient && (
+      {/* {showOrderLabModal && patient && (
         <OrderLabTestModal
           patient={patient}
           onClose={() => setShowOrderLabModal(false)}
@@ -254,7 +254,7 @@ const PatientProfile = () => {
             console.log("Lab test ordered successfully");
           }}
         />
-      )}
+      )} */}
     </div>
   );
 };
