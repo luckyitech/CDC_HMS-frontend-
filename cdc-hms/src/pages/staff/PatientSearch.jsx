@@ -26,6 +26,7 @@ const PatientSearch = () => {
   const [queueReason, setQueueReason] = useState("");
 
   const { searchPatients } = usePatientContext();
+
   const { addToQueue, isInQueue } = useQueueContext();
 
   // Inside component:
@@ -141,7 +142,7 @@ const PatientSearch = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Enter patient name, UHID, or phone number..."
+            placeholder="Search by name, UHID, phone, email, or ID/passport number..."
             className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary text-base"
           />
           <Button onClick={handleSearch} className="sm:w-auto" disabled={isSearching}>
@@ -160,100 +161,107 @@ const PatientSearch = () => {
           className="mt-6"
         >
           {searchResults.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
-                  <tr>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      UHID
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Name
-                    </th>
-                    <th className="hidden md:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Age/Gender
-                    </th>
-                    <th className="hidden lg:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Phone
-                    </th>
-                    <th className="hidden sm:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Diabetes Type
-                    </th>
-                    <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Status
-                    </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {searchResults.map((patient) => (
-                    <tr key={patient.id} className="hover:bg-gray-50">
-                      <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">
-                        {patient.uhid}
-                      </td>
-                      <td className="px-4 lg:px-6 py-4 font-semibold text-sm">
-                        {patient.name}
-                      </td>
-                      <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">
-                        {patient.age} yrs &middot; {patient.gender}
-                      </td>
-                      <td className="hidden lg:table-cell px-4 lg:px-6 py-4 text-sm">
-                        {patient.phone}
-                      </td>
-                      <td className="hidden sm:table-cell px-4 lg:px-6 py-4">
-                        <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
-                          {patient.diabetesType}
-                        </span>
-                      </td>
-                      <td className="hidden xl:table-cell px-4 lg:px-6 py-4">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            patient.status === "Active"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
+            <>
+              {/* Mobile: card list */}
+              <div className="md:hidden space-y-3">
+                {searchResults.map((patient) => (
+                  <div key={patient.id} className="p-4 border border-gray-200 rounded-lg bg-white">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <p className="font-bold text-gray-800">{patient.name}</p>
+                        <p className="text-xs text-primary font-semibold">{patient.uhid}</p>
+                        {patient.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
+                        patient.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                      }`}>{patient.status}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
+                      <span><span className="font-semibold">Age:</span> {patient.age} yrs · {patient.gender}</span>
+                      <span><span className="font-semibold">Phone:</span> {patient.phone || '-'}</span>
+                      <span><span className="font-semibold">Type:</span> {patient.diabetesType || '-'}</span>
+                      <span><span className="font-semibold">ID:</span> {patient.idNumber || '-'}</span>
+                    </div>
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => navigate(`/staff/patient-profile/${patient.uhid}`)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-2 border-primary text-primary rounded-lg hover:bg-blue-50 transition"
+                      >
+                        <UserCircle className="w-4 h-4" /> View
+                      </button>
+                      {isInQueue(patient.uhid) ? (
+                        <button disabled className="flex-1 flex items-center justify-center py-2.5 text-sm font-semibold bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed">
+                          In Queue
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleAddToQueueClick(patient)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-blue-700 transition"
                         >
-                          {patient.status}
-                        </span>
-                      </td>
-                      <td className="px-4 lg:px-6 py-4">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="text-xs py-1 px-3"
-                            onClick={() =>
-                              navigate(`/staff/patient-profile/${patient.uhid}`)
-                            }
-                          >
-                            👤 View
-                          </Button>
-                          {isInQueue(patient.uhid) ? (
-                            <Button
-                              variant="secondary"
-                              className="text-xs py-1 px-3"
-                              disabled
-                            >
-                              In Queue
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="primary"
-                              className="text-xs py-1 px-3"
-                              onClick={() => handleAddToQueueClick(patient)}
-                            >
-                              <UserPlus className="w-3 h-3 mr-1" />
-                              Add
-                            </Button>
-                          )}
-                        </div>
-                      </td>
+                          <UserPlus className="w-4 h-4" /> Add to Queue
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop: table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b-2 border-gray-200">
+                    <tr>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age/Gender</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Phone</th>
+                      <th className="hidden lg:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Diabetes Type</th>
+                      <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">ID / Passport</th>
+                      <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {searchResults.map((patient) => (
+                      <tr key={patient.id} className="hover:bg-gray-50">
+                        <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
+                        <td className="px-4 lg:px-6 py-4 text-sm">
+                          <p className="font-semibold">{patient.name}</p>
+                          {patient.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
+                        </td>
+                        <td className="px-4 lg:px-6 py-4 text-sm">{patient.age} yrs &middot; {patient.gender}</td>
+                        <td className="px-4 lg:px-6 py-4 text-sm">{patient.phone}</td>
+                        <td className="hidden lg:table-cell px-4 lg:px-6 py-4">
+                          <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">{patient.diabetesType}</span>
+                        </td>
+                        <td className="hidden xl:table-cell px-4 lg:px-6 py-4 text-sm text-gray-600">{patient.idNumber || '-'}</td>
+                        <td className="hidden xl:table-cell px-4 lg:px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            patient.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                          }`}>{patient.status}</span>
+                        </td>
+                        <td className="px-4 lg:px-6 py-4">
+                          <div className="flex gap-2">
+                            <Button variant="outline" className="text-xs py-1 px-3"
+                              onClick={() => navigate(`/staff/patient-profile/${patient.uhid}`)}>
+                              <UserCircle className="w-3 h-3 mr-1" /> View
+                            </Button>
+                            {isInQueue(patient.uhid) ? (
+                              <Button variant="secondary" className="text-xs py-1 px-3" disabled>In Queue</Button>
+                            ) : (
+                              <Button variant="primary" className="text-xs py-1 px-3"
+                                onClick={() => handleAddToQueueClick(patient)}>
+                                <UserPlus className="w-3 h-3 mr-1" /> Add
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <div className="text-center py-12">
               <div className="flex justify-center mb-4">
@@ -280,7 +288,7 @@ const PatientSearch = () => {
               Search for a patient
             </p>
             <p className="text-gray-600">
-              Enter name, UHID, or phone number to find patient records
+              Enter name, UHID, phone, email, or ID/passport number to find patient records
             </p>
           </div>
         </Card>
