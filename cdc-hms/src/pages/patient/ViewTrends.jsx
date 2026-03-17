@@ -128,26 +128,8 @@ const ViewTrends = () => {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+      <div className="mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">My Blood Sugar Trends</h2>
-        <div className="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
-          {['mg/dL', 'mmol/L'].map((u) => (
-            <button
-              key={u}
-              onClick={() => {
-                if (unit !== u) {
-                  changeUnit(u);
-                  toast(`Your readings will now show in ${u}`, { duration: 2000, icon: <ArrowLeftRight className="w-4 h-4 text-primary" /> });
-                }
-              }}
-              className={`px-3 py-1.5 rounded-md text-sm font-semibold transition ${
-                unit === u ? 'bg-white text-primary shadow' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {u}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Loading State */}
@@ -202,21 +184,41 @@ const ViewTrends = () => {
         </div>
       </div>
 
-      {/* Period Filter — placed below stats so user doesn't need to scroll back up */}
-      <div className="flex gap-1.5 sm:gap-2 flex-wrap mb-4 sm:mb-6">
-        {['7days', '14days', '30days', 'all'].map((period) => (
-          <button
-            key={period}
-            onClick={() => setFilterPeriod(period)}
-            className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg font-semibold transition text-[11px] sm:text-sm ${
-              filterPeriod === period
-                ? 'bg-primary text-white shadow-lg'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
-          >
-            {period === '7days' ? '7 Days' : period === '14days' ? '14 Days' : period === '30days' ? '30 Days' : 'All'}
-          </button>
-        ))}
+      {/* Period Filter + Unit Toggle */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+        <div className="flex gap-1.5 sm:gap-2 flex-wrap">
+          {['7days', '14days', '30days', 'all'].map((period) => (
+            <button
+              key={period}
+              onClick={() => setFilterPeriod(period)}
+              className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-lg font-semibold transition text-[11px] sm:text-sm ${
+                filterPeriod === period
+                  ? 'bg-primary text-white shadow-lg'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {period === '7days' ? '7 Days' : period === '14days' ? '14 Days' : period === '30days' ? '30 Days' : 'All'}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
+          {['mg/dL', 'mmol/L'].map((u) => (
+            <button
+              key={u}
+              onClick={() => {
+                if (unit !== u) {
+                  changeUnit(u);
+                  toast(`Your readings will now show in ${u}`, { duration: 2000, icon: <ArrowLeftRight className="w-4 h-4 text-primary" /> });
+                }
+              }}
+              className={`px-3 py-1.5 rounded-md text-sm font-semibold transition ${
+                unit === u ? 'bg-white text-primary shadow' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {u}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Glycemic Chart */}
@@ -273,7 +275,7 @@ const ViewTrends = () => {
         <div className="relative bg-white border border-gray-200 sm:border-2 sm:border-gray-300 rounded-lg p-1.5 sm:p-4 lg:p-8">
           <div className="overflow-x-auto -mx-1 px-1">
             <div className="h-[280px] sm:h-[400px]" style={{ minWidth: `${Math.max(chartData.length * (isMobile ? 45 : 90), 320)}px` }}>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <ComposedChart
                   data={convertedChartData.map((reading, i) => ({
                     date: new Date(chartData[i].date).toLocaleDateString('en-GB', {

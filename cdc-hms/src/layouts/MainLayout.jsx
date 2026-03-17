@@ -1,8 +1,9 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
-import { useState, useEffect } from "react";
-import appointmentService from "../services/appointmentService";
+import { useState } from "react";
+// import { useEffect } from "react"; // TODO: restore when notifications are implemented
+// import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import toast from "react-hot-toast";
+// import toast from "react-hot-toast"; // TODO: restore when notifications are implemented
 import {
   LayoutDashboard,
   Search,
@@ -25,13 +26,14 @@ import {
   AlertTriangle,
   UserCog,
   Settings,
-  Bell,
+  // Bell, // TODO: notifications
   Menu,
   X,
-  CheckCircle,
-  Info,
-  AlertCircle,
+  // CheckCircle, // TODO: notifications
+  // Info,        // TODO: notifications
+  // AlertCircle, // TODO: notifications
   ChartNoAxesCombined,
+  LogOut,
   // FileStack,
   // KeyRound,
 } from "lucide-react";
@@ -42,251 +44,38 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const location = useLocation();
   const { currentUser } = useUserContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [doctorApptCount, setDoctorApptCount] = useState(0);
+  // const [notificationsOpen, setNotificationsOpen] = useState(false); // TODO: notifications
+  // const [doctorApptCount, setDoctorApptCount] = useState(0); // TODO: notifications
 
-  // For doctor role: fetch today's scheduled appointment count as badge
-  useEffect(() => {
-    if (userRole.toLowerCase() !== 'doctor' || !currentUser?.id) return;
-    appointmentService.getByDoctor(currentUser.id, { date: 'today' })
-      .then(res => {
-        if (res.success) {
-          const scheduled = (res.data.appointments || res.data)
-            .filter(a => a.status === 'scheduled').length;
-          setDoctorApptCount(scheduled);
-        }
-      })
-      .catch(() => {});
-  }, [userRole, currentUser?.id]);
+  // TODO: restore when notifications are implemented
+  // useEffect(() => {
+  //   if (userRole.toLowerCase() !== 'doctor' || !currentUser?.id) return;
+  //   appointmentService.getByDoctor(currentUser.id, { date: 'today' })
+  //     .then(res => {
+  //       if (res.success) {
+  //         const scheduled = (res.data.appointments || res.data)
+  //           .filter(a => a.status === 'scheduled').length;
+  //         setDoctorApptCount(scheduled);
+  //       }
+  //     })
+  //     .catch(() => {});
+  // }, [userRole, currentUser?.id]);
 
   const handleLogout = () => {
     navigate("/");
   };
 
-  // Mock notifications data - different for each role
-  const getNotifications = () => {
-    switch (userRole.toLowerCase()) {
-      case "staff":
-        return [
-          {
-            id: 1,
-            type: "alert",
-            title: "New Patient Registration",
-            message: "John Doe (CDC001) registered successfully",
-            time: "5 min ago",
-            read: false,
-          },
-          {
-            id: 2,
-            type: "info",
-            title: "Queue Update",
-            message: "8 patients waiting in triage",
-            time: "15 min ago",
-            read: false,
-          },
-          {
-            id: 3,
-            type: "success",
-            title: "Triage Complete",
-            message: "Mary Johnson vitals recorded",
-            time: "1 hour ago",
-            read: true,
-          },
-        ];
+  // TODO: implement real notifications — mock data preserved below for reference
+  // const getNotifications = () => { ... };
 
-      case "doctor":
-        return [
-          {
-            id: 1,
-            type: "alert",
-            title: "Critical Lab Result",
-            message: "HbA1c 10.2% for John Doe (CDC001)",
-            time: "2 min ago",
-            read: false,
-          },
-          {
-            id: 2,
-            type: "info",
-            title: "Appointment Reminder",
-            message: "Mary Johnson at 2:00 PM today",
-            time: "30 min ago",
-            read: false,
-          },
-          {
-            id: 3,
-            type: "success",
-            title: "Prescription Filled",
-            message: "Metformin prescription for Ali Hassan",
-            time: "2 hours ago",
-            read: true,
-          },
-          {
-            id: 4,
-            type: "info",
-            title: "Lab Results Available",
-            message: "Lipid profile for Grace Wanjiru",
-            time: "3 hours ago",
-            read: true,
-          },
-        ];
-
-      case "patient":
-        return [
-          {
-            id: 1,
-            type: "info",
-            title: "Appointment Confirmed",
-            message: "Dr. Ahmed Hassan on Dec 15 at 10:00 AM",
-            time: "1 hour ago",
-            read: false,
-          },
-          {
-            id: 2,
-            type: "success",
-            title: "Lab Results Ready",
-            message: "Your HbA1c test results are available",
-            time: "1 day ago",
-            read: false,
-          },
-          {
-            id: 3,
-            type: "alert",
-            title: "Medication Reminder",
-            message: "Time to refill your Metformin prescription",
-            time: "2 days ago",
-            read: true,
-          },
-        ];
-
-      case "lab":
-        return [
-          {
-            id: 1,
-            type: "alert",
-            title: "Urgent Test",
-            message: "Fasting Glucose for Mary Johnson (CDC005)",
-            time: "5 min ago",
-            read: false,
-          },
-          {
-            id: 2,
-            type: "alert",
-            title: "Critical Result",
-            message: "Creatinine 3.5 for Grace Wanjiru - Notify doctor",
-            time: "30 min ago",
-            read: false,
-          },
-          {
-            id: 3,
-            type: "info",
-            title: "Sample Collected",
-            message: "HbA1c sample for John Doe ready for processing",
-            time: "1 hour ago",
-            read: false,
-          },
-          {
-            id: 4,
-            type: "success",
-            title: "Report Generated",
-            message: "Quest Labs report for Ali Hassan",
-            time: "2 hours ago",
-            read: true,
-          },
-        ];
-
-      case "admin":
-        return [
-          {
-            id: 1,
-            type: "alert",
-            title: "New Doctor Application",
-            message: "Dr. James Omondi pending approval",
-            time: "10 min ago",
-            read: false,
-          },
-          {
-            id: 2,
-            type: "info",
-            title: "System Update",
-            message: "New security patch available",
-            time: "1 hour ago",
-            read: false,
-          },
-          {
-            id: 3,
-            type: "success",
-            title: "Backup Complete",
-            message: "Daily backup completed successfully",
-            time: "2 hours ago",
-            read: true,
-          },
-        ];
-
-      default:
-        return [];
-    }
-  };
-
-  const notifications = getNotifications();
-  const mockUnread = notifications.filter((n) => !n.read).length;
-  const unreadCount = userRole.toLowerCase() === 'doctor' ? doctorApptCount : mockUnread;
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case "alert":
-        return <AlertCircle className="w-6 h-6 text-red-500" />;
-      case "success":
-        return <CheckCircle className="w-6 h-6 text-green-500" />;
-      case "info":
-        return <Info className="w-6 h-6 text-blue-500" />;
-      default:
-        return <Bell className="w-6 h-6 text-gray-500" />;
-    }
-  };
-
-  const getNotificationColor = (type, read) => {
-    if (read) return "bg-gray-50 border-gray-200";
-
-    switch (type) {
-      case "alert":
-        return "bg-red-50 border-red-200";
-      case "success":
-        return "bg-green-50 border-green-200";
-      case "info":
-        return "bg-blue-50 border-blue-200";
-      default:
-        return "bg-gray-50 border-gray-200";
-    }
-  };
-
-  const handleMarkAsRead = () => {
-    toast.success(`Notification Marked as Read`, {
-      duration: 2000,
-      position: "top-right",
-      icon: "✅",
-      style: {
-        background: "#10B981",
-        color: "#FFFFFF",
-        fontWeight: "bold",
-        padding: "16px",
-      },
-    });
-  };
-
-  const handleMarkAllAsRead = () => {
-    toast.success("All Notifications Marked as Read", {
-      duration: 2000,
-      position: "top-right",
-      icon: "✅",
-      style: {
-        background: "#10B981",
-        color: "#FFFFFF",
-        fontWeight: "bold",
-        padding: "16px",
-      },
-    });
-    setNotificationsOpen(false);
-  };
+  // TODO: restore when notifications are implemented
+  // const notifications = getNotifications();
+  // const mockUnread = notifications.filter((n) => !n.read).length;
+  // const unreadCount = userRole.toLowerCase() === 'doctor' ? doctorApptCount : mockUnread;
+  // const getNotificationIcon = (type) => { ... };
+  // const getNotificationColor = (type, read) => { ... };
+  // const handleMarkAsRead = () => { toast.success(...) };
+  // const handleMarkAllAsRead = () => { toast.success(...); setNotificationsOpen(false); };
 
   const menuItems = {
     staff: [
@@ -466,6 +255,17 @@ const MainLayout = ({ userRole = "Staff" }) => {
             );
           })}
         </nav>
+
+        {/* Logout — mobile sidebar only */}
+        <div className="lg:hidden absolute bottom-0 left-0 right-0 p-4 border-t border-blue-500">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition"
+          >
+            <LogOut size={20} />
+            Logout
+          </button>
+        </div>
       </aside>
 
       {/* Main Content */}
@@ -485,8 +285,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
           </h1>
 
           <div className="flex items-center gap-3 lg:gap-6">
-            {/* Notifications */}
-            <div className="relative">
+            {/* Notifications — TODO: implement real notifications later */}
+            {/* <div className="relative">
               <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="relative hover:scale-110 transition-transform p-2 hover:bg-gray-100 rounded-lg"
@@ -498,103 +298,15 @@ const MainLayout = ({ userRole = "Staff" }) => {
                   </span>
                 )}
               </button>
-
-              {/* Notifications Dropdown */}
               {notificationsOpen && (
                 <>
-                  {/* Backdrop */}
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setNotificationsOpen(false)}
-                  ></div>
-
-                  {/* Dropdown Panel */}
+                  <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
                   <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-2xl border-2 border-gray-200 z-50 max-h-[80vh] overflow-hidden flex flex-col">
-                    {/* Header */}
-                    <div className="p-4 border-b-2 border-gray-200 bg-gradient-to-r from-primary to-blue-600 text-white">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-lg">Notifications</h3>
-                        <span className="px-2 py-1 bg-white text-primary rounded-full text-xs font-bold">
-                          {unreadCount} new
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Notifications List */}
-                    <div className="flex-1 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div className="p-8 text-center">
-                          <Bell
-                            size={48}
-                            className="mx-auto text-gray-300 mb-2"
-                          />
-                          <p className="text-gray-500">No notifications</p>
-                        </div>
-                      ) : (
-                        <div className="divide-y divide-gray-200">
-                          {notifications.map((notif) => (
-                            <div
-                              key={notif.id}
-                              className={`p-4 hover:bg-gray-50 transition cursor-pointer border-l-4 ${getNotificationColor(
-                                notif.type,
-                                notif.read
-                              )}`}
-                              onClick={() => handleMarkAsRead(notif.id)}
-                            >
-                              <div className="flex items-start gap-3">
-                                <div className="flex-shrink-0 mt-1">
-                                  {getNotificationIcon(notif.type)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p
-                                      className={`text-sm font-bold ${
-                                        notif.read
-                                          ? "text-gray-600"
-                                          : "text-gray-900"
-                                      }`}
-                                    >
-                                      {notif.title}
-                                    </p>
-                                    {!notif.read && (
-                                      <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></span>
-                                    )}
-                                  </div>
-                                  <p
-                                    className={`text-xs mt-1 ${
-                                      notif.read
-                                        ? "text-gray-500"
-                                        : "text-gray-700"
-                                    }`}
-                                  >
-                                    {notif.message}
-                                  </p>
-                                  <p className="text-xs text-gray-400 mt-2">
-                                    {notif.time}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Footer */}
-                    {notifications.length > 0 && (
-                      <div className="p-3 border-t-2 border-gray-200 bg-gray-50">
-                        <button
-                          onClick={handleMarkAllAsRead}
-                          className="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold"
-                        >
-                          Mark All as Read
-                        </button>
-                      </div>
-                    )}
+                    ...
                   </div>
                 </>
               )}
-            </div>
+            </div> */}
 
             <div className="hidden md:flex items-center gap-3 bg-gray-100 px-3 lg:px-4 py-2 rounded-lg">
               <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg lg:text-xl shadow-lg">
