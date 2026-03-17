@@ -89,10 +89,10 @@ export const QueueProvider = ({ children }) => {
   };
 
   // Update queue item status
-  const updateQueueStatus = async (queueId, newStatus, assignedDoctorId = null) => {
+  const updateQueueStatus = async (queueId, newStatus, assignedDoctorId = null, extraFields = {}) => {
     setLoading(true);
     try {
-      const updateData = { status: newStatus };
+      const updateData = { status: newStatus, ...extraFields };
       if (assignedDoctorId) {
         updateData.assignedDoctorId = assignedDoctorId;
       }
@@ -118,9 +118,9 @@ export const QueueProvider = ({ children }) => {
     }
   };
 
-  // Start consultation - update status to "With Doctor"
+  // Start consultation - update status to "With Doctor" and record when doctor began
   const startConsultation = async (queueId) => {
-    return updateQueueStatus(queueId, 'With Doctor');
+    return updateQueueStatus(queueId, 'With Doctor', null, { consultationStartTime: new Date() });
   };
 
   // Remove patient from queue

@@ -830,15 +830,15 @@ const Triage = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-4 pt-4 border-t">
-                    <Button type="submit" className="flex-1">
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                    <Button type="submit" className="w-full sm:flex-1">
                       Complete Triage
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={handleCancel}
-                      className="flex-1"
+                      className="w-full sm:flex-1"
                     >
                       Cancel
                     </Button>

@@ -66,8 +66,8 @@ const DoctorDashboard = () => {
     }
   };
 
-  const handleStartConsultation = (uhid) => {
-    startConsultation(uhid);
+  const handleStartConsultation = (queueId, uhid) => {
+    startConsultation(queueId);
     navigate(`/doctor/consultation/${uhid}`);
   };
 
@@ -100,94 +100,173 @@ const DoctorDashboard = () => {
 
       {/* Today's Queue - All Patients */}
       <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5" />Today's Queue</span>}>
-        <div className="overflow-x-auto">
-          {todayQueue.length > 0 ? (
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200">
-                <tr>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase hidden md:table-cell">Age</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Assigned To</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Duration</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {todayQueue.map((queueItem) => {
-                  const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
-                  const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
+        {todayQueue.length > 0 ? (
+          <>
+            {/* Card list — mobile & tablet (< xl) */}
+            <div className="xl:hidden space-y-3">
+              {todayQueue.map((queueItem) => {
+                const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
+                const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
 
-                  return (
-                    <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient ? 'bg-blue-50' : ''}`}>
-                      <td className="px-4 lg:px-6 py-4 text-sm font-semibold text-gray-700">{formatArrival(queueItem.createdAt)}</td>
-                      <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{queueItem.uhid}</td>
-                      <td className="px-4 lg:px-6 py-4 text-sm font-medium">{queueItem.name}</td>
-                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-600 hidden md:table-cell">{queueItem.age} yrs</td>
-                      <td className="px-4 lg:px-6 py-4">
-                        {isMyPatient ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-300">
-                            You
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300">
-                            {queueItem.assignedDoctorName || 'Unassigned'}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 lg:px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(queueItem.status)}`}>
+                return (
+                  <div
+                    key={queueItem.id}
+                    className={`border rounded-xl overflow-hidden ${isMyPatient ? 'border-blue-300' : 'border-gray-200'}`}
+                  >
+                    {/* Card header */}
+                    <div className={`flex items-center gap-3 px-4 py-3 border-b border-gray-100 ${isMyPatient ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-gray-800 text-sm leading-tight truncate">
+                          {queueItem.name}
+                          {queueItem.age && <span className="text-xs text-gray-500 font-normal ml-1">({queueItem.age}y)</span>}
+                        </p>
+                      </div>
+                      {isMyPatient && (
+                        <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-300 uppercase tracking-wide">
+                          Your Patient
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Card body — labelled fields */}
+                    <div className="bg-white px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">UHID</p>
+                        <p className="text-sm font-semibold text-primary">{queueItem.uhid}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(queueItem.status)}`}>
                           {queueItem.status}
                         </span>
-                      </td>
-                      <td className="px-4 lg:px-6 py-4 text-sm">
-                        {consultationDone
-                          ? <span className="text-green-600 font-semibold">{formatDuration(queueItem.consultationStartTime, queueItem.consultationEndTime)}</span>
-                          : queueItem.consultationStartTime
-                            ? <span className="text-blue-600 font-semibold">In Progress</span>
-                            : <span className="text-gray-400">-</span>
-                        }
-                      </td>
-                      <td className="px-4 lg:px-6 py-4">
-                        {queueItem.status === 'Completed' ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">
-                            Done
-                          </span>
-                        ) : queueItem.status === 'Pending Billing' ? (
-                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">
-                            Awaiting Billing
-                          </span>
-                        ) : isMyPatient ? (
-                          <Button
-                            variant="primary"
-                            className="text-xs py-1 px-3"
-                            onClick={() => handleStartConsultation(queueItem.uhid)}
-                          >
-                            {queueItem.consultationStartTime ? 'Continue' : 'Start Consultation'}
-                          </Button>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Assigned To</p>
+                        {isMyPatient ? (
+                          <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-300">You</span>
                         ) : (
-                          <Button
-                            variant="outline"
-                            className="text-xs py-1 px-3 opacity-50 cursor-not-allowed"
-                            disabled
-                          >
-                            Assigned to {queueItem.assignedDoctorName?.split(' ')[1] || 'Other'}
-                          </Button>
+                          <p className="text-sm text-gray-600 truncate">{queueItem.assignedDoctorName || 'Unassigned'}</p>
                         )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">No patients in queue currently</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Duration</p>
+                        <p className="text-sm font-semibold">
+                          {consultationDone
+                            ? <span className="text-green-600">{formatDuration(queueItem.consultationStartTime, queueItem.consultationEndTime)}</span>
+                            : queueItem.consultationStartTime
+                              ? <span className="text-blue-600">In Progress</span>
+                              : <span className="text-gray-400">—</span>
+                          }
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Arrival Time</p>
+                        <p className="text-sm text-gray-600">{formatArrival(queueItem.createdAt)}</p>
+                      </div>
+                    </div>
+
+                    {/* Card footer — action */}
+                    <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+                      {queueItem.status === 'Completed' ? (
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">Done</span>
+                      ) : queueItem.status === 'Pending Billing' ? (
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">Awaiting Billing</span>
+                      ) : isMyPatient ? (
+                        <Button
+                          variant="primary"
+                          className="w-full text-xs py-1.5"
+                          onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid)}
+                        >
+                          {queueItem.consultationStartTime ? 'Continue Consultation' : 'Start Consultation'}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-gray-500">Assigned to <span className="font-semibold text-gray-700">{queueItem.assignedDoctorName || 'Unassigned'}</span></span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </div>
+
+            {/* Table — desktop only (xl+) */}
+            <div className="hidden xl:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Assigned To</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Duration</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {todayQueue.map((queueItem) => {
+                    const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
+                    const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
+
+                    return (
+                      <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient ? 'bg-blue-50' : ''}`}>
+                        <td className="px-6 py-4 text-sm font-semibold text-gray-700">{formatArrival(queueItem.createdAt)}</td>
+                        <td className="px-6 py-4 font-medium text-primary text-sm">{queueItem.uhid}</td>
+                        <td className="px-6 py-4 text-sm font-medium">{queueItem.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">{queueItem.age} yrs</td>
+                        <td className="px-6 py-4">
+                          {isMyPatient ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-300">You</span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-300">
+                              {queueItem.assignedDoctorName || 'Unassigned'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(queueItem.status)}`}>
+                            {queueItem.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          {consultationDone
+                            ? <span className="text-green-600 font-semibold">{formatDuration(queueItem.consultationStartTime, queueItem.consultationEndTime)}</span>
+                            : queueItem.consultationStartTime
+                              ? <span className="text-blue-600 font-semibold">In Progress</span>
+                              : <span className="text-gray-400">-</span>
+                          }
+                        </td>
+                        <td className="px-6 py-4">
+                          {queueItem.status === 'Completed' ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">Done</span>
+                          ) : queueItem.status === 'Pending Billing' ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">Awaiting Billing</span>
+                          ) : isMyPatient ? (
+                            <Button
+                              variant="primary"
+                              className="text-xs py-1 px-3"
+                              onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid)}
+                            >
+                              {queueItem.consultationStartTime ? 'Continue' : 'Start Consultation'}
+                            </Button>
+                          ) : (
+                            <Button variant="outline" className="text-xs py-1 px-3 opacity-50 cursor-not-allowed" disabled>
+                              Assigned to {queueItem.assignedDoctorName?.split(' ')[1] || 'Other'}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No patients in queue currently</p>
+          </div>
+        )}
       </Card>
 
       {/* Quick Actions */}

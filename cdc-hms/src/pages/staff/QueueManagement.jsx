@@ -200,85 +200,186 @@ const QueueManagement = () => {
             <span>Loading queue...</span>
           </div>
         ) : activeQueue.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200">
-                <tr>
-                  <th className="px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">#</th>
-                  <th className="px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                  <th className="px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
-                  <th className="hidden md:table-cell px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Arrival</th>
-                  <th className="hidden md:table-cell px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Est. Wait</th>
-                  <th className="px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Priority</th>
-                  <th className="hidden sm:table-cell px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                  <th className="hidden lg:table-cell px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reason</th>
-                  <th className="px-3 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {activeQueue.map((patient, index) => (
-                  <tr key={patient.id} className={`hover:bg-gray-50 ${patient.priority === 'Urgent' ? 'bg-red-50' : ''}`}>
-                    <td className="px-3 lg:px-6 py-4 font-bold text-gray-800 text-sm">{index + 1}</td>
-                    <td className="px-3 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
-                    <td className="px-3 lg:px-6 py-4 font-semibold text-sm">
-                      {patient.name}
-                      {patient.age && <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>}
-                    </td>
-                    <td className="hidden md:table-cell px-3 lg:px-6 py-4 text-sm">{formatArrival(patient.createdAt)}</td>
-                    <td className="hidden md:table-cell px-3 lg:px-6 py-4 text-sm text-gray-500">
-                      {patient.estimatedWait || '—'}
-                    </td>
-                    <td className="px-3 lg:px-6 py-4">
-                      <span className={`px-2 lg:px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(patient.priority)}`}>
-                        {patient.priority}
+          <>
+            {/* Card list — mobile & tablet (< xl) */}
+            <div className="xl:hidden space-y-3">
+              {activeQueue.map((patient, index) => (
+                <div
+                  key={patient.id}
+                  className={`border rounded-xl overflow-hidden ${patient.priority === 'Urgent' ? 'border-red-300' : 'border-gray-200'}`}
+                >
+                  {/* Card header — queue number + patient name */}
+                  <div className={`flex items-center gap-3 px-4 py-3 ${patient.priority === 'Urgent' ? 'bg-red-50' : 'bg-gray-50'} border-b border-gray-100`}>
+                    <span className="w-7 h-7 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-gray-800 text-sm leading-tight truncate">
+                        {patient.name}
+                        {patient.age && <span className="text-xs text-gray-500 font-normal ml-1">({patient.age}y)</span>}
+                      </p>
+                    </div>
+                    {patient.priority === 'Urgent' && (
+                      <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-300 uppercase tracking-wide">
+                        Urgent
                       </span>
-                    </td>
-                    <td className="hidden sm:table-cell px-3 lg:px-6 py-4">
-                      <span className={`px-2 lg:px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(patient.status)}`}>
+                    )}
+                  </div>
+
+                  {/* Card body — labelled fields in a grid */}
+                  <div className="bg-white px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">UHID</p>
+                      <p className="text-sm font-semibold text-primary">{patient.uhid}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(patient.status)}`}>
                         {patient.status}
                       </span>
-                    </td>
-                    <td className="hidden lg:table-cell px-3 lg:px-6 py-4 text-sm text-gray-600">{patient.reason}</td>
-                    <td className="px-3 lg:px-6 py-4">
-                      <div className="flex gap-2">
-                        {patient.status === 'Waiting' && index === 0 && (
-                          <Button
-                            variant="primary"
-                            className="text-xs py-1 px-2 lg:px-3"
-                            onClick={handleCallNext}
-                            disabled={loading}
-                          >
-                            <UserCheck className="w-3 h-3 lg:mr-1" />
-                            <span className="hidden lg:inline">Call Next</span>
-                          </Button>
-                        )}
-                        {patient.status === 'Pending Billing' && (
-                          <Button
-                            variant="primary"
-                            className="text-xs py-1 px-2 lg:px-3 bg-amber-600 hover:bg-amber-700 border-amber-600"
-                            onClick={() => handleDischargeClick(patient)}
-                            disabled={loading}
-                          >
-                            <Receipt className="w-3 h-3 lg:mr-1" />
-                            <span className="hidden lg:inline">Confirm & Discharge</span>
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          className="text-xs py-1 px-2 lg:px-3"
-                          onClick={() => handleRemoveClick(patient.id, patient.name)}
-                          disabled={loading}
-                        >
-                          <Trash2 className="w-3 h-3 lg:mr-1" />
-                          <span className="hidden lg:inline">Remove</span>
-                        </Button>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Priority</p>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getPriorityColor(patient.priority)}`}>
+                        {patient.priority}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Est. Wait</p>
+                      <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {patient.estimatedWait || '—'}
+                      </p>
+                    </div>
+                    {patient.reason && (
+                      <div className="col-span-2">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Reason</p>
+                        <p className="text-sm text-gray-600 truncate">{patient.reason}</p>
                       </div>
-                    </td>
+                    )}
+                    <div className="col-span-2">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Arrival</p>
+                      <p className="text-sm text-gray-600">{formatArrival(patient.createdAt)}</p>
+                    </div>
+                  </div>
+
+                  {/* Card footer — actions */}
+                  <div className="flex gap-2 px-4 py-3 bg-gray-50 border-t border-gray-100">
+                    {patient.status === 'Waiting' && index === 0 && (
+                      <Button
+                        variant="primary"
+                        className="flex-1 text-xs py-1.5"
+                        onClick={handleCallNext}
+                        disabled={loading}
+                      >
+                        <UserCheck className="w-3.5 h-3.5 mr-1" />
+                        Call Next
+                      </Button>
+                    )}
+                    {patient.status === 'Pending Billing' && (
+                      <Button
+                        variant="primary"
+                        className="flex-1 text-xs py-1.5 bg-amber-600 hover:bg-amber-700 border-amber-600"
+                        onClick={() => handleDischargeClick(patient)}
+                        disabled={loading}
+                      >
+                        <Receipt className="w-3.5 h-3.5 mr-1" />
+                        Confirm & Discharge
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      className="text-xs py-1.5 px-3"
+                      onClick={() => handleRemoveClick(patient.id, patient.name)}
+                      disabled={loading}
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Table — desktop only (xl+) */}
+            <div className="hidden xl:block overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">#</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Arrival</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Est. Wait</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Priority</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reason</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {activeQueue.map((patient, index) => (
+                    <tr key={patient.id} className={`hover:bg-gray-50 ${patient.priority === 'Urgent' ? 'bg-red-50' : ''}`}>
+                      <td className="px-6 py-4 font-bold text-gray-800 text-sm">{index + 1}</td>
+                      <td className="px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
+                      <td className="px-6 py-4 font-semibold text-sm">
+                        {patient.name}
+                        {patient.age && <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>}
+                      </td>
+                      <td className="px-6 py-4 text-sm">{formatArrival(patient.createdAt)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{patient.estimatedWait || '—'}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getPriorityColor(patient.priority)}`}>
+                          {patient.priority}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(patient.status)}`}>
+                          {patient.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{patient.reason}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-2">
+                          {patient.status === 'Waiting' && index === 0 && (
+                            <Button
+                              variant="primary"
+                              className="text-xs py-1 px-3"
+                              onClick={handleCallNext}
+                              disabled={loading}
+                            >
+                              <UserCheck className="w-3 h-3 mr-1" />
+                              Call Next
+                            </Button>
+                          )}
+                          {patient.status === 'Pending Billing' && (
+                            <Button
+                              variant="primary"
+                              className="text-xs py-1 px-3 bg-amber-600 hover:bg-amber-700 border-amber-600"
+                              onClick={() => handleDischargeClick(patient)}
+                              disabled={loading}
+                            >
+                              <Receipt className="w-3 h-3 mr-1" />
+                              Confirm & Discharge
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            className="text-xs py-1 px-3"
+                            onClick={() => handleRemoveClick(patient.id, patient.name)}
+                            disabled={loading}
+                          >
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Remove
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <div className="text-center py-12">
             <ClipboardList className="w-16 h-16 text-gray-400 mx-auto mb-4" />

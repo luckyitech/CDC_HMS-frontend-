@@ -274,27 +274,8 @@ const LogBloodSugar = () => {
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 sm:mb-6">
+      <div className="mb-4 sm:mb-6">
         <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Log Blood Sugar</h2>
-        <div className="flex items-center bg-gray-100 rounded-lg p-1 gap-1">
-          {['mg/dL', 'mmol/L'].map((u) => (
-            <button
-              key={u}
-              onClick={() => {
-                if (unit !== u) {
-                  changeUnit(u);
-                  toast(`Log your blood sugar readings in ${u}`, {
-                    duration: 2000,
-                    icon: <ArrowLeftRight className="w-4 h-4 text-primary" />,
-                  });
-                }
-              }}
-              className={`px-3 py-1.5 rounded-md text-sm font-semibold transition ${unit === u ? 'bg-white text-primary shadow' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              {u}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Mobile: compact date bar */}
@@ -440,7 +421,7 @@ const LogBloodSugar = () => {
         <div className="lg:col-span-2">
           <Card
             title={
-              <span className="flex items-center justify-between w-full gap-2 flex-wrap">
+              <span className="flex items-center justify-between w-full gap-2">
                 <span className="flex items-center gap-2">
                   <ClipboardList className="w-5 h-5" />
                   <span className="hidden sm:inline">
@@ -457,6 +438,30 @@ const LogBloodSugar = () => {
               </span>
             }
           >
+            {/* Unit toggle — full width row, easy to tap on mobile */}
+            <div className="flex items-center justify-between mb-4 bg-gray-50 rounded-xl p-1.5">
+              <span className="text-xs text-gray-500 font-medium pl-1">Unit</span>
+              <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5 gap-0.5 shadow-sm">
+                {['mg/dL', 'mmol/L'].map((u) => (
+                  <button
+                    key={u}
+                    onClick={() => {
+                      if (unit !== u) {
+                        changeUnit(u);
+                        toast(`Log your blood sugar readings in ${u}`, {
+                          duration: 2000,
+                          icon: <ArrowLeftRight className="w-4 h-4 text-primary" />,
+                        });
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-md text-sm font-semibold transition min-w-[72px] text-center ${unit === u ? 'bg-primary text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-3">
               {timeSlots.map((slot) => {
                 const isConfirmed = savedSlots.has(slot.key) && !editingSlots.has(slot.key);
