@@ -1,13 +1,18 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Clock, CheckCircle, ClipboardList, Zap, AlertTriangle } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
+
+const QUEUE_PER_PAGE = 10;
+
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
   const { queue, startConsultation } = useQueueContext();
+  const [queuePage, setQueuePage] = useState(1);
   
   // Returns false when date is missing (prevents old records leaking through)
   const isToday = (dateString) => {
@@ -42,6 +47,12 @@ const DoctorDashboard = () => {
   // Combined today's queue, sorted by arrival time
   const todayQueue = [...activePatients, ...todayCompleted]
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+
+  const queueTotalPages = Math.ceil(todayQueue.length / QUEUE_PER_PAGE);
+  const paginatedQueue = todayQueue.slice(
+    (queuePage - 1) * QUEUE_PER_PAGE,
+    queuePage * QUEUE_PER_PAGE
+  );
 
   // Stats scoped to this doctor only
   const myWithDoctor     = activePatients.filter(q => q.status === 'With Doctor'     && q.assignedDoctorId === currentUser?.id);
@@ -86,14 +97,14 @@ const DoctorDashboard = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6">
         {stats.map((stat) => (
-          <div key={stat.title} className={`bg-gradient-to-br ${stat.gradient} rounded-xl shadow-xl p-6 text-white transform hover:scale-105 transition-all duration-300 hover:shadow-2xl`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base lg:text-lg font-semibold opacity-90">{stat.title}</h3>
-              <stat.Icon className="w-8 h-8 lg:w-10 lg:h-10" />
+          <div key={stat.title} className={`bg-gradient-to-br ${stat.gradient} rounded-xl shadow-xl p-4 lg:p-6 text-white transform hover:scale-105 transition-all duration-300 hover:shadow-2xl`}>
+            <div className="flex items-center justify-between mb-2 lg:mb-4">
+              <h3 className="text-xs sm:text-sm lg:text-lg font-semibold opacity-90 leading-tight">{stat.title}</h3>
+              <stat.Icon className="w-6 h-6 lg:w-10 lg:h-10 flex-shrink-0 ml-1" />
             </div>
-            <p className="text-4xl lg:text-5xl font-bold">{stat.value}</p>
+            <p className="text-3xl lg:text-5xl font-bold">{stat.value}</p>
           </div>
         ))}
       </div>
@@ -104,7 +115,7 @@ const DoctorDashboard = () => {
           <>
             {/* Card list — mobile & tablet (< xl) */}
             <div className="xl:hidden space-y-3">
-              {todayQueue.map((queueItem) => {
+              {paginatedQueue.map((queueItem) => {
                 const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
                 const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
 
@@ -204,7 +215,7 @@ const DoctorDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {todayQueue.map((queueItem) => {
+                  {paginatedQueue.map((queueItem) => {
                     const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
                     const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
 
@@ -261,6 +272,44 @@ const DoctorDashboard = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {queueTotalPages > 1 && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-500">
+                  Showing {(queuePage - 1) * QUEUE_PER_PAGE + 1}–{Math.min(queuePage * QUEUE_PER_PAGE, todayQueue.length)} of {todayQueue.length} patients
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setQueuePage((p) => Math.max(1, p - 1))}
+                    disabled={queuePage === 1}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Prev
+                  </button>
+                  {Array.from({ length: queueTotalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => setQueuePage(page)}
+                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${
+                        page === queuePage
+                          ? "bg-primary text-white border-primary"
+                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setQueuePage((p) => Math.min(queueTotalPages, p + 1))}
+                    disabled={queuePage === queueTotalPages}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="text-center py-12">
