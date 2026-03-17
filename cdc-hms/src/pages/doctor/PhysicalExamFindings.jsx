@@ -136,7 +136,7 @@ const PhysicalExamFindings = ({
                 Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care
               </p>
               <p className="text-xs text-gray-600 mt-1">
-                Tel: +254 700 000 000 &middot; Email: info@cdc-diabetes.com
+                Tel: (+254) 711781299 &middot; Doctors Park, Parklands, Nairobi - Kenya &middot; Email: info@comprehensivediabetescentre.com
               </p>
             </div>
 

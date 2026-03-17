@@ -209,7 +209,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          Initial Diabetic Assessment
+          Initial Assessment
         </h2>
         {fromConsultation && !embedded && (
           <Button
@@ -275,7 +275,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                   No Initial Assessment Yet
                 </p>
                 <p className="text-gray-400 text-sm">
-                  The initial diabetic assessment will be completed during the patient's first consultation.
+                  The initial assessment will be completed during the patient's first consultation.
                 </p>
               </div>
             </Card>
@@ -637,14 +637,14 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <div>
                       <h1 className="text-3xl font-bold text-primary">CDC DIABETES CLINIC</h1>
                       <p className="text-sm text-gray-600 mt-2">Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care</p>
-                      <p className="text-sm text-gray-600">Tel: +254 700 000 000 &middot; Email: info@cdc-diabetes.com</p>
+                      <p className="text-sm text-gray-600">Tel: (+254) 711781299 &middot; Doctors Park, Parklands, Nairobi - Kenya &middot; Email: info@comprehensivediabetescentre.com</p>
                     </div>
                     <img src={cdcLogo} alt="CDC Logo" className="w-40 h-40 object-contain py-4" />
                   </div>
 
                   {/* Document Title */}
                   <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">INITIAL DIABETIC ASSESSMENT</h2>
+                    <h2 className="text-2xl font-bold text-gray-800">INITIAL ASSESSMENT</h2>
                   </div>
 
                   {/* Patient Info */}
