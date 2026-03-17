@@ -242,15 +242,15 @@ const MyProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
-                    <input type="text" defaultValue={patient?.emergencyContactName || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                    <input type="text" defaultValue={patient?.emergencyContact?.name || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Relationship</label>
-                    <input type="text" defaultValue={patient?.emergencyContactRelationship || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                    <input type="text" defaultValue={patient?.emergencyContact?.relationship || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                    <input type="tel" defaultValue={patient?.emergencyContactPhone || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                    <input type="tel" defaultValue={patient?.emergencyContact?.phone || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
                   </div>
                 </div>
               </Card>
@@ -259,15 +259,15 @@ const MyProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Insurance Provider</label>
-                    <input type="text" defaultValue={patient?.insuranceProvider || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                    <input type="text" defaultValue={patient?.insurance?.provider || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Policy Number</label>
-                    <input type="text" defaultValue={patient?.policyNumber || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
+                    <input type="text" defaultValue={patient?.insurance?.policyNumber || ''} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Payment Type</label>
-                    <input type="text" value={patient?.paymentType || '—'} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                    <input type="text" value={patient?.insurance?.type || '—'} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
                   </div>
                 </div>
               </Card>
