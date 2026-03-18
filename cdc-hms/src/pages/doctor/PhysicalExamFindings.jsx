@@ -334,20 +334,16 @@ const PhysicalExamFindings = ({
 
       {/* Signature Section */}
       <Card>
-        <div className="flex justify-between items-end pt-8 border-t-2 border-gray-300 border-spacing-2">
+        <div className="pt-6 border-t-2 border-gray-300 space-y-4">
           <div>
             <p className="text-sm text-gray-600 mb-1">Examined by:</p>
-            <div className="border-b-2 border-gray-400 w-64 h-12 mb-2"></div>
+            <div className="border-b-2 border-gray-400 w-48 sm:w-64 h-12 mb-2"></div>
             <p className="text-sm font-semibold text-gray-800">{doctorName}</p>
             <p className="text-xs text-gray-600">Diabetes Specialist</p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500">
-              This is a computer-generated report
-            </p>
-            <p className="text-xs text-gray-500 ">
-              CDC Diabetes Clinic &middot; Nairobi, Kenya
-            </p>
+          <div className="text-xs text-gray-500 space-y-1">
+            <p>This is a computer-generated report</p>
+            <p>CDC Diabetes Clinic &middot; Nairobi, Kenya</p>
           </div>
         </div>
       </Card>
