@@ -12,6 +12,7 @@ import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
+import appointmentService from "../../services/appointmentService";
 import { useUserContext } from "../../contexts/UserContext";
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
@@ -56,6 +57,43 @@ const PatientProfile = () => {
   const { getPrescriptionsByPatient } = usePrescriptionContext();
 
   const patient = getPatientByUHID(uhid);
+
+  // Derived visit dates — fetched from appointments API
+  const [lastVisit, setLastVisit] = useState(null);
+  const [nextVisit, setNextVisit] = useState(null);
+
+  useEffect(() => {
+    if (!uhid) return;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Last visit — most recent completed appointment
+    appointmentService.getByPatient(uhid, { status: 'completed' })
+      .then(res => {
+        const apts = res?.data?.appointments || res?.data || [];
+        const sorted = [...apts].sort((a, b) => b.date.localeCompare(a.date));
+        if (sorted[0]) setLastVisit(sorted[0].date);
+      })
+      .catch(() => {});
+
+    // Next visit — earliest future scheduled appointment
+    appointmentService.getByPatient(uhid, { status: 'scheduled' })
+      .then(res => {
+        const apts = res?.data?.appointments || res?.data || [];
+        const future = [...apts]
+          .filter(a => a.date >= today)
+          .sort((a, b) => a.date.localeCompare(b.date));
+        if (future[0]) setNextVisit(future[0].date);
+      })
+      .catch(() => {});
+  }, [uhid]);
+
+  // Format a date string to "Mar 3, 2026"
+  const fmtDate = (dateStr) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+  };
 
   if (!patient) {
     return (
@@ -178,27 +216,29 @@ const PatientProfile = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t">
-          <div>
-            <p className="text-xs text-gray-500 uppercase">HbA1c</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 pt-6 border-t">
+          <div className="bg-red-50 rounded-lg p-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">HbA1c</p>
             <p className="text-xl font-bold text-red-600 mt-1">
-              {patient.hba1c}
+              {patient.hba1c || patient.vitals?.hba1c || '—'}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase">Diagnosis Date</p>
-            <p className="text-sm font-semibold mt-1">
-              {patient.diagnosisDate}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Diagnosis Date</p>
+            <p className="text-sm font-semibold text-gray-800 mt-1">
+              {fmtDate(patient.diagnosisDate)}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase">Last Visit</p>
-            <p className="text-sm font-semibold mt-1">{patient.lastVisit}</p>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Last Visit</p>
+            <p className="text-sm font-semibold text-gray-800 mt-1">
+              {fmtDate(lastVisit || patient.lastVisit)}
+            </p>
           </div>
-          <div>
-            <p className="text-xs text-gray-500 uppercase">Next Visit</p>
+          <div className="bg-blue-50 rounded-lg p-3">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Next Visit</p>
             <p className="text-sm font-semibold text-blue-600 mt-1">
-              {patient.nextVisit}
+              {fmtDate(nextVisit || patient.nextVisit)}
             </p>
           </div>
         </div>

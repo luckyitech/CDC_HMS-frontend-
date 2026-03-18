@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pill, FileText, FileEdit } from "lucide-react";
+import { Pill, FileText, FileEdit, Stethoscope, Printer, NotebookPen } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Modal from "../shared/Modal";
@@ -240,15 +240,15 @@ const ViewPrescriptionModal = ({ prescription, onClose, onPrint }) => {
 
         {/* Diagnosis */}
         <div className="p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
-          <p className="text-xs text-gray-600 uppercase font-semibold mb-2">
-            🩺 Diagnosis
+          <p className="text-xs text-gray-600 uppercase font-semibold mb-2 flex items-center gap-1.5">
+            <Stethoscope className="w-3.5 h-3.5 text-teal-600" /> Diagnosis
           </p>
           <p className="text-gray-800">{prescription.diagnosis}</p>
         </div>
 
         {/* Medications */}
         <div>
-          <h4 className="font-bold text-gray-800 mb-3">💊 Medications</h4>
+          <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-1.5"><Pill className="w-4 h-4 text-teal-600" /> Medications</h4>
           <div className="space-y-3">
             {prescription.medications.map((med, index) => (
               <div
@@ -299,8 +299,8 @@ const ViewPrescriptionModal = ({ prescription, onClose, onPrint }) => {
         {/* Notes */}
         {prescription.notes && (
           <div className="p-4 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-600 uppercase font-semibold mb-2">
-              📝 Additional Notes
+            <p className="text-xs text-gray-600 uppercase font-semibold mb-2 flex items-center gap-1.5">
+              <NotebookPen className="w-3.5 h-3.5 text-teal-600" /> Additional Notes
             </p>
             <p className="text-gray-700">{prescription.notes}</p>
           </div>
@@ -308,8 +308,8 @@ const ViewPrescriptionModal = ({ prescription, onClose, onPrint }) => {
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4 border-t">
-          <Button onClick={onPrint} className="flex-1">
-            🖨️ Print Prescription
+          <Button onClick={onPrint} className="flex-1 flex items-center justify-center gap-2">
+            <Printer className="w-4 h-4 text-teal-300" /> Print Prescription
           </Button>
           <Button variant="outline" onClick={onClose} className="flex-1">
             Close

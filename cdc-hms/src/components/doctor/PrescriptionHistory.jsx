@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pill, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
+import { Pill, ChevronDown, ChevronUp, CheckCircle2, Eye, Printer } from "lucide-react";
 import Button from "../shared/Button";
 
 const PrescriptionHistory = ({
@@ -56,55 +56,57 @@ const PrescriptionHistory = ({
               onClick={() => collapsible && togglePrescription(prescription.id)}
               className={`p-4 ${collapsible ? 'cursor-pointer hover:bg-gray-50' : ''} transition`}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-bold text-gray-800">
+              <div className="flex flex-col gap-2 mb-1">
+                {/* Top row: name + badges + chevron */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                    <h3 className="text-base font-bold text-gray-800 truncate">
                       {prescription.patientName}
                     </h3>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold whitespace-nowrap">
                       {prescription.uhid}
                     </span>
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold whitespace-nowrap">
                       {prescription.status}
                     </span>
-                    {collapsible && (
-                      isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-gray-600" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-600" />
-                      )
-                    )}
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Date: {prescription.date}
-                  </p>
-                  <p className="text-sm font-medium text-gray-700 mt-2">
-                    <span className="font-semibold">Diagnosis:</span>{" "}
-                    {prescription.diagnosis}
-                  </p>
+                  {collapsible && (
+                    isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                    )
+                  )}
                 </div>
+
+                <p className="text-sm text-gray-600">Date: {prescription.date}</p>
+                <p className="text-sm font-medium text-gray-700">
+                  <span className="font-semibold">Diagnosis:</span>{" "}
+                  {prescription.diagnosis}
+                </p>
+
+                {/* View/Print buttons — full width on mobile */}
                 {showViewPrint && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-1">
                     <Button
                       variant="outline"
-                      className="text-xs py-1 px-3"
+                      className="text-xs py-1 px-3 flex-1 sm:flex-none flex items-center gap-1"
                       onClick={(e) => {
                         e.stopPropagation();
                         onView && onView(prescription);
                       }}
                     >
-                      👁️ View
+                      <Eye className="w-3.5 h-3.5 text-teal-600" /> View
                     </Button>
                     <Button
                       variant="outline"
-                      className="text-xs py-1 px-3"
+                      className="text-xs py-1 px-3 flex-1 sm:flex-none flex items-center gap-1"
                       onClick={(e) => {
                         e.stopPropagation();
                         onPrint && onPrint(prescription);
                       }}
                     >
-                      🖨️ Print
+                      <Printer className="w-3.5 h-3.5 text-teal-600" /> Print
                     </Button>
                   </div>
                 )}
@@ -121,23 +123,23 @@ const PrescriptionHistory = ({
                   {prescription.medications.map((med, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-white rounded border border-gray-200"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white rounded border border-gray-200"
                     >
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800">
-                          💊 {med.name}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-800 flex items-center gap-1.5">
+                          <Pill className="w-4 h-4 text-teal-600 flex-shrink-0" /> {med.name}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">
                           {med.dosage} &middot; {med.frequency}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-semibold">
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-semibold whitespace-nowrap">
                           {med.duration}
                         </span>
                         {showAddButtons && onAddMedication && (
                           addedMedications.includes(med.name) ? (
-                            <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">
+                            <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold whitespace-nowrap">
                               <CheckCircle2 className="w-3.5 h-3.5" /> Added
                             </span>
                           ) : (
@@ -146,7 +148,7 @@ const PrescriptionHistory = ({
                                 e.stopPropagation();
                                 onAddMedication(med);
                               }}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold transition"
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold transition whitespace-nowrap"
                             >
                               + Add
                             </button>

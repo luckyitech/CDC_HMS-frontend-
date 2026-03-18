@@ -362,7 +362,7 @@ const Consultation = () => {
   return (
     <div className="pb-24">
       {/* Sticky Header Container */}
-      <div className="sticky top-0 z-30 bg-gray-50 pb-4">
+      <div className="sticky top-0 z-10 bg-gray-50 pb-4">
         {/* Header */}
         <div className="mb-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -942,7 +942,7 @@ const Consultation = () => {
       </div>
 
       {/* Floating Complete Button */}
-      <div className="fixed bottom-6 right-6 z-40">
+      <div className="fixed bottom-6 right-6 z-20">
         <Button
           onClick={handleCompleteConsultation}
           className="bg-green-600 hover:bg-green-700 text-white px-6 py-4 text-base font-bold shadow-2xl"
