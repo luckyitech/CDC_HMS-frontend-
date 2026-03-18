@@ -43,6 +43,14 @@ import PhysicalExamination from "./PhysicalExamination";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamList from "../../components/doctor/PhysicalExamList";
 
+// Shared date formatter
+const fmtDate = (dateStr) => {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  });
+};
+
 const PatientProfile = () => {
   const navigate = useNavigate();
   const { uhid } = useParams();
@@ -87,13 +95,6 @@ const PatientProfile = () => {
       .catch(() => {});
   }, [uhid]);
 
-  // Format a date string to "Mar 3, 2026"
-  const fmtDate = (dateStr) => {
-    if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-    });
-  };
 
   if (!patient) {
     return (
@@ -299,113 +300,77 @@ const PatientProfile = () => {
   );
 };
 
+const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
+  <div className="flex justify-between items-start gap-2 py-2 border-b border-gray-100 last:border-0">
+    <p className="text-sm text-gray-500 flex-shrink-0 w-1/2">{label}</p>
+    <p className={`text-sm font-semibold ${valueClass} text-right break-words w-1/2`}>{value || "—"}</p>
+  </div>
+);
+
 const OverviewTab = ({ patient }) => {
   return (
     <div className="space-y-6">
+      {/* Personal + Medical Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card title="Personal Information">
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-600">Full Name</p>
-              <p className="font-semibold text-gray-800">{patient.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">UHID</p>
-              <p className="font-semibold text-primary">{patient.uhid}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Age / Gender</p>
-              <p className="font-semibold text-gray-800">
-                {patient.age} years &middot; {patient.gender}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Phone</p>
-              <p className="font-semibold text-gray-800">{patient.phone}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Email</p>
-              <p className="font-semibold text-gray-800">{patient.email}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Address</p>
-              <p className="font-semibold text-gray-800">{patient.address}</p>
-            </div>
+          <div>
+            <InfoRow label="Full Name" value={patient.name} />
+            <InfoRow label="UHID" value={patient.uhid} valueClass="text-primary" />
+            <InfoRow label="Age / Gender" value={`${patient.age} yrs · ${patient.gender}`} />
+            <InfoRow label="Phone" value={patient.phone} />
+            <InfoRow label="Email" value={patient.email} />
+            <InfoRow label="Address" value={patient.address} />
           </div>
         </Card>
 
         <Card title="Medical Information">
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-gray-600">Diabetes Type</p>
-              <p className="font-semibold text-gray-800">
-                {patient.diabetesType}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Diagnosis Date</p>
-              <p className="font-semibold text-gray-800">
-                {patient.diagnosisDate}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Current HbA1c</p>
-              <p className="font-semibold text-red-600">{patient.hba1c}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Risk Level</p>
-              <p
-                className={`font-semibold ${
-                  patient.riskLevel === "High"
-                    ? "text-red-600"
-                    : patient.riskLevel === "Medium"
-                    ? "text-yellow-600"
-                    : "text-green-600"
-                }`}
-              >
-                {patient.riskLevel}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Primary Doctor</p>
-              <p className="font-semibold text-gray-800">
-                {patient.primaryDoctor}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Status</p>
-              <p className="font-semibold text-green-600">{patient.status}</p>
-            </div>
+          <div>
+            <InfoRow label="Diabetes Type" value={patient.diabetesType} />
+            <InfoRow label="Diagnosis Date" value={fmtDate(patient.diagnosisDate)} />
+            <InfoRow label="Current HbA1c" value={patient.hba1c} valueClass="text-red-600" />
+            <InfoRow
+              label="Risk Level"
+              value={patient.riskLevel}
+              valueClass={
+                patient.riskLevel === "High"
+                  ? "text-red-600"
+                  : patient.riskLevel === "Medium"
+                  ? "text-yellow-600"
+                  : "text-green-600"
+              }
+            />
+            <InfoRow label="Primary Doctor" value={patient.primaryDoctor} />
+            <InfoRow label="Status" value={patient.status} valueClass="text-green-600" />
           </div>
         </Card>
       </div>
 
-      <Card title="Emergency Contact">
-        {patient.emergencyContact ? (
-          <div className="space-y-3">
+      {/* Emergency Contact + Insurance */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card title="Emergency Contact">
+          {patient.emergencyContact?.name ? (
             <div>
-              <p className="text-sm text-gray-600">Name</p>
-              <p className="font-semibold text-gray-800">
-                {patient.emergencyContact.name || 'N/A'}
-              </p>
+              <InfoRow label="Name" value={patient.emergencyContact.name} />
+              <InfoRow label="Relationship" value={patient.emergencyContact.relationship} />
+              <InfoRow label="Phone" value={patient.emergencyContact.phone} />
             </div>
+          ) : (
+            <p className="text-sm text-gray-500">No emergency contact on file</p>
+          )}
+        </Card>
+
+        <Card title="Insurance & Payment">
+          {patient.insurance?.provider ? (
             <div>
-              <p className="text-sm text-gray-600">Relationship</p>
-              <p className="font-semibold text-gray-800">
-                {patient.emergencyContact.relationship || 'N/A'}
-              </p>
+              <InfoRow label="Provider" value={patient.insurance.provider} />
+              <InfoRow label="Policy Number" value={patient.insurance.policyNumber} />
+              <InfoRow label="Payment Type" value={patient.insurance.type} />
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Phone</p>
-              <p className="font-semibold text-gray-800">
-                {patient.emergencyContact.phone || 'N/A'}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500">No emergency contact on file</p>
-        )}
-      </Card>
+          ) : (
+            <p className="text-sm text-gray-500">No insurance information on file</p>
+          )}
+        </Card>
+      </div>
 
       <Card title="Current Medications">
         {patient.medications && patient.medications.length > 0 ? (
