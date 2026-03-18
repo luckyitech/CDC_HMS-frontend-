@@ -6,7 +6,7 @@ import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { usePatientContext } from "../../contexts/PatientContext";
 import PhysicalExamEntry from "../../pages/doctor/PhysicalExamEntry";
 import PhysicalExamFindings from "../../pages/doctor/PhysicalExamFindings";
-import { Search, FileText, Stethoscope } from "lucide-react";
+import { Search, FileText, Stethoscope, ClipboardList, Eye, PenLine, PlusCircle } from "lucide-react";
 
 const PhysicalExamList = ({ patient }) => {
   const {
@@ -299,9 +299,9 @@ const PhysicalExamList = ({ patient }) => {
             <div className="flex justify-end pt-2">
               <Button
                 onClick={handleNewExam}
-                className="flex items-center gap-2"
+                className="w-full sm:w-auto flex items-center justify-center gap-2"
               >
-                <Stethoscope className="w-4 h-4 inline mr-1" />
+                <Stethoscope className="w-4 h-4" />
                 Perform New Examination
               </Button>
             </div>
@@ -320,7 +320,7 @@ const PhysicalExamList = ({ patient }) => {
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="text-3xl">{isLatestExam ? "📋" : "👁️"}</div>
+              <div>{isLatestExam ? <ClipboardList className="w-7 h-7 text-teal-600" /> : <Eye className="w-7 h-7 text-teal-600" />}</div>
               <div>
                 <p className="text-sm font-bold text-gray-900">
                   {isLatestExam
@@ -350,7 +350,7 @@ const PhysicalExamList = ({ patient }) => {
         <Card className="print:hidden">
           <div className="p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="text-3xl">✏️</div>
+              <div><PenLine className="w-7 h-7 text-teal-600" /></div>
               <div>
                 <p className="text-sm font-bold text-green-900">
                   EDITING Latest Examination
@@ -369,7 +369,7 @@ const PhysicalExamList = ({ patient }) => {
         <Card className="print:hidden">
           <div className="p-4 bg-purple-50 border-l-4 border-purple-500 rounded-lg">
             <div className="flex items-center gap-3">
-              <div className="text-3xl">🆕</div>
+              <div><PlusCircle className="w-7 h-7 text-teal-600" /></div>
               <div>
                 <p className="text-sm font-bold text-purple-900">
                   Creating New Physical Examination
@@ -417,15 +417,15 @@ const PhysicalExamList = ({ patient }) => {
       {allExams.length === 0 && !showNewExamForm && (
         <Card>
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">🩺</div>
+            <Stethoscope className="w-16 h-16 mx-auto mb-4 text-teal-500" />
             <p className="text-gray-500 text-lg mb-2">
               No Physical Examinations Yet
             </p>
             <p className="text-gray-400 text-sm mb-6">
               Start by performing a comprehensive physical examination
             </p>
-            <Button onClick={handleNewExam}>
-              🩺 Perform First Examination
+            <Button onClick={handleNewExam} className="flex items-center gap-2 mx-auto">
+              <Stethoscope className="w-4 h-4" /> Perform First Examination
             </Button>
           </div>
         </Card>

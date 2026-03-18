@@ -28,6 +28,7 @@ import {
   Brain,
   Bone,
   Footprints,
+  Printer,
 } from "lucide-react";
 
 // Icon mapping helper - converts emoji strings to Lucide components
@@ -346,7 +347,7 @@ const PhysicalExamEntry = ({
 
       {/* Patient Info Banner */}
       <Card className={readOnly ? "bg-gray-50" : "bg-blue-50"}>
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
             <h3 className="text-xl font-bold text-gray-800">
               {patientData.name}
@@ -356,7 +357,7 @@ const PhysicalExamEntry = ({
             </p>
           </div>
           {!readOnly && (
-            <div className="text-right">
+            <div className="sm:text-right">
               <p className="text-sm text-gray-600">Progress</p>
               <p className="text-2xl font-bold text-blue-600">
                 {Math.round(progress)}%
@@ -426,13 +427,13 @@ const PhysicalExamEntry = ({
                     {section.title}
                   </h3>
                   {isCompleted && !readOnly && (
-                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                      ✓ Completed
+                    <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" /> Completed
                     </span>
                   )}
                   {readOnly && (
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                      🔒 Read-Only
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Read-Only
                     </span>
                   )}
                 </div>
@@ -440,13 +441,13 @@ const PhysicalExamEntry = ({
                   {!isCompleted && !readOnly && section.subsections && (
                     <Button
                       variant="outline"
-                      className="text-xs"
+                      className="text-xs flex items-center gap-1"
                       onClick={(e) => {
                         e.stopPropagation();
                         markAllNormal(section.id);
                       }}
                     >
-                      ✓ Mark All Normal
+                      <CheckCircle className="w-3 h-3" /> Mark All Normal
                     </Button>
                   )}
                   <span className="text-2xl text-gray-400">
@@ -741,10 +742,10 @@ const PhysicalExamEntry = ({
 
                   {/* Section Actions (only show in edit mode) */}
                   {!readOnly && section.type !== "images" && (
-                    <div className="flex gap-3 pt-4 border-t">
+                    <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
                       <Button
                         variant="outline"
-                        className="text-sm"
+                        className="text-sm flex-1 sm:flex-none flex items-center justify-center gap-1"
                         onClick={() => {
                           markSectionComplete(section.id);
                           const nextIndex =
@@ -758,11 +759,11 @@ const PhysicalExamEntry = ({
                           }
                         }}
                       >
-                        ✓ Complete & Next
+                        <CheckCircle className="w-4 h-4" /> Complete & Next
                       </Button>
                       <Button
                         variant="outline"
-                        className="text-sm"
+                        className="text-sm flex-1 sm:flex-none flex items-center justify-center gap-1"
                         onClick={() => {
                           setExamData({
                             ...examData,
@@ -770,7 +771,7 @@ const PhysicalExamEntry = ({
                           });
                         }}
                       >
-                        🔄 Clear Section
+                        <RotateCcw className="w-4 h-4" /> Clear Section
                       </Button>
                     </div>
                   )}
@@ -783,15 +784,15 @@ const PhysicalExamEntry = ({
 
       {/* Action Buttons */}
       <Card>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           {!readOnly ? (
             <>
-              <Button onClick={() => handleSave(false)} className="flex-1">
-                <Save className="w-4 h-4 inline mr-1" />
+              <Button onClick={() => handleSave(false)} className="flex-1 flex items-center justify-center gap-1">
+                <Save className="w-4 h-4" />
                 Save Draft
               </Button>
-              <Button onClick={() => handleSave(true)} className="flex-1">
-                📋 Save & Generate Findings
+              <Button onClick={() => handleSave(true)} className="flex-1 flex items-center justify-center gap-1">
+                <ClipboardList className="w-4 h-4" /> Save & Generate Findings
               </Button>
               <Button variant="outline" onClick={onCancel} className="flex-1">
                 Cancel
@@ -802,9 +803,9 @@ const PhysicalExamEntry = ({
               <Button
                 variant="outline"
                 onClick={() => window.print()}
-                className="flex-1"
+                className="flex-1 flex items-center justify-center gap-1"
               >
-                🖨️ Print Examination
+                <Printer className="w-4 h-4" /> Print Examination
               </Button>
               <Button variant="outline" onClick={onCancel} className="flex-1">
                 Close

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, FileEdit, AlertCircle, Printer } from "lucide-react";
+import { ChevronDown, ChevronUp, FileEdit, AlertCircle, Printer, ClipboardList, Calendar, Stethoscope, FileText, Save } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
@@ -205,7 +205,7 @@ const TreatmentPlansList = ({
 
       {/* Treatment Plans History */}
       {treatmentPlans.length > 0 && (
-        <Card title="📋 Treatment Plan History">
+        <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5 text-teal-600" /> Treatment Plan History</span>}>
           <div className="space-y-4">
             {treatmentPlans.map((plan, index) => {
               const isExpanded = expandedPlans.has(plan.id);
@@ -250,9 +250,9 @@ const TreatmentPlansList = ({
                         <h3 className="text-lg font-bold text-gray-800 mb-1">
                           {plan.diagnosis}
                         </h3>
-                        <div className="text-sm text-gray-600">
-                          <p>
-                            📅{" "}
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <p className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
                             {new Date(plan.date).toLocaleDateString("en-US", {
                               month: "long",
                               day: "numeric",
@@ -260,19 +260,22 @@ const TreatmentPlansList = ({
                             })}{" "}
                             &middot; {plan.time}
                           </p>
-                          <p className="mt-1">👨‍⚕️ {plan.doctorName}</p>
+                          <p className="flex items-center gap-1.5">
+                            <Stethoscope className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                            {plan.doctorName}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 w-full sm:w-auto">
                         <Button
                           variant="outline"
-                          className="text-sm"
+                          className="text-sm flex-1 sm:flex-none flex items-center justify-center gap-1"
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePrint(plan);
                           }}
                         >
-                          <Printer className="w-4 h-4 mr-1" />
+                          <Printer className="w-4 h-4 text-teal-600" />
                           Print
                         </Button>
                       </div>
@@ -282,8 +285,8 @@ const TreatmentPlansList = ({
                   {/* Plan Content - Collapsible */}
                   {isExpanded && (
                     <div className="border-t border-gray-200 bg-white p-4 sm:p-6">
-                      <p className="text-sm font-bold text-gray-700 mb-3">
-                        📝 Treatment Plan:
+                      <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-teal-600" /> Treatment Plan:
                       </p>
                       <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed bg-gray-50 p-4 rounded-lg">
                         {plan.plan}
@@ -379,8 +382,8 @@ const TreatmentPlansList = ({
             </div>
 
             <div className="flex gap-3 pt-4 border-t">
-              <Button onClick={handleSaveDiagnosis} className="flex-1">
-                💾 Save Diagnosis & Plan
+              <Button onClick={handleSaveDiagnosis} className="flex-1 flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" /> Save Diagnosis & Plan
               </Button>
               <Button 
                 variant="outline" 

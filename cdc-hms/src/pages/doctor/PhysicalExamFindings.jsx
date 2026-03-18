@@ -89,32 +89,32 @@ const PhysicalExamFindings = ({
     <div className="space-y-6 px-2">
       {/* Header - Screen View */}
       <Card className="bg-blue-50 print:hidden">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
               Physical Examination Summary
             </h2>
-            <p className="text-gray-600 mt-2">
+            <p className="text-gray-600 mt-1">
               <span className="font-semibold">{patientName}</span> ({uhid})
             </p>
             <p className="text-sm text-gray-600 mt-1">
               Date: {date} &middot; Time: {time} &middot; {doctorName}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {onEdit && (
-              <Button variant="outline" onClick={onEdit} className="text-sm">
-                <Edit className="w-4 h-4 inline mr-1" />
+              <Button variant="outline" onClick={onEdit} className="text-sm flex items-center gap-1 flex-1 sm:flex-none justify-center">
+                <Edit className="w-4 h-4" />
                 Edit
               </Button>
             )}
-            <Button variant="outline" onClick={onPrint} className="text-sm">
-              <Printer className="w-4 h-4 inline mr-1" />
+            <Button variant="outline" onClick={onPrint} className="text-sm flex items-center gap-1 flex-1 sm:flex-none justify-center">
+              <Printer className="w-4 h-4" />
               Print
             </Button>
             {onClose && (
-              <Button variant="outline" onClick={onClose} className="text-sm">
-                <ArrowLeft className="w-4 h-4 inline mr-1" />
+              <Button variant="outline" onClick={onClose} className="text-sm flex items-center gap-1 flex-1 sm:flex-none justify-center">
+                <ArrowLeft className="w-4 h-4" />
                 Back
               </Button>
             )}
@@ -191,62 +191,76 @@ const PhysicalExamFindings = ({
         </div>
       </div>
 
-      {/* Findings Table */}
+      {/* Findings — card list on mobile, table on desktop */}
       <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-100 border-b-2 border-gray-300">
-                <th className="text-left px-6 py-4 font-bold text-gray-700 w-1/4">
-                  Examination Category
-                </th>
-                <th className="text-left px-6 py-4 font-bold text-gray-700">
-                  Findings
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {allFindings.map((finding, index) => (
-                <tr
-                  key={index}
-                  className="border-b border-gray-200 hover:bg-gray-50 transition"
-                >
-                  <td className="px-6 py-4 align-top">
-                    <div className="flex items-center gap-2">
-                      {(() => {
-                        const IconComponent = getIconComponent(finding.icon);
-                        return (
-                          <IconComponent className="w-5 h-5 text-primary" />
-                        );
-                      })()}
-                      <span className="font-semibold text-gray-800">
-                        {finding.title}
-                      </span>
+        {allFindings.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No examination findings recorded.</p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-100 border-b-2 border-gray-300">
+                    <th className="text-left px-6 py-4 font-bold text-gray-700 w-1/4">
+                      Examination Category
+                    </th>
+                    <th className="text-left px-6 py-4 font-bold text-gray-700">
+                      Findings
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allFindings.map((finding, index) => {
+                    const IconComponent = getIconComponent(finding.icon);
+                    return (
+                      <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 align-top">
+                          <div className="flex items-center gap-2">
+                            <IconComponent className="w-5 h-5 text-primary flex-shrink-0" />
+                            <span className="font-semibold text-gray-800">{finding.title}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-gray-700 leading-relaxed">{finding.findings}</p>
+                          {finding.notes && (
+                            <p className="text-gray-600 text-sm mt-2 pt-2 border-t border-gray-200 italic">
+                              <span className="font-semibold not-italic text-gray-700">Notes: </span>
+                              {finding.notes}
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: card list */}
+            <div className="sm:hidden divide-y divide-gray-200">
+              {allFindings.map((finding, index) => {
+                const IconComponent = getIconComponent(finding.icon);
+                return (
+                  <div key={index} className="py-4 px-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <IconComponent className="w-5 h-5 text-primary flex-shrink-0" />
+                      <span className="font-semibold text-gray-800">{finding.title}</span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-gray-700 leading-relaxed">
-                      {finding.findings}
-                    </p>
+                    <p className="text-gray-700 text-sm leading-relaxed">{finding.findings}</p>
                     {finding.notes && (
-                      <p className="text-gray-600 text-sm mt-2 pt-2 border-t border-gray-200 italic">
+                      <p className="text-gray-500 text-xs mt-2 pt-2 border-t border-gray-200 italic">
                         <span className="font-semibold not-italic text-gray-700">Notes: </span>
                         {finding.notes}
                       </p>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {allFindings.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">
-              No examination findings recorded.
-            </p>
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </Card>
 
