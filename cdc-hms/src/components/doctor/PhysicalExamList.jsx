@@ -12,6 +12,7 @@ const PhysicalExamList = ({ patient }) => {
   const {
     getExaminationsByPatient,
     getLatestExamination,
+    getExaminationById,
     searchExaminations,
     updateExamination,
     saveExamination,
@@ -48,10 +49,11 @@ const PhysicalExamList = ({ patient }) => {
         setLatestExam(latest || null);
         setFilteredExams(examsArray);
 
-        // Auto-select latest exam on load
+        // Auto-select latest exam on load — fetch full data (list excludes heavy 'data' column)
         if (latest && !selectedExamId && !showNewExamForm) {
           setSelectedExamId(latest.id);
-          setCurrentExamination(latest);
+          const full = await getExaminationById(latest.id);
+          setCurrentExamination(full || latest);
           setViewMode("findings");
         }
       } catch (err) {
@@ -92,15 +94,15 @@ const PhysicalExamList = ({ patient }) => {
     return () => { isMounted = false; };
   }, [searchTerm, allExams, patient.uhid, searchExaminations]);
 
-  // Handle exam selection from dropdown
-  const handleExamSelect = (examId) => {
+  // Handle exam selection from dropdown — fetch full data (list excludes heavy 'data' column)
+  const handleExamSelect = async (examId) => {
     const exam = allExams.find((e) => e.id === parseInt(examId));
     if (exam) {
       setSelectedExamId(exam.id);
-      setCurrentExamination(exam);
       setShowNewExamForm(false);
-      // Always show findings when selecting from dropdown
       setViewMode("findings");
+      const full = await getExaminationById(exam.id);
+      setCurrentExamination(full || exam);
     }
   };
 
