@@ -6,22 +6,20 @@ import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { usePatientContext } from "../../contexts/PatientContext";
 import PhysicalExamEntry from "../../pages/doctor/PhysicalExamEntry";
 import PhysicalExamFindings from "../../pages/doctor/PhysicalExamFindings";
-import { Search, FileText, Stethoscope, ClipboardList, Eye, PenLine, PlusCircle } from "lucide-react";
+import { FileText, Stethoscope, ClipboardList, Eye, PenLine, PlusCircle } from "lucide-react";
 
 const PhysicalExamList = ({ patient }) => {
   const {
     getExaminationsByPatient,
     getLatestExamination,
     getExaminationById,
-    searchExaminations,
     updateExamination,
     saveExamination,
   } = usePhysicalExamContext();
   const { fetchPatientByUHID } = usePatientContext();
 
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedExamId, setSelectedExamId] = useState(null);
-  const [viewMode, setViewMode] = useState("entry"); // "entry" or "findings" or "new"
+  const [viewMode, setViewMode] = useState("findings"); // "entry" or "findings"
   const [showNewExamForm, setShowNewExamForm] = useState(false);
   const [currentExamination, setCurrentExamination] = useState(null);
   const [freshPatient, setFreshPatient] = useState(null);
@@ -29,7 +27,6 @@ const PhysicalExamList = ({ patient }) => {
   // State for exams loaded async
   const [allExams, setAllExams] = useState([]);
   const [latestExam, setLatestExam] = useState(null);
-  const [filteredExams, setFilteredExams] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load exams on mount and when patient/search changes
@@ -47,12 +44,12 @@ const PhysicalExamList = ({ patient }) => {
         const examsArray = Array.isArray(exams) ? exams : [];
         setAllExams(examsArray);
         setLatestExam(latest || null);
-        setFilteredExams(examsArray);
 
         // Auto-select latest exam on load — fetch full data (list excludes heavy 'data' column)
         if (latest && !selectedExamId && !showNewExamForm) {
           setSelectedExamId(latest.id);
           const full = await getExaminationById(latest.id);
+          if (!isMounted) return;
           setCurrentExamination(full || latest);
           setViewMode("findings");
         }
@@ -61,7 +58,6 @@ const PhysicalExamList = ({ patient }) => {
         if (isMounted) {
           setAllExams([]);
           setLatestExam(null);
-          setFilteredExams([]);
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -72,27 +68,6 @@ const PhysicalExamList = ({ patient }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient.uhid, getExaminationsByPatient, getLatestExamination]);
 
-  // Handle search filtering
-  useEffect(() => {
-    let isMounted = true;
-    const filterExams = async () => {
-      if (!searchTerm.trim()) {
-        setFilteredExams(allExams);
-        return;
-      }
-      try {
-        const results = await searchExaminations(patient.uhid, searchTerm);
-        if (isMounted) {
-          setFilteredExams(Array.isArray(results) ? results : []);
-        }
-      } catch (err) {
-        console.error("Error searching exams:", err);
-        if (isMounted) setFilteredExams(allExams);
-      }
-    };
-    filterExams();
-    return () => { isMounted = false; };
-  }, [searchTerm, allExams, patient.uhid, searchExaminations]);
 
   // Handle exam selection from dropdown — fetch full data (list excludes heavy 'data' column)
   const handleExamSelect = async (examId) => {
@@ -117,7 +92,6 @@ const PhysicalExamList = ({ patient }) => {
         setCurrentExamination(newExam);
         setLatestExam(newExam);
         setAllExams((prev) => [newExam, ...prev]);
-        setFilteredExams((prev) => [newExam, ...prev]);
 
         setViewMode("findings");
 
@@ -153,9 +127,6 @@ const PhysicalExamList = ({ patient }) => {
         setCurrentExamination(updatedExam);
         // Update in allExams list
         setAllExams((prev) =>
-          prev.map((e) => (e.id === selectedExamId ? updatedExam : e))
-        );
-        setFilteredExams((prev) =>
           prev.map((e) => (e.id === selectedExamId ? updatedExam : e))
         );
 
@@ -245,69 +216,45 @@ const PhysicalExamList = ({ patient }) => {
 
   return (
     <div className="space-y-6">
+      {/* New Exam Button — always visible at top when not already in new exam flow */}
+      {!showNewExamForm && (
+        <div className="flex justify-end print:hidden">
+          <Button
+            onClick={handleNewExam}
+            className="w-full sm:w-auto flex items-center justify-center gap-2"
+          >
+            <Stethoscope className="w-4 h-4" />
+            + New Examination
+          </Button>
+        </div>
+      )}
+
       {/* Search & Dropdown Controls */}
       {!showNewExamForm && allExams.length > 0 && (
         <Card className="print:hidden">
-          <div className="space-y-4">
-            {/* Search Bar */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                <div className="flex items-center gap-1">
-                  <Search className="w-4 h-4" />
-                  Search Examinations
-                </div>
-              </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by date, doctor, or findings..."
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <div className="flex items-center gap-1">
+              <FileText className="w-4 h-4" />
+              Select Examination to View
             </div>
-
-            {/* Dropdown Selector */}
-            {filteredExams.length > 0 && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  <div className="flex items-center gap-1">
-                    <FileText className="w-4 h-4" />
-                    Select Examination to View
-                  </div>
-                </label>
-                <select
-                  value={selectedExamId || ""}
-                  onChange={(e) => handleExamSelect(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base font-medium"
-                >
-                  {filteredExams.map((exam, index) => (
-                    <option key={exam.id} value={exam.id}>
-                      {new Date(exam.date).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}{" "}
-                      &middot; {exam.time} &middot; {exam.doctorName}
-                      {index === 0 && latestExam?.id === exam.id
-                        ? " (Latest)"
-                        : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* New Exam Button */}
-            <div className="flex justify-end pt-2">
-              <Button
-                onClick={handleNewExam}
-                className="w-full sm:w-auto flex items-center justify-center gap-2"
-              >
-                <Stethoscope className="w-4 h-4" />
-                Perform New Examination
-              </Button>
-            </div>
-          </div>
+          </label>
+          <select
+            value={selectedExamId || ""}
+            onChange={(e) => handleExamSelect(e.target.value)}
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base font-medium"
+          >
+            {allExams.map((exam, index) => (
+              <option key={exam.id} value={exam.id}>
+                {new Date(exam.date).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}{" "}
+                &middot; {exam.time} &middot; {exam.doctorName}
+                {index === 0 && latestExam?.id === exam.id ? " (Latest)" : ""}
+              </option>
+            ))}
+          </select>
         </Card>
       )}
 
@@ -340,6 +287,11 @@ const PhysicalExamList = ({ patient }) => {
                   )}{" "}
                   &middot; {currentExamination.time} &middot; Dr.{" "}
                   {currentExamination.doctorName}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {isLatestExam
+                    ? "Click \"Edit\" below to modify this exam · Click \"+ New Examination\" above to record a new one"
+                    : "This is a historical record · Click \"+ New Examination\" above to record a new exam"}
                 </p>
               </div>
             </div>
