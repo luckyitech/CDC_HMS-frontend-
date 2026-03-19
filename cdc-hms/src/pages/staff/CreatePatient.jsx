@@ -49,6 +49,7 @@ const CreatePatient = () => {
     
     // Insurance Information
     insuranceProvider: '',
+    customInsuranceProvider: '',
     policyNumber: '',
     insuranceType: '',
     
@@ -73,6 +74,7 @@ const CreatePatient = () => {
     'Britam',
     'UAP Insurance',
     'Self-Pay',
+    'Other',
   ];
 
   const doctors = getDoctors();
@@ -140,7 +142,9 @@ const CreatePatient = () => {
       } : null,
       // Structure insurance as JSON
       insurance: patientData.insuranceProvider ? {
-        provider: patientData.insuranceProvider,
+        provider: patientData.insuranceProvider === 'Other'
+          ? patientData.customInsuranceProvider || 'Other'
+          : patientData.insuranceProvider,
         policyNumber: patientData.policyNumber,
         type: patientData.insuranceType,
       } : null,
@@ -184,7 +188,7 @@ const CreatePatient = () => {
           diabetesType: '', diagnosisDate: '', referredBy: '', primaryDoctor: '',
           address: '', city: '',
           emergencyContactName: '', emergencyContactRelationship: '', emergencyContactPhone: '',
-          insuranceProvider: '', policyNumber: '', insuranceType: '',
+          insuranceProvider: '', customInsuranceProvider: '', policyNumber: '', insuranceType: '',
           username: '', temporaryPassword: '',
         });
         setIsExistingPatient(false);
@@ -528,7 +532,7 @@ const CreatePatient = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-2">Insurance Provider</label>
               <select
                 value={patientData.insuranceProvider}
-                onChange={(e) => setPatientData({ ...patientData, insuranceProvider: e.target.value })}
+                onChange={(e) => setPatientData({ ...patientData, insuranceProvider: e.target.value, customInsuranceProvider: '' })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
               >
                 <option value="">Select provider</option>
@@ -536,6 +540,15 @@ const CreatePatient = () => {
                   <option key={provider} value={provider}>{provider}</option>
                 ))}
               </select>
+              {patientData.insuranceProvider === 'Other' && (
+                <input
+                  type="text"
+                  value={patientData.customInsuranceProvider}
+                  onChange={(e) => setPatientData({ ...patientData, customInsuranceProvider: e.target.value })}
+                  placeholder="Enter insurance provider name"
+                  className="mt-2 w-full px-4 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:border-primary"
+                />
+              )}
             </div>
 
             <Input
@@ -556,7 +569,7 @@ const CreatePatient = () => {
                 <option value="">Select type</option>
                 <option value="Insurance">Insurance</option>
                 <option value="Cash">Cash</option>
-                <option value="Corporate">Corporate</option>
+                <option value="M-Pesa">M-Pesa</option>
               </select>
             </div>
           </div>
