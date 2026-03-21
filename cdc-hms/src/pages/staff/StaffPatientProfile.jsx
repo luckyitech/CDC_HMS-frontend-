@@ -318,38 +318,18 @@ const OverviewTab = ({ patient, setActiveTab }) => {
         )}
       </Card>
 
-      {/* Allergies & Comorbidities */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-5 h-5 text-red-600" />
-            <h3 className="text-lg font-bold text-gray-800">Allergies</h3>
-          </div>
-          <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
-            <p className="text-sm font-semibold text-red-700">
-              {patient.allergies || 'None reported'}
-            </p>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <Hospital className="w-5 h-5 text-orange-600" />
-            <h3 className="text-lg font-bold text-gray-800">Comorbidities</h3>
-          </div>
-          {patient.comorbidities && patient.comorbidities.length > 0 ? (
-            <ul className="space-y-1">
-              {patient.comorbidities.map((condition, index) => (
-                <li key={index} className="text-sm text-gray-700">
-                  &middot; {condition}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-600">None</p>
-          )}
-        </Card>
-      </div>
+      {/* Allergies */}
+      <Card>
+        <div className="flex items-center gap-2 mb-4">
+          <AlertTriangle className="w-5 h-5 text-red-600" />
+          <h3 className="text-lg font-bold text-gray-800">Allergies</h3>
+        </div>
+        <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
+          <p className="text-sm font-semibold text-red-700">
+            {patient.allergies || 'None reported'}
+          </p>
+        </div>
+      </Card>
 
       {/* Latest Vitals */}
       <Card>

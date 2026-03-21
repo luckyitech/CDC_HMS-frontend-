@@ -390,27 +390,11 @@ const OverviewTab = ({ patient }) => {
         )}
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card title="Allergies">
-          <p className="text-sm font-semibold text-red-600">
-            {patient.allergies || 'None reported'}
-          </p>
-        </Card>
-
-        <Card title="Comorbidities">
-          {patient.comorbidities && patient.comorbidities.length > 0 ? (
-            <ul className="space-y-1">
-              {patient.comorbidities.map((condition, index) => (
-                <li key={index} className="text-sm text-gray-700">
-                  &middot; {condition}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-600">None</p>
-          )}
-        </Card>
-      </div>
+      <Card title="Allergies">
+        <p className="text-sm font-semibold text-red-600">
+          {patient.allergies || 'None reported'}
+        </p>
+      </Card>
 
       <Card title="Latest Vitals">
         {patient.vitals ? (

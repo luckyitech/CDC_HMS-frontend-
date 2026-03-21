@@ -637,20 +637,6 @@ const Consultation = () => {
                   </div>
                 )}
 
-                {patient.comorbidities && patient.comorbidities.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
-                      Comorbidities:
-                    </p>
-                    <ul className="list-disc list-inside space-y-1">
-                      {patient.comorbidities.map((condition, index) => (
-                        <li key={index} className="text-sm text-gray-600">
-                          {condition}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
             </Card>
 

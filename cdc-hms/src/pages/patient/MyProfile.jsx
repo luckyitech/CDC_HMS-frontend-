@@ -302,10 +302,6 @@ const MyProfile = () => {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Known Allergies</label>
                     <textarea value={patient?.allergies || 'None reported'} disabled readOnly rows="2" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Other Conditions (Comorbidities)</label>
-                    <textarea value={patient?.comorbidities || 'None reported'} disabled readOnly rows="2" className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
-                  </div>
                 </div>
               </Card>
 
