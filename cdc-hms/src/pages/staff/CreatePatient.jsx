@@ -408,16 +408,13 @@ const CreatePatient = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Diagnosis</label>
-              <select
+              <input
+                type="text"
                 value={patientData.diabetesType}
                 onChange={(e) => setPatientData({ ...patientData, diabetesType: e.target.value })}
+                placeholder="e.g. Type 2 Diabetes, Hypertension..."
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-              >
-                <option value="">Select diabetes type</option>
-                {diabetesTypes.map((type) => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
+              />
             </div>
 
             <Input
