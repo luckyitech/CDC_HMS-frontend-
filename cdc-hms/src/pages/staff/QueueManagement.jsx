@@ -6,7 +6,6 @@ import {
   Clock,
   Activity,
   AlertTriangle,
-  UserCheck,
   Trash2,
   X,
   CheckCircle2,
@@ -25,7 +24,7 @@ const formatArrival = (iso) => {
 };
 
 const QueueManagement = () => {
-  const { queue, loading, fetchQueue, callNextPatient, removeFromQueue, updateQueueStatus, getLocalQueueStats } = useQueueContext();
+  const { queue, loading, fetchQueue, removeFromQueue, updateQueueStatus, getLocalQueueStats } = useQueueContext();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [patientToRemove, setPatientToRemove] = useState(null);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
@@ -79,33 +78,6 @@ const QueueManagement = () => {
     return priority === 'Urgent' 
       ? 'bg-red-100 text-red-700 border-red-300' 
       : 'bg-green-100 text-green-700 border-green-300';
-  };
-
-  const handleCallNext = async () => {
-    const result = await callNextPatient();
-    if (result.success) {
-      toast.success(`${result.patient?.name || 'Patient'} called for consultation`, {
-        duration: 3000,
-        icon: <UserCheck className="w-5 h-5" />,
-        style: {
-          background: '#D1FAE5',
-          color: '#065F46',
-          fontWeight: 'bold',
-          padding: '16px',
-        },
-      });
-    } else {
-      toast.error(result.message || 'Failed to call next patient', {
-        duration: 3000,
-        icon: <AlertTriangle className="w-5 h-5" />,
-        style: {
-          background: '#FEE2E2',
-          color: '#991B1B',
-          fontWeight: 'bold',
-          padding: '16px',
-        },
-      });
-    }
   };
 
   const handleRemoveClick = (id, name) => {
@@ -265,17 +237,6 @@ const QueueManagement = () => {
 
                   {/* Card footer — actions */}
                   <div className="flex gap-2 px-4 py-3 bg-gray-50 border-t border-gray-100">
-                    {patient.status === 'Waiting' && index === 0 && (
-                      <Button
-                        variant="primary"
-                        className="flex-1 text-xs py-1.5"
-                        onClick={handleCallNext}
-                        disabled={loading}
-                      >
-                        <UserCheck className="w-3.5 h-3.5 mr-1" />
-                        Call Next
-                      </Button>
-                    )}
                     {patient.status === 'Pending Billing' && (
                       <Button
                         variant="primary"
@@ -341,17 +302,6 @@ const QueueManagement = () => {
                       <td className="px-6 py-4 text-sm text-gray-600">{patient.reason}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
-                          {patient.status === 'Waiting' && index === 0 && (
-                            <Button
-                              variant="primary"
-                              className="text-xs py-1 px-3"
-                              onClick={handleCallNext}
-                              disabled={loading}
-                            >
-                              <UserCheck className="w-3 h-3 mr-1" />
-                              Call Next
-                            </Button>
-                          )}
                           {patient.status === 'Pending Billing' && (
                             <Button
                               variant="primary"
