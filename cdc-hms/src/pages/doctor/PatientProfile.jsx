@@ -198,7 +198,7 @@ const PatientProfile = () => {
 
           <div className="flex flex-wrap gap-2">
             <span className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold">
-              {patient.diabetesType}
+              {patient.diagnosis}
             </span>
             <span
               className={`px-4 py-2 rounded-lg text-sm font-semibold ${
@@ -325,7 +325,7 @@ const OverviewTab = ({ patient }) => {
 
         <Card title="Medical Information">
           <div>
-            <InfoRow label="Diabetes Type" value={patient.diabetesType} />
+            <InfoRow label="Diagnosis" value={patient.diagnosis} />
             <InfoRow label="Diagnosis Date" value={fmtDate(patient.diagnosisDate)} />
             <InfoRow label="Current HbA1c" value={patient.hba1c} valueClass="text-red-600" />
             <InfoRow

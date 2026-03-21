@@ -84,8 +84,8 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
                 </p>
               </div>
               <div>
-                <p className="text-gray-600">Diabetes Type:</p>
-                <p className="font-semibold">{patient.diabetesType}</p>
+                <p className="text-gray-600">Diagnosis:</p>
+                <p className="font-semibold">{patient.diagnosis}</p>
               </div>
             </div>
           </div>

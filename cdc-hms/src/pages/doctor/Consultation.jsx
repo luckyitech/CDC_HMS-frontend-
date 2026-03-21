@@ -438,8 +438,8 @@ const Consultation = () => {
                   <p className="font-semibold">{patient.gender}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Diabetes Type</p>
-                  <p className="font-semibold">{patient.diabetesType}</p>
+                  <p className="text-sm text-gray-600">Diagnosis</p>
+                  <p className="font-semibold">{patient.diagnosis}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Last HbA1c</p>

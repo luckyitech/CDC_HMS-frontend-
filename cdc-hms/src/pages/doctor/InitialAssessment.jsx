@@ -654,7 +654,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                       <div><p className="text-gray-600">Name:</p><p className="font-semibold">{selectedPatient?.name}</p></div>
                       <div><p className="text-gray-600">UHID:</p><p className="font-semibold">{selectedPatient?.uhid}</p></div>
                       <div><p className="text-gray-600">Age / Gender:</p><p className="font-semibold">{selectedPatient?.age} yrs &middot; {selectedPatient?.gender}</p></div>
-                      <div><p className="text-gray-600">Diabetes Type:</p><p className="font-semibold">{selectedPatient?.diabetesType || "—"}</p></div>
+                      <div><p className="text-gray-600">Diagnosis:</p><p className="font-semibold">{selectedPatient?.diagnosis || "—"}</p></div>
                     </div>
                   </div>
 

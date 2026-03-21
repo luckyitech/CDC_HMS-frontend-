@@ -23,7 +23,7 @@ const CreatePatient = () => {
     idNumber: '',
     
     // Medical Information
-    diabetesType: '',
+    diagnosis: '',
     diagnosisDate: '',
     referredBy: '',
     primaryDoctor: '',
@@ -126,7 +126,7 @@ const CreatePatient = () => {
       dateOfBirth: patientData.dateOfBirth || null,
       gender: patientData.gender || null,
       idNumber: patientData.idNumber || null,
-      diabetesType: patientData.diabetesType || null,
+      diagnosis: patientData.diagnosis || null,
       diagnosisDate: patientData.diagnosisDate || null,
       referredBy: patientData.referredBy || null,
       primaryDoctorId: patientData.primaryDoctor ? parseInt(patientData.primaryDoctor) : null,
@@ -170,7 +170,7 @@ const CreatePatient = () => {
         // Reset form
         setPatientData({
           firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
-          diabetesType: '', diagnosisDate: '', referredBy: '', primaryDoctor: '',
+          diagnosis: '', diagnosisDate: '', referredBy: '', primaryDoctor: '',
           address: '', city: '',
           emergencyContactName: '', emergencyContactRelationship: '', emergencyContactPhone: '',
           insuranceProvider: '', customInsuranceProvider: '', policyNumber: '', insuranceType: '',
@@ -370,8 +370,8 @@ const CreatePatient = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-2">Diagnosis</label>
               <input
                 type="text"
-                value={patientData.diabetesType}
-                onChange={(e) => setPatientData({ ...patientData, diabetesType: e.target.value })}
+                value={patientData.diagnosis}
+                onChange={(e) => setPatientData({ ...patientData, diagnosis: e.target.value })}
                 placeholder="e.g. Type 2 Diabetes, Hypertension..."
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
               />

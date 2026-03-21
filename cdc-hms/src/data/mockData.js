@@ -186,7 +186,7 @@ export const mockPatients = [
     idNumber: '12345678',
 
     // Medical Info
-    diabetesType: 'Type 2',
+    diagnosis: 'Type 2',
     diagnosisDate: '2018-03-15',
     hba1c: '7.2%',
     primaryDoctor: 'Dr. Ahmed Hassan',
@@ -313,7 +313,7 @@ export const mockPatients = [
     dateOfBirth: '1972-08-22',
     idNumber: '23456789',
 
-    diabetesType: 'Type 2',
+    diagnosis: 'Type 2',
     diagnosisDate: '2019-06-10',
     hba1c: '6.8%',
     primaryDoctor: 'Dr. Sarah Kamau',
@@ -432,7 +432,7 @@ export const mockPatients = [
     dateOfBirth: '1986-03-10',
     idNumber: '34567890',
 
-    diabetesType: 'Type 1',
+    diagnosis: 'Type 1',
     diagnosisDate: '2015-01-20',
     hba1c: '8.5%',
     primaryDoctor: 'Dr. James Omondi',
@@ -558,7 +558,7 @@ export const mockPatients = [
     dateOfBirth: '1963-11-05',
     idNumber: '45678901',
 
-    diabetesType: 'Type 2',
+    diagnosis: 'Type 2',
     diagnosisDate: '2018-03-15',
     hba1c: '7.9%',
     primaryDoctor: 'Dr. Ahmed Hassan',
@@ -678,7 +678,7 @@ export const mockPatients = [
     dateOfBirth: '1977-07-12',
     idNumber: '56789012',
 
-    diabetesType: 'Type 2',
+    diagnosis: 'Type 2',
     diagnosisDate: '2020-06-10',
     hba1c: '9.1%',
     primaryDoctor: 'Dr. Ahmed Hassan',

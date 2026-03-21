@@ -291,8 +291,8 @@ const MyProfile = () => {
               <Card title="Diabetes Information">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Diabetes Type</label>
-                    <input type="text" value={patient?.diabetesType || '—'} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Diagnosis</label>
+                    <input type="text" value={patient?.diagnosis || '—'} disabled readOnly className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg bg-gray-50" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Diagnosis Date</label>

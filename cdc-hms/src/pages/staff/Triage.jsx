@@ -481,9 +481,9 @@ const Triage = () => {
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Diabetes Type</p>
+                        <p className="text-sm text-gray-600">Diagnosis</p>
                         <p className="font-semibold">
-                          {selectedPatient.diabetesType}
+                          {selectedPatient.diagnosis}
                         </p>
                       </div>
                       <div>
