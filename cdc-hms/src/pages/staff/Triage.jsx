@@ -10,6 +10,7 @@ import {
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
+import { getBpColor, getTemperatureColor, getO2Color, getRbsColor, getHba1cColor, getKetonesColor } from '../../utils/clinicalColors';
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useAppointmentContext } from "../../contexts/AppointmentContext";
@@ -627,18 +628,22 @@ const Triage = () => {
                       Vital Signs
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Blood Pressure *"
-                        type="text"
-                        value={vitals.bloodPressure}
-                        onChange={(e) =>
-                          setVitals({
-                            ...vitals,
-                            bloodPressure: e.target.value,
-                          })
-                        }
-                        placeholder="120/80 mmHg"
-                      />
+                      <div>
+                        <Input
+                          label="Blood Pressure *"
+                          type="text"
+                          value={vitals.bloodPressure}
+                          onChange={(e) =>
+                            setVitals({ ...vitals, bloodPressure: e.target.value })
+                          }
+                          placeholder="120/80 mmHg"
+                        />
+                        {vitals.bloodPressure && getBpColor(vitals.bloodPressure) && (
+                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getBpColor(vitals.bloodPressure).text}`}>
+                            {getBpColor(vitals.bloodPressure).label}
+                          </p>
+                        )}
+                      </div>
 
                       <Input
                         label="Heart Rate *"
@@ -655,34 +660,48 @@ const Triage = () => {
                         placeholder="bpm"
                       />
 
-                      <Input
-                        label="Temperature *"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={vitals.temperature}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, temperature: value });
-                          }
-                        }}
-                        placeholder="°C"
-                      />
+                      <div>
+                        <Input
+                          label="Temperature *"
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={vitals.temperature}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || parseFloat(value) >= 0) {
+                              setVitals({ ...vitals, temperature: value });
+                            }
+                          }}
+                          placeholder="°C"
+                        />
+                        {vitals.temperature && getTemperatureColor(vitals.temperature) && (
+                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getTemperatureColor(vitals.temperature).text}`}>
+                            {getTemperatureColor(vitals.temperature).label}
+                          </p>
+                        )}
+                      </div>
 
-                      <Input
-                        label="Oxygen Saturation"
-                        type="number"
-                        min="0"
-                        value={vitals.oxygenSaturation}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, oxygenSaturation: value });
-                          }
-                        }}
-                        placeholder="%"
-                      />
+                      <div>
+                        <Input
+                          label="Oxygen Saturation"
+                          type="number"
+                          min="0"
+                          value={vitals.oxygenSaturation}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || parseFloat(value) >= 0) {
+                              setVitals({ ...vitals, oxygenSaturation: value });
+                            }
+                          }}
+                          placeholder="%"
+                        />
+                        {vitals.oxygenSaturation && getO2Color(vitals.oxygenSaturation) && (
+                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getO2Color(vitals.oxygenSaturation).text}`}>
+                            {getO2Color(vitals.oxygenSaturation).label}
+                          </p>
+                        )}
+                      </div>
 
                       <Input
                         label="Weight"
@@ -714,27 +733,27 @@ const Triage = () => {
                       />
 
                       {/* BMI Display */}
-                      {bmi && (
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            BMI (Calculated)
-                          </label>
-                          <div className="px-4 py-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
-                            <span className="text-lg font-bold text-blue-700">
-                              {bmi} kg/m²
-                            </span>
-                            <span className="text-xs text-gray-600 ml-2">
-                              {parseFloat(bmi) < 18.5
-                                ? "(Underweight)"
-                                : parseFloat(bmi) < 25
-                                ? "(Normal)"
-                                : parseFloat(bmi) < 30
-                                ? "(Overweight)"
-                                : "(Obese)"}
-                            </span>
+                      {bmi && (() => {
+                        const bmiVal = parseFloat(bmi);
+                        const bmiColor = bmiVal < 18.5
+                          ? { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', label: 'Underweight' }
+                          : bmiVal < 25
+                          ? { bg: 'bg-green-50',  border: 'border-green-300',  text: 'text-green-700',  label: 'Normal'      }
+                          : bmiVal < 30
+                          ? { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', label: 'Overweight'  }
+                          : { bg: 'bg-red-50',    border: 'border-red-300',    text: 'text-red-700',    label: 'Obese'       };
+                        return (
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              BMI (Calculated)
+                            </label>
+                            <div className={`px-4 py-3 ${bmiColor.bg} border-2 ${bmiColor.border} rounded-lg`}>
+                              <span className={`text-lg font-bold ${bmiColor.text}`}>{bmi} kg/m²</span>
+                              <span className="text-xs text-gray-600 ml-2">({bmiColor.label})</span>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* NEW: Waist Circumference */}
                       <Input
@@ -782,50 +801,71 @@ const Triage = () => {
                         </div>
                       )}
 
-                      <Input
-                        label="RBS (Random Blood Sugar)"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={vitals.rbs}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, rbs: value });
-                          }
-                        }}
-                        placeholder="mmol/L"
-                      />
+                      <div>
+                        <Input
+                          label="RBS (Random Blood Sugar)"
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={vitals.rbs}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || parseFloat(value) >= 0) {
+                              setVitals({ ...vitals, rbs: value });
+                            }
+                          }}
+                          placeholder="mmol/L"
+                        />
+                        {vitals.rbs && getRbsColor(vitals.rbs) && (
+                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getRbsColor(vitals.rbs).text}`}>
+                            {getRbsColor(vitals.rbs).label}
+                          </p>
+                        )}
+                      </div>
 
-                      <Input
-                        label="HbA1c"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={vitals.hba1c}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, hba1c: value });
-                          }
-                        }}
-                        placeholder="%"
-                      />
+                      <div>
+                        <Input
+                          label="HbA1c"
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={vitals.hba1c}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || parseFloat(value) >= 0) {
+                              setVitals({ ...vitals, hba1c: value });
+                            }
+                          }}
+                          placeholder="%"
+                        />
+                        {vitals.hba1c && getHba1cColor(vitals.hba1c) && (
+                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getHba1cColor(vitals.hba1c).text}`}>
+                            {getHba1cColor(vitals.hba1c).label}
+                          </p>
+                        )}
+                      </div>
 
-                      <Input
-                        label="Ketones"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={vitals.ketones}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, ketones: value });
-                          }
-                        }}
-                        placeholder="mmol/L"
-                      />
+                      <div>
+                        <Input
+                          label="Ketones"
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={vitals.ketones}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || parseFloat(value) >= 0) {
+                              setVitals({ ...vitals, ketones: value });
+                            }
+                          }}
+                          placeholder="mmol/L"
+                        />
+                        {vitals.ketones && getKetonesColor(vitals.ketones) && (
+                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getKetonesColor(vitals.ketones).text}`}>
+                            {getKetonesColor(vitals.ketones).label}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
