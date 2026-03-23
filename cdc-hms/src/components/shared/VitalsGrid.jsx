@@ -58,8 +58,8 @@ const VitalsGrid = ({ vitals }) => {
       <VitalCard
         label="Heart Rate"
         value={vitals.heartRate}
-        colorClass="bg-blue-50 border-2 border-blue-200"
-        textClass="text-blue-700"
+        colorClass="bg-slate-50 border-2 border-slate-200"
+        textClass="text-slate-700"
       />
 
       {/* Temperature */}
@@ -84,16 +84,16 @@ const VitalsGrid = ({ vitals }) => {
       <VitalCard
         label="Weight"
         value={vitals.weight}
-        colorClass="bg-indigo-50 border-2 border-indigo-200"
-        textClass="text-indigo-700"
+        colorClass="bg-slate-50 border-2 border-slate-200"
+        textClass="text-slate-700"
       />
 
       {/* Height */}
       <VitalCard
         label="Height"
         value={vitals.height}
-        colorClass="bg-cyan-50 border-2 border-cyan-200"
-        textClass="text-cyan-700"
+        colorClass="bg-slate-50 border-2 border-slate-200"
+        textClass="text-slate-700"
       />
 
       {/* BMI */}
@@ -110,8 +110,8 @@ const VitalsGrid = ({ vitals }) => {
         <VitalCard
           label="Waist Circ."
           value={vitals.waistCircumference}
-          colorClass="bg-pink-50 border-2 border-pink-200"
-          textClass="text-pink-700"
+          colorClass="bg-slate-50 border-2 border-slate-200"
+          textClass="text-slate-700"
         />
       )}
 
