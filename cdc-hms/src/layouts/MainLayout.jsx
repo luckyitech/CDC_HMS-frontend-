@@ -317,10 +317,17 @@ const MainLayout = ({ userRole = "Staff" }) => {
               </span>
             </div>
 
-            {userRole.toLowerCase() !== 'patient' && (
+            {userRole.toLowerCase() === 'patient' ? (
+              <button
+                onClick={() => navigate('/patient/dashboard')}
+                className="flex items-center justify-center w-11 h-11 bg-white rounded-full shadow-md p-1 hover:shadow-lg transition"
+              >
+                <img src={logo} alt="CDC" className="w-full h-full object-contain" />
+              </button>
+            ) : (
               <button
                 onClick={handleLogout}
-                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 lg:px-6 py-2 lg:py-3 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 text-sm lg:text-base"
+                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 lg:px-6 py-2 lg:py-3 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 text-sm lg:text-base" 
               >
                 Logout
               </button>
