@@ -342,15 +342,15 @@ const QueueManagement = () => {
       {/* Confirm & Discharge Modal */}
       {showDischargeModal && dischargePatient && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b">
+            <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-amber-100 rounded-full">
                   <Receipt className="w-5 h-5 text-amber-700" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-green-800">Confirm & Discharge</h3>
+                  <h3 className="text-lg font-bold text-gray-800">Confirm & Discharge</h3>
                   <p className="text-sm text-gray-500">{dischargePatient.name} · {dischargePatient.uhid}</p>
                 </div>
               </div>
@@ -362,22 +362,20 @@ const QueueManagement = () => {
               </button>
             </div>
 
-            {/* Body — doctor's selections (read-only) */}
-            <div className="p-5 space-y-5">
+            {/* Scrollable Body */}
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
               {/* Charges */}
               <div>
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Charges
-                </h4>
+                <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Charges</h4>
                 {dischargePatient.selectedCharges?.length > 0 ? (
-                  <ul className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {dischargePatient.selectedCharges.map(item => (
-                      <li key={item} className="flex items-center gap-2 text-sm text-gray-700">
+                      <div key={item} className="flex items-center gap-2 p-3 bg-green-50 border border-green-300 rounded-lg">
                         <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                        {item}
-                      </li>
+                        <span className="text-sm font-medium text-gray-700 leading-tight">{item}</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
                   <p className="text-sm text-gray-400 italic">No charges selected</p>
                 )}
@@ -385,18 +383,16 @@ const QueueManagement = () => {
 
               {/* Procedures */}
               <div>
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                  Procedures
-                </h4>
+                <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Procedures</h4>
                 {dischargePatient.selectedProcedures?.length > 0 ? (
-                  <ul className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-2">
                     {dischargePatient.selectedProcedures.map(item => (
-                      <li key={item} className="flex items-center gap-2 text-sm text-gray-700">
+                      <div key={item} className="flex items-center gap-2 p-3 bg-green-50 border border-green-300 rounded-lg">
                         <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                        {item}
-                      </li>
+                        <span className="text-sm font-medium text-gray-700 leading-tight">{item}</span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
                   <p className="text-sm text-gray-400 italic">No procedures selected</p>
                 )}
@@ -404,17 +400,17 @@ const QueueManagement = () => {
             </div>
 
             {/* Footer */}
-            <div className="flex gap-3 p-5 border-t">
+            <div className="flex gap-3 px-6 py-4 border-t flex-shrink-0">
               <button
                 onClick={() => { setShowDischargeModal(false); setDischargePatient(null); }}
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDischarge}
                 disabled={discharging}
-                className="flex-1 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold disabled:opacity-60"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold disabled:opacity-60"
               >
                 {discharging ? 'Discharging…' : 'Confirm & Discharge'}
               </button>

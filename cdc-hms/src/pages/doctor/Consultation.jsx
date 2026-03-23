@@ -867,25 +867,22 @@ const Consultation = () => {
             <div className="overflow-y-auto flex-1 px-6 py-4 space-y-6">
               {/* Charges */}
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 bg-blue-500 rounded-full" />
-                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Charges</h3>
-                </div>
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Charges</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {CHARGE_OPTIONS.map(item => (
                     <label
                       key={item}
-                      className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                         selectedCharges.includes(item)
-                          ? 'bg-blue-50 border-blue-400 text-blue-700'
-                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
+                          ? 'bg-green-50 border-green-400 text-gray-800'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={selectedCharges.includes(item)}
                         onChange={() => toggleCharge(item)}
-                        className="w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
+                        className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                       />
                       <span className="text-sm font-medium leading-tight">{item}</span>
                     </label>
@@ -895,25 +892,22 @@ const Consultation = () => {
 
               {/* Procedures */}
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-1 h-4 bg-purple-500 rounded-full" />
-                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Procedures</h3>
-                </div>
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Procedures</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {PROCEDURE_OPTIONS.map(item => (
                     <label
                       key={item}
-                      className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                         selectedProcedures.includes(item)
-                          ? 'bg-purple-50 border-purple-400 text-purple-700'
-                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50'
+                          ? 'bg-green-50 border-green-400 text-gray-800'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={selectedProcedures.includes(item)}
                         onChange={() => toggleProcedure(item)}
-                        className="w-4 h-4 accent-purple-600 cursor-pointer flex-shrink-0"
+                        className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                       />
                       <span className="text-sm font-medium leading-tight">{item}</span>
                     </label>
