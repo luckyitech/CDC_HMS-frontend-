@@ -271,7 +271,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="sticky top-0 z-10 bg-white shadow-lg px-4 lg:px-8 py-4 flex items-center justify-between">
+        <header className="fixed top-0 left-0 right-0 z-30 lg:static bg-white shadow-lg px-4 lg:px-8 py-4 flex items-center justify-between">
           {/* Mobile Menu Button */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -327,7 +327,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50 mt-[72px] lg:mt-0">
           <Outlet />
         </main>
       </div>
