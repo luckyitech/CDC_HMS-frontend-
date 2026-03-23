@@ -7,8 +7,12 @@ import { usePatientContext } from '../../contexts/PatientContext';
 
 const PDF_ONLY_CATEGORIES = ['Patient File'];
 
-const UploadDocumentModal = ({ isOpen, onClose, patient, onSuccess }) => {
+const UploadDocumentModal = ({ isOpen, onClose, patient, onSuccess, currentUser }) => {
   const { DOCUMENT_CATEGORIES, uploadMedicalDocument } = usePatientContext();
+  const isPatient = currentUser?.role === 'patient';
+  const availableCategories = isPatient
+    ? DOCUMENT_CATEGORIES.filter(cat => cat !== 'Patient File')
+    : DOCUMENT_CATEGORIES;
 
   const [formData, setFormData] = useState({
     fileName: '',
@@ -133,7 +137,7 @@ const UploadDocumentModal = ({ isOpen, onClose, patient, onSuccess }) => {
             }`}
           >
             <option value="">Select category...</option>
-            {DOCUMENT_CATEGORIES.map(cat => (
+            {availableCategories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
