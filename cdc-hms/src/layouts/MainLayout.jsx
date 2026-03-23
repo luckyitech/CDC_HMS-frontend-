@@ -271,7 +271,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Topbar */}
-        <header className="bg-white shadow-lg px-4 lg:px-8 py-4 flex items-center justify-between">
+        <header className="sticky top-0 z-10 bg-white shadow-lg px-4 lg:px-8 py-4 flex items-center justify-between">
           {/* Mobile Menu Button */}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
