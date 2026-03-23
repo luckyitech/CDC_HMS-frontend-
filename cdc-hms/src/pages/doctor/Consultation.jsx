@@ -126,8 +126,23 @@ const Consultation = () => {
     'Ketones',
     'HbA1c',
     'Thyroid Ultrasound',
+    'ECG',
+    'Insulin Shot',
   ];
-  const PROCEDURE_OPTIONS = ['PNS', 'ABI', 'ANS'];
+  const PROCEDURE_OPTIONS = [
+    'PNS',
+    'ABI',
+    'ANS',
+    'Dressing Major',
+    'Dressing Minor',
+    'IV',
+    'CGM',
+    'Thyroid Nodule Radiofrequency Ablation (RFA)',
+    'Thyroid Percutaneous Ethanol Injection (PEI)',
+    'Ultrasound-Guided Thyroid Fine Needle Aspiration (FNA)',
+    'Ultrasound-Guided Core Needle Biopsy (CNB)',
+    'Foot Pressure Measurement',
+  ];
 
   // Tab unsaved changes tracking (derived state)
   const tabsUnsaved = useMemo(() => ({
