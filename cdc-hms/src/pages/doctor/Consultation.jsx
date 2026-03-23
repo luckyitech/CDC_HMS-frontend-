@@ -848,9 +848,9 @@ const Consultation = () => {
       {/* Billing Checklist Modal */}
       {showBillingModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b">
+            <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-gray-800">Complete Consultation</h2>
                 <p className="text-sm text-gray-500 mt-0.5">Select charges and procedures for this visit</p>
@@ -863,26 +863,31 @@ const Consultation = () => {
               </button>
             </div>
 
-            {/* Body */}
-            <div className="p-5 space-y-5">
+            {/* Scrollable Body */}
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-6">
               {/* Charges */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-                  Charges
-                </h3>
-                <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 bg-blue-500 rounded-full" />
+                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Charges</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   {CHARGE_OPTIONS.map(item => (
                     <label
                       key={item}
-                      className="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                      className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedCharges.includes(item)
+                          ? 'bg-blue-50 border-blue-400 text-blue-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
+                      }`}
                     >
                       <input
                         type="checkbox"
                         checked={selectedCharges.includes(item)}
                         onChange={() => toggleCharge(item)}
-                        className="w-4 h-4 accent-blue-600 cursor-pointer"
+                        className="w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
                       />
-                      <span className="text-sm text-gray-700">{item}</span>
+                      <span className="text-sm font-medium leading-tight">{item}</span>
                     </label>
                   ))}
                 </div>
@@ -890,22 +895,27 @@ const Consultation = () => {
 
               {/* Procedures */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
-                  Procedures
-                </h3>
-                <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 bg-purple-500 rounded-full" />
+                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Procedures</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   {PROCEDURE_OPTIONS.map(item => (
                     <label
                       key={item}
-                      className="flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                      className={`flex items-center gap-2.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedProcedures.includes(item)
+                          ? 'bg-purple-50 border-purple-400 text-purple-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50'
+                      }`}
                     >
                       <input
                         type="checkbox"
                         checked={selectedProcedures.includes(item)}
                         onChange={() => toggleProcedure(item)}
-                        className="w-4 h-4 accent-blue-600 cursor-pointer"
+                        className="w-4 h-4 accent-purple-600 cursor-pointer flex-shrink-0"
                       />
-                      <span className="text-sm text-gray-700">{item}</span>
+                      <span className="text-sm font-medium leading-tight">{item}</span>
                     </label>
                   ))}
                 </div>
@@ -913,17 +923,17 @@ const Consultation = () => {
             </div>
 
             {/* Footer */}
-            <div className="flex gap-3 p-5 border-t">
+            <div className="flex gap-3 px-6 py-4 border-t flex-shrink-0">
               <button
                 onClick={() => setShowBillingModal(false)}
-                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleBillingSubmit}
                 disabled={billingSubmitting}
-                className="flex-1 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60"
               >
                 {billingSubmitting ? 'Submitting…' : 'Confirm & Send to Billing'}
               </button>
