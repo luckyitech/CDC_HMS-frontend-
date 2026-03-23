@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { getBpColor, getRbsColor, getKetonesColor, getTemperatureColor, getHba1cColor, getO2Color } from '../../utils/clinicalColors';
+import VitalsGrid from '../../components/shared/VitalsGrid';
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Check,
@@ -484,124 +484,7 @@ const Consultation = () => {
                     <Activity className="w-5 h-5" />
                     Vital Signs
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {/* Blood Pressure */}
-                    {patient.vitals?.bp && (() => { const c = getBpColor(patient.vitals.bp) || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800', label: null }; return (
-                      <div className={`p-3 ${c.bg} border ${c.border} rounded-lg`}>
-                        <p className="text-xs text-gray-600">Blood Pressure</p>
-                        <p className={`font-semibold text-lg ${c.text}`}>{patient.vitals.bp}</p>
-                        {c.label && <p className="text-xs text-gray-500 mt-1">{c.label}</p>}
-                      </div>
-                    ); })()}
-
-                    {/* Heart Rate — fixed */}
-                    {patient.vitals?.heartRate && (
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-xs text-gray-600">Heart Rate</p>
-                        <p className="font-semibold text-lg">{patient.vitals.heartRate}</p>
-                      </div>
-                    )}
-
-                    {/* Temperature */}
-                    {patient.vitals?.temperature && (() => { const c = getTemperatureColor(patient.vitals.temperature) || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800', label: null }; return (
-                      <div className={`p-3 ${c.bg} border ${c.border} rounded-lg`}>
-                        <p className="text-xs text-gray-600">Temperature</p>
-                        <p className={`font-semibold text-lg ${c.text}`}>{patient.vitals.temperature}</p>
-                        {c.label && <p className="text-xs text-gray-500 mt-1">{c.label}</p>}
-                      </div>
-                    ); })()}
-
-                    {/* Weight — fixed */}
-                    {patient.vitals?.weight && (
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-xs text-gray-600">Weight</p>
-                        <p className="font-semibold text-lg">{patient.vitals.weight}</p>
-                      </div>
-                    )}
-
-                    {/* Height — fixed */}
-                    {patient.vitals?.height && (
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-xs text-gray-600">Height</p>
-                        <p className="font-semibold text-lg">{patient.vitals.height}</p>
-                      </div>
-                    )}
-
-                    {/* BMI — fixed */}
-                    {patient.vitals?.bmi && (
-                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-xs text-gray-600">BMI</p>
-                        <p className="font-semibold text-lg text-blue-700">{patient.vitals.bmi}</p>
-                      </div>
-                    )}
-
-                    {/* O2 Saturation */}
-                    {patient.vitals?.oxygenSaturation && (() => { const c = getO2Color(patient.vitals.oxygenSaturation) || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800', label: null }; return (
-                      <div className={`p-3 ${c.bg} border ${c.border} rounded-lg`}>
-                        <p className="text-xs text-gray-600">O2 Saturation</p>
-                        <p className={`font-semibold text-lg ${c.text}`}>{patient.vitals.oxygenSaturation}</p>
-                        {c.label && <p className="text-xs text-gray-500 mt-1">{c.label}</p>}
-                      </div>
-                    ); })()}
-
-                    {/* RBS */}
-                    {patient.vitals?.rbs && (() => { const c = getRbsColor(patient.vitals.rbs) || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800', label: null }; return (
-                      <div className={`p-3 ${c.bg} border ${c.border} rounded-lg`}>
-                        <p className="text-xs text-gray-600">RBS</p>
-                        <p className={`font-semibold text-lg ${c.text}`}>{patient.vitals.rbs}</p>
-                        {c.label && <p className="text-xs text-gray-500 mt-1">{c.label}</p>}
-                      </div>
-                    ); })()}
-
-                    {/* HbA1c */}
-                    {patient.vitals?.hba1c && (() => { const c = getHba1cColor(patient.vitals.hba1c) || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800', label: null }; return (
-                      <div className={`p-3 ${c.bg} border ${c.border} rounded-lg`}>
-                        <p className="text-xs text-gray-600">HbA1c</p>
-                        <p className={`font-semibold text-lg ${c.text}`}>{patient.vitals.hba1c}</p>
-                        {c.label && <p className="text-xs text-gray-500 mt-1">{c.label}</p>}
-                      </div>
-                    ); })()}
-
-                    {/* Ketones */}
-                    {patient.vitals?.ketones && (() => { const c = getKetonesColor(patient.vitals.ketones) || { bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-800', label: null }; return (
-                      <div className={`p-3 ${c.bg} border ${c.border} rounded-lg`}>
-                        <p className="text-xs text-gray-600">Ketones</p>
-                        <p className={`font-semibold text-lg ${c.text}`}>{patient.vitals.ketones}</p>
-                        {c.label && <p className="text-xs text-gray-500 mt-1">{c.label}</p>}
-                      </div>
-                    ); })()}
-
-                    {/*Waist Circumference */}
-                    {patient.vitals?.waistCircumference && (
-                      <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                        <p className="text-xs text-gray-600">
-                          Waist Circumference
-                        </p>
-                        <p className="font-semibold text-lg text-purple-700">
-                          {patient.vitals.waistCircumference}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Waist-to-Height Ratio */}
-                    {patient.vitals?.waistHeightRatio && (
-                      <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                        <p className="text-xs text-gray-600">
-                          Waist-to-Height Ratio
-                        </p>
-                        <p className="font-semibold text-lg text-orange-700">
-                          {patient.vitals.waistHeightRatio}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {parseFloat(patient.vitals.waistHeightRatio) < 0.5
-                            ? "(Healthy)"
-                            : parseFloat(patient.vitals.waistHeightRatio) < 0.6
-                            ? "(Increased Risk)"
-                            : "(High Risk)"}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  <VitalsGrid vitals={patient.vitals} />
                 </div>
               </Card>
             )}
