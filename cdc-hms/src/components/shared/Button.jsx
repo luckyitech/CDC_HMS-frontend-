@@ -1,4 +1,4 @@
-const Button = ({ children, onClick, variant = 'primary', type = 'button', className = '' }) => {
+const Button = ({ children, onClick, variant = 'primary', type = 'button', disabled = false, className = '' }) => {
   const variants = {
     primary: 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl',
     secondary: 'bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 text-white shadow-lg hover:shadow-xl',
@@ -9,7 +9,8 @@ const Button = ({ children, onClick, variant = 'primary', type = 'button', class
     <button
       type={type}
       onClick={onClick}
-      className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 ${variants[variant]} ${className}`}
+      disabled={disabled}
+      className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none hover:scale-105 ${variants[variant]} ${className}`}
     >
       {children}
     </button>

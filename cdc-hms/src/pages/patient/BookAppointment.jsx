@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   UserSquare2, CalendarDays, Clock, FileText,
@@ -38,6 +39,7 @@ const APPOINTMENT_TYPES = [
 ];
 
 const BookAppointment = () => {
+  const navigate = useNavigate();
   const { addAppointment, getAvailableSlots } = useAppointmentContext();
 
   const [step, setStep] = useState(1);
@@ -143,10 +145,7 @@ const BookAppointment = () => {
           })}!`,
           { duration: 5000, style: { background: '#10b981', color: '#fff' } }
         );
-        // Reset form
-        setBookingData({ doctor: '', date: '', timeSlot: '', appointmentType: '', reason: '', notes: '' });
-        setTimeSlots([]);
-        setStep(1);
+        navigate('/patient/dashboard');
       } else {
         toast.error(result.message || 'Failed to book appointment. Please try again.');
       }
@@ -168,22 +167,29 @@ const BookAppointment = () => {
 
       {/* Progress Steps */}
       <div className="mb-8">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
+        {/* Mobile: compact step indicator */}
+        <div className="sm:hidden flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-primary">Step {step} of 4</p>
+          <p className="text-sm font-semibold text-gray-700">{STEP_LABELS[step - 1]}</p>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-1.5 sm:hidden mb-6">
+          <div
+            className="bg-primary h-1.5 rounded-full transition-all"
+            style={{ width: `${(step / 4) * 100}%` }}
+          />
+        </div>
+
+        {/* Desktop: full step indicator */}
+        <div className="hidden sm:flex items-center justify-between max-w-3xl mx-auto">
           {[1, 2, 3, 4].map((s) => (
             <div key={s} className="flex items-center flex-1">
               <div className="flex flex-col items-center flex-1">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold transition ${
-                  step > s
-                    ? 'bg-green-500 text-white'
-                    : step === s
-                    ? 'bg-primary text-white'
-                    : 'bg-gray-200 text-gray-500'
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold transition ${
+                  step > s ? 'bg-green-500 text-white' : step === s ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'
                 }`}>
                   {step > s ? <CheckCircle2 className="w-5 h-5" /> : s}
                 </div>
-                <p className={`text-xs sm:text-sm mt-2 font-semibold hidden sm:block ${
-                  step >= s ? 'text-primary' : 'text-gray-400'
-                }`}>
+                <p className={`text-sm mt-2 font-semibold ${step >= s ? 'text-primary' : 'text-gray-400'}`}>
                   {STEP_LABELS[s - 1]}
                 </p>
               </div>
@@ -236,8 +242,8 @@ const BookAppointment = () => {
           )}
 
           <div className="flex justify-end mt-6">
-            <Button onClick={handleNext} disabled={doctorsLoading}>
-              Next: Date & Time <ChevronRight className="w-4 h-4 ml-1" />
+            <Button onClick={handleNext} disabled={doctorsLoading} className="w-full sm:w-auto">
+              Next: Date & Time <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </Card>
@@ -324,12 +330,12 @@ const BookAppointment = () => {
             </div>
           </div>
 
-          <div className="flex justify-between mt-6">
-            <Button variant="outline" onClick={handleBack}>
-              <ChevronLeft className="w-4 h-4 mr-1" /> Back
+          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-6">
+            <Button variant="outline" onClick={handleBack} className="w-full sm:w-auto">
+              <ChevronLeft className="w-4 h-4" /> Back
             </Button>
-            <Button onClick={handleNext}>
-              Next: Type & Reason <ChevronRight className="w-4 h-4 ml-1" />
+            <Button onClick={handleNext} className="w-full sm:w-auto">
+              Next: Type & Reason <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </Card>
@@ -402,12 +408,12 @@ const BookAppointment = () => {
             </div>
           </div>
 
-          <div className="flex justify-between mt-6">
-            <Button variant="outline" onClick={handleBack}>
-              <ChevronLeft className="w-4 h-4 mr-1" /> Back
+          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-6">
+            <Button variant="outline" onClick={handleBack} className="w-full sm:w-auto">
+              <ChevronLeft className="w-4 h-4" /> Back
             </Button>
-            <Button onClick={handleNext}>
-              Review & Confirm <ChevronRight className="w-4 h-4 ml-1" />
+            <Button onClick={handleNext} className="w-full sm:w-auto">
+              Review & Confirm <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </Card>
@@ -491,11 +497,11 @@ const BookAppointment = () => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between gap-3 mt-6">
-            <Button variant="outline" onClick={handleBack} disabled={submitting}>
-              <ChevronLeft className="w-4 h-4 mr-1" /> Back to Edit
+          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-6">
+            <Button variant="outline" onClick={handleBack} disabled={submitting} className="w-full sm:w-auto">
+              <ChevronLeft className="w-4 h-4" /> Back to Edit
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button onClick={handleSubmit} disabled={submitting} className="w-full sm:w-auto">
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
