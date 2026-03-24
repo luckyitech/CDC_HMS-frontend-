@@ -99,8 +99,10 @@ export const AppointmentProvider = ({ children }) => {
   };
 
   // Get today's appointment for a patient (local filter)
+  // Uses local date (not UTC) so timezone offset does not cause a mismatch
   const getTodayAppointment = (uhid) => {
-    const today = new Date().toISOString().split('T')[0];
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     return appointments.find(
       apt => apt.uhid === uhid &&
              apt.date === today &&
