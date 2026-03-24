@@ -16,6 +16,7 @@ import {
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useQueueContext } from '../../contexts/QueueContext';
+import { useAppointmentContext } from '../../contexts/AppointmentContext';
 
 const formatArrival = (iso) => {
   if (!iso) return '-';
@@ -25,6 +26,7 @@ const formatArrival = (iso) => {
 
 const QueueManagement = () => {
   const { queue, loading, fetchQueue, removeFromQueue, updateQueueStatus, getLocalQueueStats } = useQueueContext();
+  const { getTodayAppointment, completeAppointment } = useAppointmentContext();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [patientToRemove, setPatientToRemove] = useState(null);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
@@ -59,6 +61,15 @@ const QueueManagement = () => {
     const result = await updateQueueStatus(dischargePatient.id, 'Completed');
     setDischarging(false);
     if (result.success) {
+      // Auto-complete today's appointment if the patient had one that was checked-in
+      try {
+        const todayAppt = getTodayAppointment(dischargePatient.uhid);
+        if (todayAppt && todayAppt.status === 'checked-in') {
+          await completeAppointment(todayAppt.id);
+        }
+      } catch {
+        // Non-blocking — discharge succeeded regardless
+      }
       toast.success(`${dischargePatient.name} discharged successfully`, {
         duration: 3000,
         icon: <CheckCircle2 className="w-5 h-5" />,
