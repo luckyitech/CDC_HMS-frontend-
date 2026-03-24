@@ -83,6 +83,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Patient Search", path: "/staff/patients", icon: Search },
       { name: "Queue Management", path: "/staff/queue", icon: ClipboardList },
       { name: "Triage", path: "/staff/triage", icon: Stethoscope },
+      { name: "Appointments", path: "/staff/appointments", icon: Calendar },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
     ],
@@ -107,8 +108,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
       {
         name: "Glycemic Charts",
         path: "/doctor/glycemic-charts",
-        icon: ChartNoAxesCombined ,
+        icon: ChartNoAxesCombined,
       },
+      { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },

@@ -42,6 +42,7 @@ const QueueManagement = lazy(() => import("./pages/staff/QueueManagement"));
 const Triage = lazy(() => import("./pages/staff/Triage"));
 const StaffCreatePatient = lazy(() => import("./pages/staff/CreatePatient"));
 const StaffPatientProfile = lazy(() => import("./pages/staff/StaffPatientProfile"));
+const StaffAppointmentsList = lazy(() => import("./pages/staff/AppointmentsList"));
 
 // Doctor pages (lazy)
 const DoctorDashboard = lazy(() => import("./pages/doctor/DoctorDashboard"));
@@ -53,6 +54,7 @@ const DoctorPrescriptions = lazy(() => import("./pages/doctor/DoctorPrescription
 const Reports = lazy(() => import("./pages/doctor/Reports"));
 const PhysicalExamination = lazy(() => import("./pages/doctor/PhysicalExamination"));
 const GlycemicCharts = lazy(() => import("./pages/doctor/GlycemicCharts"));
+const DoctorAppointmentsList = lazy(() => import("./pages/doctor/AppointmentsList"));
 
 // Patient pages (lazy)
 const PatientDashboard = lazy(() => import("./pages/patient/PatientDashboard"));
@@ -143,6 +145,7 @@ function App() {
                   <Route path="triage" element={<Triage />} />
                   <Route path="create-patient" element={<StaffCreatePatient />} />
                   <Route path="/staff/patient-profile/:uhid" element={<StaffPatientProfile />} />
+                  <Route path="appointments" element={<StaffAppointmentsList />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
@@ -162,6 +165,7 @@ function App() {
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="physical-exam" element={<PhysicalExamination />} />
                   <Route path="glycemic-charts" element={<GlycemicCharts />} />
+                  <Route path="appointments" element={<DoctorAppointmentsList />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
