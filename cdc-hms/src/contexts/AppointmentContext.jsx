@@ -222,6 +222,37 @@ export const AppointmentProvider = ({ children }) => {
     }
   };
 
+  // Auto-complete today's appointment on patient discharge.
+  // Makes a fresh API call (not cached state) so it works even if
+  // the check-in trigger never fired (appointment still 'scheduled').
+  // Backend allows scheduled → completed directly.
+  const autoCompleteAppointmentOnDischarge = async (uhid) => {
+    try {
+      const response = await appointmentService.getAll({ uhid, date: 'today' });
+      if (!response.success) return { success: false };
+
+      const appts = response.data.appointments || response.data;
+      const activeAppt = appts.find(
+        a => a.status === 'scheduled' || a.status === 'checked-in'
+      );
+
+      if (!activeAppt) return { success: true, noAppointment: true };
+
+      const result = await appointmentService.complete(activeAppt.id);
+      if (result.success) {
+        setAppointments(prev =>
+          prev.map(apt =>
+            apt.id === activeAppt.id ? { ...apt, status: 'completed' } : apt
+          )
+        );
+        return { success: true };
+      }
+      return { success: false, message: result.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  };
+
   // Get available time slots (client-side calculation)
   // Generates standard slots and excludes already booked ones
   const getAvailableSlots = async (doctorId, date) => {
@@ -305,6 +336,7 @@ export const AppointmentProvider = ({ children }) => {
     checkInAppointment,
     cancelAppointment,
     completeAppointment,
+    autoCompleteAppointmentOnDischarge,
     getAvailableSlots,
     getAppointmentStats,
     getLocalAppointmentStats,
