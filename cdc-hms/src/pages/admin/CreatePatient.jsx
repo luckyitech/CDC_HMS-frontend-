@@ -84,7 +84,7 @@ const CreatePatient = () => {
     e.preventDefault();
 
     // Validation
-    if (!patientData.firstName || !patientData.lastName || !patientData.email || !patientData.phone) {
+    if (!patientData.firstName || !patientData.lastName) {
       toast.error('Please fill in all required fields', {
         duration: 3000,
         position: 'top-right',
@@ -121,8 +121,8 @@ const CreatePatient = () => {
       ...(isExistingPatient && existingUHID.trim() ? { uhid: existingUHID.trim() } : {}),
       firstName: patientData.firstName,
       lastName: patientData.lastName,
-      email: patientData.email,
-      phone: patientData.phone,
+      email: patientData.email || null,
+      phone: patientData.phone || null,
       dateOfBirth: patientData.dateOfBirth || null,
       gender: patientData.gender || null,
       idNumber: patientData.idNumber || null,
@@ -312,21 +312,19 @@ const CreatePatient = () => {
             />
 
             <Input
-              label="Email Address *"
+              label="Email Address"
               type="email"
               value={patientData.email}
               onChange={(e) => setPatientData({ ...patientData, email: e.target.value })}
               placeholder="patient@example.com"
-              required
             />
 
             <Input
-              label="Phone Number *"
+              label="Phone Number"
               type="tel"
               value={patientData.phone}
               onChange={(e) => setPatientData({ ...patientData, phone: e.target.value })}
               placeholder="+254 712 345 678"
-              required
             />
 
             <Input
@@ -568,8 +566,8 @@ const CreatePatient = () => {
 
             <div className="md:col-span-2 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
               <p className="text-sm text-gray-700">
-                <strong>⚠️ Note:</strong> The UHID, username, and temporary password will be sent to the patient via email and SMS. 
-                Patient must change password on first login.
+                <strong>⚠️ Note:</strong> If an email is provided, the UHID and temporary password will be sent to the patient automatically.
+                Patients without an email address will not have portal access and will not receive email notifications.
               </p>
             </div>
           </div>
