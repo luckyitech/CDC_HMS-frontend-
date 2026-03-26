@@ -28,10 +28,11 @@ export const queueService = {
   update: (id, data) => api.put(`/queue/${id}`, data),
 
   /**
-   * Remove patient from queue
+   * Remove patient from queue (soft-delete — keeps record for audit)
    * @param {number} id - Queue item ID
+   * @param {string} reason - Reason for removal
    */
-  remove: (id) => api.delete(`/queue/${id}`),
+  remove: (id, reason) => api.delete(`/queue/${id}`, { data: { reason } }),
 
   /**
    * Get queue statistics

@@ -124,10 +124,10 @@ export const QueueProvider = ({ children }) => {
   };
 
   // Remove patient from queue
-  const removeFromQueue = async (queueId) => {
+  const removeFromQueue = async (queueId, reason) => {
     setLoading(true);
     try {
-      const response = await queueService.remove(queueId);
+      const response = await queueService.remove(queueId, reason);
 
       if (response.success) {
         setQueue(prev => prev.filter(item => item.id !== queueId));

@@ -29,6 +29,7 @@ const QueueManagement = () => {
   const { autoCompleteAppointmentOnDischarge } = useAppointmentContext();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [patientToRemove, setPatientToRemove] = useState(null);
+  const [removalReason, setRemovalReason] = useState('');
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [dischargePatient, setDischargePatient] = useState(null);
   const [discharging, setDischarging] = useState(false);
@@ -36,8 +37,8 @@ const QueueManagement = () => {
   const [finalProcedures, setFinalProcedures] = useState([]);
   const [dischargeComment, setDischargeComment] = useState('');
 
-  // Only show active (non-Completed) entries in the current queue
-  const activeQueue = queue.filter(p => p.status !== 'Completed');
+  // Only show active entries — hide Completed and Removed
+  const activeQueue = queue.filter(p => p.status !== 'Completed' && p.status !== 'Removed');
 
   // Use local stats (synchronous) for display
   const stats = getLocalQueueStats();
@@ -102,12 +103,13 @@ const QueueManagement = () => {
 
   const handleRemoveClick = (id, name) => {
     setPatientToRemove({ id, name });
+    setRemovalReason('');
     setShowConfirmModal(true);
   };
 
   const confirmRemove = async () => {
     if (patientToRemove) {
-      const result = await removeFromQueue(patientToRemove.id);
+      const result = await removeFromQueue(patientToRemove.id, removalReason.trim() || null);
       if (result.success) {
         toast.success(`${patientToRemove.name} removed from queue`, {
           duration: 3000,
@@ -133,6 +135,7 @@ const QueueManagement = () => {
       }
       setShowConfirmModal(false);
       setPatientToRemove(null);
+      setRemovalReason('');
     }
   };
 
@@ -508,16 +511,28 @@ const QueueManagement = () => {
                 onClick={() => {
                   setShowConfirmModal(false);
                   setPatientToRemove(null);
+                  setRemovalReason('');
                 }}
                 className="text-gray-400 hover:text-gray-600 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
-            <p className="text-gray-700 mb-6">
+
+            <p className="text-gray-700 mb-4">
               Are you sure you want to remove <span className="font-semibold">{patientToRemove.name}</span> from the queue?
             </p>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-600 mb-1">Reason for removal</label>
+              <textarea
+                value={removalReason}
+                onChange={(e) => setRemovalReason(e.target.value)}
+                placeholder="e.g. Patient left before being seen..."
+                rows={3}
+                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary resize-none"
+              />
+            </div>
 
             <div className="flex gap-3">
               <Button
@@ -526,6 +541,7 @@ const QueueManagement = () => {
                 onClick={() => {
                   setShowConfirmModal(false);
                   setPatientToRemove(null);
+                  setRemovalReason('');
                 }}
               >
                 Cancel
