@@ -48,7 +48,8 @@ const UploadResults = () => {
     } finally {
       setLoading(false);
     }
-  }, [patientUHID, getMedicalDocuments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientUHID]);
 
   useEffect(() => {
     loadDocuments();

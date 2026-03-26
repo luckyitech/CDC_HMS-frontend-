@@ -46,7 +46,8 @@ const PatientPrescriptions = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentUser?.uhid, getPrescriptionsByPatient]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.uhid]);
 
   useEffect(() => {
     loadPrescriptions();

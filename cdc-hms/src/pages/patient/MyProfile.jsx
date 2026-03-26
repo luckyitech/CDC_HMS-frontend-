@@ -52,7 +52,8 @@ const MyProfile = () => {
       setPatient(data);
       setPatientLoading(false);
     });
-  }, [uhid, fetchPatientByUHID]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uhid]);
 
   // Lazy-load per tab
   const loadAppointments = useCallback(async () => {
@@ -64,7 +65,8 @@ const MyProfile = () => {
     } finally {
       setAptsLoading(false);
     }
-  }, [uhid, getPatientAppointments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uhid]);
 
   const loadActiveMeds = useCallback(async () => {
     if (!uhid) return;
@@ -75,7 +77,8 @@ const MyProfile = () => {
     } finally {
       setMedsLoading(false);
     }
-  }, [uhid, getActivePrescriptions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uhid]);
 
   const loadLabTests = useCallback(async () => {
     if (!uhid) return;
@@ -86,7 +89,8 @@ const MyProfile = () => {
     } finally {
       setLabLoading(false);
     }
-  }, [uhid, getTestsByPatient]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uhid]);
 
   const loadPrescriptions = useCallback(async () => {
     if (!uhid) return;
@@ -97,7 +101,8 @@ const MyProfile = () => {
     } finally {
       setPrescLoading(false);
     }
-  }, [uhid, getPrescriptionsByPatient]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uhid]);
 
   useEffect(() => {
     if (activeTab === 'appointments') loadAppointments();

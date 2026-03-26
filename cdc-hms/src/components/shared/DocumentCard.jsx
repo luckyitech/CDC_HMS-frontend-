@@ -1,9 +1,9 @@
-import { Eye, Download, FileText, Trash2 } from 'lucide-react';
+import { Eye, Download, FileText } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
 import { formatDate, getStatusBadge, getCategoryIcon } from '../../utils/documentHelpers';
 
-const DocumentCard = ({ doc, showPatientBadge = false, isStaff, onView, onDownload, onMarkReviewed, onDelete }) => {
+const DocumentCard = ({ doc, showPatientBadge = false, isStaff, onView, onDownload, onMarkReviewed }) => {
   return (
     <Card className="hover:shadow-lg transition">
       <div className="flex flex-col lg:flex-row gap-4">
@@ -102,16 +102,6 @@ const DocumentCard = ({ doc, showPatientBadge = false, isStaff, onView, onDownlo
             >
               <FileText className="w-4 h-4" />
               Mark Reviewed
-            </Button>
-          )}
-          {isStaff && (
-            <Button
-              variant="outline"
-              className="w-full lg:w-auto text-sm text-red-600 border-red-300 hover:bg-red-50 flex items-center justify-center gap-2"
-              onClick={onDelete}
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
             </Button>
           )}
         </div>

@@ -70,7 +70,8 @@ const ViewTrends = () => {
       setChartData([]);
     }
     setDataLoading(false);
-  }, [currentPatientUHID, filterPeriod, getBloodSugarReadings]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPatientUHID, filterPeriod]);
 
   useEffect(() => {
     fetchData();

@@ -15,8 +15,7 @@ const MedicalDocumentsTab = ({ patient }) => {
     DOCUMENT_CATEGORIES,
     getMedicalDocuments,
     updateDocumentStatus,
-    deleteMedicalDocument,
-    sortDocumentsByDate,
+sortDocumentsByDate,
     filterDocumentsByCategory
   } = usePatientContext();
 
@@ -86,15 +85,6 @@ const MedicalDocumentsTab = ({ patient }) => {
     }
   };
 
-  const handleDelete = async (documentId, fileName) => {
-    if (window.confirm(`Are you sure you want to delete "${fileName}"?`)) {
-      const result = await deleteMedicalDocument(documentId);
-      if (result.success) {
-        showNotification('✅ Document deleted successfully');
-        await refreshDocuments();
-      }
-    }
-  };
 
   const handleDownload = async (doc) => {
     if (!doc.fileUrl) return;
@@ -273,7 +263,6 @@ const MedicalDocumentsTab = ({ patient }) => {
               onView={() => handleView(doc)}
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc.id)}
-              onDelete={() => handleDelete(doc.id, doc.fileName)}
             />
           ))}
         </div>

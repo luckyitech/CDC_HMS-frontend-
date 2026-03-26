@@ -9,7 +9,7 @@ import { showNotification } from '../../utils/documentHelpers';
 const ITEMS_PER_PAGE = 6;
 
 const MedicalDocuments = () => {
-  const { patients, DOCUMENT_CATEGORIES, updateDocumentStatus, deleteMedicalDocument } = usePatientContext();
+  const { patients, DOCUMENT_CATEGORIES, updateDocumentStatus } = usePatientContext();
   const { currentUser } = useUserContext();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,14 +113,6 @@ const MedicalDocuments = () => {
     }
   };
 
-  const handleDelete = (doc) => {
-    if (window.confirm(`Are you sure you want to delete "${doc.fileName}"?`)) {
-      const result = deleteMedicalDocument(doc.patientUHID, doc.id);
-      if (result.success) {
-        showNotification('✅ Document deleted successfully');
-      }
-    }
-  };
 
   const getPageNumbers = () => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -306,7 +298,6 @@ const MedicalDocuments = () => {
               onView={() => handleView(doc)}
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc)}
-              onDelete={() => handleDelete(doc)}
             />
           ))}
         </div>

@@ -88,7 +88,8 @@ const PatientDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [uhid, getBloodSugarReadings, getPatientAppointments]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uhid]);
 
   useEffect(() => {
     loadData();
