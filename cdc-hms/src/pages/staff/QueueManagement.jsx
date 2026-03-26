@@ -442,30 +442,24 @@ const QueueManagement = () => {
                 )}
               </div>
 
-              {/* Comment */}
+              {/* Comment — only shown when staff unchecks an item */}
               {(() => {
                 const itemsRemoved =
                   (dischargePatient.selectedCharges || []).some(c => !finalCharges.includes(c)) ||
                   (dischargePatient.selectedProcedures || []).some(p => !finalProcedures.includes(p));
+                if (!itemsRemoved) return null;
                 return (
                   <div>
                     <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-2 pb-1 border-b">
-                      Comment <span className="text-red-500">*</span>
+                      Reason for Removal <span className="text-red-500">*</span>
                     </h4>
                     <textarea
                       value={dischargeComment}
                       onChange={(e) => setDischargeComment(e.target.value)}
                       placeholder="e.g. Patient declined eye check-up, requested reschedule..."
                       rows={3}
-                      className={`w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none resize-none ${
-                        itemsRemoved && !dischargeComment.trim()
-                          ? 'border-red-400 focus:border-red-500'
-                          : 'border-gray-300 focus:border-primary'
-                      }`}
+                      className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary resize-none"
                     />
-                    {itemsRemoved && !dischargeComment.trim() && (
-                      <p className="text-xs text-red-500 mt-1">A comment is required when items are removed.</p>
-                    )}
                   </div>
                 );
               })()}
