@@ -15,7 +15,7 @@ const MedicalDocumentsTab = ({ patient }) => {
     DOCUMENT_CATEGORIES,
     getMedicalDocuments,
     updateDocumentStatus,
-sortDocumentsByDate,
+    sortDocumentsByDate,
     filterDocumentsByCategory
   } = usePatientContext();
 
@@ -77,6 +77,17 @@ sortDocumentsByDate,
     await refreshDocuments();
   };
 
+  const handleArchive = async (documentId, fileName) => {
+    if (!window.confirm(`Archive "${fileName}"? It will be hidden from all views but not permanently deleted.`)) return;
+    const result = await updateDocumentStatus(documentId, 'Archived');
+    if (result.success) {
+      showNotification('Document archived');
+      await refreshDocuments();
+    } else {
+      showNotification('Failed to archive document');
+    }
+  };
+
   const handleMarkAsReviewed = async (documentId) => {
     const result = await updateDocumentStatus(documentId, 'Reviewed');
     if (result.success) {
@@ -115,6 +126,7 @@ sortDocumentsByDate,
   };
 
   const isStaff = ['staff', 'doctor'].includes(currentUser?.role?.toLowerCase());
+  const isAdmin = currentUser?.role === 'admin';
 
   // Show loading state
   if (isLoading) {
@@ -260,9 +272,11 @@ sortDocumentsByDate,
               key={doc.id}
               doc={doc}
               isStaff={isStaff}
+              isAdmin={isAdmin}
               onView={() => handleView(doc)}
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc.id)}
+              onArchive={() => handleArchive(doc.id, doc.fileName)}
             />
           ))}
         </div>

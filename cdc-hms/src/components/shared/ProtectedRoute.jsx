@@ -13,6 +13,7 @@ const ProtectedRoute = ({ requiredRole, children }) => {
   const { currentUser } = useUserContext();
 
   if (!currentUser) return <Navigate to="/" replace />;
+  if (currentUser.role === 'admin') return children; // admin can access any portal
   if (currentUser.role !== requiredRole) return <Navigate to="/" replace />;
 
   return children;

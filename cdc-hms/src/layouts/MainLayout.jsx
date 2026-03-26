@@ -34,6 +34,8 @@ import {
   // AlertCircle, // TODO: notifications
   ChartNoAxesCombined,
   LogOut,
+  ShieldCheck,
+  ChevronDown,
   // FileStack,
   // KeyRound,
 } from "lucide-react";
@@ -44,6 +46,15 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const location = useLocation();
   const { currentUser } = useUserContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [portalSwitcherOpen, setPortalSwitcherOpen] = useState(false);
+
+  const isAdminViewing = currentUser?.role === 'admin' && userRole.toLowerCase() !== 'admin';
+
+  const portalOptions = [
+    { label: 'Doctor Portal', path: '/doctor/dashboard' },
+    { label: 'Staff Portal', path: '/staff/dashboard' },
+    { label: 'Lab Portal', path: '/lab/dashboard' },
+  ];
   // const [notificationsOpen, setNotificationsOpen] = useState(false); // TODO: notifications
   // const [doctorApptCount, setDoctorApptCount] = useState(0); // TODO: notifications
 
@@ -287,6 +298,36 @@ const MainLayout = ({ userRole = "Staff" }) => {
           </h1>
 
           <div className="flex items-center gap-3 lg:gap-6">
+            {/* Admin Portal Switcher */}
+            {userRole.toLowerCase() === 'admin' && (
+              <div className="relative">
+                <button
+                  onClick={() => setPortalSwitcherOpen(!portalSwitcherOpen)}
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg hover:border-primary transition text-sm font-semibold text-gray-700"
+                >
+                  <ShieldCheck className="w-4 h-4 text-primary" />
+                  <span className="hidden sm:inline">Switch Portal</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                {portalSwitcherOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setPortalSwitcherOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-white border-2 border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
+                      {portalOptions.map(({ label, path }) => (
+                        <button
+                          key={path}
+                          onClick={() => { navigate(path); setPortalSwitcherOpen(false); }}
+                          className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-primary transition border-b border-gray-100 last:border-0"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Notifications — TODO: implement real notifications later */}
             {/* <div className="relative">
               <button
@@ -339,6 +380,22 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50 mt-[72px] lg:mt-0">
+          {isAdminViewing && (
+            <div className="mb-6 flex items-center justify-between bg-orange-50 border-2 border-orange-300 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-orange-600 flex-shrink-0" />
+                <span className="text-sm font-bold text-orange-800">
+                  Admin Mode · Viewing {userRole} Portal
+                </span>
+              </div>
+              <button
+                onClick={() => navigate('/admin/dashboard')}
+                className="text-sm font-semibold text-orange-700 hover:text-orange-900 underline whitespace-nowrap ml-4"
+              >
+                ← Back to Admin
+              </button>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

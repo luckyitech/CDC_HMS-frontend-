@@ -1,16 +1,20 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, Filter, FileText, SortAsc, SortDesc, ChevronLeft, ChevronRight } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import DocumentCard from '../../components/shared/DocumentCard';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { showNotification } from '../../utils/documentHelpers';
+import documentService from '../../services/documentService';
 
 const ITEMS_PER_PAGE = 6;
 
 const MedicalDocuments = () => {
-  const { patients, DOCUMENT_CATEGORIES, updateDocumentStatus } = usePatientContext();
+  const { DOCUMENT_CATEGORIES, updateDocumentStatus } = usePatientContext();
   const { currentUser } = useUserContext();
+
+  const [allDocuments, setAllDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -20,33 +24,38 @@ const MedicalDocuments = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Flatten all documents across all patients
-  const allDocuments = useMemo(() => {
-    const docs = [];
-    patients.forEach(patient => {
-      (patient.medicalDocuments || []).forEach(doc => {
-        docs.push({
-          ...doc,
-          patientName: patient.name,
-          patientUHID: patient.uhid,
-        });
-      });
-    });
-    return docs;
-  }, [patients]);
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await documentService.getAll();
+      if (response.success) {
+        setAllDocuments(response.data.documents || response.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load documents:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  // Apply filters and sorting
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
+
+  // Apply filters and sorting (exclude Archived from default view)
   const filteredDocuments = useMemo(() => {
-    let docs = [...allDocuments];
+    let docs = allDocuments.filter(doc =>
+      selectedStatus === 'Archived' ? doc.status === 'Archived' : doc.status !== 'Archived'
+    );
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       docs = docs.filter(doc =>
-        doc.patientName.toLowerCase().includes(q) ||
-        doc.patientUHID.toLowerCase().includes(q) ||
-        doc.testType.toLowerCase().includes(q) ||
-        doc.fileName.toLowerCase().includes(q) ||
-        (doc.labName && doc.labName.toLowerCase().includes(q))
+        (doc.patientName || '').toLowerCase().includes(q) ||
+        (doc.uhid || '').toLowerCase().includes(q) ||
+        (doc.testType || '').toLowerCase().includes(q) ||
+        (doc.fileName || '').toLowerCase().includes(q) ||
+        (doc.labName || '').toLowerCase().includes(q)
       );
     }
 
@@ -54,16 +63,12 @@ const MedicalDocuments = () => {
       docs = docs.filter(doc => doc.documentCategory === selectedCategory);
     }
 
-    if (selectedStatus !== 'all') {
+    if (selectedStatus !== 'all' && selectedStatus !== 'Archived') {
       docs = docs.filter(doc => doc.status === selectedStatus);
     }
 
-    if (dateFrom) {
-      docs = docs.filter(doc => doc.testDate >= dateFrom);
-    }
-    if (dateTo) {
-      docs = docs.filter(doc => doc.testDate <= dateTo);
-    }
+    if (dateFrom) docs = docs.filter(doc => doc.testDate >= dateFrom);
+    if (dateTo) docs = docs.filter(doc => doc.testDate <= dateTo);
 
     docs.sort((a, b) => {
       const dateA = new Date(a.testDate);
@@ -86,6 +91,7 @@ const MedicalDocuments = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
+  const visibleDocuments = allDocuments.filter(d => d.status !== 'Archived');
   const hasActiveFilters = searchQuery || selectedCategory !== 'all' || selectedStatus !== 'all' || dateFrom || dateTo;
 
   const clearFilters = () => {
@@ -96,23 +102,55 @@ const MedicalDocuments = () => {
     setDateTo('');
   };
 
-  const isStaff = currentUser?.role === 'Staff' || currentUser?.role === 'Doctor';
+  const isStaff = ['staff', 'doctor'].includes(currentUser?.role?.toLowerCase());
+  const isAdmin = currentUser?.role === 'admin';
 
-  const handleView = (doc) => {
-    showNotification(`👁️ Opening ${doc.fileName}...`, true);
-  };
-
-  const handleDownload = (doc) => {
-    showNotification(`📥 Downloading ${doc.fileName}...`, true);
-  };
-
-  const handleMarkAsReviewed = (doc) => {
-    const result = updateDocumentStatus(doc.patientUHID, doc.id, 'Reviewed', currentUser?.name);
+  const handleArchive = async (doc) => {
+    if (!window.confirm(`Archive "${doc.fileName}"? It will be hidden from all views but not permanently deleted.`)) return;
+    const result = await updateDocumentStatus(doc.id, 'Archived');
     if (result.success) {
-      showNotification('✅ Document marked as reviewed');
+      setAllDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'Archived' } : d));
+      showNotification('Document archived');
+    } else {
+      showNotification('Failed to archive document');
     }
   };
 
+  const handleView = async (doc) => {
+    if (!doc.fileUrl) return;
+    try {
+      const filename = doc.fileUrl.split('/').pop();
+      const blob = await documentService.getFile(filename);
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch {
+      showNotification('Failed to open file');
+    }
+  };
+
+  const handleDownload = async (doc) => {
+    if (!doc.fileUrl) return;
+    try {
+      const filename = doc.fileUrl.split('/').pop();
+      const blob = await documentService.getFile(filename);
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = doc.fileName;
+      link.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      showNotification('Failed to download file');
+    }
+  };
+
+  const handleMarkAsReviewed = async (doc) => {
+    const result = await updateDocumentStatus(doc.id, 'Reviewed');
+    if (result.success) {
+      setAllDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'Reviewed' } : d));
+      showNotification('Document marked as reviewed');
+    }
+  };
 
   const getPageNumbers = () => {
     if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
@@ -126,6 +164,17 @@ const MedicalDocuments = () => {
     }
     return pages;
   };
+
+  if (loading) {
+    return (
+      <Card>
+        <div className="text-center py-12">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading medical documents...</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <div>
@@ -141,24 +190,24 @@ const MedicalDocuments = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg text-center">
           <p className="text-xs text-gray-600 uppercase font-semibold">Total</p>
-          <p className="text-3xl font-bold text-blue-700 mt-1">{allDocuments.length}</p>
+          <p className="text-3xl font-bold text-blue-700 mt-1">{visibleDocuments.length}</p>
         </div>
         <div className="bg-green-50 p-4 rounded-lg text-center">
           <p className="text-xs text-gray-600 uppercase font-semibold">Reviewed</p>
           <p className="text-3xl font-bold text-green-700 mt-1">
-            {allDocuments.filter(d => d.status === 'Reviewed').length}
+            {visibleDocuments.filter(d => d.status === 'Reviewed').length}
           </p>
         </div>
         <div className="bg-yellow-50 p-4 rounded-lg text-center">
           <p className="text-xs text-gray-600 uppercase font-semibold">Pending</p>
           <p className="text-3xl font-bold text-yellow-700 mt-1">
-            {allDocuments.filter(d => d.status === 'Pending Review').length}
+            {visibleDocuments.filter(d => d.status === 'Pending Review').length}
           </p>
         </div>
         <div className="bg-purple-50 p-4 rounded-lg text-center">
           <p className="text-xs text-gray-600 uppercase font-semibold">Patients</p>
           <p className="text-3xl font-bold text-purple-700 mt-1">
-            {patients.filter(p => (p.medicalDocuments || []).length > 0).length}
+            {new Set(visibleDocuments.map(d => d.uhid).filter(Boolean)).size}
           </p>
         </div>
       </div>
@@ -166,7 +215,6 @@ const MedicalDocuments = () => {
       {/* Filters */}
       <Card>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-          {/* Search */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <Search className="w-4 h-4" />
@@ -181,7 +229,6 @@ const MedicalDocuments = () => {
             />
           </div>
 
-          {/* Category */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <Filter className="w-4 h-4" />
@@ -199,7 +246,6 @@ const MedicalDocuments = () => {
             </select>
           </div>
 
-          {/* Status */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
             <select
@@ -207,13 +253,13 @@ const MedicalDocuments = () => {
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
             >
-              <option value="all">All Statuses</option>
+              <option value="all">All Active</option>
               <option value="Reviewed">Reviewed</option>
               <option value="Pending Review">Pending Review</option>
+              {isAdmin && <option value="Archived">Archived</option>}
             </select>
           </div>
 
-          {/* Date From */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Date From</label>
             <input
@@ -224,7 +270,6 @@ const MedicalDocuments = () => {
             />
           </div>
 
-          {/* Date To */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Date To</label>
             <input
@@ -236,7 +281,6 @@ const MedicalDocuments = () => {
             />
           </div>
 
-          {/* Sort */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               {sortOrder === 'desc' ? <SortDesc className="w-4 h-4" /> : <SortAsc className="w-4 h-4" />}
@@ -281,7 +325,7 @@ const MedicalDocuments = () => {
             <FileText className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <p className="text-xl font-bold text-gray-800 mb-2">No Documents Found</p>
             <p className="text-gray-600">
-              {allDocuments.length === 0
+              {visibleDocuments.length === 0
                 ? 'No medical documents have been uploaded yet.'
                 : 'No documents match your current filters.'}
             </p>
@@ -295,9 +339,11 @@ const MedicalDocuments = () => {
               doc={doc}
               showPatientBadge={true}
               isStaff={isStaff}
+              isAdmin={isAdmin}
               onView={() => handleView(doc)}
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc)}
+              onArchive={() => handleArchive(doc)}
             />
           ))}
         </div>
