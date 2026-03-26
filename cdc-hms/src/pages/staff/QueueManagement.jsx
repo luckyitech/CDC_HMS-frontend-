@@ -32,6 +32,9 @@ const QueueManagement = () => {
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [dischargePatient, setDischargePatient] = useState(null);
   const [discharging, setDischarging] = useState(false);
+  const [finalCharges, setFinalCharges] = useState([]);
+  const [finalProcedures, setFinalProcedures] = useState([]);
+  const [dischargeComment, setDischargeComment] = useState('');
 
   // Only show active (non-Completed) entries in the current queue
   const activeQueue = queue.filter(p => p.status !== 'Completed');
@@ -52,13 +55,26 @@ const QueueManagement = () => {
 
   const handleDischargeClick = (patient) => {
     setDischargePatient(patient);
+    setFinalCharges(patient.selectedCharges || []);
+    setFinalProcedures(patient.selectedProcedures || []);
+    setDischargeComment('');
     setShowDischargeModal(true);
   };
+
+  const toggleFinalCharge = (item) =>
+    setFinalCharges(prev => prev.includes(item) ? prev.filter(c => c !== item) : [...prev, item]);
+
+  const toggleFinalProcedure = (item) =>
+    setFinalProcedures(prev => prev.includes(item) ? prev.filter(p => p !== item) : [...prev, item]);
 
   const confirmDischarge = async () => {
     if (!dischargePatient) return;
     setDischarging(true);
-    const result = await updateQueueStatus(dischargePatient.id, 'Completed');
+    const result = await updateQueueStatus(dischargePatient.id, 'Completed', null, {
+      finalCharges,
+      finalProcedures,
+      dischargeComment: dischargeComment.trim() || null,
+    });
     setDischarging(false);
     if (result.success) {
       // Auto-complete today's appointment (scheduled or checked-in) — non-blocking
@@ -359,7 +375,7 @@ const QueueManagement = () => {
                 </div>
               </div>
               <button
-                onClick={() => { setShowDischargeModal(false); setDischargePatient(null); }}
+                onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); }}
                 className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
@@ -374,10 +390,22 @@ const QueueManagement = () => {
                 {dischargePatient.selectedCharges?.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2">
                     {dischargePatient.selectedCharges.map(item => (
-                      <div key={item} className="flex items-center gap-2 p-3 bg-green-50 border border-green-300 rounded-lg">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                        <span className="text-sm font-medium text-gray-700 leading-tight">{item}</span>
-                      </div>
+                      <label
+                        key={item}
+                        className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
+                          finalCharges.includes(item)
+                            ? 'bg-green-50 border-green-400 text-gray-800'
+                            : 'bg-red-50 border-red-300 text-gray-400 line-through'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={finalCharges.includes(item)}
+                          onChange={() => toggleFinalCharge(item)}
+                          className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
+                        />
+                        <span className="text-sm font-medium leading-tight">{item}</span>
+                      </label>
                     ))}
                   </div>
                 ) : (
@@ -391,33 +419,81 @@ const QueueManagement = () => {
                 {dischargePatient.selectedProcedures?.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2">
                     {dischargePatient.selectedProcedures.map(item => (
-                      <div key={item} className="flex items-center gap-2 p-3 bg-green-50 border border-green-300 rounded-lg">
-                        <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                        <span className="text-sm font-medium text-gray-700 leading-tight">{item}</span>
-                      </div>
+                      <label
+                        key={item}
+                        className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
+                          finalProcedures.includes(item)
+                            ? 'bg-green-50 border-green-400 text-gray-800'
+                            : 'bg-red-50 border-red-300 text-gray-400 line-through'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={finalProcedures.includes(item)}
+                          onChange={() => toggleFinalProcedure(item)}
+                          className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
+                        />
+                        <span className="text-sm font-medium leading-tight">{item}</span>
+                      </label>
                     ))}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400 italic">No procedures selected</p>
                 )}
               </div>
+
+              {/* Comment */}
+              {(() => {
+                const itemsRemoved =
+                  (dischargePatient.selectedCharges || []).some(c => !finalCharges.includes(c)) ||
+                  (dischargePatient.selectedProcedures || []).some(p => !finalProcedures.includes(p));
+                return (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-2 pb-1 border-b">
+                      Comment <span className="text-red-500">*</span>
+                    </h4>
+                    <textarea
+                      value={dischargeComment}
+                      onChange={(e) => setDischargeComment(e.target.value)}
+                      placeholder="e.g. Patient declined eye check-up, requested reschedule..."
+                      rows={3}
+                      className={`w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none resize-none ${
+                        itemsRemoved && !dischargeComment.trim()
+                          ? 'border-red-400 focus:border-red-500'
+                          : 'border-gray-300 focus:border-primary'
+                      }`}
+                    />
+                    {itemsRemoved && !dischargeComment.trim() && (
+                      <p className="text-xs text-red-500 mt-1">A comment is required when items are removed.</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Footer */}
             <div className="flex gap-3 px-6 py-4 border-t flex-shrink-0">
               <button
-                onClick={() => { setShowDischargeModal(false); setDischargePatient(null); }}
+                onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); }}
                 className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </button>
-              <button
-                onClick={confirmDischarge}
-                disabled={discharging}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold disabled:opacity-60"
-              >
-                {discharging ? 'Discharging…' : 'Confirm & Discharge'}
-              </button>
+              {(() => {
+                const itemsRemoved =
+                  (dischargePatient.selectedCharges || []).some(c => !finalCharges.includes(c)) ||
+                  (dischargePatient.selectedProcedures || []).some(p => !finalProcedures.includes(p));
+                const commentRequired = itemsRemoved && !dischargeComment.trim();
+                return (
+                  <button
+                    onClick={confirmDischarge}
+                    disabled={discharging || commentRequired}
+                    className="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {discharging ? 'Discharging…' : 'Confirm & Discharge'}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
