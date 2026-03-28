@@ -5,27 +5,6 @@ import activityService from '../../services/activityService';
 
 const PAGE_SIZE = 100;
 
-// ── Role groups — single source of truth used for filtering events,
-//    filtering the Action Type dropdown, and filtering summary cards ──────────
-
-const STAFF_TYPES = new Set([
-  'registered', 'added_to_queue', 'triaged', 'discharged', 'removed',
-  'document_uploaded', 'equipment_added', 'equipment_updated', 'equipment_replaced',
-]);
-
-const DOCTOR_TYPES = new Set([
-  'prescription_created', 'lab_test_ordered', 'treatment_plan_created',
-  'consultation_note', 'consultation_started', 'consultation_completed',
-  'physical_exam', 'initial_assessment',
-]);
-
-const typeMatchesRole = (type, role) => {
-  if (role === 'all')    return true;
-  if (role === 'staff')  return STAFF_TYPES.has(type);
-  if (role === 'doctor') return DOCTOR_TYPES.has(type);
-  return true;
-};
-
 // ── Action metadata ───────────────────────────────────────────────────────────
 
 const ACTION_TYPES = [
@@ -114,29 +93,16 @@ const ActivityLog = () => {
   const [role, setRole]               = useState('all');
   const [actionType, setActionType]   = useState('all');
 
-  // Derived: filter events by role — using typeMatchesRole (same logic as dropdown)
-  const visibleEvents = events.filter(e => typeMatchesRole(e.type, role));
+  // Derived: filter events by the performer's actual role (set by backend)
+  const visibleEvents = events.filter(e => role === 'all' || e.role === role);
   const totalPages    = Math.ceil(visibleEvents.length / PAGE_SIZE);
   const paginated     = visibleEvents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Derived: only show action types relevant to selected role in the dropdown
-  const filteredActionTypes = ACTION_TYPES.filter(t =>
-    t.value === 'all' || typeMatchesRole(t.value, role)
-  );
+  // All action types are always shown — role and action type are independent filters
+  const filteredActionTypes = ACTION_TYPES;
 
-  // Derived: only show summary cards relevant to selected role
-  const visibleSummary = summary.map(s => ({
-    ...s,
-    total: SUMMARY_FIELDS
-      .filter(f => typeMatchesRole(
-        ACTION_TYPES.find(a => {
-          const keyMap = { addedToQueue: 'added_to_queue', documentUploaded: 'document_uploaded', equipmentAdded: 'equipment_added', equipmentUpdated: 'equipment_updated', equipmentReplaced: 'equipment_replaced', prescriptionCreated: 'prescription_created', labTestOrdered: 'lab_test_ordered', treatmentPlanCreated: 'treatment_plan_created', consultationNote: 'consultation_note', consultationStarted: 'consultation_started', consultationCompleted: 'consultation_completed', physicalExam: 'physical_exam', initialAssessment: 'initial_assessment' };
-          return (keyMap[f.key] || f.key) === a.value;
-        })?.value || f.key,
-        role
-      ))
-      .reduce((sum, f) => sum + (s[f.key] || 0), 0),
-  })).filter(s => s.total > 0);
+  // Derived: show summary cards whose performer role matches the filter
+  const visibleSummary = summary.filter(s => role === 'all' || s.role === role);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -161,13 +127,9 @@ const ActivityLog = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, staffSearch, actionType]);
 
-  // Reset actionType if it no longer belongs to the selected role
   const handleRoleChange = (newRole) => {
     setRole(newRole);
     setPage(1);
-    if (actionType !== 'all' && !typeMatchesRole(actionType, newRole)) {
-      setActionType('all');
-    }
   };
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -204,13 +166,7 @@ const ActivityLog = () => {
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                  {SUMMARY_FIELDS.filter(f => s[f.key] > 0 && typeMatchesRole(
-                    ACTION_TYPES.find(a => {
-                      const keyMap = { addedToQueue: 'added_to_queue', documentUploaded: 'document_uploaded', equipmentAdded: 'equipment_added', equipmentUpdated: 'equipment_updated', equipmentReplaced: 'equipment_replaced', prescriptionCreated: 'prescription_created', labTestOrdered: 'lab_test_ordered', treatmentPlanCreated: 'treatment_plan_created', consultationNote: 'consultation_note', consultationStarted: 'consultation_started', consultationCompleted: 'consultation_completed', physicalExam: 'physical_exam', initialAssessment: 'initial_assessment' };
-                      return (keyMap[f.key] || f.key) === a.value;
-                    })?.value || f.key,
-                    role
-                  )).map(f => (
+                  {SUMMARY_FIELDS.filter(f => s[f.key] > 0).map(f => (
                     <span key={f.key} className="flex justify-between">
                       <span>{f.label}</span>
                       <span className={`font-bold ${f.color}`}>{s[f.key]}</span>
