@@ -1,24 +1,47 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import activityService from '../../services/activityService';
 
+const PAGE_SIZE = 100;
+
 const ACTION_TYPES = [
-  { value: 'all',           label: 'All Actions' },
-  { value: 'registered',    label: 'Registered Patient' },
-  { value: 'added_to_queue',label: 'Added to Queue' },
-  { value: 'triaged',       label: 'Triaged Patient' },
-  { value: 'discharged',    label: 'Discharged Patient' },
-  { value: 'removed',       label: 'Removed from Queue' },
+  { value: 'all',                label: 'All Actions' },
+  { value: 'registered',         label: 'Registered Patient' },
+  { value: 'added_to_queue',     label: 'Added to Queue' },
+  { value: 'triaged',            label: 'Triaged Patient' },
+  { value: 'discharged',         label: 'Discharged Patient' },
+  { value: 'removed',            label: 'Removed from Queue' },
+  { value: 'document_uploaded',  label: 'Uploaded Document' },
+  { value: 'equipment_added',    label: 'Added Equipment' },
+  { value: 'equipment_updated',  label: 'Updated Equipment' },
+  { value: 'equipment_replaced', label: 'Replaced Equipment' },
 ];
 
 const ACTION_STYLE = {
-  registered:     { color: 'bg-blue-100 text-blue-700',   icon: UserPlus },
-  added_to_queue: { color: 'bg-yellow-100 text-yellow-800', icon: ClipboardList },
-  triaged:        { color: 'bg-purple-100 text-purple-700', icon: Activity },
-  discharged:     { color: 'bg-green-100 text-green-700',  icon: UserCheck },
-  removed:        { color: 'bg-red-100 text-red-700',      icon: UserX },
+  registered:         { color: 'bg-blue-100 text-blue-700',    icon: UserPlus },
+  added_to_queue:     { color: 'bg-yellow-100 text-yellow-800', icon: ClipboardList },
+  triaged:            { color: 'bg-purple-100 text-purple-700', icon: Activity },
+  discharged:         { color: 'bg-green-100 text-green-700',  icon: UserCheck },
+  removed:            { color: 'bg-red-100 text-red-700',      icon: UserX },
+  document_uploaded:  { color: 'bg-indigo-100 text-indigo-700', icon: FileText },
+  equipment_added:    { color: 'bg-teal-100 text-teal-700',    icon: Cpu },
+  equipment_updated:  { color: 'bg-orange-100 text-orange-700', icon: Settings },
+  equipment_replaced: { color: 'bg-slate-100 text-slate-700',  icon: RefreshCcw },
 };
+
+// Maps backend summary keys to display labels and colors
+const SUMMARY_FIELDS = [
+  { key: 'registered',        label: 'Registered',      color: 'text-blue-600' },
+  { key: 'addedToQueue',      label: 'Added to Queue',  color: 'text-yellow-600' },
+  { key: 'triaged',           label: 'Triaged',         color: 'text-purple-600' },
+  { key: 'discharged',        label: 'Discharged',      color: 'text-green-600' },
+  { key: 'removed',           label: 'Removed',         color: 'text-red-600' },
+  { key: 'documentUploaded',  label: 'Documents',       color: 'text-indigo-600' },
+  { key: 'equipmentAdded',    label: 'Equip. Added',    color: 'text-teal-600' },
+  { key: 'equipmentUpdated',  label: 'Equip. Updated',  color: 'text-orange-600' },
+  { key: 'equipmentReplaced', label: 'Equip. Replaced', color: 'text-slate-600' },
+];
 
 const formatDateTime = (iso) => {
   if (!iso) return '-';
@@ -32,12 +55,16 @@ const ActivityLog = () => {
   const [events, setEvents]   = useState([]);
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   // Filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate]     = useState('');
   const [staffSearch, setStaffSearch] = useState('');
   const [actionType, setActionType]   = useState('all');
+
+  const totalPages = Math.ceil(events.length / PAGE_SIZE);
+  const paginated  = events.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -52,6 +79,7 @@ const ActivityLog = () => {
       if (res.success) {
         setEvents(res.data.events);
         setSummary(res.data.summary);
+        setPage(1);
       }
     } catch {
       // handled silently
@@ -93,11 +121,12 @@ const ActivityLog = () => {
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                  {s.registered   > 0 && <span className="flex justify-between"><span>Registered</span><span className="font-bold text-blue-600">{s.registered}</span></span>}
-                  {s.addedToQueue > 0 && <span className="flex justify-between"><span>Added to Queue</span><span className="font-bold text-yellow-600">{s.addedToQueue}</span></span>}
-                  {s.triaged      > 0 && <span className="flex justify-between"><span>Triaged</span><span className="font-bold text-purple-600">{s.triaged}</span></span>}
-                  {s.discharged   > 0 && <span className="flex justify-between"><span>Discharged</span><span className="font-bold text-green-600">{s.discharged}</span></span>}
-                  {s.removed      > 0 && <span className="flex justify-between"><span>Removed</span><span className="font-bold text-red-600">{s.removed}</span></span>}
+                  {SUMMARY_FIELDS.filter(f => s[f.key] > 0).map(f => (
+                    <span key={f.key} className="flex justify-between">
+                      <span>{f.label}</span>
+                      <span className={`font-bold ${f.color}`}>{s[f.key]}</span>
+                    </span>
+                  ))}
                 </div>
               </Card>
             ))}
@@ -180,7 +209,7 @@ const ActivityLog = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {events.map((e, i) => {
+                {paginated.map((e, i) => {
                   const style = ACTION_STYLE[e.type] || { color: 'bg-gray-100 text-gray-600', icon: Activity };
                   const Icon = style.icon;
                   return (
@@ -201,6 +230,32 @@ const ActivityLog = () => {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-xs text-gray-500">
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, events.length)} of {events.length} records
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+              <span className="text-sm font-semibold text-gray-700">Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </Card>
