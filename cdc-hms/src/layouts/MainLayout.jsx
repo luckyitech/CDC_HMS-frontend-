@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   UserCog,
   Settings,
+  ShieldAlert,
   // Bell, // TODO: notifications
   Menu,
   X,
@@ -166,6 +167,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Create Lab Tech", path: "/admin/create-lab", icon: TestTube },
       { name: "Create Patient", path: "/admin/create-patient", icon: UserPlus },
       { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
+      { name: "Activity Log", path: "/admin/activity-log", icon: ShieldAlert },
       { name: "System Settings", path: "/admin/settings", icon: Settings },
     ],
   };
