@@ -134,7 +134,7 @@ const ActivityLog = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const roleLabel = { all: 'Summary', staff: 'Staff Summary', doctor: 'Doctor Summary' }[role];
+  const roleLabel = { all: 'Summary', staff: 'Staff Summary', doctor: 'Doctor Summary', admin: 'Admin Summary' }[role];
 
   return (
     <div className="space-y-6">
@@ -208,6 +208,7 @@ const ActivityLog = () => {
               <option value="all">All Roles</option>
               <option value="staff">Staff Only</option>
               <option value="doctor">Doctors Only</option>
+              <option value="admin">Admin Only</option>
             </select>
           </div>
           <div>
