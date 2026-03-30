@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import activityService from '../../services/activityService';
 
@@ -26,6 +26,7 @@ const ACTION_TYPES = [
   { value: 'consultation_completed',label: 'Completed Consultation' },
   { value: 'physical_exam',        label: 'Recorded Physical Exam' },
   { value: 'initial_assessment',   label: 'Recorded Initial Assessment' },
+  { value: 'account_created',      label: 'Created Account' },
 ];
 
 const ACTION_STYLE = {
@@ -46,6 +47,7 @@ const ACTION_STYLE = {
   consultation_completed:{ color: 'bg-green-100 text-green-700',   icon: UserCheck },
   physical_exam:         { color: 'bg-rose-100 text-rose-700',     icon: Activity },
   initial_assessment:    { color: 'bg-amber-100 text-amber-700',   icon: ClipboardList },
+  account_created:       { color: 'bg-purple-100 text-purple-700', icon: UserCog },
 };
 
 const SUMMARY_FIELDS = [
@@ -66,6 +68,7 @@ const SUMMARY_FIELDS = [
   { key: 'consultationCompleted',label: 'Consultations Done',    color: 'text-green-600' },
   { key: 'physicalExam',         label: 'Physical Exams',        color: 'text-rose-600' },
   { key: 'initialAssessment',    label: 'Assessments',           color: 'text-amber-600' },
+  { key: 'accountCreated',       label: 'Accounts Created',      color: 'text-purple-600' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
