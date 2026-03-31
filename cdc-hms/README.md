@@ -281,7 +281,145 @@ npm run lint      # Run ESLint
 
 ## Production Deployment
 
-This guide documents how the CDC HMS frontend is deployed on the Host Africa VPS (Ubuntu 24.04, IP `102.68.87.18`).
+This guide documents how the CDC HMS frontend is deployed on the Host Africa VDS (Windows Server 2022, IP `102.68.87.103`).
+
+### Server Requirements
+
+- Windows Server 2022
+- Node.js 20+ (for building on the server)
+- IIS (to serve the static files)
+- IIS URL Rewrite module
+
+### 1. Clone the Repository on the Server
+
+Open Git Bash and run:
+
+```bash
+cd /c/Users/Administrator/Desktop/CDC
+git clone https://github.com/luckyitech/CDC_HMS-frontend-.git front_end
+cd front_end/cdc-hms
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install
+```
+
+### 3. Create the Production Environment File
+
+Create `.env.production` inside `cdc-hms/`. This file is read automatically by Vite when building for production:
+
+```bash
+echo "VITE_API_URL=https://api.cdiabetescentre.com/api" > .env.production
+```
+
+> **Important:** The URL must end with `/api`. The frontend appends paths like `/auth/login` and `/users/doctors` directly to this base URL. Without `/api`, all API calls will return 404.
+>
+> This file only needs to be created once. It stays on the server permanently and is not tracked by git (it is listed in `.gitignore`).
+
+### 4. Build for Production
+
+```bash
+npm run build
+```
+
+This reads `.env.production` automatically and generates a `dist/` folder with compiled static files.
+
+### 5. Copy to IIS Web Root
+
+In PowerShell as Administrator:
+
+```powershell
+Copy-Item -Path "C:\Users\Administrator\Desktop\CDC\front_end\cdc-hms\dist\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
+```
+
+### 6. Configure IIS
+
+In PowerShell as Administrator:
+
+```powershell
+# Create the frontend site
+New-WebSite -Name "cdc-frontend" -Port 80 -HostHeader "cdiabetescentre.com" -PhysicalPath "C:\inetpub\wwwroot"
+New-WebBinding -Name "cdc-frontend" -Protocol "http" -Port 80 -HostHeader "www.cdiabetescentre.com"
+```
+
+Create `C:\inetpub\wwwroot\web.config` for SPA routing and cache control:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="SPA Routes" stopProcessing="true">
+          <match url=".*" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="/index.html" />
+        </rule>
+      </rules>
+    </rewrite>
+    <staticContent>
+      <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="365.00:00:00" />
+    </staticContent>
+    <httpProtocol>
+      <customHeaders>
+        <add name="Cache-Control" value="no-cache" />
+      </customHeaders>
+    </httpProtocol>
+  </system.webServer>
+</configuration>
+```
+
+> The SPA rewrite rule is essential for React Router — it ensures all routes (e.g. `/doctor/dashboard`) serve `index.html` and let the frontend handle routing.
+
+### 7. SSL Certificate
+
+Use win-acme for free Let's Encrypt certificates:
+
+```powershell
+C:\win-acme\wacs.exe
+```
+
+Follow the prompts to issue certificates for `cdiabetescentre.com` and `www.cdiabetescentre.com`.
+
+### 8. DNS
+
+On your domain registrar (one.com), add A records:
+
+| Type | Name | Value |
+|------|------|-------|
+| A | @ | 102.68.87.103 |
+| A | www | 102.68.87.103 |
+
+### Updating the Frontend
+
+Whenever you push new code to GitHub, run in Git Bash on the server:
+
+```bash
+cd /c/Users/Administrator/Desktop/CDC/front_end
+git pull origin main
+cd cdc-hms
+npm run build
+```
+
+Then in PowerShell:
+
+```powershell
+Copy-Item -Path "C:\Users\Administrator\Desktop\CDC\front_end\cdc-hms\dist\*" -Destination "C:\inetpub\wwwroot" -Recurse -Force
+```
+
+> No need to recreate `.env.production` — it stays on the server permanently. Just pull, build, and copy.
+
+---
+
+<!--
+## [ARCHIVED] Previous Deployment — Linux/Ubuntu (Host Africa VPS, IP 102.68.87.18)
+
+> This server is no longer in use. Instructions below are kept for reference only.
 
 ### Server Requirements
 
@@ -385,3 +523,4 @@ cp -r dist/* /var/www/cdc/web/
 > No need to recreate `.env.production` — it stays on the server permanently. Just pull, build, and copy.
 >
 > **Important:** Always run `git pull` from the repo root (`frontend-repo/`), not from inside `cdc-hms/`. Always clear the web directory with `rm -rf` before copying to prevent stale chunk files from causing MIME errors.
+-->
