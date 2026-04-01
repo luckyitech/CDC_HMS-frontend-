@@ -5,17 +5,18 @@ import Button from "../shared/Button";
 import Modal from "../shared/Modal";
 import VoiceInput from "../shared/VoiceInput";
 import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
-import { MessageSquare, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { MessageSquare, Plus, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 
 const ConsultationNotesList = ({
   patient,
   showStatistics = false,
 }) => {
-  const { getNotesByPatient, searchNotes, addNote } =
+  const { getNotesByPatient, searchNotes, addNote, updateNote } =
     useConsultationNotesContext();
   const [notesSearchTerm, setNotesSearchTerm] = useState("");
   const [consultationNotes, setConsultationNotes] = useState("");
   const [showWriteModal, setShowWriteModal] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
   const [expandedNotes, setExpandedNotes] = useState(new Set([0])); // First note expanded by default
 
   // State for notes loaded async
@@ -71,58 +72,98 @@ const ConsultationNotesList = ({
       return;
     }
 
-    // Save note (async) — assessment & plan are optional, handled by other tabs
-    const newNote = await addNote({
-      uhid: patient.uhid,
-      notes: consultationNotes,
-    });
-
-    if (newNote) {
-      // Add new note to the top of the list
-      setFilteredNotes((prev) => [newNote, ...prev]);
-
-      // Clear form and close modal
-      setConsultationNotes("");
-      setShowWriteModal(false);
-
-      // Show success toast
-      toast.success("Consultation Notes Saved Successfully", {
-        duration: 3000,
-        position: "top-right",
-        icon: "✅",
-        style: {
-          background: "#10B981",
-          color: "#FFFFFF",
-          fontWeight: "bold",
-          padding: "16px",
-        },
-      });
+    if (editingNote) {
+      // Update existing note
+      const result = await updateNote(editingNote.id, { notes: consultationNotes });
+      if (result.success) {
+        setFilteredNotes((prev) =>
+          prev.map((n) => (n.id === editingNote.id ? result.consultationNote : n))
+        );
+        setConsultationNotes("");
+        setEditingNote(null);
+        setShowWriteModal(false);
+        toast.success("Consultation Note Updated Successfully", {
+          duration: 3000,
+          position: "top-right",
+          icon: "✅",
+          style: {
+            background: "#10B981",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        });
+      } else {
+        toast.error("Failed to update consultation note. Please try again.", {
+          duration: 3000,
+          position: "top-right",
+          icon: "❌",
+          style: {
+            background: "#EF4444",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        });
+      }
     } else {
-      toast.error("Failed to save consultation note. Please try again.", {
-        duration: 3000,
-        position: "top-right",
-        icon: "❌",
-        style: {
-          background: "#EF4444",
-          color: "#FFFFFF",
-          fontWeight: "bold",
-          padding: "16px",
-        },
+      // Save new note
+      const newNote = await addNote({
+        uhid: patient.uhid,
+        notes: consultationNotes,
       });
+
+      if (newNote) {
+        setFilteredNotes((prev) => [newNote, ...prev]);
+        setConsultationNotes("");
+        setShowWriteModal(false);
+        toast.success("Consultation Notes Saved Successfully", {
+          duration: 3000,
+          position: "top-right",
+          icon: "✅",
+          style: {
+            background: "#10B981",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        });
+      } else {
+        toast.error("Failed to save consultation note. Please try again.", {
+          duration: 3000,
+          position: "top-right",
+          icon: "❌",
+          style: {
+            background: "#EF4444",
+            color: "#FFFFFF",
+            fontWeight: "bold",
+            padding: "16px",
+          },
+        });
+      }
     }
   };
 
+  const handleEditNote = (note) => {
+    setEditingNote(note);
+    setConsultationNotes(note.notes);
+    setShowWriteModal(true);
+  };
+
   const handleCancelWrite = () => {
-    if (consultationNotes.trim()) {
-      if (
-        window.confirm(
-          "You have unsaved notes. Are you sure you want to close?"
-        )
-      ) {
+    const hasChanges = editingNote
+      ? consultationNotes.trim() !== editingNote.notes.trim()
+      : consultationNotes.trim().length > 0;
+
+    if (hasChanges) {
+      if (window.confirm("You have unsaved changes. Are you sure you want to close?")) {
         setConsultationNotes("");
+        setEditingNote(null);
         setShowWriteModal(false);
       }
     } else {
+      setConsultationNotes("");
+      setEditingNote(null);
       setShowWriteModal(false);
     }
   };
@@ -297,6 +338,16 @@ const ConsultationNotesList = ({
                       <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed mt-4">
                         {note.notes}
                       </pre>
+                      <div className="flex justify-end mt-3 pt-3 border-t border-gray-100">
+                        <Button
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); handleEditNote(note); }}
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <Pencil size={14} />
+                          Edit Note
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -309,7 +360,7 @@ const ConsultationNotesList = ({
       {showWriteModal && (
         <Modal
           isOpen={showWriteModal}
-          title="✍️ Write Consultation Note"
+          title={editingNote ? "✏️ Edit Consultation Note" : "✍️ Write Consultation Note"}
           onClose={handleCancelWrite}
         >
           <div className="space-y-6">
@@ -357,7 +408,7 @@ const ConsultationNotesList = ({
               <Button variant="outline" onClick={handleCancelWrite}>
                 Cancel
               </Button>
-              <Button onClick={handleSaveNote}>Save Consultation Notes</Button>
+              <Button onClick={handleSaveNote}>{editingNote ? "Update Note" : "Save Consultation Notes"}</Button>
             </div>
           </div>
         </Modal>
