@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import activityService from '../../services/activityService';
 
@@ -21,8 +21,9 @@ const ACTION_TYPES = [
   { value: 'prescription_created', label: 'Wrote Prescription' },
   { value: 'lab_test_ordered',     label: 'Ordered Lab Test' },
   { value: 'treatment_plan_created',label: 'Created Treatment Plan' },
-  { value: 'consultation_note',    label: 'Wrote Consultation Note' },
-  { value: 'consultation_started', label: 'Started Consultation' },
+  { value: 'consultation_note',         label: 'Wrote Consultation Note' },
+  { value: 'consultation_note_edited',  label: 'Edited Consultation Note' },
+  { value: 'consultation_started',      label: 'Started Consultation' },
   { value: 'consultation_completed',label: 'Completed Consultation' },
   { value: 'physical_exam',        label: 'Recorded Physical Exam' },
   { value: 'initial_assessment',   label: 'Recorded Initial Assessment' },
@@ -42,8 +43,9 @@ const ACTION_STYLE = {
   prescription_created:  { color: 'bg-pink-100 text-pink-700',     icon: Pill },
   lab_test_ordered:      { color: 'bg-cyan-100 text-cyan-700',     icon: FlaskConical },
   treatment_plan_created:{ color: 'bg-emerald-100 text-emerald-700',icon: BookOpen },
-  consultation_note:     { color: 'bg-violet-100 text-violet-700', icon: Stethoscope },
-  consultation_started:  { color: 'bg-blue-100 text-blue-700',     icon: Activity },
+  consultation_note:         { color: 'bg-violet-100 text-violet-700', icon: Stethoscope },
+  consultation_note_edited:  { color: 'bg-orange-100 text-orange-700', icon: Pencil },
+  consultation_started:      { color: 'bg-blue-100 text-blue-700',     icon: Activity },
   consultation_completed:{ color: 'bg-green-100 text-green-700',   icon: UserCheck },
   physical_exam:         { color: 'bg-rose-100 text-rose-700',     icon: Activity },
   initial_assessment:    { color: 'bg-amber-100 text-amber-700',   icon: ClipboardList },
@@ -63,8 +65,9 @@ const SUMMARY_FIELDS = [
   { key: 'prescriptionCreated',  label: 'Prescriptions',         color: 'text-pink-600' },
   { key: 'labTestOrdered',       label: 'Lab Tests Ordered',     color: 'text-cyan-600' },
   { key: 'treatmentPlanCreated', label: 'Treatment Plans',       color: 'text-emerald-600' },
-  { key: 'consultationNote',     label: 'Consultation Notes',    color: 'text-violet-600' },
-  { key: 'consultationStarted',  label: 'Consultations Started', color: 'text-blue-600' },
+  { key: 'consultationNote',       label: 'Consultation Notes',    color: 'text-violet-600' },
+  { key: 'consultationNoteEdited', label: 'Notes Edited',          color: 'text-orange-600' },
+  { key: 'consultationStarted',    label: 'Consultations Started', color: 'text-blue-600' },
   { key: 'consultationCompleted',label: 'Consultations Done',    color: 'text-green-600' },
   { key: 'physicalExam',         label: 'Physical Exams',        color: 'text-rose-600' },
   { key: 'initialAssessment',    label: 'Assessments',           color: 'text-amber-600' },
