@@ -6,7 +6,7 @@ import {
   Phone, Mail, Microscope, ArrowLeft,
   ClipboardList, Zap, FileEdit, Stethoscope, TrendingUp, Pill,
   FileText, MessageSquare, /* BarChart2, */ AlertTriangle,
-  AlertCircle, CheckCircle, Radio, Printer, BookOpen,
+  AlertCircle, CheckCircle, Radio, Printer, BookOpen, Pencil,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -24,6 +24,7 @@ import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
+import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
 
 import {
@@ -62,7 +63,8 @@ const PatientProfile = () => {
   );
   // const [showOrderLabModal, setShowOrderLabModal] = useState(false);
 
-  const { getPatientByUHID, getBloodSugarReadings } = usePatientContext();
+  const { getPatientByUHID, getBloodSugarReadings, fetchPatientByUHID } = usePatientContext();
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
   const { getPrescriptionsByPatient } = usePrescriptionContext();
 
   const patient = getPatientByUHID(uhid);
@@ -266,7 +268,7 @@ const PatientProfile = () => {
       </div>
 
       <div>
-        {activeTab === "overview" && <OverviewTab patient={patient} />}
+        {activeTab === "overview" && <OverviewTab patient={patient} onEditVitals={() => setShowVitalsModal(true)} />}
         {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "initial-assessment" && <InitialAssessment />}
         {activeTab === "physical-exam" && (
@@ -297,6 +299,15 @@ const PatientProfile = () => {
           }}
         />
       )} */}
+
+      {showVitalsModal && (
+        <EditVitalsModal
+          vitals={patient.vitals}
+          uhid={uhid}
+          onClose={() => setShowVitalsModal(false)}
+          onSaved={() => fetchPatientByUHID(uhid)}
+        />
+      )}
     </div>
   );
 };
@@ -308,7 +319,7 @@ const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
   </div>
 );
 
-const OverviewTab = ({ patient }) => {
+const OverviewTab = ({ patient, onEditVitals }) => {
   return (
     <div className="space-y-6">
       {/* Personal + Medical Info */}
@@ -398,6 +409,12 @@ const OverviewTab = ({ patient }) => {
       </Card>
 
       <Card title="Latest Vitals">
+        <div className="flex justify-end mb-3">
+          <Button variant="outline" onClick={onEditVitals} className="flex items-center gap-2 text-sm">
+            <Pencil size={14} />
+            Edit Vitals
+          </Button>
+        </div>
         <VitalsGrid vitals={patient.vitals} />
       </Card>
       {/* NEW: Medical Equipment Summary */}

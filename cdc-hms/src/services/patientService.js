@@ -63,6 +63,13 @@ export const patientService = {
    */
   recordVitals: (uhid, data) => api.post(`/patients/${uhid}/vitals`, data),
 
+  /**
+   * Doctor records/completes vitals (all fields optional)
+   * @param {string} uhid - Patient UHID
+   * @param {Object} data - Vitals data (any fields, all optional)
+   */
+  recordVitalsDoctor: (uhid, data) => api.post(`/patients/${uhid}/vitals/doctor`, data),
+
   // ============================================
   // BLOOD SUGAR
   // ============================================

@@ -60,9 +60,9 @@ export const PatientProvider = ({ children }) => {
     }
   }, []);
 
-  // Load patients on mount
+  // Load all patients on mount — high limit so client-side search works across all records
   useEffect(() => {
-    fetchPatients();
+    fetchPatients({ limit: 1000 });
   }, [fetchPatients]);
 
   // ============================================
@@ -174,13 +174,29 @@ export const PatientProvider = ({ children }) => {
     }
   };
 
-  // Update patient vitals (via API)
+  // Update patient vitals (via API) — staff
   const updatePatientVitals = async (uhid, vitalsData) => {
     setLoading(true);
     try {
       const response = await patientService.recordVitals(uhid, vitalsData);
       if (response.success) {
-        // Refresh patient to get updated vitals
+        await fetchPatients();
+        return { success: true, message: "Vitals updated successfully" };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Doctor records/completes vitals (all fields optional)
+  const recordVitalsDoctor = async (uhid, vitalsData) => {
+    setLoading(true);
+    try {
+      const response = await patientService.recordVitalsDoctor(uhid, vitalsData);
+      if (response.success) {
         await fetchPatients();
         return { success: true, message: "Vitals updated successfully" };
       }
@@ -443,6 +459,7 @@ export const PatientProvider = ({ children }) => {
     addPatient,
     updatePatient,
     updatePatientVitals,
+    recordVitalsDoctor,
     deletePatient,
     getBloodSugarReadings,
     addBloodSugarReading,

@@ -20,10 +20,12 @@ import {
   Calendar,
   ClipboardCheck,
   X,
+  Pencil,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
+import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useQueueContext } from "../../contexts/QueueContext";
@@ -111,6 +113,9 @@ const Consultation = () => {
   const [musculoskeletal, setMusculoskeletal] = useState("");
   const [skin, setSkin] = useState("");
   const [examFindings, setExamFindings] = useState("");
+
+  // Vitals modal
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
 
   // Modal state
   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
@@ -465,6 +470,17 @@ const Consultation = () => {
             </Card>
 
             {/* Today's Triage Data */}
+            {!patient.vitals && (
+              <Card title="Vitals">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-500">No vitals recorded yet.</p>
+                  <Button variant="outline" onClick={() => setShowVitalsModal(true)} className="flex items-center gap-2 text-sm">
+                    <Pencil size={14} />
+                    Record Vitals
+                  </Button>
+                </div>
+              </Card>
+            )}
             {patient.vitals && (
               <Card
                 title={
@@ -495,10 +511,16 @@ const Consultation = () => {
 
                 {/* Vital Signs */}
                 <div>
-                  <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                    <Activity className="w-5 h-5" />
-                    Vital Signs
-                  </h4>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                      <Activity className="w-5 h-5" />
+                      Vital Signs
+                    </h4>
+                    <Button variant="outline" onClick={() => setShowVitalsModal(true)} className="flex items-center gap-2 text-sm">
+                      <Pencil size={14} />
+                      Edit Vitals
+                    </Button>
+                  </div>
                   <VitalsGrid vitals={patient.vitals} />
                 </div>
               </Card>
@@ -944,6 +966,16 @@ const Consultation = () => {
           onSuccess={() => {
             console.log("Lab test ordered successfully");
           }}
+        />
+      )}
+
+      {/* Edit Vitals Modal */}
+      {showVitalsModal && (
+        <EditVitalsModal
+          vitals={patient?.vitals}
+          uhid={uhid}
+          onClose={() => setShowVitalsModal(false)}
+          onSaved={() => fetchPatientByUHID(uhid).then(p => setPatient(p || null))}
         />
       )}
     </div>
