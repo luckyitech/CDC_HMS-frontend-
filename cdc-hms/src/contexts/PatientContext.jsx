@@ -60,9 +60,9 @@ export const PatientProvider = ({ children }) => {
     }
   }, []);
 
-  // Load all patients on mount — high limit so client-side search works across all records
+  // Load patients on mount for context use (dashboard, queue, etc.)
   useEffect(() => {
-    fetchPatients({ limit: 1000 });
+    fetchPatients();
   }, [fetchPatients]);
 
   // ============================================

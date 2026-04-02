@@ -63,11 +63,20 @@ const PatientProfile = () => {
   );
   // const [showOrderLabModal, setShowOrderLabModal] = useState(false);
 
-  const { getPatientByUHID, getBloodSugarReadings, fetchPatientByUHID } = usePatientContext();
+  const { getBloodSugarReadings, fetchPatientByUHID } = usePatientContext();
   const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [patient, setPatient] = useState(null);
+  const [patientLoading, setPatientLoading] = useState(true);
   const { getPrescriptionsByPatient } = usePrescriptionContext();
 
-  const patient = getPatientByUHID(uhid);
+  // Always fetch from API so navigating directly to any UHID always works
+  useEffect(() => {
+    setPatientLoading(true);
+    fetchPatientByUHID(uhid).then(p => {
+      setPatient(p || null);
+      setPatientLoading(false);
+    });
+  }, [uhid, fetchPatientByUHID]);
 
   // Derived visit dates — fetched from appointments API
   const [lastVisit, setLastVisit] = useState(null);
@@ -98,6 +107,10 @@ const PatientProfile = () => {
       .catch(() => {});
   }, [uhid]);
 
+
+  if (patientLoading) {
+    return <div className="text-center py-12 text-gray-500">Loading patient...</div>;
+  }
 
   if (!patient) {
     return (

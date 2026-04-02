@@ -1,78 +1,96 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
-import { usePatientContext } from "../../contexts/PatientContext"; // IMPORT CONTEXT!
+import patientService from "../../services/patientService";
 
-const ITEMS_PER_PAGE = 15;
+const LIMIT = 20;
+
+const getRiskColor = (risk) => {
+  switch (risk) {
+    case "High":   return "bg-red-100 text-red-700 border-red-300";
+    case "Medium": return "bg-yellow-100 text-yellow-700 border-yellow-300";
+    case "Low":    return "bg-green-100 text-green-700 border-green-300";
+    default:       return "bg-gray-100 text-gray-700 border-gray-300";
+  }
+};
+
+const getHbA1cColor = (value) => {
+  const n = parseFloat(value);
+  if (n < 7) return "text-green-600 font-semibold";
+  if (n < 8) return "text-yellow-600 font-semibold";
+  return "text-red-600 font-semibold";
+};
 
 const MyPatients = () => {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
 
-  // USE CONTEXT INSTEAD OF MOCK DATA!
-  const { patients, getPatientsByRiskLevel } = usePatientContext();
+  const [searchTerm, setSearchTerm]   = useState("");
+  const [filterRisk, setFilterRisk]   = useState("all");
+  const [page, setPage]               = useState(1);
+  const [patients, setPatients]       = useState([]);
+  const [pagination, setPagination]   = useState({ total: 0, totalPages: 1 });
+  const [loading, setLoading]         = useState(true);
+  const [stats, setStats]             = useState({ total: 0, lowRisk: 0, mediumRisk: 0, highRisk: 0 });
 
-  // Filter patients based on search and risk level
-  const filteredPatients = patients.filter((patient) => {
-    const search = searchTerm.toLowerCase();
-    const matchesSearch =
-      (patient.name || '').toLowerCase().includes(search) ||
-      (patient.uhid || '').toLowerCase().includes(search) ||
-      (patient.phone || '').includes(searchTerm);
+  // Debounced search term — waits 400ms after user stops typing before hitting API
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-    const matchesFilter =
-      filterStatus === "all" ||
-      (patient.riskLevel || '').toLowerCase() === filterStatus;
+  // Reset to page 1 whenever search or filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filterRisk]);
 
-    return matchesSearch && matchesFilter;
-  });
+  // Fetch patients from API whenever page, search, or filter changes
+  const fetchPatients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = { page, limit: LIMIT };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (filterRisk !== "all") params.riskLevel = filterRisk.charAt(0).toUpperCase() + filterRisk.slice(1);
 
-  const totalPages = Math.ceil(filteredPatients.length / ITEMS_PER_PAGE);
-  const paginatedPatients = filteredPatients.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  // Calculate statistics from context data
-  const stats = {
-    total: patients.length,
-    lowRisk: getPatientsByRiskLevel('Low').length,
-    mediumRisk: getPatientsByRiskLevel('Medium').length,
-    highRisk: getPatientsByRiskLevel('High').length,
-  };
-
-  const getRiskColor = (risk) => {
-    switch (risk) {
-      case "High":
-        return "bg-red-100 text-red-700 border-red-300";
-      case "Medium":
-        return "bg-yellow-100 text-yellow-700 border-yellow-300";
-      case "Low":
-        return "bg-green-100 text-green-700 border-green-300";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-300";
+      const res = await patientService.getAll(params);
+      if (res.success) {
+        setPatients(res.data.patients || []);
+        setPagination(res.data.pagination || { total: 0, totalPages: 1 });
+      }
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [page, debouncedSearch, filterRisk]);
 
-  const getHbA1cColor = (value) => {
-    const numValue = parseFloat(value);
-    if (numValue < 7) return "text-green-600 font-semibold";
-    if (numValue < 8) return "text-yellow-600 font-semibold";
-    return "text-red-600 font-semibold";
-  };
+  useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
+
+  // Fetch stats once on mount
+  useEffect(() => {
+    patientService.getStats().then(res => {
+      if (res.success) {
+        const d = res.data;
+        setStats({
+          total:      d.total      ?? 0,
+          lowRisk:    d.lowRisk    ?? 0,
+          mediumRisk: d.mediumRisk ?? 0,
+          highRisk:   d.highRisk   ?? 0,
+        });
+      }
+    }).catch(() => {});
+  }, []);
+
+  const { total, totalPages } = pagination;
+  const from = total === 0 ? 0 : (page - 1) * LIMIT + 1;
+  const to   = Math.min(page * LIMIT, total);
 
   return (
     <div>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          My Patients
-        </h2>
-        <Button onClick={() => navigate("/doctor/dashboard")}>
-          Back to Dashboard
-        </Button>
+        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">My Patients</h2>
+        <Button onClick={() => navigate("/doctor/dashboard")}>Back to Dashboard</Button>
       </div>
 
       {/* Statistics */}
@@ -99,24 +117,20 @@ const MyPatients = () => {
       <Card className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Search Patients
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Search Patients</label>
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              onChange={e => setSearchTerm(e.target.value)}
               placeholder="Search by name, UHID, or phone..."
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Filter by Risk Level
-            </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Risk Level</label>
             <select
-              value={filterStatus}
-              onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+              value={filterRisk}
+              onChange={e => setFilterRisk(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
             >
               <option value="all">All Patients</option>
@@ -129,18 +143,19 @@ const MyPatients = () => {
       </Card>
 
       {/* Patient List */}
-      <Card title={`Patient List (${filteredPatients.length})`}>
-        {filteredPatients.length === 0 ? (
+      <Card title={loading ? "Loading..." : `Patient List (${total})`}>
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading patients...</div>
+        ) : patients.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No patients found matching your search.</p>
           </div>
         ) : (
           <>
-            {/* Card list — mobile & tablet (< xl) */}
+            {/* Card list — mobile & tablet */}
             <div className="xl:hidden space-y-3">
-              {paginatedPatients.map((patient) => (
+              {patients.map((patient) => (
                 <div key={patient.id} className="border border-gray-200 rounded-xl overflow-hidden">
-                  {/* Header */}
                   <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
                     <div className="min-w-0">
                       <p className="font-bold text-gray-800 text-sm truncate">{patient.name}</p>
@@ -150,7 +165,6 @@ const MyPatients = () => {
                       {patient.riskLevel}
                     </span>
                   </div>
-                  {/* Body */}
                   <div className="bg-white px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
                     <div>
                       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">UHID</p>
@@ -175,13 +189,8 @@ const MyPatients = () => {
                       </div>
                     )}
                   </div>
-                  {/* Footer */}
                   <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-                    <Button
-                      variant="outline"
-                      className="w-full text-xs py-1.5"
-                      onClick={() => navigate(`/doctor/patient-profile/${patient.uhid}`)}
-                    >
+                    <Button variant="outline" className="w-full text-xs py-1.5" onClick={() => navigate(`/doctor/patient-profile/${patient.uhid}`)}>
                       View Profile
                     </Button>
                   </div>
@@ -189,7 +198,7 @@ const MyPatients = () => {
               ))}
             </div>
 
-            {/* Table — desktop only (xl+) */}
+            {/* Table — desktop */}
             <div className="hidden xl:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b-2 border-gray-200">
@@ -205,7 +214,7 @@ const MyPatients = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {paginatedPatients.map((patient) => (
+                  {patients.map((patient) => (
                     <tr key={patient.id} className="hover:bg-gray-50 transition">
                       <td className="px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                       <td className="px-6 py-4">
@@ -224,11 +233,7 @@ const MyPatients = () => {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{patient.nextVisit}</td>
                       <td className="px-6 py-4">
-                        <Button
-                          variant="outline"
-                          className="text-xs py-1 px-3"
-                          onClick={() => navigate(`/doctor/patient-profile/${patient.uhid}`)}
-                        >
+                        <Button variant="outline" className="text-xs py-1 px-3" onClick={() => navigate(`/doctor/patient-profile/${patient.uhid}`)}>
                           View Profile
                         </Button>
                       </td>
@@ -237,43 +242,48 @@ const MyPatients = () => {
                 </tbody>
               </table>
             </div>
+
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-500">
-                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredPatients.length)} of {filteredPatients.length} patients
-                </p>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Prev
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <button
-                      key={page}
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${
-                        page === currentPage
-                          ? "bg-primary text-white border-primary"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-500">
+                {total === 0 ? "No results" : `Showing ${from}–${to} of ${total} patients`}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                  .map((p, idx, arr) => (
+                    <>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <span key={`ellipsis-${p}`} className="px-2 text-gray-400">…</span>
+                      )}
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${
+                          p === page ? "bg-primary text-white border-primary" : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    </>
+                  ))
+                }
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
               </div>
-            )}
+            </div>
           </>
         )}
       </Card>
