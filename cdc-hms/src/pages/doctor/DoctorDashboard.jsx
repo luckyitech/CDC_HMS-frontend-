@@ -6,13 +6,19 @@ import Button from '../../components/shared/Button';
 import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
 
-const QUEUE_PER_PAGE = 10;
+const QUEUE_PER_PAGE = 15;
 
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
   const { queue, startConsultation } = useQueueContext();
   const [queuePage, setQueuePage] = useState(1);
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'mine'
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setQueuePage(1); // reset pagination when switching tabs
+  };
   
   // Returns false when date is missing (prevents old records leaking through)
   const isToday = (dateString) => {
@@ -48,8 +54,14 @@ const DoctorDashboard = () => {
   const todayQueue = [...activePatients, ...todayCompleted]
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
-  const queueTotalPages = Math.ceil(todayQueue.length / QUEUE_PER_PAGE);
-  const paginatedQueue = todayQueue.slice(
+  // Patients assigned specifically to this doctor today
+  const myTodayQueue = todayQueue.filter(q => q.assignedDoctorId === currentUser?.id);
+
+  // Which list is active depends on the selected tab
+  const displayQueue = activeTab === 'mine' ? myTodayQueue : todayQueue;
+
+  const queueTotalPages = Math.ceil(displayQueue.length / QUEUE_PER_PAGE);
+  const paginatedQueue = displayQueue.slice(
     (queuePage - 1) * QUEUE_PER_PAGE,
     queuePage * QUEUE_PER_PAGE
   );
@@ -111,7 +123,41 @@ const DoctorDashboard = () => {
 
       {/* Today's Queue - All Patients */}
       <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5" />Today's Queue</span>}>
-        {todayQueue.length > 0 ? (
+        {/* Tab bar */}
+        <div className="flex gap-1 p-1 bg-gray-100 rounded-lg mb-4 w-fit">
+          <button
+            onClick={() => switchTab('all')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+              activeTab === 'all'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            All Patients
+            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
+              activeTab === 'all' ? 'bg-primary text-white' : 'bg-gray-300 text-gray-600'
+            }`}>
+              {todayQueue.length}
+            </span>
+          </button>
+          <button
+            onClick={() => switchTab('mine')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+              activeTab === 'mine'
+                ? 'bg-white text-gray-800 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            My Patients Today
+            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
+              activeTab === 'mine' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
+            }`}>
+              {myTodayQueue.length}
+            </span>
+          </button>
+        </div>
+
+        {displayQueue.length > 0 ? (
           <>
             {/* Card list — mobile & tablet (< xl) */}
             <div className="xl:hidden space-y-3">
@@ -277,7 +323,7 @@ const DoctorDashboard = () => {
             {queueTotalPages > 1 && (
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
                 <p className="text-sm text-gray-500">
-                  Showing {(queuePage - 1) * QUEUE_PER_PAGE + 1}–{Math.min(queuePage * QUEUE_PER_PAGE, todayQueue.length)} of {todayQueue.length} patients
+                  Showing {(queuePage - 1) * QUEUE_PER_PAGE + 1}–{Math.min(queuePage * QUEUE_PER_PAGE, displayQueue.length)} of {displayQueue.length} patients
                 </p>
                 <div className="flex items-center gap-1">
                   <button
@@ -313,7 +359,11 @@ const DoctorDashboard = () => {
           </>
         ) : (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No patients in queue currently</p>
+            <p className="text-gray-500 text-lg">
+              {activeTab === 'mine'
+                ? 'No patients assigned to you today'
+                : 'No patients in queue currently'}
+            </p>
           </div>
         )}
       </Card>
