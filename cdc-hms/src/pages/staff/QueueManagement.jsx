@@ -24,6 +24,15 @@ const formatArrival = (iso) => {
   return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
+// Reusable label+value field for the mobile card view.
+// Centralises the label style — change once here, applies everywhere.
+const Field = ({ label, children, span2 = false }) => (
+  <div className={span2 ? 'col-span-2' : ''}>
+    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+    {children}
+  </div>
+);
+
 const QueueManagement = () => {
   const { queue, loading, fetchQueue, removeFromQueue, updateQueueStatus, getLocalQueueStats } = useQueueContext();
   const { autoCompleteAppointmentOnDischarge } = useAppointmentContext();
@@ -223,39 +232,36 @@ const QueueManagement = () => {
 
                   {/* Card body — labelled fields in a grid */}
                   <div className="bg-white px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">UHID</p>
+                    <Field label="UHID">
                       <p className="text-sm font-semibold text-primary">{patient.uhid}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
+                    </Field>
+                    <Field label="Status">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(patient.status)}`}>
                         {patient.status}
                       </span>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Priority</p>
+                    </Field>
+                    <Field label="Priority">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getPriorityColor(patient.priority)}`}>
                         {patient.priority}
                       </span>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Est. Wait</p>
+                    </Field>
+                    <Field label="Est. Wait">
                       <p className="text-sm text-gray-600 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {patient.estimatedWait || '—'}
                       </p>
-                    </div>
+                    </Field>
+                    <Field label="Assigned Doctor" span2>
+                      <p className="text-sm text-gray-700 font-medium">{patient.assignedDoctorName || '—'}</p>
+                    </Field>
                     {patient.reason && (
-                      <div className="col-span-2">
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Reason</p>
+                      <Field label="Reason" span2>
                         <p className="text-sm text-gray-600 truncate">{patient.reason}</p>
-                      </div>
+                      </Field>
                     )}
-                    <div className="col-span-2">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Arrival</p>
+                    <Field label="Arrival" span2>
                       <p className="text-sm text-gray-600">{formatArrival(patient.createdAt)}</p>
-                    </div>
+                    </Field>
                   </div>
 
                   {/* Card footer — actions */}
@@ -297,6 +303,7 @@ const QueueManagement = () => {
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Est. Wait</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Priority</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Assigned Doctor</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reason</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
                   </tr>
@@ -322,6 +329,7 @@ const QueueManagement = () => {
                           {patient.status}
                         </span>
                       </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 font-medium">{patient.assignedDoctorName || '—'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{patient.reason}</td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
