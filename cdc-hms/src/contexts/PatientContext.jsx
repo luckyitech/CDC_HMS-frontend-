@@ -80,7 +80,7 @@ export const PatientProvider = ({ children }) => {
 
   // Fetch patient by UHID (ASYNC - from API for fresh data)
   // Use this when you need guaranteed fresh data
-  const fetchPatientByUHID = async (uhid) => {
+  const fetchPatientByUHID = useCallback(async (uhid) => {
     try {
       const response = await patientService.getByUHID(uhid);
       if (response.success) {
@@ -91,7 +91,7 @@ export const PatientProvider = ({ children }) => {
       console.error('Fetch patient error:', err.message);
       return null;
     }
-  };
+  }, []);
 
   // Get patient by ID (from local state)
   const getPatientById = (id) => {

@@ -259,12 +259,11 @@ const MyPatients = () => {
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
                   .map((p, idx, arr) => (
-                    <>
+                    <div key={p} className="flex items-center gap-1">
                       {idx > 0 && arr[idx - 1] !== p - 1 && (
-                        <span key={`ellipsis-${p}`} className="px-2 text-gray-400">…</span>
+                        <span className="px-2 text-gray-400">…</span>
                       )}
                       <button
-                        key={p}
                         onClick={() => setPage(p)}
                         className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${
                           p === page ? "bg-primary text-white border-primary" : "border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -272,7 +271,7 @@ const MyPatients = () => {
                       >
                         {p}
                       </button>
-                    </>
+                    </div>
                   ))
                 }
                 <button
