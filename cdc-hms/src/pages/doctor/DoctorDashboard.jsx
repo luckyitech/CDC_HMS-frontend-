@@ -43,9 +43,8 @@ const DoctorDashboard = () => {
     return `${diffMins}m`;
   };
 
-  // Active (non-Completed) patients from ANY day — handles patients admitted today
-  // but not yet discharged by tomorrow
-  const activePatients = queue.filter(q => q.status !== 'Completed');
+  // Active patients from ANY day — excludes Completed and Removed
+  const activePatients = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed');
 
   // Completed (discharged) patients from TODAY only — for day-of reference
   const todayCompleted = queue.filter(q => q.status === 'Completed' && isToday(q.createdAt));
@@ -80,17 +79,19 @@ const DoctorDashboard = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Waiting':         return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'In Triage':       return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'With Doctor':     return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'Pending Billing': return 'bg-amber-100 text-amber-700 border-amber-300';
-      case 'Completed':       return 'bg-green-100 text-green-700 border-green-300';
-      default:                return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'Awaiting Triage':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'In Triage':        return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'Awaiting Doctor':  return 'bg-purple-100 text-purple-700 border-purple-300';
+      case 'With Doctor':      return 'bg-green-100 text-green-700 border-green-300';
+      case 'Pending Billing':  return 'bg-amber-100 text-amber-700 border-amber-300';
+      case 'Completed':        return 'bg-gray-100 text-gray-700 border-gray-300';
+      default:                 return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
-  const handleStartConsultation = (queueId, uhid) => {
-    startConsultation(queueId);
+  const handleStartConsultation = (queueId, uhid, alreadyStarted) => {
+    // Only record the start time on the first click — "Continue" must not overwrite it
+    if (!alreadyStarted) startConsultation(queueId);
     navigate(`/doctor/consultation/${uhid}`);
   };
 
@@ -232,7 +233,7 @@ const DoctorDashboard = () => {
                         <Button
                           variant="primary"
                           className="w-full text-xs py-1.5"
-                          onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid)}
+                          onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid, !!queueItem.consultationStartTime)}
                         >
                           {queueItem.consultationStartTime ? 'Continue Consultation' : 'Start Consultation'}
                         </Button>
@@ -266,7 +267,7 @@ const DoctorDashboard = () => {
                     const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
 
                     return (
-                      <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient ? 'bg-blue-50' : ''}`}>
+                      <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient && queueItem.status === 'Awaiting Doctor' ? 'bg-purple-50' : isMyPatient ? 'bg-blue-50' : ''}`}>
                         <td className="px-6 py-4 text-sm font-semibold text-gray-700">{formatArrival(queueItem.createdAt)}</td>
                         <td className="px-6 py-4 font-medium text-primary text-sm">{queueItem.uhid}</td>
                         <td className="px-6 py-4 text-sm font-medium">{queueItem.name}</td>
@@ -302,7 +303,7 @@ const DoctorDashboard = () => {
                             <Button
                               variant="primary"
                               className="text-xs py-1 px-3"
-                              onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid)}
+                              onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid, !!queueItem.consultationStartTime)}
                             >
                               {queueItem.consultationStartTime ? 'Continue' : 'Start Consultation'}
                             </Button>

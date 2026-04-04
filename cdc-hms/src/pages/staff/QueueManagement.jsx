@@ -54,12 +54,13 @@ const QueueManagement = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Waiting':         return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'In Triage':       return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'With Doctor':     return 'bg-green-100 text-green-700 border-green-300';
-      case 'Pending Billing': return 'bg-amber-100 text-amber-700 border-amber-300';
-      case 'Completed':       return 'bg-gray-100 text-gray-700 border-gray-300';
-      default:                return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'Awaiting Triage':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'In Triage':        return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'Awaiting Doctor':  return 'bg-purple-100 text-purple-700 border-purple-300';
+      case 'With Doctor':      return 'bg-green-100 text-green-700 border-green-300';
+      case 'Pending Billing':  return 'bg-amber-100 text-amber-700 border-amber-300';
+      case 'Completed':        return 'bg-gray-100 text-gray-700 border-gray-300';
+      default:                 return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
@@ -163,36 +164,36 @@ const QueueManagement = () => {
 
       {/* Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5" />
-            <p className="text-sm opacity-90">Total in Queue</p>
-          </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.total}</p>
-        </div>
-
         <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-5 h-5" />
-            <p className="text-sm opacity-90">Waiting</p>
+            <p className="text-sm opacity-90">Waiting for Triage</p>
           </div>
           <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.waiting}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="w-5 h-5" />
-            <p className="text-sm opacity-90">In Progress</p>
+            <p className="text-sm opacity-90">In Triage</p>
           </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.inTriage + stats.withDoctor}</p>
+          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.inTriage}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-5 h-5" />
+            <p className="text-sm opacity-90">Awaiting Doctor</p>
+          </div>
+          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.awaitingDoctor}</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5" />
-            <p className="text-sm opacity-90">Urgent</p>
+            <p className="text-sm opacity-90">With Doctor</p>
           </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.urgent}</p>
+          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.withDoctor}</p>
         </div>
       </div>
 

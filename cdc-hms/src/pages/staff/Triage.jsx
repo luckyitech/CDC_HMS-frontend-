@@ -104,7 +104,7 @@ const Triage = () => {
   };
 
   // Get patients waiting or in triage
-  const waitingPatients = getQueueByStatus("Waiting");
+  const waitingPatients = getQueueByStatus("Awaiting Triage");
   const inTriagePatients = getQueueByStatus("In Triage");
 
   const handleSelectPatient = async (queueItem) => {
@@ -286,8 +286,9 @@ const Triage = () => {
       await api.put(`/patients/${selectedPatient.uhid}`, { allergies: allergies.trim() });
     }
 
-    // Update queue status to "With Doctor" and assign doctor using queue item ID
-    await updateQueueStatus(selectedQueueItem.id, "With Doctor", parseInt(assignedDoctor));
+    // Update queue status to "Awaiting Doctor" and assign doctor using queue item ID
+    // Patient has been triaged and assigned — they are waiting to be called into the doctor's room
+    await updateQueueStatus(selectedQueueItem.id, "Awaiting Doctor", parseInt(assignedDoctor));
 
     // Also update assignedDoctorName via separate call if needed (backend handles both)
     // assignDoctorToQueue is now handled by updateQueueStatus with assignedDoctorId param
@@ -341,8 +342,8 @@ const Triage = () => {
       const triageKey = `triage_draft_${selectedPatient.uhid}`;
       localStorage.removeItem(triageKey);
 
-      // Move patient back to "Waiting" using queue item ID
-      await updateQueueStatus(selectedQueueItem.id, "Waiting");
+      // Move patient back to "Awaiting Triage" using queue item ID
+      await updateQueueStatus(selectedQueueItem.id, "Awaiting Triage");
       setSelectedPatient(null);
       setSelectedQueueItem(null);
       setTodayAppointment(null);
