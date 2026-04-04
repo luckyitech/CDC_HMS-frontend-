@@ -72,7 +72,7 @@ const LabTestPrint = ({ test, onClose }) => {
         <div className="border-b-4 border-primary pb-6 mb-6">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-primary">CDC DIABETES CLINIC</h1>
+              <h1 className="text-3xl font-bold text-primary">COMPREHENSIVE DIABETES CENTRE</h1>
               <p className="text-sm text-gray-600 mt-1">Comprehensive Diabetes Care</p>
               <p className="text-xs text-gray-500 mt-1">Nairobi, Kenya</p>
             </div>

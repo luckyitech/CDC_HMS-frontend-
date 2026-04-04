@@ -33,7 +33,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
           <div className="flex justify-between items-center mb-8 border-b-2 border-primary pb-4">
             <div>
               <h1 className="text-3xl font-bold text-primary">
-                CDC DIABETES CLINIC
+                COMPREHENSIVE DIABETES CENTRE
               </h1>
               <p className="text-sm text-gray-600 mt-2">
                 Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care
@@ -155,7 +155,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
               named above.
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              CDC Diabetes Clinic &middot; Nairobi, Kenya
+              Comprehensive Diabetes Centre &middot; Nairobi, Kenya
             </p>
           </div>
         </div>
