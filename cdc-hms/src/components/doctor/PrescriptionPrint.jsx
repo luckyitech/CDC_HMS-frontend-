@@ -179,7 +179,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
         <style>{`
           @media print {
             @page {
-              margin: 15mm;
+              margin: 0;
               size: A4;
             }
 
@@ -197,7 +197,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
               left: 0;
               top: 0;
               width: 100%;
-              padding: 20px;
+              padding: 15mm;
               /* Force backgrounds and colors to print */
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;

@@ -30,6 +30,7 @@ const LabTestPrint = ({ test, onClose }) => {
             left: 0;
             top: 0;
             width: 100%;
+            padding: 15mm;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -42,7 +43,7 @@ const LabTestPrint = ({ test, onClose }) => {
             display: none !important;
           }
           @page {
-            margin: 1cm;
+            margin: 0;
           }
         }
       `}</style>

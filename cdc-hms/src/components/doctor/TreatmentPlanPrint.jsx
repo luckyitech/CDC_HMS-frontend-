@@ -175,7 +175,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
               top: 0;
               left: 0;
               width: 100%;
-              padding: 1cm;
+              padding: 15mm;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
@@ -185,7 +185,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
             .bg-green-50 { background-color: #f0fdf4 !important; }
             .bg-red-50   { background-color: #fef2f2 !important; }
             @page {
-              margin: 1cm;
+              margin: 0;
             }
           }
         `}</style>
