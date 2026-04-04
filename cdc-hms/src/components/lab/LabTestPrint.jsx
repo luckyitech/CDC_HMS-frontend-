@@ -243,7 +243,7 @@ const LabTestPrint = ({ test, onClose }) => {
           <div className="text-xs text-gray-500 space-y-1">
             <p><strong>Important Notice:</strong></p>
             <ul className="list-disc list-inside ml-4 space-y-1">
-              <li>This report is computer-generated and electronically verified</li>
+              <li>Results should be verified by an authorized laboratory personnel</li>
               <li>Results should be interpreted in conjunction with clinical findings</li>
               <li>For any queries, please contact the laboratory at (+254) 711781299 or info@comprehensivediabetescentre.com</li>
               <li>This report is confidential and for the use of the named patient only</li>

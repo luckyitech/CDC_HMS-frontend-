@@ -169,7 +169,6 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
               )}
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500">This is a computer-generated prescription</p>
               <p className="text-xs text-gray-500">Printed on: {new Date().toLocaleString()}</p>
             </div>
           </div>
