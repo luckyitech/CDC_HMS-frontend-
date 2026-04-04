@@ -30,7 +30,14 @@ const LabTestPrint = ({ test, onClose }) => {
             left: 0;
             top: 0;
             width: 100%;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
+          .bg-blue-50  { background-color: #eff6ff !important; }
+          .bg-gray-50  { background-color: #f9fafb !important; }
+          .bg-gray-100 { background-color: #f3f4f6 !important; }
+          .bg-green-50 { background-color: #f0fdf4 !important; }
+          .bg-red-50   { background-color: #fef2f2 !important; }
           .no-print {
             display: none !important;
           }
