@@ -145,7 +145,7 @@ function App() {
                   <Route path="queue" element={<QueueManagement />} />
                   <Route path="triage" element={<Triage />} />
                   <Route path="create-patient" element={<StaffCreatePatient />} />
-                  <Route path="/staff/patient-profile/:uhid" element={<StaffPatientProfile />} />
+                  <Route path="patient-profile/:uhid" element={<StaffPatientProfile />} />
                   <Route path="appointments" element={<StaffAppointmentsList />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
