@@ -63,36 +63,38 @@ export const ConsultationNotesProvider = ({ children }) => {
   };
 
   // Get all notes for a specific patient (via API)
-  const getNotesByPatient = async (uhid) => {
+  const getNotesByPatient = async (uhid, params = {}) => {
     try {
-      const response = await consultationNotesService.getByPatient(uhid);
+      const response = await consultationNotesService.getByPatient(uhid, params);
       if (response.success) {
         const notes = response.data.consultationNotes || response.data;
-        return notes.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const pagination = response.data.pagination || null;
+        return { notes: Array.isArray(notes) ? notes : [], pagination };
       }
-      return [];
+      return { notes: [], pagination: null };
     } catch (err) {
       console.error('Get notes by patient error:', err.message);
-      return [];
+      return { notes: [], pagination: null };
     }
   };
 
   // Search notes for a patient by keyword (via API)
-  const searchNotes = async (uhid, searchTerm) => {
+  const searchNotes = async (uhid, searchTerm, params = {}) => {
     if (!searchTerm || !searchTerm.trim()) {
-      return getNotesByPatient(uhid);
+      return getNotesByPatient(uhid, params);
     }
 
     try {
-      const response = await consultationNotesService.search(uhid, searchTerm);
+      const response = await consultationNotesService.search(uhid, searchTerm, params);
       if (response.success) {
         const notes = response.data.consultationNotes || response.data;
-        return notes.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const pagination = response.data.pagination || null;
+        return { notes: Array.isArray(notes) ? notes : [], pagination };
       }
-      return [];
+      return { notes: [], pagination: null };
     } catch (err) {
       console.error('Search notes error:', err.message);
-      return [];
+      return { notes: [], pagination: null };
     }
   };
 

@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
 import VoiceInput from "../shared/VoiceInput";
 import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
+import { useUserContext } from "../../contexts/UserContext";
 import { MessageSquare, Plus, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 
 const ConsultationNotesList = ({
@@ -13,45 +14,89 @@ const ConsultationNotesList = ({
 }) => {
   const { getNotesByPatient, searchNotes, addNote, updateNote } =
     useConsultationNotesContext();
-  const [notesSearchTerm, setNotesSearchTerm] = useState("");
+  const { getDoctors } = useUserContext();
+  const doctors = getDoctors();
+  const [searchInput, setSearchInput] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [consultationNotes, setConsultationNotes] = useState("");
   const [showWriteModal, setShowWriteModal] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
-  const [expandedNotes, setExpandedNotes] = useState(new Set([0])); // First note expanded by default
-
-  // State for notes loaded async
+  const [expandedNotes, setExpandedNotes] = useState(new Set());
   const [filteredNotes, setFilteredNotes] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const searchDebounceRef = useRef(null);
 
-  // Load notes on mount and when search term changes
+  // Debounce cleanup on unmount
+  useEffect(() => {
+    return () => clearTimeout(searchDebounceRef.current);
+  }, []);
+
+  // Build params shared by all fetch calls
+  const buildParams = (page) => {
+    const params = { page, limit: 10 };
+    if (dateFrom) params.dateFrom = dateFrom;
+    if (dateTo)   params.dateTo   = dateTo;
+    if (selectedDoctor) params.doctorId = selectedDoctor;
+    return params;
+  };
+
+  // Load first page whenever filters change
+  // Always call searchNotes — it falls back to getNotesByPatient when search is empty
   useEffect(() => {
     let isMounted = true;
-    const loadNotes = async () => {
+    const load = async () => {
       setIsLoading(true);
       try {
-        const notes = notesSearchTerm.trim()
-          ? await searchNotes(patient.uhid, notesSearchTerm)
-          : await getNotesByPatient(patient.uhid);
+        const { notes, pagination } = await searchNotes(patient.uhid, debouncedSearch, buildParams(1));
         if (!isMounted) return;
-        setFilteredNotes(Array.isArray(notes) ? notes : []);
+        setFilteredNotes(notes);
+        setTotalCount(pagination?.total ?? notes.length);
+        setCurrentPage(1);
+        setExpandedNotes(new Set());
+        setHasMore(pagination ? 1 < pagination.totalPages : false);
       } catch (err) {
-        console.error("Error loading notes:", err);
         if (isMounted) setFilteredNotes([]);
       } finally {
         if (isMounted) setIsLoading(false);
       }
     };
-    loadNotes();
+    load();
     return () => { isMounted = false; };
-  }, [patient.uhid, notesSearchTerm, getNotesByPatient, searchNotes]);
+  }, [patient.uhid, debouncedSearch, selectedDoctor, dateFrom, dateTo, getNotesByPatient, searchNotes]);
+
+  const handleSearchChange = (e) => {
+    setSearchInput(e.target.value);
+    clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setDebouncedSearch(e.target.value), 300);
+  };
+
+  const handleLoadMore = async () => {
+    setIsLoadingMore(true);
+    const nextPage = currentPage + 1;
+    try {
+      const { notes, pagination } = await searchNotes(patient.uhid, debouncedSearch, buildParams(nextPage));
+      setFilteredNotes(prev => [...prev, ...notes]);
+      setHasMore(pagination ? nextPage < pagination.totalPages : false);
+      setCurrentPage(nextPage);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Toggle note expansion
-  const toggleNoteExpansion = (index) => {
+  const toggleNoteExpansion = (id) => {
     const newExpanded = new Set(expandedNotes);
-    if (newExpanded.has(index)) {
-      newExpanded.delete(index);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
     } else {
-      newExpanded.add(index);
+      newExpanded.add(id);
     }
     setExpandedNotes(newExpanded);
   };
@@ -168,26 +213,14 @@ const ConsultationNotesList = ({
     }
   };
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <Card>
-        <div className="text-center py-12">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading consultation notes...</p>
-        </div>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Statistics (optional) */}
-      {showStatistics && filteredNotes.length > 0 && (
+      {showStatistics && totalCount > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 text-white">
             <p className="text-xs opacity-90">Total Notes</p>
-            <p className="text-3xl font-bold mt-1">{filteredNotes.length}</p>
+            <p className="text-3xl font-bold mt-1">{totalCount}</p>
           </div>
           <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 text-white">
             <p className="text-xs opacity-90">Most Recent</p>
@@ -209,25 +242,63 @@ const ConsultationNotesList = ({
         </div>
       )}
 
-      {/* Search Bar & Write Button */}
+      {/* Search, Filters & Write Button */}
       <Card>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex-1">
-            <input
-              type="text"
-              value={notesSearchTerm}
-              onChange={(e) => setNotesSearchTerm(e.target.value)}
-              placeholder="🔍 Search consultation notes..."
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={handleSearchChange}
+                placeholder="🔍 Search notes..."
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <Button
+              onClick={() => setShowWriteModal(true)}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <Plus size={20} />
+              Write New Note
+            </Button>
           </div>
-          <Button
-            onClick={() => setShowWriteModal(true)}
-            className="flex items-center gap-2 whitespace-nowrap"
-          >
-            <Plus size={20} />
-            Write New Note
-          </Button>
+
+          {/* Filters row */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <label className="text-xs text-gray-500 whitespace-nowrap">From</label>
+              <input
+                type="date"
+                value={dateFrom}
+                max={dateTo || undefined}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-1">
+              <label className="text-xs text-gray-500 whitespace-nowrap">To</label>
+              <input
+                type="date"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <select
+              value={selectedDoctor}
+              onChange={(e) => setSelectedDoctor(e.target.value)}
+              className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">👨‍⚕️ All Doctors</option>
+              {doctors.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </Card>
 
@@ -241,32 +312,40 @@ const ConsultationNotesList = ({
         }
       >
         <div className="space-y-4">
-          {filteredNotes.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-gray-500">Loading consultation notes...</p>
+            </div>
+          ) : filteredNotes.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📝</div>
-              <p className="text-gray-500 text-lg mb-2">
-                {notesSearchTerm.trim()
-                  ? "No notes found matching your search"
-                  : "No Consultation Notes Yet"}
-              </p>
-              <p className="text-gray-400 text-sm mb-4">
-                {notesSearchTerm.trim()
-                  ? "Try a different search term"
-                  : "Start documenting your clinical observations"}
-              </p>
-              {!notesSearchTerm.trim() && (
-                <Button
-                  onClick={() => setShowWriteModal(true)}
-                  className="inline-flex items-center gap-2"
-                >
-                  <Plus size={20} />
-                  Write First Note
-                </Button>
-              )}
+              {(() => {
+                const hasFilters = searchInput.trim() || dateFrom || dateTo || selectedDoctor;
+                return (
+                  <>
+                    <p className="text-gray-500 text-lg mb-2">
+                      {hasFilters ? "No notes match the selected filters" : "No Consultation Notes Yet"}
+                    </p>
+                    <p className="text-gray-400 text-sm mb-4">
+                      {hasFilters ? "Try adjusting or clearing the filters" : "Start documenting your clinical observations"}
+                    </p>
+                    {!hasFilters && (
+                      <Button
+                        onClick={() => setShowWriteModal(true)}
+                        className="inline-flex items-center gap-2"
+                      >
+                        <Plus size={20} />
+                        Write First Note
+                      </Button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           ) : (
             filteredNotes.map((note, index) => {
-              const isExpanded = expandedNotes.has(index);
+              const isExpanded = expandedNotes.has(note.id);
               const notePreview =
                 note.notes.length > 100
                   ? note.notes.substring(0, 100) + "..."
@@ -283,13 +362,13 @@ const ConsultationNotesList = ({
                 >
                   {/* Clickable Header */}
                   <div
-                    onClick={() => toggleNoteExpansion(index)}
+                    onClick={() => toggleNoteExpansion(note.id)}
                     className="p-4 cursor-pointer hover:bg-gray-50 transition"
                   >
                     <div className="flex items-center justify-between gap-2">
                       {/* Left side - Date & Badge */}
                       <div className="flex items-center gap-2 flex-wrap flex-1">
-                        {index === 0 && (
+                        {index === 0 && !dateFrom && !dateTo && !selectedDoctor && (
                           <span className="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">
                             LATEST
                           </span>
@@ -355,6 +434,20 @@ const ConsultationNotesList = ({
             })
           )}
         </div>
+
+        {/* Load More */}
+        {hasMore && (
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="outline"
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+              className="w-full"
+            >
+              {isLoadingMore ? "Loading..." : "Load More Notes"}
+            </Button>
+          </div>
+        )}
       </Card>
 
       {showWriteModal && (

@@ -47,8 +47,8 @@ export const consultationNotesService = {
    * @param {string} uhid - Patient UHID
    * @param {string} searchTerm - Search term
    */
-  search: (uhid, searchTerm) => api.get('/consultation-notes', {
-    params: { uhid, search: searchTerm }
+  search: (uhid, searchTerm, params = {}) => api.get('/consultation-notes', {
+    params: { uhid, search: searchTerm, ...params }
   }),
 
   /**
