@@ -7,13 +7,14 @@ import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
+import PatientSearchInput from "../../components/shared/PatientSearchInput";
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
 
 const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { uhid: urlUHID } = useParams();
-  const { getPatientByUHID, patients } = usePatientContext();
+  const { fetchPatientByUHID } = usePatientContext();
   const { saveAssessment, getLatestAssessment } = useInitialAssessmentContext();
 
   // Get patient from URL params OR navigation state (flexible!)
@@ -27,8 +28,6 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [alreadyAssessed, setAlreadyAssessed] = useState(false);
   const [viewMode, setViewMode] = useState(false);
-
-  const allPatients = patients;
 
   const [assessmentData, setAssessmentData] = useState({
     // Presenting Complaints
@@ -70,7 +69,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     let isMounted = true;
 
     const loadPatientData = async () => {
-      const patient = getPatientByUHID(patientUHID);
+      const patient = await fetchPatientByUHID(patientUHID);
       if (!patient || !isMounted) return;
 
       // Check if already assessed (async)
@@ -95,7 +94,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
 
     loadPatientData();
     return () => { isMounted = false; };
-  }, [patientUHID, getPatientByUHID, getLatestAssessment, fromConsultation]);
+  }, [patientUHID, fetchPatientByUHID, getLatestAssessment, fromConsultation]);
 
   const handleCheckboxChange = (field) => {
     setAssessmentData({ ...assessmentData, [field]: !assessmentData[field] });
@@ -118,7 +117,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
       return;
     }
 
-    setAlreadyAssessed(false);
+    setAlreadyAssessed(true);
     setViewMode(false);
     setSelectedPatient(patient);
     // Reset form
@@ -225,32 +224,13 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
         {/* Patient Selection (only show if NOT from consultation or profile) */}
         {!fromConsultation && !fromProfile && !embedded && !patientUHID && (
           <div className="lg:col-span-1">
-            <Card title=" Select Patient">
-              <div className="space-y-3">
-                {allPatients.map((patient) => (
-                  <button
-                    key={patient.id}
-                    onClick={() => handleSelectPatient(patient)}
-                    className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
-                      selectedPatient?.id === patient.id
-                        ? "border-primary bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-bold text-primary">{patient.uhid}</p>
-                        <p className="font-semibold text-gray-800 mt-1">
-                          {patient.name}
-                        </p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {patient.age} yrs &middot; {patient.gender}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+            <Card title="Select Patient">
+              <PatientSearchInput
+                onSelect={handleSelectPatient}
+                selectedPatient={selectedPatient}
+                onClear={() => setSelectedPatient(null)}
+                placeholder="Search by name or UHID..."
+              />
             </Card>
           </div>
         )}

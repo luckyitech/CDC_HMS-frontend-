@@ -7,17 +7,22 @@ import api from "../../services/api";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { patients } = usePatientContext();
+  const { getPatientStats } = usePatientContext();
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalPatients, setTotalPatients] = useState(0);
 
   useEffect(() => {
     api.get('/users')
       .then(res => { if (res.success) setUsers(res.data.users); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+
+    getPatientStats().then(data => {
+      if (data) setTotalPatients(data.total);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentDate = new Date();
 
@@ -35,7 +40,7 @@ const AdminDashboard = () => {
     totalDoctors:  doctors.length,
     totalStaff:    staff.length,
     totalLabTechs: labTechs.length,
-    totalPatients: patients.length,
+    totalPatients,
     newThisMonth: {
       doctors:  doctors.filter(u => isThisMonth(u.createdAt)).length,
       staff:    staff.filter(u => isThisMonth(u.createdAt)).length,
@@ -90,7 +95,7 @@ const AdminDashboard = () => {
         </div>
         <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-6 text-white">
           <p className="text-sm opacity-90">Total Patients</p>
-          <p className="text-4xl font-bold mt-2">{patients.length}</p>
+          <p className="text-4xl font-bold mt-2">{totalPatients}</p>
           <p className="text-sm mt-3 opacity-75">Registered patients</p>
         </div>
       </div>

@@ -23,10 +23,10 @@ import { useNavigate } from 'react-router-dom';
 const StaffDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
-  const { patients, getPatientStats } = usePatientContext();
+  const { getPatientStats } = usePatientContext();
   const { queue, getLocalQueueStats, getQueueByStatus } = useQueueContext();
 
-  const [patientStats, setPatientStats] = useState({ total: 0, active: 0, highRisk: 0 });
+  const [patientStats, setPatientStats] = useState({ total: 0, active: 0, highRisk: 0, registeredToday: 0 });
 
   // Fetch patient stats from API once on mount
   useEffect(() => {
@@ -39,16 +39,11 @@ const StaffDashboard = () => {
   const queueStats = getLocalQueueStats();
   const waitingPatients = getQueueByStatus('Waiting');
 
-  // Today's date string for filtering
-  const todayStr = new Date().toDateString();
-
-  // New patients registered today
-  const newRegistrationsToday = useMemo(
-    () => patients.filter(p => new Date(p.createdAt).toDateString() === todayStr).length,
-    [patients, todayStr]
-  );
+  // New patients registered today — from API stats
+  const newRegistrationsToday = patientStats.registeredToday ?? 0;
 
   // Queue entries completed today
+  const todayStr = new Date().toDateString();
   const completedTriageToday = useMemo(
     () => queue.filter(q => q.status === 'Completed' && new Date(q.updatedAt).toDateString() === todayStr).length,
     [queue, todayStr]

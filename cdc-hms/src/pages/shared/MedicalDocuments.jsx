@@ -7,7 +7,7 @@ import { useUserContext } from '../../contexts/UserContext';
 import { showNotification } from '../../utils/documentHelpers';
 import documentService from '../../services/documentService';
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 20;
 
 const MedicalDocuments = () => {
   const { DOCUMENT_CATEGORIES, updateDocumentStatus } = usePatientContext();

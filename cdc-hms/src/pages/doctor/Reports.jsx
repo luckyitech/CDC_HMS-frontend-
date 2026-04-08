@@ -7,7 +7,7 @@ import { usePatientContext } from "../../contexts/PatientContext";
 const Reports = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { getPatientByUHID } = usePatientContext();
+  const { fetchPatientByUHID } = usePatientContext();
 
   const patientUHID = location.state?.patientUHID;
   const fromConsultation = location.state?.fromConsultation;
@@ -19,12 +19,11 @@ const Reports = () => {
   // Auto-select patient if coming from Consultations
   useEffect(() => {
     if (patientUHID) {
-      const patient = getPatientByUHID(patientUHID);
-      if (patient) {
-        setSelectedPatient(patient);
-      }
+      fetchPatientByUHID(patientUHID).then(patient => {
+        if (patient) setSelectedPatient(patient);
+      });
     }
-  }, [patientUHID, getPatientByUHID]);
+  }, [patientUHID, fetchPatientByUHID]);
 
   // Mock reports data
   const [reports] = useState([

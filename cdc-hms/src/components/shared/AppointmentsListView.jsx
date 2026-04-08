@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, RefreshCw, CheckCircle, XCircle, ClipboardList } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
@@ -45,9 +45,25 @@ const AppointmentsListView = ({ mode }) => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', date: '', search: '' });
+  const [searchInput, setSearchInput] = useState(''); // raw input — debounced before hitting API
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [stats, setStats] = useState({ total: 0, scheduled: 0, checkedIn: 0, completed: 0, cancelled: 0 });
+  const debounceRef = useRef(null);
+
+  // Debounce search input — only commit to filters after 500ms of no typing
+  const handleSearchChange = (value) => {
+    setSearchInput(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters(f => ({ ...f, search: value }));
+    }, 500);
+  };
+
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => clearTimeout(debounceRef.current);
+  }, []);
 
   // Reset to page 1 whenever filters change
   useEffect(() => { setPage(1); }, [filters.status, filters.date, filters.search]);
@@ -57,8 +73,9 @@ const AppointmentsListView = ({ mode }) => {
     if (isDoctor && !currentUser?.id) return;
     try {
       const base = { limit: 1 };
-      if (isDoctor)     base.doctor = currentUser.id;
-      if (filters.date) base.date   = filters.date;
+      if (isDoctor)        base.doctor = currentUser.id;
+      if (filters.date)    base.date   = filters.date;
+      if (filters.search)  base.search = filters.search;
 
       const [total, scheduled, checkedIn, completed, cancelled] = await Promise.all([
         appointmentService.getAll({ ...base }),
@@ -76,7 +93,7 @@ const AppointmentsListView = ({ mode }) => {
         cancelled: cancelled.data?.pagination?.total || 0,
       });
     } catch { /* non-blocking */ }
-  }, [isDoctor, currentUser?.id, filters.date]);
+  }, [isDoctor, currentUser?.id, filters.date, filters.search]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
@@ -85,22 +102,14 @@ const AppointmentsListView = ({ mode }) => {
     setLoading(true);
     try {
       const params = { page, limit: PAGE_LIMIT };
-      if (isDoctor)       params.doctor = currentUser.id;
-      if (filters.status) params.status = filters.status;
-      if (filters.date)   params.date   = filters.date;
+      if (isDoctor)        params.doctor = currentUser.id;
+      if (filters.status)  params.status = filters.status;
+      if (filters.date)    params.date   = filters.date;
+      if (filters.search)  params.search = filters.search;
 
       const res = await appointmentService.getAll(params);
       if (res.success) {
-        let data = res.data.appointments || res.data || [];
-        if (filters.search) {
-          const q = filters.search.toLowerCase();
-          data = data.filter(a =>
-            a.patientName?.toLowerCase().includes(q) ||
-            a.uhid?.toLowerCase().includes(q) ||
-            a.appointmentNumber?.toLowerCase().includes(q) ||
-            (!isDoctor && a.doctorName?.toLowerCase().includes(q))
-          );
-        }
+        const data = res.data.appointments || res.data || [];
         setAppointments(data);
         if (res.data.pagination) setPagination(res.data.pagination);
       }
@@ -189,8 +198,8 @@ const AppointmentsListView = ({ mode }) => {
             <input
               type="text"
               placeholder={isDoctor ? 'Search by patient name or UHID...' : 'Search by patient name, UHID, doctor...'}
-              value={filters.search}
-              onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+              value={searchInput}
+              onChange={e => handleSearchChange(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
             />
           </div>
@@ -215,7 +224,10 @@ const AppointmentsListView = ({ mode }) => {
             />
             {(filters.status || filters.date || filters.search) && (
               <button
-                onClick={() => setFilters({ status: '', date: '', search: '' })}
+                onClick={() => {
+                  setFilters({ status: '', date: '', search: '' });
+                  setSearchInput('');
+                }}
                 className="px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 whitespace-nowrap"
               >
                 Clear

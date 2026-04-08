@@ -20,7 +20,7 @@ const DoctorPrescriptions = () => {
     getPrescriptionsByPatient,
     addPrescription,
   } = usePrescriptionContext();
-  const { getPatientByUHID } = usePatientContext();
+  const { fetchPatientByUHID } = usePatientContext();
 
   // Get patient from URL params OR navigation state
   const patientUHID = urlUHID || location.state?.patientUHID;
@@ -34,12 +34,11 @@ const DoctorPrescriptions = () => {
 
   useEffect(() => {
     if (patientUHID) {
-      const patient = getPatientByUHID(patientUHID);
-      if (patient) {
-        setSelectedPatient(patient);
-      }
+      fetchPatientByUHID(patientUHID).then(patient => {
+        if (patient) setSelectedPatient(patient);
+      });
     }
-  }, [patientUHID, getPatientByUHID]);
+  }, [patientUHID, fetchPatientByUHID]);
 
   const allPrescriptions = getPrescriptionsByDoctor(
     currentUser?.name || "Dr. Ahmed Hassan"

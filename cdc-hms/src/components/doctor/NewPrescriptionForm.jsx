@@ -32,7 +32,7 @@ const NewPrescriptionForm = ({
   });
 
   const [medications, setMedications] = useState([
-    { name: "", customName: "", dosage: "", frequency: "", duration: "", instructions: "" },
+    { name: "", customName: "", dosage: "", frequency: "", customFrequency: "", duration: "", instructions: "" },
   ]);
 
 // Sync with initialMedications when they change
@@ -40,11 +40,18 @@ useEffect(() => {
   if (initialMedications && initialMedications.length > 0) {
     const knownNames = commonMedications.map((m) => m.name);
     setMedications(
-      initialMedications.map((med) =>
-        knownNames.includes(med.name)
-          ? { ...med, customName: "" }
-          : { ...med, customName: med.name, name: "Other" }
-      )
+      initialMedications.map((med) => {
+        const knownFrequencies = ["Once daily", "Twice daily", "Three times daily", "Four times daily (QDS)", "Every 8 hours", "Every 12 hours", "Weekly", "As needed (PRN)"];
+        const nameIsKnown = knownNames.includes(med.name);
+        const freqIsKnown = knownFrequencies.includes(med.frequency);
+        return {
+          ...med,
+          customName: nameIsKnown ? "" : med.name,
+          name: nameIsKnown ? med.name : "Other",
+          customFrequency: freqIsKnown ? "" : (med.frequency || ""),
+          frequency: freqIsKnown ? med.frequency : "Other",
+        };
+      })
     );
   }
 }, [initialMedications]);
@@ -52,7 +59,7 @@ useEffect(() => {
   const handleAddMedication = () => {
     setMedications([
       ...medications,
-      { name: "", customName: "", dosage: "", frequency: "", duration: "", instructions: "" },
+      { name: "", customName: "", dosage: "", frequency: "", customFrequency: "", duration: "", instructions: "" },
     ]);
   };
 
@@ -114,7 +121,8 @@ useEffect(() => {
 
     const validMedications = medications.filter((m) => {
       const effectiveName = m.name === "Other" ? m.customName?.trim() : m.name;
-      return effectiveName && m.dosage && m.frequency && m.duration;
+      const effectiveFrequency = m.frequency === "Other" ? m.customFrequency?.trim() : m.frequency;
+      return effectiveName && m.dosage && effectiveFrequency && m.duration;
     });
     if (validMedications.length === 0) {
       toast.error("Please add at least one complete medication", {
@@ -139,9 +147,10 @@ useEffect(() => {
       diagnosis: formData.diagnosis,
       doctorName: currentDoctor?.name || "Dr. Ahmed Hassan",
       doctorSpecialty: currentDoctor?.specialty || "Endocrinologist",
-      medications: validMedications.map(({ customName, ...med }) => ({
+      medications: validMedications.map(({ customName, customFrequency, ...med }) => ({
         ...med,
         name: med.name === "Other" ? customName.trim() : med.name,
+        frequency: med.frequency === "Other" ? customFrequency.trim() : med.frequency,
         quantity: "30",
       })),
       notes: "",
@@ -170,7 +179,7 @@ useEffect(() => {
         diagnosis: "",
       });
       setMedications([
-        { name: "", customName: "", dosage: "", frequency: "", duration: "", instructions: "" },
+        { name: "", customName: "", dosage: "", frequency: "", customFrequency: "", duration: "", instructions: "" },
       ]);
 
       if (onSuccess) onSuccess();
@@ -355,21 +364,30 @@ useEffect(() => {
                   </label>
                   <select
                     value={med.frequency}
-                    onChange={(e) =>
-                      handleMedicationChange(index, "frequency", e.target.value)
-                    }
+                    onChange={(e) => handleMedicationChange(index, "frequency", e.target.value)}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-                    required
+                    required={med.frequency !== "Other"}
                   >
                     <option value="">Select frequency...</option>
                     <option value="Once daily">Once daily</option>
                     <option value="Twice daily">Twice daily</option>
                     <option value="Three times daily">Three times daily</option>
-                    <option value="Before meals">Before meals</option>
-                    <option value="After meals">After meals</option>
-                    <option value="Bedtime">Bedtime</option>
-                    <option value="As needed">As needed</option>
+                    <option value="Four times daily (QDS)">Four times daily (QDS)</option>
+                    <option value="Every 8 hours">Every 8 hours</option>
+                    <option value="Every 12 hours">Every 12 hours</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="As needed (PRN)">As needed (PRN)</option>
+                    <option value="Other">Other (specify)</option>
                   </select>
+                  {med.frequency === "Other" && (
+                    <VoiceInput
+                      value={med.customFrequency}
+                      onChange={(e) => handleMedicationChange(index, "customFrequency", e.target.value)}
+                      placeholder="Describe frequency e.g. every 6 hours..."
+                      rows={1}
+                      className="mt-2"
+                    />
+                  )}
                 </div>
 
                 <div>

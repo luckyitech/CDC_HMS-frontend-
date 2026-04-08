@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import patientService from "../services/patientService";
 import documentService from "../services/documentService";
 
@@ -60,10 +60,8 @@ export const PatientProvider = ({ children }) => {
     }
   }, []);
 
-  // Load patients on mount for context use (dashboard, queue, etc.)
-  useEffect(() => {
-    fetchPatients();
-  }, [fetchPatients]);
+  // No global patient preload — components fetch only what they need via
+  // fetchPatientByUHID (single patient) or patientService.getAll (paginated lists)
 
   // ============================================
   // PATIENT CRUD (API)
@@ -142,8 +140,6 @@ export const PatientProvider = ({ children }) => {
     try {
       const response = await patientService.create(patientData);
       if (response.success) {
-        // Refresh patient list
-        await fetchPatients();
         return { success: true, patient: response.data.patient || response.data };
       }
       return { success: false, message: response.message };

@@ -1,29 +1,30 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
+import PatientSearchInput from "../../components/shared/PatientSearchInput";
 
 const GlycemicCharts = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { uhid: urlUHID } = useParams();
-  const { getPatientByUHID, patients } = usePatientContext();
+  const { fetchPatientByUHID } = usePatientContext();
 
-  // Get patient from URL params OR navigation state
   const patientUHID = urlUHID || location.state?.patientUHID;
   const fromConsultation = location.state?.fromConsultation;
 
-  const [manualPatient, setManualPatient] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
 
-  // Derive patient from URL/state or manual selection
-  const selectedPatient = useMemo(() => {
+  // Load patient from URL/navigation state
+  useEffect(() => {
     if (patientUHID) {
-      return getPatientByUHID(patientUHID) || null;
+      fetchPatientByUHID(patientUHID).then(patient => {
+        if (patient) setSelectedPatient(patient);
+      });
     }
-    return manualPatient;
-  }, [patientUHID, getPatientByUHID, manualPatient]);
+  }, [patientUHID, fetchPatientByUHID]);
 
   return (
     <div>
@@ -43,23 +44,10 @@ const GlycemicCharts = () => {
 
       {!selectedPatient && !fromConsultation ? (
         <Card title="Select Patient to View Charts">
-          {patients.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-8">Loading patients...</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {patients.map((patient) => (
-                <button
-                  key={patient.id}
-                  onClick={() => setManualPatient(patient)}
-                  className="text-left p-6 border-2 border-gray-200 rounded-lg hover:border-primary hover:bg-blue-50 transition"
-                >
-                  <p className="font-bold text-primary text-lg">{patient.uhid}</p>
-                  <p className="font-semibold text-gray-800 text-xl mt-2">{patient.name}</p>
-                  <p className="text-sm text-gray-600 mt-1">{patient.age} years</p>
-                </button>
-              ))}
-            </div>
-          )}
+          <PatientSearchInput
+            onSelect={setSelectedPatient}
+            placeholder="Search by name or UHID..."
+          />
         </Card>
       ) : (
         <GlycemicChartPanel patient={selectedPatient} />

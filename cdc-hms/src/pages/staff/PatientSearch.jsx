@@ -8,12 +8,16 @@ import {
   X,
   CheckCircle2,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
-import { usePatientContext } from "../../contexts/PatientContext";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useNavigate } from "react-router-dom";
+import patientService from "../../services/patientService";
+
+const RESULTS_PER_PAGE = 20;
 
 const PatientSearch = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,66 +28,71 @@ const PatientSearch = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [queuePriority, setQueuePriority] = useState("Normal");
   const [queueReason, setQueueReason] = useState("");
-
-  const { searchPatients } = usePatientContext();
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
 
   const { addToQueue, isInQueue } = useQueueContext();
-
-  // Inside component:
   const navigate = useNavigate();
 
-  const handleSearch = async () => {
-    if (searchTerm.trim()) {
-      setIsSearching(true);
-      const results = await searchPatients(searchTerm);
-      setIsSearching(false);
-      setSearchResults(results || []);
-      setHasSearched(true);
+  const doSearch = async (term, pageNum = 1) => {
+    setIsSearching(true);
+    try {
+      const response = await patientService.getAll({
+        search: term,
+        page: pageNum,
+        limit: RESULTS_PER_PAGE,
+      });
+      if (response.success) {
+        const patients = response.data.patients || response.data || [];
+        const pag = response.data.pagination || {};
+        setSearchResults(patients);
+        setPagination({ total: pag.total || patients.length, totalPages: pag.totalPages || 1 });
+        setHasSearched(true);
+        setPage(pageNum);
 
-      if (!results || results.length === 0) {
-        toast.error("No patients found", {
-          duration: 3000,
-          icon: <Search className="w-5 h-5" />,
-          style: {
-            background: "#FEE2E2",
-            color: "#991B1B",
-            fontWeight: "bold",
-            padding: "16px",
-          },
-        });
-      } else {
-        toast.success(
-          `Found ${results.length} patient${results.length > 1 ? "s" : ""}`,
-          {
+        if (patients.length === 0 && pageNum === 1) {
+          toast.error("No patients found", {
+            duration: 3000,
+            icon: <Search className="w-5 h-5" />,
+            style: { background: "#FEE2E2", color: "#991B1B", fontWeight: "bold", padding: "16px" },
+          });
+        } else if (pageNum === 1) {
+          toast.success(`Found ${pag.total || patients.length} patient${(pag.total || patients.length) !== 1 ? "s" : ""}`, {
             duration: 2000,
             icon: <CheckCircle2 className="w-5 h-5" />,
-            style: {
-              background: "#D1FAE5",
-              color: "#065F46",
-              fontWeight: "bold",
-              padding: "16px",
-            },
-          }
-        );
+            style: { background: "#D1FAE5", color: "#065F46", fontWeight: "bold", padding: "16px" },
+          });
+        }
       }
-    } else {
-      toast.error("Please enter a search term", {
+    } catch {
+      toast.error("Search failed. Please try again.", {
         duration: 3000,
-        icon: <AlertCircle className="w-5 h-5" />,
-        style: {
-          background: "#FEE2E2",
-          color: "#991B1B",
-          fontWeight: "bold",
-          padding: "16px",
-        },
+        style: { background: "#FEE2E2", color: "#991B1B", fontWeight: "bold", padding: "16px" },
       });
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleSearch();
+  const handleSearch = () => {
+    if (!searchTerm.trim()) {
+      toast.error("Please enter a search term", {
+        duration: 3000,
+        icon: <AlertCircle className="w-5 h-5" />,
+        style: { background: "#FEE2E2", color: "#991B1B", fontWeight: "bold", padding: "16px" },
+      });
+      return;
     }
+    doSearch(searchTerm, 1);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") handleSearch();
+  };
+
+  const handlePageChange = (newPage) => {
+    doSearch(searchTerm, newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleAddToQueueClick = (patient) => {
@@ -95,18 +104,12 @@ const PatientSearch = () => {
 
   const handleConfirmAddToQueue = async () => {
     if (selectedPatient) {
-      // addToQueue is now async - need await
       const result = await addToQueue(selectedPatient, queuePriority, queueReason);
       if (result.success) {
         toast.success(`${selectedPatient.name} added to queue!`, {
           duration: 3000,
           icon: <CheckCircle2 className="w-5 h-5" />,
-          style: {
-            background: "#D1FAE5",
-            color: "#065F46",
-            fontWeight: "bold",
-            padding: "16px",
-          },
+          style: { background: "#D1FAE5", color: "#065F46", fontWeight: "bold", padding: "16px" },
         });
         setShowQueueModal(false);
         setSelectedPatient(null);
@@ -114,27 +117,23 @@ const PatientSearch = () => {
         toast.error(result.message, {
           duration: 3000,
           icon: <AlertCircle className="w-5 h-5" />,
-          style: {
-            background: "#FEE2E2",
-            color: "#991B1B",
-            fontWeight: "bold",
-            padding: "16px",
-          },
+          style: { background: "#FEE2E2", color: "#991B1B", fontWeight: "bold", padding: "16px" },
         });
       }
     }
   };
 
+  const from = (page - 1) * RESULTS_PER_PAGE + 1;
+  const to = Math.min(page * RESULTS_PER_PAGE, pagination.total);
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
         <Search className="w-8 h-8 text-primary" />
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          Patient Search
-        </h2>
+        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Patient Search</h2>
       </div>
 
-      {/* Search Card */}
+      {/* Search Input */}
       <Card title="Search Patient">
         <div className="flex flex-col sm:flex-row gap-4">
           <input
@@ -149,15 +148,19 @@ const PatientSearch = () => {
             {isSearching
               ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               : <Search className="w-4 h-4 mr-2" />}
-            {isSearching ? 'Searching...' : 'Search'}
+            {isSearching ? "Searching..." : "Search"}
           </Button>
         </div>
       </Card>
 
-      {/* Search Results */}
+      {/* Results */}
       {hasSearched && (
         <Card
-          title={`Search Results (${searchResults.length})`}
+          title={
+            searchResults.length > 0
+              ? `Search Results — Showing ${from}–${to} of ${pagination.total} patients`
+              : "Search Results (0)"
+          }
           className="mt-6"
         >
           {searchResults.length > 0 ? (
@@ -173,14 +176,14 @@ const PatientSearch = () => {
                         {patient.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${
-                        patient.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                        patient.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                       }`}>{patient.status}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
                       <span><span className="font-semibold">Age:</span> {patient.age} yrs · {patient.gender}</span>
-                      <span><span className="font-semibold">Phone:</span> {patient.phone || '-'}</span>
-                      <span><span className="font-semibold">Type:</span> {patient.diagnosis || '-'}</span>
-                      <span><span className="font-semibold">ID:</span> {patient.idNumber || '-'}</span>
+                      <span><span className="font-semibold">Phone:</span> {patient.phone || "-"}</span>
+                      <span><span className="font-semibold">Type:</span> {patient.diagnosis || "-"}</span>
+                      <span><span className="font-semibold">ID:</span> {patient.idNumber || "-"}</span>
                     </div>
                     <div className="flex gap-2 mt-1">
                       <button
@@ -234,10 +237,10 @@ const PatientSearch = () => {
                         <td className="hidden lg:table-cell px-4 lg:px-6 py-4">
                           <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">{patient.diagnosis}</span>
                         </td>
-                        <td className="hidden xl:table-cell px-4 lg:px-6 py-4 text-sm text-gray-600">{patient.idNumber || '-'}</td>
+                        <td className="hidden xl:table-cell px-4 lg:px-6 py-4 text-sm text-gray-600">{patient.idNumber || "-"}</td>
                         <td className="hidden xl:table-cell px-4 lg:px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            patient.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                            patient.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
                           }`}>{patient.status}</span>
                         </td>
                         <td className="px-4 lg:px-6 py-4">
@@ -261,18 +264,42 @@ const PatientSearch = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-600">
+                    Showing {from}–{to} of {pagination.total} patients
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={page === 1 || isSearching}
+                      className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-semibold text-gray-700">
+                      Page {page} of {pagination.totalPages}
+                    </span>
+                    <button
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={page === pagination.totalPages || isSearching}
+                      className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center py-12">
               <div className="flex justify-center mb-4">
                 <Search className="w-16 h-16 text-gray-400" />
               </div>
-              <p className="text-xl font-semibold text-gray-800 mb-2">
-                No patients found
-              </p>
-              <p className="text-gray-600">
-                Try searching with a different term
-              </p>
+              <p className="text-xl font-semibold text-gray-800 mb-2">No patients found</p>
+              <p className="text-gray-600">Try searching with a different term</p>
             </div>
           )}
         </Card>
@@ -284,9 +311,7 @@ const PatientSearch = () => {
             <div className="flex justify-center mb-4">
               <UserCircle className="w-20 h-20 text-gray-400" />
             </div>
-            <p className="text-xl font-semibold text-gray-800 mb-2">
-              Search for a patient
-            </p>
+            <p className="text-xl font-semibold text-gray-800 mb-2">Search for a patient</p>
             <p className="text-gray-600">
               Enter name, UHID, phone, email, or ID/passport number to find patient records
             </p>
@@ -304,10 +329,7 @@ const PatientSearch = () => {
                 Add to Queue
               </h3>
               <button
-                onClick={() => {
-                  setShowQueueModal(false);
-                  setSelectedPatient(null);
-                }}
+                onClick={() => { setShowQueueModal(false); setSelectedPatient(null); }}
                 className="text-gray-400 hover:text-gray-600 transition"
               >
                 <X className="w-5 h-5" />
@@ -315,54 +337,31 @@ const PatientSearch = () => {
             </div>
 
             <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-              <p className="font-semibold text-gray-800">
-                {selectedPatient.name}
-              </p>
-              <p className="text-sm text-gray-600">
-                UHID: {selectedPatient.uhid}
-              </p>
-              <p className="text-sm text-gray-600">
-                {selectedPatient.age} yrs &middot; {selectedPatient.gender}
-              </p>
+              <p className="font-semibold text-gray-800">{selectedPatient.name}</p>
+              <p className="text-sm text-gray-600">UHID: {selectedPatient.uhid}</p>
+              <p className="text-sm text-gray-600">{selectedPatient.age} yrs &middot; {selectedPatient.gender}</p>
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Priority
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Priority</label>
               <div className="flex gap-4">
                 <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    name="priority"
-                    value="Normal"
-                    checked={queuePriority === "Normal"}
-                    onChange={(e) => setQueuePriority(e.target.value)}
-                    className="mr-2"
-                  />
+                  <input type="radio" name="priority" value="Normal"
+                    checked={queuePriority === "Normal"} onChange={(e) => setQueuePriority(e.target.value)} className="mr-2" />
                   <span className="text-sm">Normal</span>
                 </label>
                 <label className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    name="priority"
-                    value="Urgent"
-                    checked={queuePriority === "Urgent"}
-                    onChange={(e) => setQueuePriority(e.target.value)}
-                    className="mr-2"
-                  />
+                  <input type="radio" name="priority" value="Urgent"
+                    checked={queuePriority === "Urgent"} onChange={(e) => setQueuePriority(e.target.value)} className="mr-2" />
                   <span className="text-sm text-red-600 font-semibold flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    Urgent
+                    <AlertCircle className="w-4 h-4" /> Urgent
                   </span>
                 </label>
               </div>
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Reason for Visit
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Reason for Visit</label>
               <input
                 type="text"
                 value={queueReason}
@@ -373,23 +372,12 @@ const PatientSearch = () => {
             </div>
 
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setShowQueueModal(false);
-                  setSelectedPatient(null);
-                }}
-              >
+              <Button variant="outline" className="flex-1"
+                onClick={() => { setShowQueueModal(false); setSelectedPatient(null); }}>
                 Cancel
               </Button>
-              <Button
-                variant="primary"
-                className="flex-1"
-                onClick={handleConfirmAddToQueue}
-              >
-                <UserPlus className="w-4 h-4 mr-2" />
-                Add to Queue
+              <Button variant="primary" className="flex-1" onClick={handleConfirmAddToQueue}>
+                <UserPlus className="w-4 h-4 mr-2" /> Add to Queue
               </Button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
+import PatientSearchInput from "../../components/shared/PatientSearchInput";
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import PhysicalExamEntry from "./PhysicalExamEntry";
 import PhysicalExamFindings from "./PhysicalExamFindings";
@@ -13,7 +14,7 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { uhid: urlUHID } = useParams();
-  const { getPatientByUHID, patients } = usePatientContext();
+  const { fetchPatientByUHID } = usePatientContext();
   const { saveExamination, getLatestExamination, getExaminationById } =
     usePhysicalExamContext();
 
@@ -28,41 +29,37 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
   const viewMode = location.state?.viewMode;
   const fromProfile = location.state?.fromProfile;
 
-  const allPatients = patients;
-
   useEffect(() => {
-    if (patientUHID) {
-      const patient = getPatientByUHID(patientUHID);
-      if (patient) {
-        setSelectedPatient(patient);
+    if (!patientUHID) return;
+    fetchPatientByUHID(patientUHID).then(patient => {
+      if (!patient) return;
+      setSelectedPatient(patient);
 
-        // If specific exam ID is provided, load that exam
-        if (viewExamId) {
-          const specificExam = getExaminationById(viewExamId);
-          if (specificExam) {
-            setCurrentExamination(specificExam);
-            setMode(viewMode || "findings");
-          }
-        } else {
-          // Otherwise load latest exam
-          const latestExam = getLatestExamination(patientUHID);
-          if (latestExam) {
-            setCurrentExamination(latestExam);
-            setMode("findings");
-          }
+      // If specific exam ID is provided, load that exam
+      if (viewExamId) {
+        const specificExam = getExaminationById(viewExamId);
+        if (specificExam) {
+          setCurrentExamination(specificExam);
+          setMode(viewMode || "findings");
+        }
+      } else {
+        // Otherwise load latest exam
+        const latestExam = getLatestExamination(patientUHID);
+        if (latestExam) {
+          setCurrentExamination(latestExam);
+          setMode("findings");
         }
       }
-    }
+    });
   }, [
     patientUHID,
     viewExamId,
-    getPatientByUHID,
+    fetchPatientByUHID,
     getLatestExamination,
     getExaminationById,
   ]);
 
-  const handleSelectPatient = (uhid) => {
-    const patient = getPatientByUHID(uhid);
+  const handleSelectPatient = (patient) => {
     setSelectedPatient(patient);
     setMode("entry");
     setCurrentExamination(null);
@@ -147,27 +144,12 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
         {!fromConsultation && !fromProfile && !embedded && !patientUHID && (
           <div className="lg:col-span-1">
             <Card title="Select Patient">
-              <div className="space-y-2">
-                {allPatients.map((patient) => (
-                  <button
-                    key={patient.id}
-                    onClick={() => handleSelectPatient(patient.uhid)}
-                    className={`w-full text-left p-3 rounded-lg border-2 transition ${
-                      selectedPatient?.uhid === patient.uhid
-                        ? "border-primary bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <p className="font-bold text-sm text-primary">
-                      {patient.uhid}
-                    </p>
-                    <p className="font-semibold text-sm">{patient.name}</p>
-                    <p className="text-xs text-gray-600">
-                      {patient.age} yrs {patient.gender}
-                    </p>
-                  </button>
-                ))}
-              </div>
+              <PatientSearchInput
+                onSelect={handleSelectPatient}
+                selectedPatient={selectedPatient}
+                onClear={() => { setSelectedPatient(null); setCurrentExamination(null); setMode("entry"); }}
+                placeholder="Search by name or UHID..."
+              />
             </Card>
           </div>
         )}
