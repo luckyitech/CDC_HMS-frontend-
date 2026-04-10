@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
+import useNotificationSound from '../../hooks/useNotificationSound';
 import {
   ClipboardList,
   Users,
@@ -36,6 +37,7 @@ const Field = ({ label, children, span2 = false }) => (
 const QueueManagement = () => {
   const { queue, loading, fetchQueue, removeFromQueue, updateQueueStatus, getLocalQueueStats } = useQueueContext();
   const { autoCompleteAppointmentOnDischarge } = useAppointmentContext();
+  const { play } = useNotificationSound();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [patientToRemove, setPatientToRemove] = useState(null);
   const [removalReason, setRemovalReason] = useState('');
@@ -48,6 +50,24 @@ const QueueManagement = () => {
 
   // Only show active entries — hide Completed and Removed
   const activeQueue = queue.filter(p => p.status !== 'Completed' && p.status !== 'Removed');
+
+  // ── Notification sound — play when a new patient joins the active queue ──
+  const prevActiveIds = useRef(null);
+
+  useEffect(() => {
+    const currentIds = new Set(activeQueue.map(q => q.id));
+
+    // Skip the very first render — no sound on page load
+    if (prevActiveIds.current === null) {
+      prevActiveIds.current = currentIds;
+      return;
+    }
+
+    const hasNewPatient = [...currentIds].some(id => !prevActiveIds.current.has(id));
+    if (hasNewPatient) play('new');
+
+    prevActiveIds.current = currentIds;
+  }, [activeQueue, play]);
 
   // Use local stats (synchronous) for display
   const stats = getLocalQueueStats();
@@ -118,8 +138,12 @@ const QueueManagement = () => {
   };
 
   const confirmRemove = async () => {
+    if (!removalReason.trim()) {
+      toast.error('Please provide a reason for removal');
+      return;
+    }
     if (patientToRemove) {
-      const result = await removeFromQueue(patientToRemove.id, removalReason.trim() || null);
+      const result = await removeFromQueue(patientToRemove.id, removalReason.trim());
       if (result.success) {
         toast.success(`${patientToRemove.name} removed from queue`, {
           duration: 3000,
@@ -533,14 +557,21 @@ const QueueManagement = () => {
             </p>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-600 mb-1">Reason for removal</label>
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Reason for removal <span className="text-red-500">*</span>
+              </label>
               <textarea
                 value={removalReason}
                 onChange={(e) => setRemovalReason(e.target.value)}
                 placeholder="e.g. Patient left before being seen..."
                 rows={3}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary resize-none"
+                className={`w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:border-primary resize-none ${
+                  removalReason.trim() ? 'border-gray-300' : 'border-red-300'
+                }`}
               />
+              {!removalReason.trim() && (
+                <p className="text-xs text-red-500 mt-1">This field is required</p>
+              )}
             </div>
 
             <div className="flex gap-3">

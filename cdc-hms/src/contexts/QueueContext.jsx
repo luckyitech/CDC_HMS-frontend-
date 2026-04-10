@@ -241,14 +241,45 @@ export const QueueProvider = ({ children }) => {
     }
   };
 
-  // Doctor completes consultation — sends charges checklist and moves to Pending Billing
+  // Doctor refers a patient — either internally to another doctor or externally to another facility.
+  // On success the queue item is updated in local state and the backend broadcasts to all clients.
+  const referPatient = async (queueId, referralData) => {
+    setLoading(true);
+    try {
+      const response = await queueService.refer(queueId, referralData);
+      if (response.success) {
+        setQueue(prev =>
+          prev.map(item =>
+            item.id === queueId
+              ? { ...item, ...(response.data.queue || response.data) }
+              : item
+          )
+        );
+        return { success: true };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Doctor completes consultation — sends charges checklist and moves to Pending Billing.
+  // Merges with any charges already on the queue entry so that internal referral chains
+  // (Doctor A → Doctor B) accumulate all charges rather than the last doctor overwriting.
   const sendToBilling = async (queueId, selectedCharges, selectedProcedures) => {
     setLoading(true);
     try {
+      // Pull existing charges from local state (set by any prior referring doctor)
+      const currentItem = queue.find(q => q.id === queueId);
+      const mergedCharges    = [...new Set([...(currentItem?.selectedCharges    || []), ...selectedCharges])];
+      const mergedProcedures = [...new Set([...(currentItem?.selectedProcedures || []), ...selectedProcedures])];
+
       const response = await queueService.update(queueId, {
-        status: 'Pending Billing',
-        selectedCharges,
-        selectedProcedures,
+        status:            'Pending Billing',
+        selectedCharges:    mergedCharges,
+        selectedProcedures: mergedProcedures,
       });
       if (response.success) {
         setQueue(prev =>
@@ -295,6 +326,7 @@ export const QueueProvider = ({ children }) => {
     assignDoctorToQueue,
     getQueueByDoctor,
     sendToBilling,
+    referPatient,
   };
 
   return (

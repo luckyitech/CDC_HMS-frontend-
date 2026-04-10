@@ -45,6 +45,15 @@ export const queueService = {
    * @returns {Object} - The next queue item
    */
   callNext: () => api.post('/queue/call-next'),
+
+  /**
+   * Refer a patient to another doctor or an external facility.
+   * @param {number} id - Queue item ID
+   * @param {Object} data
+   *   Internal:  { referralType: 'Internal', referralReason, referredToDoctorId, referredToDoctorName }
+   *   External:  { referralType: 'External', referralReason, externalReferralTarget }
+   */
+  refer: (id, data) => api.post(`/queue/${id}/refer`, data),
 };
 
 export default queueService;

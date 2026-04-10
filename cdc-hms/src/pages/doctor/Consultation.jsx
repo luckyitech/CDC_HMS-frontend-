@@ -35,6 +35,8 @@ import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
+import ReferPatientModal from "../../components/doctor/ReferPatientModal";
+import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamination from "./PhysicalExamination";
 import PhysicalExamList from "../../components/doctor/PhysicalExamList";
@@ -118,6 +120,7 @@ const Consultation = () => {
   const [showVitalsModal, setShowVitalsModal] = useState(false);
 
   // Modal state
+  const [showReferModal, setShowReferModal]       = useState(false);
   const [showOrderLabModal, setShowOrderLabModal] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal] = useState(false);
@@ -125,29 +128,8 @@ const Consultation = () => {
   const [selectedProcedures, setSelectedProcedures] = useState([]);
   const [billingSubmitting, setBillingSubmitting] = useState(false);
 
-  const CHARGE_OPTIONS = [
-    'Consultation Fee',
-    'Random Blood Sugar',
-    'Ketones',
-    'HbA1c',
-    'Thyroid Ultrasound',
-    'ECG',
-    'Insulin Shot',
-  ];
-  const PROCEDURE_OPTIONS = [
-    'PNS',
-    'ABI',
-    'ANS',
-    'Dressing Major',
-    'Dressing Minor',
-    'IV',
-    'CGM',
-    'Thyroid Nodule Radiofrequency Ablation (RFA)',
-    'Thyroid Percutaneous Ethanol Injection (PEI)',
-    'Ultrasound-Guided Thyroid Fine Needle Aspiration (FNA)',
-    'Ultrasound-Guided Core Needle Biopsy (CNB)',
-    'Foot Pressure Measurement',
-  ];
+  // CHARGE_OPTIONS and PROCEDURE_OPTIONS are imported from constants/billingOptions.js
+  // (shared with ReferPatientModal to keep billing options in one place)
 
   // Tab unsaved changes tracking (derived state)
   const tabsUnsaved = useMemo(() => ({
@@ -313,11 +295,22 @@ const Consultation = () => {
   };
 
   const handleBillingSubmit = async () => {
-    setBillingSubmitting(true);
     const queueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
-    if (queueItem) {
-      await sendToBilling(queueItem.id, selectedCharges, selectedProcedures);
+
+    // Guard: if the queue entry isn't found, stop immediately.
+    // Proceeding without this would show a success message while the patient
+    // is never actually moved to Pending Billing — a silent data loss failure.
+    if (!queueItem) {
+      toast.error('Could not find an active queue entry for this patient. Please refresh and try again.', {
+        duration: 5000,
+        position: 'top-right',
+      });
+      setBillingSubmitting(false);
+      return;
     }
+
+    setBillingSubmitting(true);
+    await sendToBilling(queueItem.id, selectedCharges, selectedProcedures);
     sessionStorage.removeItem(DRAFT_KEY);
     setBillingSubmitting(false);
     setShowBillingModal(false);
@@ -853,8 +846,20 @@ const Consultation = () => {
         )}
       </div>
 
-      {/* Floating Complete Button */}
-      <div className="fixed bottom-6 right-6 z-20">
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 right-6 z-20 flex items-center gap-3">
+        {/* Refer Patient — always available while consultation is active */}
+        <Button
+          onClick={() => setShowReferModal(true)}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-4 text-base font-bold shadow-2xl"
+        >
+          <span className="flex items-center gap-2">
+            <UserCircle className="w-5 h-5" />
+            Refer Patient
+          </span>
+        </Button>
+
+        {/* Complete Consultation — requires diagnosis tab to be done */}
         <Button
           onClick={handleCompleteConsultation}
           className="bg-green-600 hover:bg-green-700 text-white px-6 py-4 text-base font-bold shadow-2xl"
@@ -963,9 +968,7 @@ const Consultation = () => {
         <OrderLabTestModal
           patient={patient}
           onClose={() => setShowOrderLabModal(false)}
-          onSuccess={() => {
-            console.log("Lab test ordered successfully");
-          }}
+          onSuccess={() => {}}
         />
       )}
 
@@ -978,6 +981,40 @@ const Consultation = () => {
           onSaved={() => fetchPatientByUHID(uhid).then(p => setPatient(p || null))}
         />
       )}
+
+      {/* Refer Patient Modal — only mount when we have a confirmed active queue entry */}
+      {showReferModal && (() => {
+        const activeQueueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
+        if (!activeQueueItem) {
+          // Queue hasn't synced yet or status mismatch — show a safe fallback
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center space-y-4">
+                <p className="text-gray-700 font-medium">Unable to load queue data.</p>
+                <p className="text-sm text-gray-500">Please refresh the page and try again.</p>
+                <button
+                  onClick={() => setShowReferModal(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <ReferPatientModal
+            patient={patient}
+            queueItem={activeQueueItem}
+            onClose={() => setShowReferModal(false)}
+            onSuccess={() => {
+              sessionStorage.removeItem(DRAFT_KEY);
+              setShowReferModal(false);
+              navigate('/doctor/dashboard');
+            }}
+          />
+        );
+      })()}
     </div>
   );
 };
