@@ -161,9 +161,6 @@ const MyPatients = () => {
                       <p className="font-bold text-gray-800 text-sm truncate">{patient.name}</p>
                       <p className="text-xs text-gray-500">{patient.phone}</p>
                     </div>
-                    <span className={`flex-shrink-0 ml-2 px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getRiskColor(patient.riskLevel)}`}>
-                      {patient.riskLevel}
-                    </span>
                   </div>
                   <div className="bg-white px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
                     <div>
@@ -173,14 +170,6 @@ const MyPatients = () => {
                     <div>
                       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Age / Gender</p>
                       <p className="text-sm text-gray-700">{patient.age} yrs · {patient.gender}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Diagnosis</p>
-                      <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium">{patient.diagnosis || '—'}</span>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">HbA1c</p>
-                      <p className={`text-sm ${getHbA1cColor(patient.hba1c)}`}>{patient.hba1c || '—'}</p>
                     </div>
                     {patient.nextVisit && (
                       <div className="col-span-2">
@@ -206,9 +195,6 @@ const MyPatients = () => {
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age/Gender</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Diagnosis</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">HbA1c</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Risk Level</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Next Visit</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
                   </tr>
@@ -222,15 +208,6 @@ const MyPatients = () => {
                         <p className="text-xs text-gray-500">{patient.phone}</p>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{patient.age} yrs · {patient.gender}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">{patient.diagnosis}</span>
-                      </td>
-                      <td className={`px-6 py-4 text-sm ${getHbA1cColor(patient.hba1c)}`}>{patient.hba1c}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getRiskColor(patient.riskLevel)}`}>
-                          {patient.riskLevel}
-                        </span>
-                      </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{patient.nextVisit}</td>
                       <td className="px-6 py-4">
                         <Button variant="outline" className="text-xs py-1 px-3" onClick={() => navigate(`/doctor/patient-profile/${patient.uhid}`)}>

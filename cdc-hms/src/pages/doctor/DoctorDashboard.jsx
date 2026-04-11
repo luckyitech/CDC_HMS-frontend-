@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Clock, CheckCircle, ClipboardList, Zap, AlertTriangle } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
+import useNotificationSound from '../../hooks/useNotificationSound';
 
 const QUEUE_PER_PAGE = 15;
 
@@ -14,11 +15,42 @@ const DoctorDashboard = () => {
   const { queue, startConsultation } = useQueueContext();
   const [queuePage, setQueuePage] = useState(1);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'mine'
+  const { play } = useNotificationSound();
 
   const switchTab = (tab) => {
     setActiveTab(tab);
     setQueuePage(1); // reset pagination when switching tabs
   };
+
+  // ── Notification sound — play when a new patient is assigned to this doctor ──
+  // Track the set of queue IDs assigned to this doctor; play a chime whenever
+  // the set grows (new assignment or internal referral received).
+  const prevMyQueueIds = useRef(null);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const myIds = new Set(
+      queue
+        .filter(q =>
+          q.assignedDoctorId === currentUser.id &&
+          q.status !== 'Completed' &&
+          q.status !== 'Removed'
+        )
+        .map(q => q.id)
+    );
+
+    // Skip the very first render — we don't want a sound on page load
+    if (prevMyQueueIds.current === null) {
+      prevMyQueueIds.current = myIds;
+      return;
+    }
+
+    const hasNewPatient = [...myIds].some(id => !prevMyQueueIds.current.has(id));
+    if (hasNewPatient) play('new');
+
+    prevMyQueueIds.current = myIds;
+  }, [queue, currentUser?.id, play]);;
   
   // Returns false when date is missing (prevents old records leaking through)
   const isToday = (dateString) => {
@@ -43,9 +75,8 @@ const DoctorDashboard = () => {
     return `${diffMins}m`;
   };
 
-  // Active (non-Completed) patients from ANY day — handles patients admitted today
-  // but not yet discharged by tomorrow
-  const activePatients = queue.filter(q => q.status !== 'Completed');
+  // Active patients from ANY day — excludes Completed and Removed
+  const activePatients = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed');
 
   // Completed (discharged) patients from TODAY only — for day-of reference
   const todayCompleted = queue.filter(q => q.status === 'Completed' && isToday(q.createdAt));
@@ -80,17 +111,23 @@ const DoctorDashboard = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Waiting':         return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'In Triage':       return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'With Doctor':     return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'Pending Billing': return 'bg-amber-100 text-amber-700 border-amber-300';
-      case 'Completed':       return 'bg-green-100 text-green-700 border-green-300';
-      default:                return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'Awaiting Triage':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'In Triage':        return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'Awaiting Doctor':  return 'bg-purple-100 text-purple-700 border-purple-300';
+      case 'With Doctor':      return 'bg-green-100 text-green-700 border-green-300';
+      case 'Pending Billing':  return 'bg-amber-100 text-amber-700 border-amber-300';
+      case 'Completed':        return 'bg-gray-100 text-gray-700 border-gray-300';
+      default:                 return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
-  const handleStartConsultation = (queueId, uhid) => {
-    startConsultation(queueId);
+  const handleStartConsultation = (queueId, uhid, alreadyWithDoctor) => {
+    // Only transition to "With Doctor" on the first click.
+    // If status is already "With Doctor" the doctor is continuing — no state change needed.
+    // If status is "Awaiting Doctor" (e.g. after a referral) we must call startConsultation
+    // so the status transitions correctly, even if consultationStartTime was previously set
+    // by the referring doctor.
+    if (!alreadyWithDoctor) startConsultation(queueId);
     navigate(`/doctor/consultation/${uhid}`);
   };
 
@@ -193,9 +230,20 @@ const DoctorDashboard = () => {
                       </div>
                       <div>
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(queueItem.status)}`}>
-                          {queueItem.status}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(queueItem.status)}`}>
+                            {queueItem.status}
+                          </span>
+                          {queueItem.referralType && (
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border w-fit ${
+                              queueItem.referralType === 'Internal'
+                                ? 'bg-purple-50 text-purple-700 border-purple-300'
+                                : 'bg-orange-50 text-orange-700 border-orange-300'
+                            }`}>
+                              {queueItem.referralType === 'Internal' ? 'Internal Referral' : 'External Referral'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Assigned To</p>
@@ -232,13 +280,13 @@ const DoctorDashboard = () => {
                         <Button
                           variant="primary"
                           className="w-full text-xs py-1.5"
-                          onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid)}
+                          onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid, queueItem.status === 'With Doctor')}
                         >
-                          {queueItem.consultationStartTime ? 'Continue Consultation' : 'Start Consultation'}
+                          {queueItem.status === 'With Doctor' ? 'Continue Consultation' : 'Start Consultation'}
                         </Button>
-                      ) : (
-                        <span className="text-xs text-gray-500">Assigned to <span className="font-semibold text-gray-700">{queueItem.assignedDoctorName || 'Unassigned'}</span></span>
-                      )}
+                      ) : queueItem.assignedDoctorId ? (
+                        <span className="text-xs text-gray-500">Assigned to <span className="font-semibold text-gray-700">{queueItem.assignedDoctorName || 'Other Doctor'}</span></span>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -266,7 +314,7 @@ const DoctorDashboard = () => {
                     const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
 
                     return (
-                      <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient ? 'bg-blue-50' : ''}`}>
+                      <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient && queueItem.status === 'Awaiting Doctor' ? 'bg-purple-50' : isMyPatient ? 'bg-blue-50' : ''}`}>
                         <td className="px-6 py-4 text-sm font-semibold text-gray-700">{formatArrival(queueItem.createdAt)}</td>
                         <td className="px-6 py-4 font-medium text-primary text-sm">{queueItem.uhid}</td>
                         <td className="px-6 py-4 text-sm font-medium">{queueItem.name}</td>
@@ -281,9 +329,21 @@ const DoctorDashboard = () => {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(queueItem.status)}`}>
-                            {queueItem.status}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(queueItem.status)}`}>
+                              {queueItem.status}
+                            </span>
+                            {/* Referral badge — shown when this patient arrived via referral */}
+                            {queueItem.referralType && (
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border w-fit ${
+                                queueItem.referralType === 'Internal'
+                                  ? 'bg-purple-50 text-purple-700 border-purple-300'
+                                  : 'bg-orange-50 text-orange-700 border-orange-300'
+                              }`}>
+                                {queueItem.referralType === 'Internal' ? 'Internal Referral' : 'External Referral'}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
                           {consultationDone
@@ -302,14 +362,16 @@ const DoctorDashboard = () => {
                             <Button
                               variant="primary"
                               className="text-xs py-1 px-3"
-                              onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid)}
+                              onClick={() => handleStartConsultation(queueItem.id, queueItem.uhid, queueItem.status === 'With Doctor')}
                             >
-                              {queueItem.consultationStartTime ? 'Continue' : 'Start Consultation'}
+                              {queueItem.status === 'With Doctor' ? 'Continue' : 'Start Consultation'}
+                            </Button>
+                          ) : queueItem.assignedDoctorId ? (
+                            <Button variant="outline" className="text-xs py-1 px-3 opacity-50 cursor-not-allowed" disabled>
+                              Assigned to {queueItem.assignedDoctorName?.split(' ')[0] || 'Other'}
                             </Button>
                           ) : (
-                            <Button variant="outline" className="text-xs py-1 px-3 opacity-50 cursor-not-allowed" disabled>
-                              Assigned to {queueItem.assignedDoctorName?.split(' ')[1] || 'Other'}
-                            </Button>
+                            <span className="text-gray-400">—</span>
                           )}
                         </td>
                       </tr>

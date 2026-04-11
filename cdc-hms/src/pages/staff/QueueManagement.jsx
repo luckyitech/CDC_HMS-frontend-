@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
+import useNotificationSound from '../../hooks/useNotificationSound';
 import {
   ClipboardList,
   Users,
@@ -36,6 +37,7 @@ const Field = ({ label, children, span2 = false }) => (
 const QueueManagement = () => {
   const { queue, loading, fetchQueue, removeFromQueue, updateQueueStatus, getLocalQueueStats } = useQueueContext();
   const { autoCompleteAppointmentOnDischarge } = useAppointmentContext();
+  const { play } = useNotificationSound();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [patientToRemove, setPatientToRemove] = useState(null);
   const [removalReason, setRemovalReason] = useState('');
@@ -49,17 +51,36 @@ const QueueManagement = () => {
   // Only show active entries — hide Completed and Removed
   const activeQueue = queue.filter(p => p.status !== 'Completed' && p.status !== 'Removed');
 
+  // ── Notification sound — play when a new patient joins the active queue ──
+  const prevActiveIds = useRef(null);
+
+  useEffect(() => {
+    const currentIds = new Set(activeQueue.map(q => q.id));
+
+    // Skip the very first render — no sound on page load
+    if (prevActiveIds.current === null) {
+      prevActiveIds.current = currentIds;
+      return;
+    }
+
+    const hasNewPatient = [...currentIds].some(id => !prevActiveIds.current.has(id));
+    if (hasNewPatient) play('new');
+
+    prevActiveIds.current = currentIds;
+  }, [activeQueue, play]);
+
   // Use local stats (synchronous) for display
   const stats = getLocalQueueStats();
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Waiting':         return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'In Triage':       return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'With Doctor':     return 'bg-green-100 text-green-700 border-green-300';
-      case 'Pending Billing': return 'bg-amber-100 text-amber-700 border-amber-300';
-      case 'Completed':       return 'bg-gray-100 text-gray-700 border-gray-300';
-      default:                return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'Awaiting Triage':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'In Triage':        return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'Awaiting Doctor':  return 'bg-purple-100 text-purple-700 border-purple-300';
+      case 'With Doctor':      return 'bg-green-100 text-green-700 border-green-300';
+      case 'Pending Billing':  return 'bg-amber-100 text-amber-700 border-amber-300';
+      case 'Completed':        return 'bg-gray-100 text-gray-700 border-gray-300';
+      default:                 return 'bg-gray-100 text-gray-700 border-gray-300';
     }
   };
 
@@ -117,8 +138,12 @@ const QueueManagement = () => {
   };
 
   const confirmRemove = async () => {
+    if (!removalReason.trim()) {
+      toast.error('Please provide a reason for removal');
+      return;
+    }
     if (patientToRemove) {
-      const result = await removeFromQueue(patientToRemove.id, removalReason.trim() || null);
+      const result = await removeFromQueue(patientToRemove.id, removalReason.trim());
       if (result.success) {
         toast.success(`${patientToRemove.name} removed from queue`, {
           duration: 3000,
@@ -163,36 +188,36 @@ const QueueManagement = () => {
 
       {/* Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5" />
-            <p className="text-sm opacity-90">Total in Queue</p>
-          </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.total}</p>
-        </div>
-
         <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-5 h-5" />
-            <p className="text-sm opacity-90">Waiting</p>
+            <p className="text-sm opacity-90">Waiting for Triage</p>
           </div>
           <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.waiting}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="w-5 h-5" />
-            <p className="text-sm opacity-90">In Progress</p>
+            <p className="text-sm opacity-90">In Triage</p>
           </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.inTriage + stats.withDoctor}</p>
+          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.inTriage}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-5 h-5" />
+            <p className="text-sm opacity-90">Awaiting Doctor</p>
+          </div>
+          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.awaitingDoctor}</p>
+        </div>
+
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5" />
-            <p className="text-sm opacity-90">Urgent</p>
+            <p className="text-sm opacity-90">With Doctor</p>
           </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.urgent}</p>
+          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.withDoctor}</p>
         </div>
       </div>
 
@@ -332,11 +357,11 @@ const QueueManagement = () => {
                       <td className="px-6 py-4 text-sm text-gray-700 font-medium">{patient.assignedDoctorName || '—'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{patient.reason}</td>
                       <td className="px-6 py-4">
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-2 w-36">
                           {patient.status === 'Pending Billing' && (
                             <Button
                               variant="primary"
-                              className="text-xs py-1 px-3 bg-amber-600 hover:bg-amber-700 border-amber-600"
+                              className="text-xs py-1 px-3 bg-amber-600 hover:bg-amber-700 border-amber-600 w-full"
                               onClick={() => handleDischargeClick(patient)}
                               disabled={loading}
                             >
@@ -344,15 +369,14 @@ const QueueManagement = () => {
                               Confirm & Discharge
                             </Button>
                           )}
-                          <Button
-                            variant="outline"
-                            className="text-xs py-1 px-3"
+                          <button
                             onClick={() => handleRemoveClick(patient.id, patient.name)}
                             disabled={loading}
+                            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border-2 border-red-300 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all duration-200 hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
                           >
-                            <Trash2 className="w-3 h-3 mr-1" />
+                            <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
                             Remove
-                          </Button>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -532,14 +556,21 @@ const QueueManagement = () => {
             </p>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-600 mb-1">Reason for removal</label>
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Reason for removal <span className="text-red-500">*</span>
+              </label>
               <textarea
                 value={removalReason}
                 onChange={(e) => setRemovalReason(e.target.value)}
                 placeholder="e.g. Patient left before being seen..."
                 rows={3}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary resize-none"
+                className={`w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:border-primary resize-none ${
+                  removalReason.trim() ? 'border-gray-300' : 'border-red-300'
+                }`}
               />
+              {!removalReason.trim() && (
+                <p className="text-xs text-red-500 mt-1">This field is required</p>
+              )}
             </div>
 
             <div className="flex gap-3">

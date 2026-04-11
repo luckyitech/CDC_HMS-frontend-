@@ -37,7 +37,7 @@ const StaffDashboard = () => {
 
   // Queue stats computed from local state — always in sync, no extra API call
   const queueStats = getLocalQueueStats();
-  const waitingPatients = getQueueByStatus('Waiting');
+  const waitingPatients = getQueueByStatus('Awaiting Triage');
 
   // New patients registered today — from API stats
   const newRegistrationsToday = patientStats.registeredToday ?? 0;
@@ -207,7 +207,7 @@ const StaffDashboard = () => {
             <div className="p-4 bg-green-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
-                <p className="text-sm text-gray-600">Completed Triage</p>
+                <p className="text-sm text-gray-600">Discharged Today</p>
               </div>
               <p className="text-3xl font-bold text-green-600">{completedTriageToday}</p>
             </div>
@@ -217,6 +217,13 @@ const StaffDashboard = () => {
                 <p className="text-sm text-gray-600">In Queue</p>
               </div>
               <p className="text-3xl font-bold text-purple-600">{queueStats.total}</p>
+            </div>
+            <div className="p-4 bg-purple-50 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Calendar className="w-5 h-5 text-purple-600" />
+                <p className="text-sm text-gray-600">Awaiting Doctor</p>
+              </div>
+              <p className="text-3xl font-bold text-purple-600">{queueStats.awaitingDoctor}</p>
             </div>
             <div className="p-4 bg-orange-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">

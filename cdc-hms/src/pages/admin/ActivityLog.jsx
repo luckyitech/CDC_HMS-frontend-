@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2 } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import activityService from '../../services/activityService';
 
@@ -14,6 +14,7 @@ const ACTION_TYPES = [
   { value: 'triaged',              label: 'Triaged Patient' },
   { value: 'discharged',           label: 'Discharged Patient' },
   { value: 'removed',              label: 'Removed from Queue' },
+  { value: 'referred',             label: 'Referred Patient' },
   { value: 'document_uploaded',    label: 'Uploaded Document' },
   { value: 'equipment_added',      label: 'Added Equipment' },
   { value: 'equipment_updated',    label: 'Updated Equipment' },
@@ -36,6 +37,7 @@ const ACTION_STYLE = {
   triaged:               { color: 'bg-purple-100 text-purple-700', icon: Activity },
   discharged:            { color: 'bg-green-100 text-green-700',   icon: UserCheck },
   removed:               { color: 'bg-red-100 text-red-700',       icon: UserX },
+  referred:              { color: 'bg-fuchsia-100 text-fuchsia-700', icon: Share2 },
   document_uploaded:     { color: 'bg-indigo-100 text-indigo-700', icon: FileText },
   equipment_added:       { color: 'bg-teal-100 text-teal-700',     icon: Cpu },
   equipment_updated:     { color: 'bg-orange-100 text-orange-700', icon: Settings },
@@ -58,6 +60,7 @@ const SUMMARY_FIELDS = [
   { key: 'triaged',              label: 'Triaged',               color: 'text-purple-600' },
   { key: 'discharged',           label: 'Discharged',            color: 'text-green-600' },
   { key: 'removed',              label: 'Removed',               color: 'text-red-600' },
+  { key: 'referred',             label: 'Referred',              color: 'text-fuchsia-600' },
   { key: 'documentUploaded',     label: 'Documents',             color: 'text-indigo-600' },
   { key: 'equipmentAdded',       label: 'Equip. Added',          color: 'text-teal-600' },
   { key: 'equipmentUpdated',     label: 'Equip. Updated',        color: 'text-orange-600' },

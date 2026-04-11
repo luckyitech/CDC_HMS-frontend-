@@ -33,7 +33,6 @@ import {
   // CheckCircle, // TODO: notifications
   // Info,        // TODO: notifications
   // AlertCircle, // TODO: notifications
-  ChartNoAxesCombined,
   LogOut,
   ShieldCheck,
   ChevronDown,
@@ -117,11 +116,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       //   path: "/doctor/physical-exam",
       //   icon: Stethoscope,
       // },
-      {
-        name: "Glycemic Charts",
-        path: "/doctor/glycemic-charts",
-        icon: ChartNoAxesCombined,
-      },
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },

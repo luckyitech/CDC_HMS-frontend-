@@ -61,14 +61,15 @@ export const QueueProvider = ({ children }) => {
   // ============================================
 
   // Add patient to queue
-  const addToQueue = async (patient, priority = 'Normal', reason = '', assignedDoctorId = null) => {
+  const addToQueue = async (patient, priority = 'Normal', reason = '', assignedDoctorId = null, isReview = false) => {
     setLoading(true);
     try {
       const response = await queueService.add({
         uhid: patient.uhid,
         priority,
-        reason: reason || 'Routine checkup',
+        reason: reason || (isReview ? 'Review visit' : 'Routine checkup'),
         assignedDoctorId,
+        isReview,
       });
 
       if (response.success) {
@@ -141,9 +142,9 @@ export const QueueProvider = ({ children }) => {
     }
   };
 
-  // Get next patient in queue (first with status 'Waiting')
+  // Get next patient in queue (first awaiting triage)
   const getNextPatient = () => {
-    return queue.find(item => item.status === 'Waiting');
+    return queue.find(item => item.status === 'Awaiting Triage');
   };
 
   // Get queue by status (local filter)
@@ -153,7 +154,7 @@ export const QueueProvider = ({ children }) => {
 
   // Get patient position in queue
   const getPatientPosition = (uhid) => {
-    const waitingQueue = queue.filter(q => q.status === 'Waiting');
+    const waitingQueue = queue.filter(q => q.status === 'Awaiting Triage');
     const position = waitingQueue.findIndex(item => item.uhid === uhid);
     return position !== -1 ? position + 1 : null;
   };
@@ -168,7 +169,7 @@ export const QueueProvider = ({ children }) => {
       // Fallback to local calculation
       return {
         total: queue.length,
-        waiting: queue.filter(q => q.status === 'Waiting').length,
+        waiting: queue.filter(q => q.status === 'Awaiting Triage').length,
         inTriage: queue.filter(q => q.status === 'In Triage').length,
         withDoctor: queue.filter(q => q.status === 'With Doctor').length,
         completed: queue.filter(q => q.status === 'Completed').length,
@@ -182,9 +183,10 @@ export const QueueProvider = ({ children }) => {
 
   // Local queue stats — memoized, only recomputes when queue changes
   const localQueueStats = useMemo(() => ({
-    total: queue.length,
-    waiting: queue.filter(q => q.status === 'Waiting').length,
+    total: queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed').length,
+    waiting: queue.filter(q => q.status === 'Awaiting Triage').length,
     inTriage: queue.filter(q => q.status === 'In Triage').length,
+    awaitingDoctor: queue.filter(q => q.status === 'Awaiting Doctor').length,
     withDoctor: queue.filter(q => q.status === 'With Doctor').length,
     pendingBilling: queue.filter(q => q.status === 'Pending Billing').length,
     completed: queue.filter(q => q.status === 'Completed').length,
@@ -193,9 +195,9 @@ export const QueueProvider = ({ children }) => {
 
   const getLocalQueueStats = () => localQueueStats;
 
-  // Check if patient is actively in queue (excludes Completed/discharged)
+  // Check if patient is actively in queue (excludes Completed and Removed)
   const isInQueue = (uhid) => {
-    return queue.some(item => item.uhid === uhid && item.status !== 'Completed');
+    return queue.some(item => item.uhid === uhid && item.status !== 'Completed' && item.status !== 'Removed');
   };
 
   // Call next patient (via API)
@@ -217,19 +219,68 @@ export const QueueProvider = ({ children }) => {
     }
   };
 
-  // Assign doctor to queue item
+  // Assign doctor to queue item without changing the current status
   const assignDoctorToQueue = async (queueId, doctorId) => {
-    return updateQueueStatus(queueId, null, doctorId);
+    setLoading(true);
+    try {
+      const response = await queueService.update(queueId, { assignedDoctorId: doctorId });
+      if (response.success) {
+        setQueue(prev =>
+          prev.map(item =>
+            item.id === queueId
+              ? { ...item, ...response.data.queue || response.data }
+              : item
+          )
+        );
+        return { success: true };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Doctor completes consultation — sends charges checklist and moves to Pending Billing
+  // Doctor refers a patient — either internally to another doctor or externally to another facility.
+  // On success the queue item is updated in local state and the backend broadcasts to all clients.
+  const referPatient = async (queueId, referralData) => {
+    setLoading(true);
+    try {
+      const response = await queueService.refer(queueId, referralData);
+      if (response.success) {
+        setQueue(prev =>
+          prev.map(item =>
+            item.id === queueId
+              ? { ...item, ...(response.data.queue || response.data) }
+              : item
+          )
+        );
+        return { success: true };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Doctor completes consultation — sends charges checklist and moves to Pending Billing.
+  // Merges with any charges already on the queue entry so that internal referral chains
+  // (Doctor A → Doctor B) accumulate all charges rather than the last doctor overwriting.
   const sendToBilling = async (queueId, selectedCharges, selectedProcedures) => {
     setLoading(true);
     try {
+      // Pull existing charges from local state (set by any prior referring doctor)
+      const currentItem = queue.find(q => q.id === queueId);
+      const mergedCharges    = [...new Set([...(currentItem?.selectedCharges    || []), ...selectedCharges])];
+      const mergedProcedures = [...new Set([...(currentItem?.selectedProcedures || []), ...selectedProcedures])];
+
       const response = await queueService.update(queueId, {
-        status: 'Pending Billing',
-        selectedCharges,
-        selectedProcedures,
+        status:            'Pending Billing',
+        selectedCharges:    mergedCharges,
+        selectedProcedures: mergedProcedures,
       });
       if (response.success) {
         setQueue(prev =>
@@ -276,6 +327,7 @@ export const QueueProvider = ({ children }) => {
     assignDoctorToQueue,
     getQueueByDoctor,
     sendToBilling,
+    referPatient,
   };
 
   return (
