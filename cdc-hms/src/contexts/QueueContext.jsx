@@ -61,14 +61,15 @@ export const QueueProvider = ({ children }) => {
   // ============================================
 
   // Add patient to queue
-  const addToQueue = async (patient, priority = 'Normal', reason = '', assignedDoctorId = null) => {
+  const addToQueue = async (patient, priority = 'Normal', reason = '', assignedDoctorId = null, isReview = false) => {
     setLoading(true);
     try {
       const response = await queueService.add({
         uhid: patient.uhid,
         priority,
-        reason: reason || 'Routine checkup',
+        reason: reason || (isReview ? 'Review visit' : 'Routine checkup'),
         assignedDoctorId,
+        isReview,
       });
 
       if (response.success) {

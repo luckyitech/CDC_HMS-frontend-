@@ -212,7 +212,7 @@ const StaffDashboard = () => {
             <div className="p-4 bg-green-50 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
-                <p className="text-sm text-gray-600">Completed Triage</p>
+                <p className="text-sm text-gray-600">Discharged Today</p>
               </div>
               <p className="text-3xl font-bold text-green-600">{completedTriageToday}</p>
             </div>
