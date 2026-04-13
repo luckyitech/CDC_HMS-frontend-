@@ -64,6 +64,13 @@ export const treatmentPlanService = {
   create: (data) => api.post('/treatment-plans', data),
 
   /**
+   * Update treatment plan diagnosis and/or plan text
+   * @param {number} id - Treatment plan ID
+   * @param {Object} data - { diagnosis?, plan? }
+   */
+  update: (id, data) => api.put(`/treatment-plans/${id}`, data),
+
+  /**
    * Update treatment plan status
    * @param {number} id - Treatment plan ID
    * @param {Object} data - { status }

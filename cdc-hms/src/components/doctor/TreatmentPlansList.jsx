@@ -15,7 +15,7 @@ const TreatmentPlansList = ({
   currentUser = null,
   onSuccess = null,
 }) => {
-  const { getPlansByPatient, addTreatmentPlan } = useTreatmentPlanContext();
+  const { getPlansByPatient, addTreatmentPlan, updateTreatmentPlan } = useTreatmentPlanContext();
 
   // State for treatment plans (loaded async)
   const [treatmentPlans, setTreatmentPlans] = useState([]);
@@ -32,6 +32,11 @@ const TreatmentPlansList = ({
   // State for creating new plan
   const [diagnosis, setDiagnosis] = useState("");
   const [treatmentPlan, setTreatmentPlan] = useState("");
+
+  // State for editing an existing plan
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [editDiagnosis, setEditDiagnosis] = useState("");
+  const [editPlan, setEditPlan] = useState("");
 
   // Load treatment plans on mount and when patient changes
   useEffect(() => {
@@ -142,6 +147,46 @@ const TreatmentPlansList = ({
     setTreatmentPlan("");
   };
 
+  // Open edit modal pre-filled with existing plan data
+  const handleEditClick = (plan, e) => {
+    e.stopPropagation();
+    setEditingPlan(plan);
+    setEditDiagnosis(plan.diagnosis);
+    setEditPlan(plan.plan);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPlan(null);
+    setEditDiagnosis("");
+    setEditPlan("");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editDiagnosis.trim()) {
+      toast.error("Please enter a diagnosis", { duration: 3000, position: "top-right" });
+      return;
+    }
+    if (!editPlan.trim()) {
+      toast.error("Please enter a treatment plan", { duration: 3000, position: "top-right" });
+      return;
+    }
+
+    const result = await updateTreatmentPlan(editingPlan.id, {
+      diagnosis: editDiagnosis,
+      plan: editPlan,
+    });
+
+    if (result?.success) {
+      toast.success("Treatment plan updated successfully!", { duration: 2000, position: "top-right" });
+      // Refresh list
+      const plans = await getPlansByPatient(patient.uhid);
+      setTreatmentPlans(Array.isArray(plans) ? plans : []);
+      handleCancelEdit();
+    } else {
+      toast.error("Failed to update treatment plan. Please try again.", { duration: 3000, position: "top-right" });
+    }
+  };
+
   // Show loading state
   if (isLoading) {
     return (
@@ -168,6 +213,8 @@ const TreatmentPlansList = ({
       </Card>
     );
   }
+
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
   return (
     <div className="space-y-6">
@@ -267,6 +314,16 @@ const TreatmentPlansList = ({
                         </div>
                       </div>
                       <div className="flex gap-2 w-full sm:w-auto">
+                        {plan.date === today && (
+                          <Button
+                            variant="outline"
+                            className="text-sm flex-1 sm:flex-none flex items-center justify-center gap-1"
+                            onClick={(e) => handleEditClick(plan, e)}
+                          >
+                            <FileEdit className="w-4 h-4 text-primary" />
+                            Edit
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           className="text-sm flex-1 sm:flex-none flex items-center justify-center gap-1"
@@ -390,6 +447,58 @@ const TreatmentPlansList = ({
                 onClick={handleCancelCreate}
                 className="flex-1"
               >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Treatment Plan Modal */}
+      {editingPlan && (
+        <Modal
+          isOpen={!!editingPlan}
+          onClose={handleCancelEdit}
+          title={
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">Edit Diagnosis & Treatment Plan</h3>
+              <p className="text-xs text-gray-600 mt-1">
+                Patient: {patient.name} ({patient.uhid})
+              </p>
+            </div>
+          }
+        >
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Diagnosis *
+              </label>
+              <input
+                type="text"
+                value={editDiagnosis}
+                onChange={(e) => setEditDiagnosis(e.target.value)}
+                placeholder="e.g., Type 2 Diabetes Mellitus - Poorly Controlled"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Treatment Plan *
+              </label>
+              <VoiceInput
+                value={editPlan}
+                onChange={(e) => setEditPlan(e.target.value)}
+                placeholder="Document updated treatment plan..."
+                rows={10}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t">
+              <Button onClick={handleSaveEdit} className="flex-1 flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" /> Save Changes
+              </Button>
+              <Button variant="outline" onClick={handleCancelEdit} className="flex-1">
                 Cancel
               </Button>
             </div>

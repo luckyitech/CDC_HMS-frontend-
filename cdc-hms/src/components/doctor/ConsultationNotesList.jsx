@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
@@ -39,13 +39,13 @@ const ConsultationNotesList = ({
   }, []);
 
   // Build params shared by all fetch calls
-  const buildParams = (page) => {
+  const buildParams = useCallback((page) => {
     const params = { page, limit: 10 };
     if (dateFrom) params.dateFrom = dateFrom;
     if (dateTo)   params.dateTo   = dateTo;
     if (selectedDoctor) params.doctorId = selectedDoctor;
     return params;
-  };
+  }, [dateFrom, dateTo, selectedDoctor]);
 
   // Load first page whenever filters change
   // Always call searchNotes — it falls back to getNotesByPatient when search is empty
@@ -61,7 +61,7 @@ const ConsultationNotesList = ({
         setCurrentPage(1);
         setExpandedNotes(new Set());
         setHasMore(pagination ? 1 < pagination.totalPages : false);
-      } catch (err) {
+      } catch {
         if (isMounted) setFilteredNotes([]);
       } finally {
         if (isMounted) setIsLoading(false);
@@ -69,7 +69,7 @@ const ConsultationNotesList = ({
     };
     load();
     return () => { isMounted = false; };
-  }, [patient.uhid, debouncedSearch, selectedDoctor, dateFrom, dateTo, getNotesByPatient, searchNotes]);
+  }, [patient.uhid, debouncedSearch, buildParams, getNotesByPatient, searchNotes]);
 
   const handleSearchChange = (e) => {
     setSearchInput(e.target.value);
@@ -212,6 +212,8 @@ const ConsultationNotesList = ({
       setShowWriteModal(false);
     }
   };
+
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
   return (
     <div className="space-y-6">
@@ -417,16 +419,18 @@ const ConsultationNotesList = ({
                       <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed mt-4">
                         {note.notes}
                       </pre>
-                      <div className="flex justify-end mt-3 pt-3 border-t border-gray-100">
-                        <Button
-                          variant="outline"
-                          onClick={(e) => { e.stopPropagation(); handleEditNote(note); }}
-                          className="flex items-center gap-2 text-sm"
-                        >
-                          <Pencil size={14} />
-                          Edit Note
-                        </Button>
-                      </div>
+                      {note.date === today && (
+                        <div className="flex justify-end mt-3 pt-3 border-t border-gray-100">
+                          <Button
+                            variant="outline"
+                            onClick={(e) => { e.stopPropagation(); handleEditNote(note); }}
+                            className="flex items-center gap-2 text-sm"
+                          >
+                            <Pencil size={14} />
+                            Edit Note
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

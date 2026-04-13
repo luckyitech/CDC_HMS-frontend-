@@ -57,6 +57,12 @@ export const patientService = {
   getVitals: (uhid) => api.get(`/patients/${uhid}/vitals`),
 
   /**
+   * Get all historical vitals records for a patient, newest first
+   * @param {string} uhid - Patient UHID
+   */
+  getVitalsHistory: (uhid) => api.get(`/patients/${uhid}/vitals/history`),
+
+  /**
    * Record new vitals for patient
    * @param {string} uhid - Patient UHID
    * @param {Object} data - Vitals data (bloodPressure, heartRate, temperature, etc.)

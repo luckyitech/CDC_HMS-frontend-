@@ -12,7 +12,7 @@ import {
   User,
   Activity,
   Pill,
-  FlaskConical,
+  // FlaskConical, // Order Lab — hidden, not in use yet
   LineChart,
   UserCircle,
   FileText,
@@ -38,6 +38,7 @@ import { useConsultationNotesContext } from "../../contexts/ConsultationNotesCon
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import ReferPatientModal from "../../components/doctor/ReferPatientModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
+import patientService from "../../services/patientService";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamList from "../../components/doctor/PhysicalExamList";
 import PhysicalExamFindings from "./PhysicalExamFindings";
@@ -57,6 +58,46 @@ const ACCORDION_SECTIONS = [
   { id: 'diagnosis',     label: 'Diagnosis & Treatment Plan', icon: Target,        required: true  },
   { id: 'prescriptions', label: 'Prescriptions',              icon: Pill,          required: false },
 ];
+
+// ---------------------------------------------------------------------------
+// Reusable accordion panel — shared by Vitals, each consultation section, Prescriptions
+// ---------------------------------------------------------------------------
+
+/**
+ * AccordionPanel
+ * Props:
+ *   icon      — Lucide component (the class, not an element)
+ *   label     — string header text
+ *   badge     — optional pre-rendered JSX shown after the label (status chips, etc.)
+ *   isOpen    — boolean
+ *   onToggle  — () => void
+ *   padding   — Tailwind padding class for the body (default "p-4")
+ *   children  — body content
+ */
+const AccordionPanel = ({ icon, label, badge, isOpen, onToggle, padding = 'p-4', children }) => {
+  const Icon = icon; // alias so ESLint recognises JSX usage
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3">
+          <Icon className={`w-5 h-5 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
+          <span className={`font-semibold ${isOpen ? 'text-primary' : 'text-gray-800'}`}>{label}</span>
+          {badge}
+        </div>
+        {isOpen
+          ? <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
+          : <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+        }
+      </button>
+      <div className={isOpen ? 'block' : 'hidden'}>
+        <div className={`border-t border-gray-100 ${padding}`}>{children}</div>
+      </div>
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Read-only history helpers (used inside Visit History tab)
@@ -212,6 +253,7 @@ const Consultation = () => {
     addDates(historyData.plans, 'date');
     addDates(historyData.prescriptions);
     addDates(historyData.notes, 'date');
+    addDates(historyData.vitals, 'recordedAt');
 
     return [...dateSet]
       .sort((a, b) => b.localeCompare(a))
@@ -281,20 +323,24 @@ const Consultation = () => {
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes] = await Promise.all([
           getAssessmentsByPatient(uhid),
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
           getPrescriptionsByPatient(uhid),
           getNotesByPatient(uhid),
+          // Isolated so a vitals failure doesn't abort the entire history fetch
+          patientService.getVitalsHistory(uhid).catch(() => ({ success: false, data: [] })),
         ]);
         if (isMounted) {
+          const vitals = vitalsRes?.success ? (vitalsRes.data || []) : [];
           setHistoryData({
             assessments:   Array.isArray(assessments)   ? assessments   : [],
             exams:         Array.isArray(exams)         ? exams         : [],
             plans:         Array.isArray(plans)         ? plans         : [],
             prescriptions: Array.isArray(prescriptions) ? prescriptions : [],
             notes:         Array.isArray(notes)         ? notes         : [],
+            vitals:        Array.isArray(vitals)        ? vitals        : [],
           });
         }
       } finally {
@@ -396,9 +442,9 @@ const Consultation = () => {
           .filter(e => (e.date || e.createdAt || '').slice(0, 10) === date);
         examsOnDate.forEach(exam => {
           if (!fullExamCacheRef.current[exam.id]) {
-            getExaminationById(exam.id).then(full => {
-              if (full) setFullExamCache(c => ({ ...c, [exam.id]: full }));
-            }).catch(() => {});
+            getExaminationById(exam.id)
+              .then(full => setFullExamCache(c => ({ ...c, [exam.id]: full || 'error' })))
+              .catch(() => setFullExamCache(c => ({ ...c, [exam.id]: 'error' })));
           }
         });
       }
@@ -472,6 +518,7 @@ const Consultation = () => {
     plans:         (historyData?.plans         || []).filter(r => (r.date || r.createdAt || '').slice(0, 10) === date),
     prescriptions: (historyData?.prescriptions || []).filter(r => r.createdAt?.slice(0, 10) === date),
     notes:         (historyData?.notes         || []).filter(r => (r.date || r.createdAt || '').slice(0, 10) === date),
+    vitals:        (historyData?.vitals        || []).filter(r => (r.recordedAt || '').slice(0, 10) === date),
   });
 
   // ---------------------------------------------------------------------------
@@ -687,83 +734,104 @@ const Consultation = () => {
             </div>
           )}
 
+          {/* Triage Vitals — full width */}
+          <AccordionPanel
+            icon={Activity}
+            label="Today's Triage Vitals"
+            badge={!patient.vitals && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Not recorded</span>
+            )}
+            isOpen={openSections.has('vitals')}
+            onToggle={() => toggleSection('vitals')}
+            padding="p-5 space-y-4"
+          >
+            {patient.vitals ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">
+                    Recorded: {patient.vitals.recordedAt
+                      ? new Date(patient.vitals.recordedAt).toLocaleString()
+                      : 'Today'}
+                  </p>
+                  <button
+                    onClick={() => setShowVitalsModal(true)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary border border-primary rounded-lg px-3 py-1.5 hover:bg-blue-50 transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit Vitals
+                  </button>
+                </div>
+                {patient.vitals.chiefComplaint && (
+                  <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
+                    <p className="text-xs font-semibold text-gray-600 mb-0.5">Reason for Visit</p>
+                    <p className="text-sm text-gray-800">{patient.vitals.chiefComplaint}</p>
+                  </div>
+                )}
+                <VitalsGrid vitals={patient.vitals} />
+              </>
+            ) : (
+              <div className="flex items-center justify-between py-2">
+                <p className="text-sm text-gray-500">No triage vitals recorded for today&apos;s visit.</p>
+                <button
+                  onClick={() => setShowVitalsModal(true)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-primary border border-primary rounded-lg px-3 py-1.5 hover:bg-blue-50 transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Record Vitals
+                </button>
+              </div>
+            )}
+          </AccordionPanel>
+
           {/* Two independent columns for the first 4 sections, Prescriptions full-width below.
               Left column: even-indexed sections (0, 2) — Assessment, Notes
               Right column: odd-indexed sections (1, 3)  — Physical Exam, Diagnosis */}
-          <div className="flex gap-3 items-start">
+          <div className="flex flex-col lg:flex-row gap-3 lg:items-start">
             {[0, 1].map((colIdx) => (
               <div key={colIdx} className="flex-1 flex flex-col gap-3">
                 {ACCORDION_SECTIONS.filter((s) => s.id !== 'prescriptions').filter((_, i) => i % 2 === colIdx).map((section) => {
                   const isOpen      = openSections.has(section.id);
                   const isCompleted = !!tabsCompleted[section.id];
                   const isUnsaved   = !!(tabsUnsaved[section.id] && !isCompleted);
-                  const Icon        = section.icon;
+
+                  const badge = (
+                    <>
+                      {section.required && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Required</span>
+                      )}
+                      {isCompleted && (
+                        <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                          <Check className="w-3.5 h-3.5" /> Done
+                        </span>
+                      )}
+                      {isUnsaved && (
+                        <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes" />
+                      )}
+                    </>
+                  );
 
                   return (
-                    <div key={section.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                      {/* Section header / toggle */}
-                      <button
-                        onClick={() => toggleSection(section.id)}
-                        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon className={`w-5 h-5 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
-                          <span className={`font-semibold ${isOpen ? 'text-primary' : 'text-gray-800'}`}>
-                            {section.label}
-                          </span>
-                          {section.required && (
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-                              Required
-                            </span>
-                          )}
-                          {isCompleted && (
-                            <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                              <Check className="w-3.5 h-3.5" /> Done
-                            </span>
-                          )}
-                          {isUnsaved && (
-                            <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes" />
-                          )}
-                        </div>
-                        {isOpen
-                          ? <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                          : <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                        }
-                      </button>
-
-                      {/* Section body — kept mounted to preserve form state, hidden via CSS when closed */}
-                      <div className={isOpen ? 'block' : 'hidden'}>
-                        <div className="border-t border-gray-100 p-4">
-                          {section.id === 'assessment' && (
-                            <InitialAssessment uhid={uhid} embedded={true} />
-                          )}
-                          {section.id === 'exam' && (
-                            <PhysicalExamList patient={patient} embedded={true} />
-                          )}
-                          {section.id === 'notes' && (
-                            <ConsultationNotesList patient={patient} />
-                          )}
-                          {section.id === 'diagnosis' && (
-                            <TreatmentPlansList
-                              patient={patient}
-                              showStatistics={false}
-                              showCreateForm={true}
-                              currentUser={currentUser}
-                              onSuccess={handleDiagnosisSuccess}
-                            />
-                          )}
-                          {section.id === 'prescriptions' && (
-                            <PrescriptionManagement
-                              patient={patient}
-                              patientPrescriptions={patientPrescriptions}
-                              addPrescription={addPrescription}
-                              currentUser={currentUser}
-                              onSuccess={handlePrescriptionSuccess}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    <AccordionPanel
+                      key={section.id}
+                      icon={section.icon}
+                      label={section.label}
+                      badge={badge}
+                      isOpen={isOpen}
+                      onToggle={() => toggleSection(section.id)}
+                    >
+                      {section.id === 'assessment' && <InitialAssessment uhid={uhid} embedded={true} />}
+                      {section.id === 'exam'       && <PhysicalExamList patient={patient} embedded={true} />}
+                      {section.id === 'notes'      && <ConsultationNotesList patient={patient} />}
+                      {section.id === 'diagnosis'  && (
+                        <TreatmentPlansList
+                          patient={patient}
+                          showStatistics={false}
+                          showCreateForm={true}
+                          currentUser={currentUser}
+                          onSuccess={handleDiagnosisSuccess}
+                        />
+                      )}
+                    </AccordionPanel>
                   );
                 })}
               </div>
@@ -772,44 +840,28 @@ const Consultation = () => {
 
           {/* Prescriptions — full width at the bottom */}
           {(() => {
-            const section    = ACCORDION_SECTIONS.find(s => s.id === 'prescriptions');
-            const isOpen      = openSections.has('prescriptions');
+            const section = ACCORDION_SECTIONS.find(s => s.id === 'prescriptions');
             const isCompleted = !!tabsCompleted['prescriptions'];
-            const Icon        = section.icon;
             return (
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <button
-                  onClick={() => toggleSection('prescriptions')}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-5 h-5 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
-                    <span className={`font-semibold ${isOpen ? 'text-primary' : 'text-gray-800'}`}>
-                      {section.label}
-                    </span>
-                    {isCompleted && (
-                      <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                        <Check className="w-3.5 h-3.5" /> Done
-                      </span>
-                    )}
-                  </div>
-                  {isOpen
-                    ? <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                    : <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                  }
-                </button>
-                <div className={isOpen ? 'block' : 'hidden'}>
-                  <div className="border-t border-gray-100 p-4">
-                    <PrescriptionManagement
-                      patient={patient}
-                      patientPrescriptions={patientPrescriptions}
-                      addPrescription={addPrescription}
-                      currentUser={currentUser}
-                      onSuccess={handlePrescriptionSuccess}
-                    />
-                  </div>
-                </div>
-              </div>
+              <AccordionPanel
+                icon={section.icon}
+                label={section.label}
+                badge={isCompleted && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                    <Check className="w-3.5 h-3.5" /> Done
+                  </span>
+                )}
+                isOpen={openSections.has('prescriptions')}
+                onToggle={() => toggleSection('prescriptions')}
+              >
+                <PrescriptionManagement
+                  patient={patient}
+                  patientPrescriptions={patientPrescriptions}
+                  addPrescription={addPrescription}
+                  currentUser={currentUser}
+                  onSuccess={handlePrescriptionSuccess}
+                />
+              </AccordionPanel>
             );
           })()}
         </div>
@@ -892,7 +944,8 @@ const Consultation = () => {
             const records  = getRecordsForDate(date);
             const isOpen   = !!openHistoryDates[date];
             const total    = records.assessments.length + records.exams.length +
-                             records.plans.length + records.prescriptions.length + records.notes.length;
+                             records.plans.length + records.prescriptions.length +
+                             records.notes.length + records.vitals.length;
             const formatted = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
               weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
             });
@@ -922,6 +975,24 @@ const Consultation = () => {
                 {/* Expanded visit records */}
                 {isOpen && (
                   <div className="border-t border-gray-100 divide-y divide-gray-50">
+
+                    {/* Triage Vitals */}
+                    {records.vitals.length > 0 && (
+                      <div className="p-5 space-y-4">
+                        <VisitSectionHeader icon={<Activity className="w-3.5 h-3.5" />} label="Triage Vitals" />
+                        {records.vitals.map((v, idx) => (
+                          <div key={idx} className="space-y-3">
+                            {v.chiefComplaint && (
+                              <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
+                                <p className="text-xs font-semibold text-gray-600 mb-0.5">Reason for Visit</p>
+                                <p className="text-sm text-gray-800">{v.chiefComplaint}</p>
+                              </div>
+                            )}
+                            <VitalsGrid vitals={v} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Treatment Plans */}
                     {records.plans.length > 0 && (
@@ -970,6 +1041,13 @@ const Consultation = () => {
                         <VisitSectionHeader icon={<Stethoscope className="w-3.5 h-3.5" />} label="Physical Exam" />
                         {records.exams.map(e => {
                           const full = fullExamCache[e.id];
+                          if (full === 'error') {
+                            return (
+                              <div key={e.id} className="py-3 px-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+                                Failed to load exam details. Please try closing and reopening this date.
+                              </div>
+                            );
+                          }
                           if (!full) {
                             return (
                               <div key={e.id} className="flex items-center gap-2 py-4 text-sm text-gray-400">
@@ -1116,13 +1194,14 @@ const Consultation = () => {
 
       {/* ===== Floating Action Buttons ===== */}
       <div className="fixed bottom-3 right-4 z-20 flex items-center gap-2">
-        <button
+        {/* Order Lab button hidden — not in use yet */}
+        {/* <button
           onClick={() => setShowOrderLabModal(true)}
           className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
         >
           <FlaskConical className="w-3.5 h-3.5" />
           Order Lab
-        </button>
+        </button> */}
 
         <button
           onClick={() => setShowReferModal(true)}
@@ -1229,14 +1308,14 @@ const Consultation = () => {
         </div>
       )}
 
-      {/* ===== Order Lab Test Modal ===== */}
-      {showOrderLabModal && (
+      {/* ===== Order Lab Test Modal — hidden, not in use yet ===== */}
+      {/* {showOrderLabModal && (
         <OrderLabTestModal
           patient={patient}
           onClose={() => setShowOrderLabModal(false)}
           onSuccess={() => {}}
         />
-      )}
+      )} */}
 
       {/* ===== Edit Vitals Modal ===== */}
       {showVitalsModal && (
