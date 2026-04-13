@@ -14,6 +14,7 @@ import {
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { useQueueContext } from "../../contexts/QueueContext";
+import { useUserContext } from "../../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
 import patientService from "../../services/patientService";
 
@@ -32,8 +33,11 @@ const PatientSearch = () => {
   const [pagination, setPagination] = useState({ total: 0, totalPages: 0 });
   const [visitType, setVisitType] = useState("new"); // 'new' | 'review'
   const [canReview, setCanReview] = useState(false);
+  const [selectedDoctorId, setSelectedDoctorId] = useState("");
 
   const { queue, addToQueue, isInQueue } = useQueueContext();
+  const { getDoctors } = useUserContext();
+  const doctors = getDoctors();
   const navigate = useNavigate();
 
   const doSearch = async (term, pageNum = 1) => {
@@ -109,6 +113,7 @@ const PatientSearch = () => {
     setQueueReason("");
     setCanReview(dischargedToday);
     setVisitType("new");
+    setSelectedDoctorId("");
     setShowQueueModal(true);
   };
 
@@ -116,7 +121,12 @@ const PatientSearch = () => {
     if (selectedPatient) {
       // NOTE: if a new visit type is added (e.g. 'urgent-review'), update this condition
       // and the matching isReview check in queueController.js → add()
-      const result = await addToQueue(selectedPatient, queuePriority, queueReason, null, visitType === 'review');
+      const isReview = visitType === 'review';
+      if (isReview && !selectedDoctorId) {
+        toast.error('Please select a doctor for the review visit');
+        return;
+      }
+      const result = await addToQueue(selectedPatient, queuePriority, queueReason, isReview ? selectedDoctorId : null, isReview);
       if (result.success) {
         toast.success(`${selectedPatient.name} added to queue!`, {
           duration: 3000,
@@ -355,44 +365,69 @@ const PatientSearch = () => {
             </div>
 
             {canReview && (
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Visit Type
-                </label>
-                <div className="flex gap-3">
-                  <label className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 cursor-pointer transition ${
-                    visitType === 'new' ? 'border-primary bg-blue-50' : 'border-gray-200 bg-white'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="visitType"
-                      value="new"
-                      checked={visitType === 'new'}
-                      onChange={() => setVisitType('new')}
-                      className="accent-primary"
-                    />
-                    <span className="text-sm font-medium text-gray-700">New Visit</span>
+              <>
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Visit Type
                   </label>
-                  <label className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 cursor-pointer transition ${
-                    visitType === 'review' ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="visitType"
-                      value="review"
-                      checked={visitType === 'review'}
-                      onChange={() => setVisitType('review')}
-                      className="accent-green-500"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Review Visit</span>
-                  </label>
+                  <div className="flex gap-3">
+                    <label className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 cursor-pointer transition ${
+                      visitType === 'new' ? 'border-primary bg-blue-50' : 'border-gray-200 bg-white'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="visitType"
+                        value="new"
+                        checked={visitType === 'new'}
+                        onChange={() => setVisitType('new')}
+                        className="accent-primary"
+                      />
+                      <span className="text-sm font-medium text-gray-700">New Visit</span>
+                    </label>
+                    <label className={`flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 cursor-pointer transition ${
+                      visitType === 'review' ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="visitType"
+                        value="review"
+                        checked={visitType === 'review'}
+                        onChange={() => setVisitType('review')}
+                        className="accent-green-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Review Visit</span>
+                    </label>
+                  </div>
+                  {visitType === 'review' && (
+                    <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 mt-2">
+                      Patient will skip triage and go directly to Awaiting Doctor.
+                    </p>
+                  )}
                 </div>
+
                 {visitType === 'review' && (
-                  <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 mt-2">
-                    Patient will skip triage and go directly to Awaiting Doctor.
-                  </p>
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Assign Doctor <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={selectedDoctorId}
+                      onChange={(e) => setSelectedDoctorId(e.target.value)}
+                      className={`w-full px-3 py-2 border-2 rounded-lg text-sm focus:outline-none focus:border-primary ${
+                        selectedDoctorId ? 'border-gray-300' : 'border-red-300'
+                      }`}
+                    >
+                      <option value="">Select a doctor...</option>
+                      {doctors.map(d => (
+                        <option key={d.id} value={d.id}>Dr. {d.name}</option>
+                      ))}
+                    </select>
+                    {!selectedDoctorId && (
+                      <p className="text-xs text-red-500 mt-1">Required for review visits</p>
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             )}
 
             <div className="mb-4">
