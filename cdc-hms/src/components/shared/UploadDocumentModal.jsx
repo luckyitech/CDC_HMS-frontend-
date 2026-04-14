@@ -31,7 +31,7 @@ const UploadDocumentModal = ({ isOpen, onClose, patient, onSuccess, currentUser 
 
   const isPdfOnly = PDF_ONLY_CATEGORIES.includes(formData.documentCategory);
   const acceptAttr = isPdfOnly ? '.pdf' : '.pdf,.jpg,.jpeg,.png';
-  const fileHint = isPdfOnly ? 'PDF only (Max 10MB)' : 'PDF, JPG, PNG (Max 10MB)';
+  const fileHint = isPdfOnly ? 'PDF only (Max 25MB)' : 'PDF, JPG, PNG (Max 25MB)';
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
@@ -55,8 +55,8 @@ const UploadDocumentModal = ({ isOpen, onClose, patient, onSuccess, currentUser 
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setErrors({ ...errors, file: 'File size must be less than 10MB' });
+    if (file.size > 25 * 1024 * 1024) {
+      setErrors({ ...errors, file: 'File size must be less than 25MB' });
       return;
     }
 

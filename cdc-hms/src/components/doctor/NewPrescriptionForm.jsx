@@ -28,7 +28,6 @@ const NewPrescriptionForm = ({
   const [formData, setFormData] = useState({
     patientUHID: selectedPatient?.uhid || "",
     patientName: selectedPatient?.name || "",
-    diagnosis: "",
   });
 
   const [medications, setMedications] = useState([
@@ -41,7 +40,7 @@ useEffect(() => {
     const knownNames = commonMedications.map((m) => m.name);
     setMedications(
       initialMedications.map((med) => {
-        const knownFrequencies = ["Once daily", "Twice daily", "Three times daily", "Four times daily (QDS)", "Every 8 hours", "Every 12 hours", "Weekly", "As needed (PRN)"];
+        const knownFrequencies = ["Once daily", "Twice daily", "Three times daily", "Four times daily", "Every 8 hours", "Every 12 hours"];
         const nameIsKnown = knownNames.includes(med.name);
         const freqIsKnown = knownFrequencies.includes(med.frequency);
         return {
@@ -104,21 +103,6 @@ useEffect(() => {
     e.preventDefault();
 
     // Validate
-    if (!formData.diagnosis.trim()) {
-      toast.error("Please enter a diagnosis for the prescription", {
-        duration: 3000,
-        position: "top-right",
-        icon: "❌",
-        style: {
-          background: "#EF4444",
-          color: "#FFFFFF",
-          fontWeight: "bold",
-          padding: "16px",
-        },
-      });
-      return;
-    }
-
     const validMedications = medications.filter((m) => {
       const effectiveName = m.name === "Other" ? m.customName?.trim() : m.name;
       const effectiveFrequency = m.frequency === "Other" ? m.customFrequency?.trim() : m.frequency;
@@ -144,7 +128,6 @@ useEffect(() => {
       patientId: selectedPatient?.id,  // Database ID for backend
       uhid: formData.patientUHID,      // Keep for display purposes
       patientName: formData.patientName,
-      diagnosis: formData.diagnosis,
       doctorName: currentDoctor?.name || "Dr. Ahmed Hassan",
       doctorSpecialty: currentDoctor?.specialty || "Endocrinologist",
       medications: validMedications.map(({ customName, customFrequency, ...med }) => ({
@@ -176,7 +159,6 @@ useEffect(() => {
       setFormData({
         patientUHID: selectedPatient?.uhid || "",
         patientName: selectedPatient?.name || "",
-        diagnosis: "",
       });
       setMedications([
         { name: "", customName: "", dosage: "", frequency: "", customFrequency: "", duration: "", instructions: "" },
@@ -239,22 +221,6 @@ useEffect(() => {
           />
         </div>
       )}
-
-      {/* Diagnosis */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Diagnosis *
-        </label>
-        <VoiceInput
-          value={formData.diagnosis}
-          onChange={(e) =>
-            setFormData({ ...formData, diagnosis: e.target.value })
-          }
-          placeholder="Enter diagnosis for this prescription..."
-          rows={2}
-          required
-        />
-      </div>
 
       {/* Medications */}
       <div>
@@ -372,11 +338,9 @@ useEffect(() => {
                     <option value="Once daily">Once daily</option>
                     <option value="Twice daily">Twice daily</option>
                     <option value="Three times daily">Three times daily</option>
-                    <option value="Four times daily (QDS)">Four times daily (QDS)</option>
+                    <option value="Four times daily">Four times daily</option>
                     <option value="Every 8 hours">Every 8 hours</option>
                     <option value="Every 12 hours">Every 12 hours</option>
-                    <option value="Weekly">Weekly</option>
-                    <option value="As needed (PRN)">As needed (PRN)</option>
                     <option value="Other">Other (specify)</option>
                   </select>
                   {med.frequency === "Other" && (
