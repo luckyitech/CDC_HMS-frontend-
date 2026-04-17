@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import usePrint from "../../hooks/usePrint";
 import { Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -149,9 +150,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     });
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const { printRef, handlePrint } = usePrint();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -609,9 +608,10 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                 </div>
               </Card>
 
-            {/* Print-only content */}
+            {/* Print-only content — wrapper hides it on screen; printRef inner div renders in print iframe */}
               {viewMode && (
-                <div id="ia-print-content" className="hidden print:block">
+                <div className="overflow-hidden h-0" aria-hidden="true">
+                <div ref={printRef} id="ia-print-content">
                   {/* Hospital Header */}
                   <div className="flex justify-between items-center mb-8 border-b-2 border-primary pb-4">
                     <div>
@@ -737,21 +737,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <p className="text-xs text-gray-500 mt-1">CDC Diabetes Clinic &middot; Nairobi, Kenya</p>
                   </div>
 
-                  {/* Print Styles */}
-                  <style>{`
-                    @media print {
-                      body * { visibility: hidden; }
-                      #ia-print-content, #ia-print-content * { visibility: visible; }
-                      #ia-print-content {
-                        position: absolute;
-                        top: 0; left: 0;
-                        width: 100%;
-                        padding: 1cm;
-                        background: white;
-                      }
-                      @page { margin: 1cm; }
-                    }
-                  `}</style>
+                </div>
                 </div>
               )}
 

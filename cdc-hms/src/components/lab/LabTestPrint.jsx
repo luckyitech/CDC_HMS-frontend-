@@ -1,7 +1,10 @@
 // LabTestPrint.jsx - Print component for lab reports
+import usePrint from "../../hooks/usePrint";
 
 const LabTestPrint = ({ test, onClose }) => {
   if (!test) return null;
+
+  const { printRef, handlePrint } = usePrint();
 
   const formatTestResults = (results) => {
     return Object.entries(results).map(([key, value]) => ({
@@ -10,44 +13,8 @@ const LabTestPrint = ({ test, onClose }) => {
     }));
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
-      {/* Print Styles */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #print-content, #print-content * {
-            visibility: visible;
-          }
-          #print-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 15mm;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .bg-blue-50  { background-color: #eff6ff !important; }
-          .bg-gray-50  { background-color: #f9fafb !important; }
-          .bg-gray-100 { background-color: #f3f4f6 !important; }
-          .bg-green-50 { background-color: #f0fdf4 !important; }
-          .bg-red-50   { background-color: #fef2f2 !important; }
-          .no-print {
-            display: none !important;
-          }
-          @page {
-            margin: 0;
-          }
-        }
-      `}</style>
-
       {/* Action Buttons (No Print) */}
       <div className="no-print flex justify-between items-center p-4 bg-gray-100 border-b-2 border-gray-300">
         <h2 className="text-xl font-bold text-gray-800">Print Preview - Laboratory Report</h2>
@@ -68,7 +35,7 @@ const LabTestPrint = ({ test, onClose }) => {
       </div>
 
       {/* Print Content */}
-      <div id="print-content" className="max-w-4xl mx-auto p-8 bg-white">
+      <div ref={printRef} id="print-content" className="max-w-4xl mx-auto p-8 bg-white">
         {/* Hospital Header */}
         <div className="border-b-4 border-primary pb-6 mb-6">
           <div className="flex justify-between items-start">

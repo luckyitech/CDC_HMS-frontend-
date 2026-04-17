@@ -11,3 +11,11 @@
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+
+/* Force full color printing across all browsers and devices (including Safari/iOS).
+   react-to-print copies this stylesheet into the print iframe automatically. */
+* {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}

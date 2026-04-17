@@ -2,6 +2,7 @@ import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
 import { useState } from "react";
+import usePrint from "../../hooks/usePrint";
 import ImageViewerModal from "../../components/doctor/ImageViewerModal";
 import {
   physicalExamSections,
@@ -49,6 +50,8 @@ const PhysicalExamFindings = ({
   // clinicalImages is stored inside the data JSON column, so extract from there
   const clinicalImages = examinationData.clinicalImages || data?.clinicalImages || [];
 
+  const { printRef, handlePrint } = usePrint();
+
   // State for image viewer
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
@@ -86,7 +89,7 @@ const PhysicalExamFindings = ({
   };
 
   return (
-    <div className="space-y-6 px-2">
+    <div ref={printRef} className="space-y-6 px-2">
       {/* Header - Screen View */}
       <Card className="bg-blue-50 print:hidden">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
@@ -108,7 +111,7 @@ const PhysicalExamFindings = ({
                 Edit
               </Button>
             )}
-            <Button variant="outline" onClick={onPrint} className="text-sm flex items-center gap-1 flex-1 sm:flex-none justify-center">
+            <Button variant="outline" onClick={handlePrint} className="text-sm flex items-center gap-1 flex-1 sm:flex-none justify-center">
               <Printer className="w-4 h-4" />
               Print
             </Button>
@@ -347,65 +350,6 @@ const PhysicalExamFindings = ({
           </div>
         </div>
       </Card>
-
-      {/* Print Styles - UPDATED TO REMOVE BROWSER HEADERS */}
-      <style>{`
-        @media print {
-          /* CRITICAL: Remove browser default headers/footers */
-          @page {
-            margin: 0;
-            size: auto;
-          }
-          
-          body {
-            margin: 1.6cm;
-          }
-          
-          /* Hide everything except print content */
-          body * {
-            visibility: hidden;
-          }
-          
-          /* Show only the print content */
-          .space-y-6, .space-y-6 * {
-            visibility: visible;
-          }
-          
-          /* Hide buttons */
-          button {
-            display: none !important;
-          }
-          
-          /* Ensure proper layout */
-          .space-y-6 {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          
-          /* Remove background colors for printing */
-          .bg-blue-50, .bg-gray-50, .bg-blue-100 {
-            background-color: white !important;
-          }
-          
-          /* Ensure borders print */
-          .border-2, .border-b-2 {
-            border-color: #333 !important;
-          }
-          
-          /* Images print properly */
-          img {
-            page-break-inside: avoid;
-            max-width: 100%;
-          }
-          
-          /* Prevent page breaks inside image cards */
-          .print\\:break-inside-avoid {
-            page-break-inside: avoid;
-          }
-        }
-      `}</style>
 
       {/* Image Viewer Modal */}
       {showImageViewer && selectedImage && (

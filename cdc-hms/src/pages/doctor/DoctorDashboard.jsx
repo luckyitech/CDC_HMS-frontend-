@@ -75,8 +75,8 @@ const DoctorDashboard = () => {
     return `${diffMins}m`;
   };
 
-  // Active patients from ANY day — excludes Completed and Removed
-  const activePatients = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed');
+  // Active patients from TODAY only — excludes Completed and Removed
+  const activePatients = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed' && isToday(q.createdAt));
 
   // Completed (discharged) patients from TODAY only — for day-of reference
   const todayCompleted = queue.filter(q => q.status === 'Completed' && isToday(q.createdAt));
@@ -86,7 +86,7 @@ const DoctorDashboard = () => {
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
   // Patients assigned specifically to this doctor today
-  const myTodayQueue = todayQueue.filter(q => q.assignedDoctorId === currentUser?.id);
+  const myTodayQueue = todayQueue.filter(q => Number(q.assignedDoctorId) === myId);
 
   // Which list is active depends on the selected tab
   const displayQueue = activeTab === 'mine' ? myTodayQueue : todayQueue;
@@ -97,10 +97,11 @@ const DoctorDashboard = () => {
     queuePage * QUEUE_PER_PAGE
   );
 
-  // Stats scoped to this doctor only
-  const myWithDoctor     = activePatients.filter(q => q.status === 'With Doctor'     && q.assignedDoctorId === currentUser?.id);
-  const myPendingBilling = activePatients.filter(q => q.status === 'Pending Billing' && q.assignedDoctorId === currentUser?.id);
-  const myCompleted      = todayCompleted.filter(q => q.assignedDoctorId === currentUser?.id);
+  // Stats scoped to this doctor only — use Number() to guard against string/int mismatch
+  const myId             = Number(currentUser?.id);
+  const myWithDoctor     = activePatients.filter(q => q.status === 'With Doctor'     && Number(q.assignedDoctorId) === myId);
+  const myPendingBilling = activePatients.filter(q => q.status === 'Pending Billing' && Number(q.assignedDoctorId) === myId);
+  const myCompleted      = todayCompleted.filter(q => Number(q.assignedDoctorId) === myId);
 
   const stats = [
     { title: 'Today\'s Patients', value: (myWithDoctor.length + myPendingBilling.length + myCompleted.length).toString(), Icon: Users,         gradient: 'from-blue-500 to-blue-600' },
