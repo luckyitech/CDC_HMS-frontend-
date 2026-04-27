@@ -477,6 +477,16 @@ const QueueManagement = () => {
                 )}
               </div>
 
+              {/* Doctor's instructions — read-only for billing staff */}
+              {dischargePatient.doctorNotes && (
+                <div>
+                  <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-2 pb-1 border-b">Doctor's Instructions</h4>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-900 whitespace-pre-wrap">
+                    {dischargePatient.doctorNotes}
+                  </div>
+                </div>
+              )}
+
               {/* Comment — only shown when staff unchecks an item */}
               {(() => {
                 const itemsRemoved =

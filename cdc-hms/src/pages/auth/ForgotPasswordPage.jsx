@@ -87,7 +87,7 @@ const RequestResetStep = () => {
           onClick={() => navigate('/')}
           className="text-primary hover:underline mt-6 text-sm w-full text-center"
         >
-          ← Back to portal selection
+          ← Back to Login
         </button>
       </Card>
     </LoginLayout>
@@ -199,7 +199,7 @@ const ResetPasswordStep = ({ token }) => {
           onClick={() => navigate('/')}
           className="text-primary hover:underline mt-6 text-sm w-full text-center"
         >
-          ← Back to portal selection
+          ← Back to Login
         </button>
       </Card>
     </LoginLayout>

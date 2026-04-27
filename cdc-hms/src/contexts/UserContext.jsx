@@ -82,8 +82,7 @@ export const UserProvider = ({ children }) => {
   };
 
   // Login function - NOW USES REAL API
-  const login = async (email, password, role) => {
-    // Validate inputs
+  const login = async (email, password) => {
     if (!email || !password) {
       return { success: false, message: 'Email and password are required' };
     }
@@ -91,21 +90,15 @@ export const UserProvider = ({ children }) => {
     setLoading(true);
 
     try {
-      // Convert role to lowercase for backend (backend expects: doctor, staff, lab, patient, admin)
-      const backendRole = role.toLowerCase();
-
-      // Call real API
-      const response = await authService.login(email, password, backendRole);
+      const response = await authService.login(email, password);
 
       if (response.success) {
-        // Backend returns user data - update state
         setCurrentUser(response.data.user);
         return { success: true, user: response.data.user };
       } else {
         return { success: false, message: response.message || 'Login failed' };
       }
     } catch (error) {
-      // Handle API errors
       console.error('Login error:', error);
       return { success: false, message: error.message || 'Login failed. Please try again.' };
     } finally {

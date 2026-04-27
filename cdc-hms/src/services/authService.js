@@ -13,8 +13,8 @@ export const authService = {
    * @param {string} role - User role (doctor, staff, lab, patient, admin)
    * @returns {Promise} - { success: true, data: { token, user } }
    */
-  login: async (email, password, role) => {
-    const response = await api.post('/auth/login', { email, password, role });
+  login: async (email, password) => {
+    const response = await api.post('/auth/login', { email, password });
 
     // If login successful, store token and user in sessionStorage
     if (response.success && response.data.token) {

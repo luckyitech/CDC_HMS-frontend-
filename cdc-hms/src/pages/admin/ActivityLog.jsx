@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2 } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import activityService from '../../services/activityService';
 
@@ -29,6 +29,7 @@ const ACTION_TYPES = [
   { value: 'physical_exam',        label: 'Recorded Physical Exam' },
   { value: 'initial_assessment',   label: 'Recorded Initial Assessment' },
   { value: 'account_created',      label: 'Created Account' },
+  { value: 'user_login',           label: 'Logged In' },
 ];
 
 const ACTION_STYLE = {
@@ -52,6 +53,7 @@ const ACTION_STYLE = {
   physical_exam:         { color: 'bg-rose-100 text-rose-700',     icon: Activity },
   initial_assessment:    { color: 'bg-amber-100 text-amber-700',   icon: ClipboardList },
   account_created:       { color: 'bg-purple-100 text-purple-700', icon: UserCog },
+  user_login:            { color: 'bg-lime-100 text-lime-700',     icon: LogIn },
 };
 
 const SUMMARY_FIELDS = [
@@ -75,6 +77,7 @@ const SUMMARY_FIELDS = [
   { key: 'physicalExam',         label: 'Physical Exams',        color: 'text-rose-600' },
   { key: 'initialAssessment',    label: 'Assessments',           color: 'text-amber-600' },
   { key: 'accountCreated',       label: 'Accounts Created',      color: 'text-purple-600' },
+  { key: 'userLogin',            label: 'Logins',                color: 'text-lime-600' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -143,7 +146,7 @@ const ActivityLog = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const roleLabel = { all: 'Summary', staff: 'Staff Summary', doctor: 'Doctor Summary', admin: 'Admin Summary' }[role];
+  const roleLabel = { all: 'Summary', staff: 'Staff Summary', doctor: 'Doctor Summary', lab: 'Lab Summary', admin: 'Admin Summary' }[role];
 
   return (
     <div className="space-y-6">
@@ -217,6 +220,7 @@ const ActivityLog = () => {
               <option value="all">All Roles</option>
               <option value="staff">Staff Only</option>
               <option value="doctor">Doctors Only</option>
+              <option value="lab">Lab Only</option>
               <option value="admin">Admin Only</option>
             </select>
           </div>

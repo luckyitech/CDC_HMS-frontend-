@@ -269,7 +269,7 @@ export const QueueProvider = ({ children }) => {
   // Doctor completes consultation — sends charges checklist and moves to Pending Billing.
   // Merges with any charges already on the queue entry so that internal referral chains
   // (Doctor A → Doctor B) accumulate all charges rather than the last doctor overwriting.
-  const sendToBilling = async (queueId, selectedCharges, selectedProcedures) => {
+  const sendToBilling = async (queueId, selectedCharges, selectedProcedures, doctorNotes = null) => {
     setLoading(true);
     try {
       // Pull existing charges from local state (set by any prior referring doctor)
@@ -277,11 +277,14 @@ export const QueueProvider = ({ children }) => {
       const mergedCharges    = [...new Set([...(currentItem?.selectedCharges    || []), ...selectedCharges])];
       const mergedProcedures = [...new Set([...(currentItem?.selectedProcedures || []), ...selectedProcedures])];
 
-      const response = await queueService.update(queueId, {
+      const payload = {
         status:            'Pending Billing',
         selectedCharges:    mergedCharges,
         selectedProcedures: mergedProcedures,
-      });
+      };
+      if (doctorNotes) payload.doctorNotes = doctorNotes;
+
+      const response = await queueService.update(queueId, payload);
       if (response.success) {
         setQueue(prev =>
           prev.map(item =>

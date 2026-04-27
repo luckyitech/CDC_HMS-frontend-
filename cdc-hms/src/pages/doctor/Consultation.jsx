@@ -35,6 +35,7 @@ import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
+import { useAppointmentContext } from "../../contexts/AppointmentContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import ReferPatientModal from "../../components/doctor/ReferPatientModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
@@ -138,6 +139,7 @@ const Consultation = () => {
   const { getLatestPlan, getPlansByPatient }           = useTreatmentPlanContext();
   const { getPrescriptionsByPatient, addPrescription } = usePrescriptionContext();
   const { getNotesByPatient }                         = useConsultationNotesContext();
+  const { getAvailableSlots, addAppointment }         = useAppointmentContext();
 
   // ---------------------------------------------------------------------------
   // State
@@ -212,6 +214,12 @@ const Consultation = () => {
   const [selectedCharges, setSelectedCharges]       = useState([]);
   const [selectedProcedures, setSelectedProcedures] = useState([]);
   const [billingSubmitting, setBillingSubmitting]   = useState(false);
+  const [doctorNotes, setDoctorNotes]               = useState('');
+  const [bookFollowUp, setBookFollowUp]             = useState(false);
+  const [followUpDate, setFollowUpDate]             = useState('');
+  const [followUpSlot, setFollowUpSlot]             = useState('');
+  const [availableSlots, setAvailableSlots]         = useState([]);
+  const [slotsLoading, setSlotsLoading]             = useState(false);
 
   // ---------------------------------------------------------------------------
   // Derived state
@@ -391,14 +399,31 @@ const Consultation = () => {
         { duration: 4000, position: "top-right", icon: "❌",
           style: { background: "#EF4444", color: "#FFFFFF", fontWeight: "bold", padding: "16px" } }
       );
-      // Navigate to Today's Consultation and open the Diagnosis section
       setActiveTab("consultation");
       setOpenSections(prev => new Set([...prev, 'diagnosis']));
       return;
     }
+    // Reset all billing modal state before opening
     setSelectedCharges([]);
     setSelectedProcedures([]);
+    setDoctorNotes('');
+    setBookFollowUp(false);
+    setFollowUpDate('');
+    setFollowUpSlot('');
+    setAvailableSlots([]);
     setShowBillingModal(true);
+  };
+
+  // Called when doctor picks a follow-up date — fetches open slots for the assigned doctor
+  const handleFollowUpDateChange = async (date, assignedDoctorId) => {
+    setFollowUpDate(date);
+    setFollowUpSlot('');
+    setAvailableSlots([]);
+    if (!date || !assignedDoctorId) return;
+    setSlotsLoading(true);
+    const slots = await getAvailableSlots(assignedDoctorId, date);
+    setAvailableSlots(slots);
+    setSlotsLoading(false);
   };
 
   const handleBillingSubmit = async () => {
@@ -407,16 +432,37 @@ const Consultation = () => {
       toast.error('Could not find an active queue entry for this patient. Please refresh and try again.', {
         duration: 5000, position: 'top-right',
       });
-      setBillingSubmitting(false);
       return;
     }
     setBillingSubmitting(true);
-    await sendToBilling(queueItem.id, selectedCharges, selectedProcedures);
-    sessionStorage.removeItem(DRAFT_KEY);
-    setBillingSubmitting(false);
-    setShowBillingModal(false);
-    setShowSuccessMessage(true);
-    setTimeout(() => navigate("/doctor/dashboard"), 3000);
+    try {
+      await sendToBilling(queueItem.id, selectedCharges, selectedProcedures, doctorNotes.trim() || null);
+
+      if (bookFollowUp && followUpDate && followUpSlot) {
+        const apptResult = await addAppointment({
+          uhid:            patient.uhid,
+          doctorId:        queueItem.assignedDoctorId,
+          date:            followUpDate,
+          timeSlot:        followUpSlot,
+          appointmentType: 'follow-up',
+          reason:          'Follow-up appointment',
+        });
+        if (!apptResult.success) {
+          toast.error(`Sent to billing, but follow-up booking failed: ${apptResult.message}`, {
+            duration: 6000, position: 'top-right',
+          });
+        }
+      }
+
+      sessionStorage.removeItem(DRAFT_KEY);
+      setShowBillingModal(false);
+      setShowSuccessMessage(true);
+      setTimeout(() => navigate("/doctor/dashboard"), 3000);
+    } catch (err) {
+      toast.error('Something went wrong. Please try again.', { duration: 5000, position: 'top-right' });
+    } finally {
+      setBillingSubmitting(false);
+    }
   };
 
   const toggleCharge    = (item) =>
@@ -1240,6 +1286,7 @@ const Consultation = () => {
             </div>
 
             <div className="overflow-y-auto flex-1 px-6 py-4 space-y-6">
+              {/* Charges */}
               <div>
                 <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Charges</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -1264,6 +1311,7 @@ const Consultation = () => {
                 </div>
               </div>
 
+              {/* Procedures */}
               <div>
                 <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Procedures</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -1287,6 +1335,100 @@ const Consultation = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Doctor's Instructions */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Doctor's Instructions</h3>
+                <textarea
+                  value={doctorNotes}
+                  onChange={(e) => setDoctorNotes(e.target.value)}
+                  placeholder="e.g. Fasting labs next visit, continue metformin 500mg, watch BP…"
+                  rows={3}
+                  className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:border-primary resize-none placeholder-gray-400"
+                />
+              </div>
+
+              {/* Follow-up Appointment */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Follow-up Appointment</h3>
+
+                {/* Toggle */}
+                <label className="flex items-center gap-3 cursor-pointer select-none mb-4">
+                  <button
+                    type="button"
+                    onClick={() => { setBookFollowUp(v => !v); setFollowUpDate(''); setFollowUpSlot(''); setAvailableSlots([]); }}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${bookFollowUp ? 'bg-primary' : 'bg-gray-300'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${bookFollowUp ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                  <span className="text-sm font-medium text-gray-700">
+                    {bookFollowUp ? 'Book a follow-up appointment' : 'No follow-up needed'}
+                  </span>
+                </label>
+
+                {bookFollowUp && (() => {
+                  const queueItem = queue.find(q => q.uhid === patient?.uhid && q.status === 'With Doctor');
+
+                  if (!queueItem) {
+                    return (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p className="text-sm text-red-700 font-medium">
+                          Unable to book follow-up — queue entry not found. Please close this modal, refresh the page, and try again.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  const minDate = new Date(); minDate.setDate(minDate.getDate() + 1);
+                  const minDateStr = minDate.toISOString().slice(0, 10);
+                  return (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                          Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={followUpDate}
+                          min={minDateStr}
+                          onChange={(e) => handleFollowUpDateChange(e.target.value, queueItem?.assignedDoctorId)}
+                          className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary bg-white"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                          Time Slot <span className="text-red-500">*</span>
+                        </label>
+                        {!followUpDate ? (
+                          <p className="text-xs text-gray-400 italic">Select a date first</p>
+                        ) : slotsLoading ? (
+                          <p className="text-xs text-gray-500 animate-pulse">Loading available slots…</p>
+                        ) : availableSlots.length === 0 ? (
+                          <p className="text-xs text-red-500 font-medium">No slots available — choose another date.</p>
+                        ) : (
+                          <select
+                            value={followUpSlot}
+                            onChange={(e) => setFollowUpSlot(e.target.value)}
+                            className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary bg-white"
+                          >
+                            <option value="">Select a time slot</option>
+                            {availableSlots.map(slot => (
+                              <option key={slot} value={slot}>{slot}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      {followUpDate && followUpSlot && (
+                        <p className="text-xs text-blue-700 font-medium bg-blue-100 rounded-md px-3 py-2">
+                          Appointment will be booked: {followUpDate} at {followUpSlot}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
             <div className="flex gap-3 px-6 py-4 border-t flex-shrink-0">
@@ -1298,8 +1440,8 @@ const Consultation = () => {
               </button>
               <button
                 onClick={handleBillingSubmit}
-                disabled={billingSubmitting}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60"
+                disabled={billingSubmitting || (bookFollowUp && (!followUpDate || !followUpSlot))}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {billingSubmitting ? 'Submitting…' : 'Confirm & Send to Billing'}
               </button>

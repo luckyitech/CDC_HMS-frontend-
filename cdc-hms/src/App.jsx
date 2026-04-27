@@ -24,11 +24,6 @@ import Spinner from "./components/shared/Spinner";
 
 // Auth pages (small, visited immediately — keep eager)
 import LoginPage from "./pages/auth/LoginPage";
-import StaffLoginPage from "./pages/auth/StaffLoginPage";
-import DoctorLoginPage from "./pages/auth/DoctorLoginPage";
-import LabLoginPage from "./pages/auth/LabLoginPage";
-import PatientLoginPage from "./pages/auth/PatientLoginPage";
-import AdminLoginPage from "./pages/auth/AdminLoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 
 // Shared pages (lazy)
@@ -125,11 +120,6 @@ function App() {
             <Routes>
               {/* Public (auth) routes — no data providers active here */}
               <Route path="/" element={<LoginPage />} />
-              <Route path="/login/staff" element={<StaffLoginPage />} />
-              <Route path="/login/doctor" element={<DoctorLoginPage />} />
-              <Route path="/login/lab" element={<LabLoginPage />} />
-              <Route path="/login/patient" element={<PatientLoginPage />} />
-              <Route path="/login/admin" element={<AdminLoginPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
               {/* Authenticated portal routes — data providers mount only here */}

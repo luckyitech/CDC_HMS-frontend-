@@ -1,5 +1,7 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
 import { useState } from "react";
+import useSessionTimeout from "../hooks/useSessionTimeout";
+import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
@@ -49,6 +51,10 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const [portalSwitcherOpen, setPortalSwitcherOpen] = useState(false);
 
   const isAdminViewing = currentUser?.role === 'admin' && userRole.toLowerCase() !== 'admin';
+
+  // Session timeout — enabled for all roles except patient
+  const sessionTimeoutEnabled = currentUser?.role !== 'patient';
+  const { showWarning, countdown, resetTimer } = useSessionTimeout(sessionTimeoutEnabled);
 
   const portalOptions = [
     { label: 'Doctor Portal', path: '/doctor/dashboard' },
@@ -395,6 +401,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
           <Outlet />
         </main>
       </div>
+
+      {showWarning && (
+        <SessionTimeoutWarning
+          countdown={countdown}
+          onStayLoggedIn={resetTimer}
+        />
+      )}
     </div>
   );
 };
