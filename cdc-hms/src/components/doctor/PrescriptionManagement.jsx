@@ -14,6 +14,7 @@ const PrescriptionManagement = ({
   addPrescription,
   currentUser,
   onSuccess,
+  readOnly = false,
 }) => {
   const [selectedMedications, setSelectedMedications] = useState([]);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
@@ -49,8 +50,8 @@ const PrescriptionManagement = ({
 
   return (
     <div className="space-y-6">
-      {/* 3-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Layout: 2-col in readOnly, 3-col for doctors */}
+      <div className={`grid grid-cols-1 gap-6 ${readOnly ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
         {/* LEFT: Current Medications */}
         <Card
           title={
@@ -70,7 +71,7 @@ const PrescriptionManagement = ({
               prescriptions={[currentPrescription]}
               maxDisplay={1}
               showViewPrint={true}
-              showAddButtons={true}
+              showAddButtons={!readOnly}
               addedMedications={selectedMedications.map((m) => m.name)}
               onView={(rx) => {
                 setSelectedPrescription(rx);
@@ -105,7 +106,7 @@ const PrescriptionManagement = ({
               prescriptions={pastPrescriptions}
               maxDisplay={null}
               showViewPrint={true}
-              showAddButtons={true}
+              showAddButtons={!readOnly}
               addedMedications={selectedMedications.map((m) => m.name)}
               onView={(rx) => {
                 setSelectedPrescription(rx);
@@ -121,31 +122,33 @@ const PrescriptionManagement = ({
           )}
         </Card>
 
-        {/* RIGHT: New Prescription */}
-        <Card
-          title={
-            <span className="flex items-center gap-2">
-              <FileEdit className="w-5 h-5 text-purple-600" />
-              New Prescription
-            </span>
-          }
-        >
-          <NewPrescriptionForm
-            selectedPatient={patient}
-            fromConsultation={true}
-            embedded={true}
-            addPrescription={addPrescription}
-            currentDoctor={currentUser}
-            onSuccess={() => {
-              setSelectedMedications([]);
-              if (onSuccess) onSuccess();
-            }}
-            initialMedications={selectedMedications}
-            onMedicationRemoved={(name) =>
-              setSelectedMedications((prev) => prev.filter((m) => m.name !== name))
+        {/* RIGHT: New Prescription — hidden in readOnly mode */}
+        {!readOnly && (
+          <Card
+            title={
+              <span className="flex items-center gap-2">
+                <FileEdit className="w-5 h-5 text-purple-600" />
+                New Prescription
+              </span>
             }
-          />
-        </Card>
+          >
+            <NewPrescriptionForm
+              selectedPatient={patient}
+              fromConsultation={true}
+              embedded={true}
+              addPrescription={addPrescription}
+              currentDoctor={currentUser}
+              onSuccess={() => {
+                setSelectedMedications([]);
+                if (onSuccess) onSuccess();
+              }}
+              initialMedications={selectedMedications}
+              onMedicationRemoved={(name) =>
+                setSelectedMedications((prev) => prev.filter((m) => m.name !== name))
+              }
+            />
+          </Card>
+        )}
       </div>
 
       {/* Modals */}

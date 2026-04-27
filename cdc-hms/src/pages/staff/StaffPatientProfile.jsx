@@ -4,20 +4,26 @@ import { useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
+import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
-import { 
-  Phone, 
-  Mail, 
-  ClipboardList, 
-  Battery, 
+import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
+import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
+import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
+import {
+  Phone,
+  Mail,
+  ClipboardList,
+  Battery,
   FileText,
-  Hospital, 
-  AlertTriangle, 
-  Pill, 
-  BarChart3, 
-  Zap, 
-  Radio 
+  Hospital,
+  AlertTriangle,
+  Pill,
+  BarChart3,
+  Zap,
+  Radio,
+  MessageSquare,
+  LineChart,
 } from "lucide-react";
 
 const StaffPatientProfile = () => {
@@ -26,15 +32,25 @@ const StaffPatientProfile = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [patient, setPatient] = useState(null);
   const [loadingPatient, setLoadingPatient] = useState(true);
+  const [prescriptions, setPrescriptions] = useState([]);
 
   const { fetchPatientByUHID } = usePatientContext();
+  const { getPrescriptionsByPatient } = usePrescriptionContext();
 
   useEffect(() => {
     fetchPatientByUHID(uhid).then(p => {
       setPatient(p || null);
       setLoadingPatient(false);
     });
-  }, [uhid]);
+  }, [uhid, fetchPatientByUHID]);
+
+  // Load prescriptions once the patient is resolved
+  useEffect(() => {
+    if (!patient) return;
+    getPrescriptionsByPatient(uhid).then(data => {
+      setPrescriptions(Array.isArray(data) ? data : []);
+    });
+  }, [patient, uhid, getPrescriptionsByPatient]);
 
   if (loadingPatient) {
     return (
@@ -61,9 +77,12 @@ const StaffPatientProfile = () => {
   }
 
   const tabs = [
-    { id: "overview", name: "Overview", icon: ClipboardList },
-    { id: "equipment", name: "Medical Equipment", icon: Battery },
-    { id: "medical-documents", name: "Medical Documents", icon: FileText },
+    { id: "overview",          name: "Overview",           icon: ClipboardList  },
+    { id: "notes",             name: "Doctor's Notes",     icon: MessageSquare  },
+    { id: "prescriptions",     name: "Prescriptions",      icon: Pill           },
+    { id: "charts",            name: "Glycemic Charts",    icon: LineChart      },
+    { id: "equipment",         name: "Medical Equipment",  icon: Battery        },
+    { id: "medical-documents", name: "Medical Documents",  icon: FileText       },
   ];
 
   return (
@@ -164,6 +183,19 @@ const StaffPatientProfile = () => {
       <div>
         {activeTab === "overview" && (
           <OverviewTab patient={patient} setActiveTab={setActiveTab} />
+        )}
+        {activeTab === "notes" && (
+          <ConsultationNotesList patient={patient} readOnly />
+        )}
+        {activeTab === "prescriptions" && (
+          <PrescriptionManagement
+            patient={patient}
+            patientPrescriptions={prescriptions}
+            readOnly
+          />
+        )}
+        {activeTab === "charts" && (
+          <GlycemicChartPanel patient={patient} />
         )}
         {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}

@@ -11,6 +11,7 @@ import { MessageSquare, Plus, ChevronDown, ChevronUp, Pencil } from "lucide-reac
 const ConsultationNotesList = ({
   patient,
   showStatistics = false,
+  readOnly = false,
 }) => {
   const { getNotesByPatient, searchNotes, addNote, updateNote } =
     useConsultationNotesContext();
@@ -257,13 +258,15 @@ const ConsultationNotesList = ({
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <Button
-              onClick={() => setShowWriteModal(true)}
-              className="flex items-center gap-2 whitespace-nowrap"
-            >
-              <Plus size={20} />
-              Write New Note
-            </Button>
+            {!readOnly && (
+              <Button
+                onClick={() => setShowWriteModal(true)}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                <Plus size={20} />
+                Write New Note
+              </Button>
+            )}
           </div>
 
           {/* Filters row */}
@@ -330,9 +333,9 @@ const ConsultationNotesList = ({
                       {hasFilters ? "No notes match the selected filters" : "No Consultation Notes Yet"}
                     </p>
                     <p className="text-gray-400 text-sm mb-4">
-                      {hasFilters ? "Try adjusting or clearing the filters" : "Start documenting your clinical observations"}
+                      {hasFilters ? "Try adjusting or clearing the filters" : "No consultation notes on record"}
                     </p>
-                    {!hasFilters && (
+                    {!hasFilters && !readOnly && (
                       <Button
                         onClick={() => setShowWriteModal(true)}
                         className="inline-flex items-center gap-2"
@@ -419,7 +422,7 @@ const ConsultationNotesList = ({
                       <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed mt-4">
                         {note.notes}
                       </pre>
-                      {note.date === today && (
+                      {!readOnly && note.date === today && (
                         <div className="flex justify-end mt-3 pt-3 border-t border-gray-100">
                           <Button
                             variant="outline"
@@ -454,7 +457,7 @@ const ConsultationNotesList = ({
         )}
       </Card>
 
-      {showWriteModal && (
+      {!readOnly && showWriteModal && (
         <Modal
           isOpen={showWriteModal}
           title={editingNote ? "✏️ Edit Consultation Note" : "✍️ Write Consultation Note"}
