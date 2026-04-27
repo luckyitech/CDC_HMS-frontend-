@@ -75,6 +75,9 @@ const DoctorDashboard = () => {
     return `${diffMins}m`;
   };
 
+  // Stats scoped to this doctor only — use Number() to guard against string/int mismatch
+  const myId             = Number(currentUser?.id);
+
   // Active patients from TODAY only — excludes Completed and Removed
   const activePatients = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed' && isToday(q.createdAt));
 
@@ -96,9 +99,6 @@ const DoctorDashboard = () => {
     (queuePage - 1) * QUEUE_PER_PAGE,
     queuePage * QUEUE_PER_PAGE
   );
-
-  // Stats scoped to this doctor only — use Number() to guard against string/int mismatch
-  const myId             = Number(currentUser?.id);
   const myWithDoctor     = activePatients.filter(q => q.status === 'With Doctor'     && Number(q.assignedDoctorId) === myId);
   const myPendingBilling = activePatients.filter(q => q.status === 'Pending Billing' && Number(q.assignedDoctorId) === myId);
   const myCompleted      = todayCompleted.filter(q => Number(q.assignedDoctorId) === myId);
