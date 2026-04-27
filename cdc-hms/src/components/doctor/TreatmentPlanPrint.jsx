@@ -1,9 +1,8 @@
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
+import usePrint from "../../hooks/usePrint";
 
 const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
-  const handlePrint = () => {
-    window.print();
-  };
+  const { printRef, handlePrint } = usePrint();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -28,7 +27,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
         </div>
 
         {/* Print Content */}
-        <div id="treatment-plan-print-content" className="p-8">
+        <div ref={printRef} id="treatment-plan-print-content" className="p-8">
           {/* Hospital Header */}
           <div className="flex justify-between items-center mb-8 border-b-2 border-primary pb-4">
             <div>
@@ -160,35 +159,6 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
           </div>
         </div>
 
-        {/* Print Styles */}
-        <style>{`
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            #treatment-plan-print-content,
-            #treatment-plan-print-content * {
-              visibility: visible;
-            }
-            #treatment-plan-print-content {
-              position: fixed;
-              top: 0;
-              left: 0;
-              width: 100%;
-              padding: 15mm;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-            .bg-blue-50  { background-color: #eff6ff !important; }
-            .bg-gray-50  { background-color: #f9fafb !important; }
-            .bg-gray-100 { background-color: #f3f4f6 !important; }
-            .bg-green-50 { background-color: #f0fdf4 !important; }
-            .bg-red-50   { background-color: #fef2f2 !important; }
-            @page {
-              margin: 0;
-            }
-          }
-        `}</style>
       </div>
     </div>
   );

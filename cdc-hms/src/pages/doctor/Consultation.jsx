@@ -1110,7 +1110,6 @@ const Consultation = () => {
                               key={e.id}
                               examinationData={full}
                               onEdit={null}
-                              onPrint={() => window.print()}
                               onClose={null}
                             />
                           );

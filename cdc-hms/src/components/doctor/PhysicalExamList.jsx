@@ -188,11 +188,6 @@ const PhysicalExamList = ({ patient }) => {
     setViewMode("entry");
   };
 
-  // Handle print
-  const handlePrint = () => {
-    window.print();
-  };
-
   // Handle close from findings
   const handleCloseFindings = () => {
     // Just stay on findings view
@@ -362,7 +357,6 @@ const PhysicalExamList = ({ patient }) => {
         <PhysicalExamFindings
           examinationData={currentExamination}
           onEdit={isLatestExam ? handleEdit : null}
-          onPrint={handlePrint}
           onClose={handleCloseFindings}
         />
       )}

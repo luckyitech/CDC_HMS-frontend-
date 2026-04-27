@@ -1,4 +1,5 @@
 import { useState } from "react";
+import usePrint from "../../hooks/usePrint";
 import { useUserContext } from "../../contexts/UserContext";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -55,6 +56,7 @@ const PhysicalExamEntry = ({
   readOnly = false,
 }) => {
   const { currentUser } = useUserContext();
+  const { printRef, handlePrint } = usePrint();
   // Auto-fill vitals from triage data when creating a new exam (no initialData.vitalSigns)
   // Backend returns patient.vitals with names like heartRate, temperature, oxygenSaturation
   // and values with units appended (e.g., "80 bpm", "36.5°C", "98%")
@@ -325,7 +327,7 @@ const PhysicalExamEntry = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div ref={printRef} className="space-y-6">
       {/* Read-Only Banner */}
       {readOnly && (
         <Card>
@@ -802,7 +804,7 @@ const PhysicalExamEntry = ({
             <>
               <Button
                 variant="outline"
-                onClick={() => window.print()}
+                onClick={handlePrint}
                 className="flex-1 flex items-center justify-center gap-1"
               >
                 <Printer className="w-4 h-4" /> Print Examination

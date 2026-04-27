@@ -91,10 +91,6 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const handleEdit = () => {
     setMode("entry");
   };

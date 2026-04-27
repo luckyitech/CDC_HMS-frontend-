@@ -1,12 +1,11 @@
 import { Printer, MapPin, Phone, Mail, Stethoscope, Pill, AlertTriangle, FileText } from "lucide-react";
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
+import usePrint from "../../hooks/usePrint";
 
 const PrescriptionPrint = ({ prescription, onClose }) => {
   if (!prescription) return null;
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const { printRef, handlePrint } = usePrint();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -31,7 +30,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
         </div>
 
         {/* Printable Prescription Content */}
-        <div className="print-prescription p-8">
+        <div ref={printRef} className="print-prescription p-8">
           {/* Hospital Header */}
           <div className="flex justify-between items-center border-b-4 border-primary pb-6 mb-6">
             <div>
@@ -174,56 +173,6 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
           </div>
         </div>
 
-        {/* Print Styles */}
-        <style>{`
-          @media print {
-            @page {
-              margin: 0;
-              size: A4;
-            }
-
-            body * {
-              visibility: hidden;
-            }
-
-            .print-prescription,
-            .print-prescription * {
-              visibility: visible;
-            }
-
-            .print-prescription {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-              padding: 15mm;
-              /* Force backgrounds and colors to print */
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
-
-            .print\\:hidden {
-              display: none !important;
-            }
-
-            /* Ensure table borders print */
-            table, th, td {
-              border-color: #d1d5db !important;
-            }
-
-            /* Ensure Tailwind background utilities print */
-            .bg-blue-50  { background-color: #eff6ff !important; }
-            .bg-gray-50  { background-color: #f9fafb !important; }
-            .bg-gray-100 { background-color: #f3f4f6 !important; }
-            .bg-yellow-50 { background-color: #fefce8 !important; }
-            .bg-red-50   { background-color: #fef2f2 !important; }
-
-            /* Ensure border-left accent colors print */
-            .border-primary { border-color: #2563eb !important; }
-            .border-yellow-500 { border-color: #eab308 !important; }
-            .border-red-500  { border-color: #ef4444 !important; }
-          }
-        `}</style>
       </div>
     </div>
   );
