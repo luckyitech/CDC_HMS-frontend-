@@ -98,9 +98,10 @@ const DoctorDashboard = () => {
   // ── Clinic-wide stats (all doctors) ─────────────────────────────────────
   // These give the doctor a full picture of how the clinic is running today.
   // Personal view is already available via the "My Patients Today" queue tab.
-  const clinicWithDoctor  = todayActive.filter(q => q.status === 'With Doctor');
-  const clinicCompleted   = todayCompleted.length;
-  const clinicActiveTotal = todayActive.length;   // still in the building (not done)
+  const clinicWithDoctor      = todayActive.filter(q => q.status === 'With Doctor');
+  const clinicPendingBilling  = todayActive.filter(q => q.status === 'Pending Billing');
+  const clinicCompleted       = todayCompleted.length + clinicPendingBilling.length; // consultation done = Pending Billing + Completed
+  const clinicActiveTotal     = todayActive.length;
 
   const stats = [
     { title: 'Today\'s Patients', value: todayQueue.length,    Icon: Users,         gradient: 'from-blue-500 to-blue-600'   },
