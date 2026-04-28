@@ -40,7 +40,8 @@ const UploadResults = () => {
     if (!patientUHID) return;
     try {
       const docs = await getMedicalDocuments(patientUHID);
-      const filtered = Array.isArray(docs) ? docs.filter(d => d.documentCategory !== 'Patient File') : [];
+      const HIDDEN = ['Patient File', 'Specialist Consultation Report'];
+      const filtered = Array.isArray(docs) ? docs.filter(d => !HIDDEN.includes(d.documentCategory)) : [];
       setDocuments(filtered);
     } catch (err) {
       console.error('Error loading documents:', err);

@@ -10,8 +10,9 @@ const PDF_ONLY_CATEGORIES = ['Patient File'];
 const UploadDocumentModal = ({ isOpen, onClose, patient, onSuccess, currentUser }) => {
   const { DOCUMENT_CATEGORIES, uploadMedicalDocument } = usePatientContext();
   const isPatient = currentUser?.role === 'patient';
+  const PATIENT_HIDDEN = ['Patient File', 'Specialist Consultation Report'];
   const availableCategories = isPatient
-    ? DOCUMENT_CATEGORIES.filter(cat => cat !== 'Patient File')
+    ? DOCUMENT_CATEGORIES.filter(cat => !PATIENT_HIDDEN.includes(cat))
     : DOCUMENT_CATEGORIES;
 
   const [formData, setFormData] = useState({
