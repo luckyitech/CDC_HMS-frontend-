@@ -202,7 +202,7 @@ const UploadResults = () => {
               className="w-full pl-10 pr-4 py-3 sm:py-2 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-primary text-sm appearance-none bg-white"
             >
               <option value="all">All Categories</option>
-              {DOCUMENT_CATEGORIES.map(cat => (
+              {DOCUMENT_CATEGORIES.filter(cat => !['Patient File', 'Specialist Consultation Report'].includes(cat)).map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
