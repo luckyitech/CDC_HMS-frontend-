@@ -75,40 +75,39 @@ const DoctorDashboard = () => {
     return `${diffMins}m`;
   };
 
-  // Stats scoped to this doctor only — use Number() to guard against string/int mismatch
-  const myId             = Number(currentUser?.id);
+  const myId = Number(currentUser?.id);
 
-  // Active patients from TODAY only — excludes Completed and Removed
-  const activePatients = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed' && isToday(q.createdAt));
-
-  // Completed (discharged) patients from TODAY only — for day-of reference
-  const todayCompleted = queue.filter(q => q.status === 'Completed' && isToday(q.createdAt));
-
-  // Combined today's queue, sorted by arrival time
-  const todayQueue = [...activePatients, ...todayCompleted]
+  // ── Today's queue ────────────────────────────────────────────────────────
+  // Split into active and completed so we can sort and display them together
+  const todayActive    = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed' && isToday(q.createdAt));
+  const todayCompleted = queue.filter(q => q.status === 'Completed'  && isToday(q.createdAt));
+  const todayQueue     = [...todayActive, ...todayCompleted]
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 
-  // Patients assigned specifically to this doctor today
+  // Patients assigned specifically to this doctor today (drives "My Patients" tab)
   const myTodayQueue = todayQueue.filter(q => Number(q.assignedDoctorId) === myId);
 
   // Which list is active depends on the selected tab
-  const displayQueue = activeTab === 'mine' ? myTodayQueue : todayQueue;
-
-  const queueTotalPages = Math.ceil(displayQueue.length / QUEUE_PER_PAGE);
-  const paginatedQueue = displayQueue.slice(
+  const displayQueue     = activeTab === 'mine' ? myTodayQueue : todayQueue;
+  const queueTotalPages  = Math.ceil(displayQueue.length / QUEUE_PER_PAGE);
+  const paginatedQueue   = displayQueue.slice(
     (queuePage - 1) * QUEUE_PER_PAGE,
     queuePage * QUEUE_PER_PAGE
   );
-  const myWithDoctor     = activePatients.filter(q => q.status === 'With Doctor'     && Number(q.assignedDoctorId) === myId);
-  const myPendingBilling = activePatients.filter(q => q.status === 'Pending Billing' && Number(q.assignedDoctorId) === myId);
-  const myCompleted      = todayCompleted.filter(q => Number(q.assignedDoctorId) === myId);
+
+  // ── Clinic-wide stats (all doctors) ─────────────────────────────────────
+  // These give the doctor a full picture of how the clinic is running today.
+  // Personal view is already available via the "My Patients Today" queue tab.
+  const clinicWithDoctor  = todayActive.filter(q => q.status === 'With Doctor');
+  const clinicCompleted   = todayCompleted.length;
+  const clinicActiveTotal = todayActive.length;   // still in the building (not done)
 
   const stats = [
-    { title: 'Today\'s Patients', value: (myWithDoctor.length + myPendingBilling.length + myCompleted.length).toString(), Icon: Users,         gradient: 'from-blue-500 to-blue-600' },
-    { title: 'With Doctor',       value: myWithDoctor.length.toString(),                                                  Icon: Clock,         gradient: 'from-cyan-500 to-cyan-600' },
-    { title: 'Completed',         value: (myPendingBilling.length + myCompleted.length).toString(),                       Icon: CheckCircle,   gradient: 'from-green-500 to-green-600' },
-    { title: 'Total Queue',       value: todayQueue.length.toString(),                                                    Icon: ClipboardList, gradient: 'from-purple-500 to-purple-600' },
-  ];
+    { title: 'Today\'s Patients', value: todayQueue.length,    Icon: Users,         gradient: 'from-blue-500 to-blue-600'   },
+    { title: 'With Doctor',       value: clinicWithDoctor.length, Icon: Clock,       gradient: 'from-cyan-500 to-cyan-600'   },
+    { title: 'Completed',         value: clinicCompleted,       Icon: CheckCircle,   gradient: 'from-green-500 to-green-600' },
+    { title: 'Active Queue',      value: clinicActiveTotal,     Icon: ClipboardList, gradient: 'from-purple-500 to-purple-600'},
+  ].map(s => ({ ...s, value: s.value.toString() }));
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -457,9 +456,9 @@ const DoctorDashboard = () => {
         </Card>
 
         <Card title={<span className="flex items-center gap-2"><AlertTriangle className="w-5 h-5" />Patients Alerts</span>} className="md:col-span-2">
-          {myWithDoctor.length > 0 ? (
+          {myTodayQueue.filter(q => q.status === 'With Doctor').length > 0 ? (
             <div className="space-y-3">
-              {myWithDoctor.slice(0, 3).map((queueItem) => {
+              {myTodayQueue.filter(q => q.status === 'With Doctor').slice(0, 3).map((queueItem) => {
                 return (
                   <div key={queueItem.id} className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
                     <p className="font-semibold text-blue-700">Patient Waiting</p>
