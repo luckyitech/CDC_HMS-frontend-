@@ -1,49 +1,27 @@
 import { useState, useEffect } from "react";
+import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import VitalsGrid from '../../components/shared/VitalsGrid';
 import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   Phone, Mail, Microscope, ArrowLeft,
-  ClipboardList, Zap, FileEdit, Stethoscope, TrendingUp, Pill,
-  FileText, MessageSquare, /* BarChart2, */ AlertTriangle,
-  AlertCircle, CheckCircle, Radio, Printer, BookOpen, Pencil,
+  ClipboardList, Zap, TrendingUp, Pill, Calendar,
+  FileText, AlertTriangle,
+  AlertCircle, CheckCircle, Radio, Printer, Pencil,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
-import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import appointmentService from "../../services/appointmentService";
-import { useUserContext } from "../../contexts/UserContext";
-import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
-import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
 import { useLabContext } from "../../contexts/LabContext";
 import LabTestDetailsModal from "../../components/lab/LabTestDetailsModal";
 import LabTestPrint from "../../components/lab/LabTestPrint";
-import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
-import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
-import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
 
-import {
-  physicalExamSections,
-  generateFindingsProse,
-} from "../doctor/physicalExamData";
-
-import PrescriptionPrint from "../../components/doctor/PrescriptionPrint";
-import Modal from "../../components/shared/Modal";
-import Input from "../../components/shared/Input";
-import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
-import TreatmentPlanPrint from "../../components/doctor/TreatmentPlanPrint";
-import TreatmentPlansList from "../../components/doctor/TreatmentPlansList";
-// Import standalone components (to avoid duplication)
 import GlycemicCharts from "./GlycemicCharts";
-import DoctorPrescriptions from "./DoctorPrescriptions";
-import PhysicalExamination from "./PhysicalExamination";
-import InitialAssessment from "./InitialAssessment";
-import PhysicalExamList from "../../components/doctor/PhysicalExamList";
 
 // Shared date formatter
 const fmtDate = (dateStr) => {
@@ -63,11 +41,10 @@ const PatientProfile = () => {
   );
   // const [showOrderLabModal, setShowOrderLabModal] = useState(false);
 
-  const { getBloodSugarReadings, fetchPatientByUHID } = usePatientContext();
+  const { fetchPatientByUHID } = usePatientContext();
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [patient, setPatient] = useState(null);
   const [patientLoading, setPatientLoading] = useState(true);
-  const { getPrescriptionsByPatient } = usePrescriptionContext();
 
   // Always fetch from API so navigating directly to any UHID always works
   useEffect(() => {
@@ -125,16 +102,11 @@ const PatientProfile = () => {
   }
 
   const tabs = [
-    { id: "overview", name: "Overview", Icon: ClipboardList },
-    { id: "equipment", name: "Medical Equipment", Icon: Zap },
-    { id: "initial-assessment", name: "Initial Assessment", Icon: FileEdit },
-    { id: "physical-exam", name: "Physical Exam", Icon: Stethoscope },
-    { id: "glycemic-charts", name: "Glycemic Charts", Icon: TrendingUp },
-    { id: "prescriptions", name: "Prescriptions", Icon: Pill },
-    { id: "treatment-plans", name: "Treatment Plans", Icon: FileText },
-    { id: "consultation-notes", name: "Consultation Notes", Icon: MessageSquare },
+    { id: "overview",          name: "Overview",          Icon: ClipboardList },
+    { id: "equipment",         name: "Medical Equipment", Icon: Zap },
+    { id: "visit-history",     name: "Visit History",     Icon: Calendar },
+    { id: "glycemic-charts",   name: "Glycemic Charts",   Icon: TrendingUp },
     { id: "medical-documents", name: "Medical Documents", Icon: FileText },
-    // { id: "reports", name: "Reports", Icon: BarChart2 },
   ];
 
   return (
@@ -281,25 +253,11 @@ const PatientProfile = () => {
       </div>
 
       <div>
-        {activeTab === "overview" && <OverviewTab patient={patient} onEditVitals={() => setShowVitalsModal(true)} />}
-        {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
-        {activeTab === "initial-assessment" && <InitialAssessment />}
-        {activeTab === "physical-exam" && (
-          <PhysicalExamList patient={patient} embedded={true} />
-        )}
-        {activeTab === "glycemic-charts" && <GlycemicCharts />}
-        {activeTab === "prescriptions" && (
-          <PrescriptionsTab patient={patient} />
-        )}
-        {activeTab === "treatment-plans" && (
-          <TreatmentPlansTab patient={patient} />
-        )}
-        {/* Consultation Notes Tab */}
-        {activeTab === "consultation-notes" && (
-          <ConsultationNotesList patient={patient} showStatistics={true} />
-        )}
+        {activeTab === "overview"          && <OverviewTab patient={patient} onEditVitals={() => setShowVitalsModal(true)} />}
+        {activeTab === "equipment"         && <MedicalEquipmentTab patient={patient} />}
+        {activeTab === "visit-history"     && <VisitHistoryPanel patient={patient} />}
+        {activeTab === "glycemic-charts"   && <GlycemicCharts />}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
-        {/* {activeTab === "reports" && <ReportsTab patient={patient} />} */}
       </div>
 
       {/* Order Lab Test Modal */}
@@ -503,26 +461,6 @@ const OverviewTab = ({ patient, onEditVitals }) => {
   );
 };
 
-// InitialAssessmentTab removed - using imported InitialAssessment component
-// PhysicalExamTab removed - using imported PhysicalExamination component
-// GlycemicChartsTab removed - using imported GlycemicCharts component
-// PrescriptionsTab removed - using imported DoctorPrescriptions component
-
-const TreatmentPlansTab = ({ patient }) => {
-  const { currentUser } = useUserContext();
-
-  return (
-    <TreatmentPlansList
-      patient={patient}
-      showStatistics={true}
-      showCreateForm={true}
-      currentUser={currentUser}
-      onSuccess={() => {
-        console.log("Treatment plan created successfully");
-      }}
-    />
-  );
-};
 
 // ReportsTab component
 
@@ -924,41 +862,5 @@ const ReportsTab = ({ patient }) => {
   );
 };
 
-// Prescriptions Tab Component
-const PrescriptionsTab = ({ patient }) => {
-  const { currentUser } = useUserContext();
-  const { getPrescriptionsByPatient, addPrescription } =
-    usePrescriptionContext();
-  const [patientPrescriptions, setPatientPrescriptions] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchPrescriptions = async () => {
-      setLoading(true);
-      const prescriptions = await getPrescriptionsByPatient(patient.uhid);
-      setPatientPrescriptions(prescriptions || []);
-      setLoading(false);
-    };
-    fetchPrescriptions();
-  }, [patient.uhid, getPrescriptionsByPatient]);
-
-  if (loading) {
-    return <div className="text-center py-8 text-gray-500">Loading prescriptions...</div>;
-  }
-
-  return (
-    <PrescriptionManagement
-      patient={patient}
-      patientPrescriptions={patientPrescriptions}
-      addPrescription={addPrescription}
-      currentUser={currentUser}
-      onSuccess={async () => {
-        // Refresh prescriptions after creating new one
-        const prescriptions = await getPrescriptionsByPatient(patient.uhid);
-        setPatientPrescriptions(prescriptions || []);
-      }}
-    />
-  );
-};
 
 export default PatientProfile;

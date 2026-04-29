@@ -81,21 +81,29 @@ const VitalCard = ({ label, value, colorClass, textClass, cardLabel, onClick }) 
   </div>
 );
 
-// ── StatusBadge — colored pill shown next to a value in the table ─────────────
-const StatusBadge = ({ label, colorFn, value }) => {
+// ── StatusBadge — colored pill shown in the table cells ──────────────────────
+const StatusBadge = ({ colorFn, value }) => {
   if (!colorFn || !value) return null;
   const c = colorFn(value);
   if (!c?.label) return null;
   return (
-    <span className={`ml-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${c.bg} ${c.text} border-${c.border}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${c.bg} ${c.text} ${c.border}`}>
       {c.label}
     </span>
   );
 };
 
+// ── ColorLegend — shown only when at least one column has a colorFn ───────────
+const COLOR_LEGEND = [
+  { dot: 'bg-green-500',  label: 'Normal'     },
+  { dot: 'bg-yellow-500', label: 'Borderline / Elevated' },
+  { dot: 'bg-red-500',    label: 'Alert / High Risk'     },
+];
+
 // ── VitalsTrendModal ──────────────────────────────────────────────────────────
 const VitalsTrendModal = ({ group, history, loading, onClose }) => {
   const config = VITAL_GROUPS[group];
+  const hasColorCoding = config.columns.some(col => col.colorFn);
 
   const formatDate = (iso) => {
     if (!iso) return '—';
@@ -105,44 +113,97 @@ const VitalsTrendModal = ({ group, history, loading, onClose }) => {
     });
   };
 
+  // Latest record values for the summary strip
+  const latest = history[0] ?? null;
+
   return (
-    <Modal isOpen onClose={onClose} title={config.label}>
+    <Modal isOpen onClose={onClose} title={
+      <div className="flex items-center gap-2">
+        <TrendingUp className="w-5 h-5 text-primary" />
+        <span>{config.label}</span>
+      </div>
+    } size="lg">
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
+          <p className="text-sm text-gray-500">Loading records...</p>
         </div>
       ) : history.length === 0 ? (
-        <div className="text-center py-10 text-gray-500">
-          <TrendingUp className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p>No records found for this vital.</p>
+        <div className="text-center py-14 text-gray-400">
+          <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <p className="font-semibold text-gray-500">No records found</p>
+          <p className="text-sm mt-1">No history has been recorded for this vital yet.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b-2 border-gray-200 sticky top-0">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Date & Time</th>
-                {config.columns.map(col => (
-                  <th key={col.key} className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">
-                    {col.header}
+        <div className="space-y-4">
+
+          {/* Summary strip */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-[10px] text-gray-500 uppercase font-semibold">Total Records</p>
+                <p className="text-xl font-bold text-gray-800">{history.length}</p>
+              </div>
+              {latest && config.columns.map(col => latest[col.key] ? (
+                <div key={col.key}>
+                  <p className="text-[10px] text-gray-500 uppercase font-semibold">Latest {col.header}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xl font-bold text-gray-800">{latest[col.key]}</p>
+                    <StatusBadge colorFn={col.colorFn} value={latest[col.key]} />
+                  </div>
+                </div>
+              ) : null)}
+            </div>
+            <p className="text-xs text-gray-400">Sorted newest first</p>
+          </div>
+
+          {/* Color legend — only shown when color coding applies */}
+          {hasColorCoding && (
+            <div className="flex flex-wrap gap-3 px-1">
+              {COLOR_LEGEND.map(({ dot, label }) => (
+                <span key={label} className="flex items-center gap-1.5 text-xs text-gray-600">
+                  <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Table */}
+          <div className="overflow-x-auto rounded-xl border border-gray-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b-2 border-gray-200">
+                  <th className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wide">
+                    Date & Time
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {history.map((record, i) => (
-                <tr key={i} className="hover:bg-gray-50 transition">
-                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(record.recordedAt)}</td>
                   {config.columns.map(col => (
-                    <td key={col.key} className="px-4 py-3">
-                      <span className="font-semibold text-gray-800">{record[col.key] || '—'}</span>
-                      <StatusBadge label={col.header} colorFn={col.colorFn} value={record[col.key]} />
-                    </td>
+                    <th key={col.key} className="px-5 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wide">
+                      {col.header}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {history.map((record, i) => (
+                  <tr key={i} className={`border-b border-gray-100 transition-colors hover:bg-blue-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap text-xs">
+                      {formatDate(record.recordedAt)}
+                    </td>
+                    {config.columns.map(col => (
+                      <td key={col.key} className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-800">{record[col.key] || '—'}</span>
+                          <StatusBadge colorFn={col.colorFn} value={record[col.key]} />
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
         </div>
       )}
     </Modal>
