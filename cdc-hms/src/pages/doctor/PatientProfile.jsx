@@ -428,7 +428,7 @@ const OverviewTab = ({ patient, onEditVitals }) => {
             Edit Vitals
           </Button>
         </div>
-        <VitalsGrid vitals={patient.vitals} />
+        <VitalsGrid vitals={patient.vitals} patient={patient} />
       </Card>
       {/* NEW: Medical Equipment Summary */}
       {patient.medicalEquipment?.insulinPump?.hasPump && (

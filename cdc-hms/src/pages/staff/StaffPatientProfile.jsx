@@ -370,7 +370,7 @@ const OverviewTab = ({ patient, setActiveTab }) => {
           <BarChart3 className="w-5 h-5 text-indigo-600" />
           <h3 className="text-lg font-bold text-gray-800">Latest Vitals</h3>
         </div>
-        <VitalsGrid vitals={patient.vitals} />
+        <VitalsGrid vitals={patient.vitals} patient={patient} />
       </Card>
 
       {/* Medical Equipment Summary */}

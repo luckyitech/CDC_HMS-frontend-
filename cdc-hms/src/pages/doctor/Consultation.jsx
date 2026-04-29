@@ -678,7 +678,7 @@ const Consultation = () => {
                     <Pencil size={14} /> Edit Vitals
                   </Button>
                 </div>
-                <VitalsGrid vitals={patient.vitals} />
+                <VitalsGrid vitals={patient.vitals} patient={patient} />
               </div>
             </Card>
           )}
@@ -813,7 +813,7 @@ const Consultation = () => {
                     <p className="text-sm text-gray-800">{patient.vitals.chiefComplaint}</p>
                   </div>
                 )}
-                <VitalsGrid vitals={patient.vitals} />
+                <VitalsGrid vitals={patient.vitals} patient={patient} />
               </>
             ) : (
               <div className="flex items-center justify-between py-2">
