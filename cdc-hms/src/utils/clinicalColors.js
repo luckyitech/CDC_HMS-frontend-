@@ -70,3 +70,22 @@ export function getO2Color(value) {
   if (v < 95) return YELLOW('Borderline');
   return GREEN('Normal');
 }
+
+/** BMI — <18.5 Underweight, 18.5–24.9 Normal, 25–29.9 Overweight, ≥30 Obese */
+export function getBmiColor(value) {
+  const v = parseFloat(value);
+  if (isNaN(v)) return null;
+  if (v >= 30)   return RED('Obese');
+  if (v >= 25)   return YELLOW('Overweight');
+  if (v >= 18.5) return GREEN('Normal');
+  return YELLOW('Underweight');
+}
+
+/** Heart Rate (bpm) — 60–100 Normal, 50–59 or 101–120 Borderline, <50 or >120 Alert */
+export function getHeartRateColor(value) {
+  const v = parseFloat(value);
+  if (isNaN(v)) return null;
+  if (v < 50 || v > 120) return RED('Alert');
+  if (v < 60 || v > 100) return YELLOW('Borderline');
+  return GREEN('Normal');
+}

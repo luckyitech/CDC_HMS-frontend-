@@ -1,61 +1,65 @@
 import { useState } from 'react';
-import { TrendingUp, X } from 'lucide-react';
-import { getBpColor, getTemperatureColor, getO2Color, getRbsColor, getHba1cColor, getKetonesColor } from '../../utils/clinicalColors';
+import { TrendingUp } from 'lucide-react';
+import {
+  getBpColor, getTemperatureColor, getO2Color, getRbsColor,
+  getHba1cColor, getKetonesColor, getBmiColor, getHeartRateColor,
+} from '../../utils/clinicalColors';
 import patientService from '../../services/patientService';
 import Modal from './Modal';
 
 // ── Vital group definitions ───────────────────────────────────────────────────
 // Each entry maps a clickable card group to its modal title and table columns.
-// To add a new vital trend table: add an entry here — no other changes needed.
+// colorFn (optional): receives the raw cell value and returns { text, bg, label }
+// To add a new vital trend table: add one entry here — no other changes needed.
 const VITAL_GROUPS = {
   bp: {
     label: 'Blood Pressure History',
     columns: [
-      { key: 'bp',         header: 'Blood Pressure' },
+      { key: 'bp', header: 'Blood Pressure', colorFn: getBpColor },
     ],
   },
   heartRate: {
     label: 'Heart Rate History',
     columns: [
-      { key: 'heartRate',  header: 'Heart Rate' },
+      { key: 'heartRate', header: 'Heart Rate', colorFn: getHeartRateColor },
     ],
   },
   bodyMeasurements: {
     label: 'Weight · Height · BMI History',
     columns: [
-      { key: 'weight',     header: 'Weight'  },
-      { key: 'height',     header: 'Height'  },
-      { key: 'bmi',        header: 'BMI'     },
+      { key: 'weight', header: 'Weight'  },
+      { key: 'height', header: 'Height'  },
+      { key: 'bmi',    header: 'BMI', colorFn: getBmiColor },
     ],
   },
   temperature: {
     label: 'Temperature History',
     columns: [
-      { key: 'temperature', header: 'Temperature' },
+      { key: 'temperature', header: 'Temperature', colorFn: getTemperatureColor },
     ],
   },
   oxygenSaturation: {
     label: 'O₂ Saturation History',
     columns: [
-      { key: 'oxygenSaturation', header: 'O₂ Saturation' },
+      { key: 'oxygenSaturation', header: 'O₂ Saturation', colorFn: getO2Color },
     ],
   },
   rbs: {
     label: 'Random Blood Sugar History',
     columns: [
-      { key: 'rbs',        header: 'RBS' },
+      { key: 'rbs', header: 'RBS', colorFn: getRbsColor },
     ],
   },
   hba1c: {
     label: 'HbA1c History',
     columns: [
-      { key: 'hba1c',      header: 'HbA1c' },
+      { key: 'hba1c', header: 'HbA1c', colorFn: getHba1cColor },
     ],
   },
   ketones: {
     label: 'Ketones History',
     columns: [
-      { key: 'ketones',    header: 'Ketones' },
+      { key: 'ketones', header: 'Ketones', colorFn: getKetonesColor },
     ],
   },
 };
@@ -69,9 +73,25 @@ const VitalCard = ({ label, value, colorClass, textClass, cardLabel, onClick }) 
     <p className="text-xs text-gray-600 uppercase">{label}</p>
     <p className={`text-lg font-bold ${textClass} mt-1`}>{value || 'N/A'}</p>
     {cardLabel && <p className="text-xs text-gray-500 mt-1">{cardLabel}</p>}
-    {onClick && <p className="text-[10px] text-gray-400 mt-1 flex items-center justify-center gap-1"><TrendingUp className="w-3 h-3" /> View trend</p>}
+    {onClick && (
+      <p className="text-[10px] text-gray-400 mt-1 flex items-center justify-center gap-1">
+        <TrendingUp className="w-3 h-3" /> View trend
+      </p>
+    )}
   </div>
 );
+
+// ── StatusBadge — colored pill shown next to a value in the table ─────────────
+const StatusBadge = ({ label, colorFn, value }) => {
+  if (!colorFn || !value) return null;
+  const c = colorFn(value);
+  if (!c?.label) return null;
+  return (
+    <span className={`ml-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${c.bg} ${c.text} border-${c.border}`}>
+      {c.label}
+    </span>
+  );
+};
 
 // ── VitalsTrendModal ──────────────────────────────────────────────────────────
 const VitalsTrendModal = ({ group, history, loading, onClose }) => {
@@ -114,8 +134,9 @@ const VitalsTrendModal = ({ group, history, loading, onClose }) => {
                 <tr key={i} className="hover:bg-gray-50 transition">
                   <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatDate(record.recordedAt)}</td>
                   {config.columns.map(col => (
-                    <td key={col.key} className="px-4 py-3 font-semibold text-gray-800">
-                      {record[col.key] || '—'}
+                    <td key={col.key} className="px-4 py-3">
+                      <span className="font-semibold text-gray-800">{record[col.key] || '—'}</span>
+                      <StatusBadge label={col.header} colorFn={col.colorFn} value={record[col.key]} />
                     </td>
                   ))}
                 </tr>
@@ -151,7 +172,6 @@ const VitalsGrid = ({ vitals, patient }) => {
 
   const closeTrend = () => setSelectedGroup(null);
 
-  // Only make cards clickable when a patient uhid is available
   const clickable = !!patient?.uhid;
 
   if (!vitals) return <p className="text-sm text-gray-500">No vitals recorded yet</p>;
