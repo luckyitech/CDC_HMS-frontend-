@@ -5,6 +5,7 @@ import Card from "../shared/Card";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
 import VoiceInput from "../shared/VoiceInput";
+import DiagnosisInput, { parseDiagnoses, formatDiagnosisDisplay } from "../shared/DiagnosisInput";
 import TreatmentPlanPrint from "./TreatmentPlanPrint";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 
@@ -30,13 +31,13 @@ const TreatmentPlansList = ({
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // State for creating new plan
-  const [diagnosis, setDiagnosis] = useState("");
+  const [diagnoses,     setDiagnoses]     = useState([]);
   const [treatmentPlan, setTreatmentPlan] = useState("");
 
   // State for editing an existing plan
-  const [editingPlan, setEditingPlan] = useState(null);
-  const [editDiagnosis, setEditDiagnosis] = useState("");
-  const [editPlan, setEditPlan] = useState("");
+  const [editingPlan,   setEditingPlan]   = useState(null);
+  const [editDiagnoses, setEditDiagnoses] = useState([]);
+  const [editPlan,      setEditPlan]      = useState("");
 
   // Load treatment plans on mount and when patient changes
   useEffect(() => {
@@ -81,27 +82,20 @@ const TreatmentPlansList = ({
 
   // Save diagnosis & treatment plan
   const handleSaveDiagnosis = async () => {
-    if (!diagnosis.trim()) {
-      toast.error("❌ Please enter a diagnosis", {
-        duration: 3000,
-        position: "top-right",
-      });
+    if (diagnoses.length === 0) {
+      toast.error("Please add at least one diagnosis", { duration: 3000, position: "top-right" });
       return;
     }
     if (!treatmentPlan.trim()) {
-      toast.error("❌ Please enter a treatment plan", {
-        duration: 3000,
-        position: "top-right",
-      });
+      toast.error("Please enter a treatment plan", { duration: 3000, position: "top-right" });
       return;
     }
 
-    // Await the async API call
     const result = await addTreatmentPlan({
       uhid: patient.uhid,
       patientName: patient.name,
       doctorName: currentUser?.name || "Doctor",
-      diagnosis: diagnosis,
+      diagnosis: JSON.stringify(diagnoses),
       plan: treatmentPlan,
     });
 
@@ -122,7 +116,7 @@ const TreatmentPlansList = ({
       }
 
       // Clear form
-      setDiagnosis("");
+      setDiagnoses([]);
       setTreatmentPlan("");
 
       // Close modal
@@ -143,7 +137,7 @@ const TreatmentPlansList = ({
   // Cancel and close modal
   const handleCancelCreate = () => {
     setShowCreateModal(false);
-    setDiagnosis("");
+    setDiagnoses([]);
     setTreatmentPlan("");
   };
 
@@ -151,19 +145,19 @@ const TreatmentPlansList = ({
   const handleEditClick = (plan, e) => {
     e.stopPropagation();
     setEditingPlan(plan);
-    setEditDiagnosis(plan.diagnosis);
+    setEditDiagnoses(parseDiagnoses(plan.diagnosis));
     setEditPlan(plan.plan);
   };
 
   const handleCancelEdit = () => {
     setEditingPlan(null);
-    setEditDiagnosis("");
+    setEditDiagnoses([]);
     setEditPlan("");
   };
 
   const handleSaveEdit = async () => {
-    if (!editDiagnosis.trim()) {
-      toast.error("Please enter a diagnosis", { duration: 3000, position: "top-right" });
+    if (editDiagnoses.length === 0) {
+      toast.error("Please add at least one diagnosis", { duration: 3000, position: "top-right" });
       return;
     }
     if (!editPlan.trim()) {
@@ -172,7 +166,7 @@ const TreatmentPlansList = ({
     }
 
     const result = await updateTreatmentPlan(editingPlan.id, {
-      diagnosis: editDiagnosis,
+      diagnosis: JSON.stringify(editDiagnoses),
       plan: editPlan,
     });
 
@@ -294,9 +288,15 @@ const TreatmentPlansList = ({
                             <ChevronDown className="w-5 h-5 text-gray-600" />
                           )}
                         </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-1">
-                          {plan.diagnosis}
-                        </h3>
+                        <div className="mb-1 flex flex-wrap gap-1.5">
+                          {parseDiagnoses(plan.diagnosis).map((d) => (
+                            <span key={d.code || d.description} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs font-semibold text-blue-800">
+                              {d.code && <span className="font-mono text-blue-500">{d.code}</span>}
+                              {d.code && <span className="text-blue-300">—</span>}
+                              {d.description}
+                            </span>
+                          ))}
+                        </div>
                         <div className="text-sm text-gray-600 space-y-1">
                           <p className="flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
@@ -408,13 +408,7 @@ const TreatmentPlansList = ({
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Diagnosis *
               </label>
-              <input
-                type="text"
-                value={diagnosis}
-                onChange={(e) => setDiagnosis(e.target.value)}
-                placeholder="e.g., Type 2 Diabetes Mellitus - Poorly Controlled, Diabetic Neuropathy"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-              />
+              <DiagnosisInput diagnoses={diagnoses} onChange={setDiagnoses} />
             </div>
 
             <div>
@@ -473,13 +467,7 @@ const TreatmentPlansList = ({
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Diagnosis *
               </label>
-              <input
-                type="text"
-                value={editDiagnosis}
-                onChange={(e) => setEditDiagnosis(e.target.value)}
-                placeholder="e.g., Type 2 Diabetes Mellitus - Poorly Controlled"
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
-              />
+              <DiagnosisInput diagnoses={editDiagnoses} onChange={setEditDiagnoses} />
             </div>
 
             <div>

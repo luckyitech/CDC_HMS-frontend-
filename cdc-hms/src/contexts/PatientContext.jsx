@@ -325,6 +325,59 @@ export const PatientProvider = ({ children }) => {
     }
   };
 
+  // Get audit log for equipment
+  const getEquipmentAuditLog = async (uhid) => {
+    try {
+      const response = await patientService.getEquipmentAuditLog(uhid);
+      if (response.success) {
+        return response.data.auditLog || [];
+      }
+      return [];
+    } catch (err) {
+      console.error('Get equipment audit log error:', err.message);
+      return [];
+    }
+  };
+
+  // ========================================
+  // CARELINK PARTNERS (API)
+  // ========================================
+
+  const getCareLinkPartners = async (uhid) => {
+    try {
+      const response = await patientService.getCareLinkPartners(uhid);
+      if (response.success) return response.data.partners || [];
+      return [];
+    } catch (err) {
+      console.error('Get CareLink partners error:', err.message);
+      return [];
+    }
+  };
+
+  const addCareLinkPartner = async (uhid, data) => {
+    try {
+      return await patientService.addCareLinkPartner(uhid, data);
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  };
+
+  const updateCareLinkPartner = async (uhid, id, data) => {
+    try {
+      return await patientService.updateCareLinkPartner(uhid, id, data);
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  };
+
+  const removeCareLinkPartner = async (uhid, id) => {
+    try {
+      return await patientService.removeCareLinkPartner(uhid, id);
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  };
+
   // Get warranty status for equipment
   const getEquipmentWarrantyStatus = (warrantyEndDate) => {
     if (!warrantyEndDate) return null;
@@ -467,7 +520,14 @@ export const PatientProvider = ({ children }) => {
     updateMedicalEquipment,
     replaceMedicalEquipment,
     getMedicalEquipmentHistory,
+    getEquipmentAuditLog,
     getEquipmentWarrantyStatus,
+
+    // CareLink Partner Functions
+    getCareLinkPartners,
+    addCareLinkPartner,
+    updateCareLinkPartner,
+    removeCareLinkPartner,
 
     // Medical Documents Functions
     DOCUMENT_CATEGORIES,

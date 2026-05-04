@@ -135,6 +135,15 @@ export const patientService = {
    * @param {string} uhid - Patient UHID
    */
   getEquipmentHistory: (uhid) => api.get(`/patients/${uhid}/equipment/history`),
+  getEquipmentAuditLog: (uhid) => api.get(`/patients/${uhid}/equipment/audit-log`),
+
+  // ============================================
+  // CARELINK PARTNERS
+  // ============================================
+  getCareLinkPartners:    (uhid)        => api.get(`/patients/${uhid}/carelink-partners`),
+  addCareLinkPartner:     (uhid, data)  => api.post(`/patients/${uhid}/carelink-partners`, data),
+  updateCareLinkPartner:  (uhid, id, data) => api.put(`/patients/${uhid}/carelink-partners/${id}`, data),
+  removeCareLinkPartner:  (uhid, id)    => api.delete(`/patients/${uhid}/carelink-partners/${id}`),
 };
 
 export default patientService;

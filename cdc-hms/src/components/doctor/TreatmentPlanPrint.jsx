@@ -1,5 +1,6 @@
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
 import usePrint from "../../hooks/usePrint";
+import { parseDiagnoses } from "../shared/DiagnosisInput";
 
 const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
   const { printRef, handlePrint } = usePrint();
@@ -92,9 +93,14 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
           {/* Diagnosis */}
           <div className="mb-6">
             <h3 className="text-sm font-bold text-gray-700 mb-2">DIAGNOSIS</h3>
-            <p className="text-gray-800 p-3 bg-yellow-50 rounded border-l-4 border-yellow-500">
-              {plan.diagnosis}
-            </p>
+            <div className="p-3 bg-yellow-50 rounded border-l-4 border-yellow-500 space-y-1">
+              {parseDiagnoses(plan.diagnosis).map((d, i) => (
+                <p key={i} className="text-gray-800 text-sm">
+                  {d.code && <span className="font-bold font-mono">{d.code} — </span>}
+                  {d.description}
+                </p>
+              ))}
+            </div>
           </div>
 
           {/* Treatment Plan */}
