@@ -78,8 +78,10 @@ const DoctorDashboard = () => {
   const myId = Number(currentUser?.id);
 
   // ── Today's queue ────────────────────────────────────────────────────────
-  // Split into active and completed so we can sort and display them together
-  const todayActive    = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed' && isToday(q.createdAt));
+  // Active patients: show regardless of date — a patient added yesterday who was
+  // never discharged must still appear today until their consultation is completed.
+  // Completed: only show today's so old discharged records don't clutter the view.
+  const todayActive    = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed');
   const todayCompleted = queue.filter(q => q.status === 'Completed'  && isToday(q.createdAt));
   const todayQueue     = [...todayActive, ...todayCompleted]
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
