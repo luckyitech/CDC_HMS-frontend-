@@ -11,6 +11,7 @@ import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
 import { usePrescriptionContext } from '../../contexts/PrescriptionContext';
 import { useConsultationNotesContext } from '../../contexts/ConsultationNotesContext';
 import PhysicalExamFindings from '../../pages/doctor/PhysicalExamFindings';
+import { parseDiagnoses } from './DiagnosisInput';
 
 // ── Config: maps each history record type to its date field ──────────────────
 // To add a new section (e.g. lab results): add one entry here + one fetch call
@@ -62,7 +63,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
 
   const [historyData, setHistoryData]           = useState(null);
   const [historyLoading, setHistoryLoading]     = useState(false);
-  const [openHistoryDates, setOpenHistoryDates] = useState({});
+  const [openHistoryDate, setOpenHistoryDate] = useState(null);
   const [historyFromDate, setHistoryFromDate]   = useState('');
   const [historyToDate, setHistoryToDate]       = useState('');
   const [historyPage, setHistoryPage]           = useState(1);
@@ -144,10 +145,10 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
     ),
   [historyData]);
 
-  // Open/close a date accordion; lazily fetches full exam data on first open
+  // Open/close a date accordion — only one open at a time; lazily fetches full exam data on first open
   const toggleHistoryDate = useCallback((date) => {
-    setOpenHistoryDates(prev => {
-      const isOpening = !prev[date];
+    setOpenHistoryDate(prev => {
+      const isOpening = prev !== date;
       if (isOpening && historyDataRef.current) {
         (historyDataRef.current.exams || [])
           .filter(e => (e.date || e.createdAt || '').slice(0, 10) === date)
@@ -159,7 +160,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
             }
           });
       }
-      return { ...prev, [date]: isOpening };
+      return isOpening ? date : null;
     });
   }, [getExaminationById]);
 
@@ -241,7 +242,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
       {/* Visit date accordions */}
       {!historyLoading && paginatedDates.map(date => {
         const records   = getRecordsForDate(date);
-        const isOpen    = !!openHistoryDates[date];
+        const isOpen    = openHistoryDate === date;
         const total     = Object.values(records).reduce((sum, arr) => sum + arr.length, 0);
         const formatted = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -299,7 +300,14 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
                     {records.plans.map(plan => (
                       <div key={plan.id} className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
                         <div className="flex justify-between items-start mb-1">
-                          <p className="font-semibold text-gray-800 text-sm">{plan.diagnosis}</p>
+                          <div className="space-y-0.5">
+                            {parseDiagnoses(plan.diagnosis).map((d, i) => (
+                              <div key={i} className="flex items-center gap-1.5">
+                                {d.code && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 font-mono text-xs font-bold rounded">{d.code}</span>}
+                                <span className="text-sm font-semibold text-gray-800">{d.description}</span>
+                              </div>
+                            ))}
+                          </div>
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                             plan.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                           }`}>{plan.status}</span>

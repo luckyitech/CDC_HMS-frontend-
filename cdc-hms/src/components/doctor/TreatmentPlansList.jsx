@@ -24,8 +24,8 @@ const TreatmentPlansList = ({
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
 
-  // State for collapsible plans (first plan expanded by default)
-  const [expandedPlans, setExpandedPlans] = useState(new Set());
+  // Only one plan expanded at a time — stores the open plan's id (or null)
+  const [expandedPlanId, setExpandedPlanId] = useState(null);
 
   // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -49,9 +49,9 @@ const TreatmentPlansList = ({
         if (!isMounted) return;
         const plansArray = Array.isArray(plans) ? plans : [];
         setTreatmentPlans(plansArray);
-        // Expand first plan by default if exists
+        // Expand first plan by default
         if (plansArray.length > 0) {
-          setExpandedPlans((prev) => (prev.size === 0 ? new Set([plansArray[0].id]) : prev));
+          setExpandedPlanId(id => id ?? plansArray[0].id);
         }
       } catch (err) {
         console.error("Error loading treatment plans:", err);
@@ -64,15 +64,9 @@ const TreatmentPlansList = ({
     return () => { isMounted = false; };
   }, [patient.uhid, getPlansByPatient]);
 
-  // Toggle plan expansion
+  // Toggle plan — opens clicked one, closes if already open
   const togglePlan = (planId) => {
-    const newExpanded = new Set(expandedPlans);
-    if (newExpanded.has(planId)) {
-      newExpanded.delete(planId);
-    } else {
-      newExpanded.add(planId);
-    }
-    setExpandedPlans(newExpanded);
+    setExpandedPlanId(prev => prev === planId ? null : planId);
   };
 
   const handlePrint = (plan) => {
@@ -110,9 +104,9 @@ const TreatmentPlansList = ({
       const plans = await getPlansByPatient(patient.uhid);
       const plansArray = Array.isArray(plans) ? plans : [];
       setTreatmentPlans(plansArray);
-      // Expand the new plan (first in sorted list)
+      // Expand the newest plan
       if (plansArray.length > 0) {
-        setExpandedPlans(new Set([plansArray[0].id]));
+        setExpandedPlanId(plansArray[0].id);
       }
 
       // Clear form
@@ -249,7 +243,7 @@ const TreatmentPlansList = ({
         <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5 text-teal-600" /> Treatment Plan History</span>}>
           <div className="space-y-4">
             {treatmentPlans.map((plan, index) => {
-              const isExpanded = expandedPlans.has(plan.id);
+              const isExpanded = expandedPlanId === plan.id;
               
               return (
                 <div
@@ -263,79 +257,73 @@ const TreatmentPlansList = ({
                   {/* Plan Header - Clickable */}
                   <div
                     onClick={() => togglePlan(plan.id)}
-                    className="p-4 sm:p-6 cursor-pointer hover:bg-gray-50 transition"
+                    className="p-4 sm:p-5 cursor-pointer hover:bg-gray-50 transition"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          {index === 0 && (
-                            <span className="px-3 py-1 bg-blue-500 text-white text-xs font-bold rounded-full">
-                              LATEST
-                            </span>
-                          )}
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              plan.status === "Active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-700"
-                            }`}
-                          >
-                            {plan.status}
+                    {/* Row 1: badges + chevron (left) · Edit/Print buttons (right) */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        {index === 0 && (
+                          <span className="px-2.5 py-0.5 bg-blue-500 text-white text-xs font-bold rounded-full">
+                            LATEST
                           </span>
-                          {isExpanded ? (
-                            <ChevronUp className="w-5 h-5 text-gray-600" />
-                          ) : (
-                            <ChevronDown className="w-5 h-5 text-gray-600" />
-                          )}
-                        </div>
-                        <div className="mb-1 flex flex-wrap gap-1.5">
-                          {parseDiagnoses(plan.diagnosis).map((d) => (
-                            <span key={d.code || d.description} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs font-semibold text-blue-800">
-                              {d.code && <span className="font-mono text-blue-500">{d.code}</span>}
-                              {d.code && <span className="text-blue-300">—</span>}
-                              {d.description}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p className="flex items-center gap-1.5">
-                            <Calendar className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
-                            {new Date(plan.date).toLocaleDateString("en-US", {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })}{" "}
-                            &middot; {plan.time}
-                          </p>
-                          <p className="flex items-center gap-1.5">
-                            <Stethoscope className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
-                            {plan.doctorName}
-                          </p>
-                        </div>
+                        )}
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                          plan.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {plan.status}
+                        </span>
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                       </div>
-                      <div className="flex gap-2 w-full sm:w-auto">
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                         {plan.date === today && (
                           <Button
                             variant="outline"
-                            className="text-sm flex-1 sm:flex-none flex items-center justify-center gap-1"
+                            className="text-xs sm:text-sm flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2"
                             onClick={(e) => handleEditClick(plan, e)}
                           >
-                            <FileEdit className="w-4 h-4 text-primary" />
-                            Edit
+                            <FileEdit className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+                            <span>Edit</span>
                           </Button>
                         )}
                         <Button
                           variant="outline"
-                          className="text-sm flex-1 sm:flex-none flex items-center justify-center gap-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePrint(plan);
-                          }}
+                          className="text-xs sm:text-sm flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2"
+                          onClick={(e) => { e.stopPropagation(); handlePrint(plan); }}
                         >
-                          <Printer className="w-4 h-4 text-teal-600" />
-                          Print
+                          <Printer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-teal-600" />
+                          <span>Print</span>
                         </Button>
                       </div>
+                    </div>
+
+                    {/* Row 2: Diagnosis label + list */}
+                    <div className="mb-2">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Diagnosis</p>
+                      <div className="space-y-1.5">
+                        {parseDiagnoses(plan.diagnosis).map((d) => (
+                          <div key={d.code || d.description} className="flex items-start gap-2">
+                            {d.code && (
+                              <span className="flex-shrink-0 px-2 py-0.5 bg-blue-100 text-blue-700 font-mono text-xs font-bold rounded mt-0.5">
+                                {d.code}
+                              </span>
+                            )}
+                            <span className="text-sm text-gray-800 leading-snug">{d.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Row 3: Date + Doctor — wraps on small screens */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mt-2 pt-2 border-t border-gray-100">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                        {new Date(plan.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        {" · "}{plan.time}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Stethoscope className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+                        {plan.doctorName}
+                      </span>
                     </div>
                   </div>
 

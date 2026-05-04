@@ -174,7 +174,14 @@ const MyPatients = () => {
                     {patient.nextVisit && (
                       <div className="col-span-2">
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Next Visit</p>
-                        <p className="text-sm text-gray-600">{patient.nextVisit}</p>
+                        <p className="text-sm font-medium text-gray-800">
+                          {new Date(patient.nextVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                        {patient.nextVisitBooked && (
+                          <p className="text-xs text-gray-400">
+                            Booked {new Date(patient.nextVisitBooked).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -208,7 +215,21 @@ const MyPatients = () => {
                         <p className="text-xs text-gray-500">{patient.phone}</p>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{patient.age} yrs · {patient.gender}</td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{patient.nextVisit}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {patient.nextVisit
+                          ? <>
+                              <p className="font-medium text-gray-800">
+                                {new Date(patient.nextVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </p>
+                              {patient.nextVisitBooked && (
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  Booked {new Date(patient.nextVisitBooked).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                              )}
+                            </>
+                          : <span className="text-gray-400">—</span>
+                        }
+                      </td>
                       <td className="px-6 py-4">
                         <Button variant="outline" className="text-xs py-1 px-3" onClick={() => navigate(`/doctor/patient-profile/${patient.uhid}`)}>
                           View Profile

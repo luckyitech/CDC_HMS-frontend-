@@ -13,7 +13,6 @@ import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
-import appointmentService from "../../services/appointmentService";
 import { useLabContext } from "../../contexts/LabContext";
 import LabTestDetailsModal from "../../components/lab/LabTestDetailsModal";
 import LabTestPrint from "../../components/lab/LabTestPrint";
@@ -55,34 +54,10 @@ const PatientProfile = () => {
     });
   }, [uhid, fetchPatientByUHID]);
 
-  // Derived visit dates — fetched from appointments API
-  const [lastVisit, setLastVisit] = useState(null);
-  const [nextVisit, setNextVisit] = useState(null);
-
-  useEffect(() => {
-    if (!uhid) return;
-    const today = new Date().toISOString().split('T')[0];
-
-    // Last visit — most recent completed appointment
-    appointmentService.getByPatient(uhid, { status: 'completed' })
-      .then(res => {
-        const apts = res?.data?.appointments || res?.data || [];
-        const sorted = [...apts].sort((a, b) => b.date.localeCompare(a.date));
-        if (sorted[0]) setLastVisit(sorted[0].date);
-      })
-      .catch(() => {});
-
-    // Next visit — earliest future scheduled appointment
-    appointmentService.getByPatient(uhid, { status: 'scheduled' })
-      .then(res => {
-        const apts = res?.data?.appointments || res?.data || [];
-        const future = [...apts]
-          .filter(a => a.date >= today)
-          .sort((a, b) => a.date.localeCompare(b.date));
-        if (future[0]) setNextVisit(future[0].date);
-      })
-      .catch(() => {});
-  }, [uhid]);
+  // Visit dates come directly from the patient object (populated by backend from Queue + Appointment tables)
+  const lastVisit       = patient?.lastVisit       || null;
+  const nextVisit       = patient?.nextVisit       || null;
+  const nextVisitBooked = patient?.nextVisitBooked || null;
 
 
   if (patientLoading) {
@@ -229,6 +204,11 @@ const PatientProfile = () => {
             <p className="text-sm font-semibold text-blue-600 mt-1">
               {fmtDate(nextVisit || patient.nextVisit)}
             </p>
+            {nextVisitBooked && (
+              <p className="text-xs text-gray-400 mt-0.5">
+                Booked {fmtDate(nextVisitBooked)}
+              </p>
+            )}
           </div>
         </div>
       </Card>

@@ -46,6 +46,7 @@ import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import AccordionPanel from "../../components/shared/AccordionPanel";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
+import { parseDiagnoses } from "../../components/shared/DiagnosisInput";
 
 // ---------------------------------------------------------------------------
 // Accordion section definitions for "Today's Consultation" tab
@@ -87,8 +88,8 @@ const Consultation = () => {
   // Which of the 5 top-level tabs is active
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Which accordion sections inside "Today's Consultation" are open
-  const [openSections, setOpenSections] = useState(new Set());
+  // Only one accordion section open at a time (stores the open section id or null)
+  const [openSections, setOpenSections] = useState(null);
 
   // Tab completion — only tracks the fields that gate the Complete button
   const [tabsCompleted, setTabsCompleted] = useState(() => {
@@ -254,7 +255,7 @@ const Consultation = () => {
           style: { background: "#EF4444", color: "#FFFFFF", fontWeight: "bold", padding: "16px" } }
       );
       setActiveTab("consultation");
-      setOpenSections(prev => new Set([...prev, 'diagnosis']));
+      setOpenSections('diagnosis');
       return;
     }
     // Reset all billing modal state before opening
@@ -326,11 +327,7 @@ const Consultation = () => {
     setSelectedProcedures(prev => prev.includes(item) ? prev.filter(p => p !== item) : [...prev, item]);
 
   const toggleSection = useCallback((id) => {
-    setOpenSections(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+    setOpenSections(prev => prev === id ? null : id);
   }, []);
 
   // toggleHistoryDate — moved to VisitHistoryPanel (shared component)
@@ -453,7 +450,7 @@ const Consultation = () => {
       {activeTab === "overview" && (
         <div className="space-y-6">
           <Card title={<span className="flex items-center gap-2"><User className="w-6 h-6" />Patient Information</span>}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Age</p>
                 <p className="font-semibold">{patient.age} years</p>
@@ -463,12 +460,13 @@ const Consultation = () => {
                 <p className="font-semibold">{patient.gender}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Diagnosis</p>
-                <p className="font-semibold">{patient.diagnosis}</p>
-              </div>
-              <div>
                 <p className="text-sm text-gray-600">Last HbA1c</p>
-                <p className="font-semibold text-red-600">{patient.hba1c}</p>
+                <p className="font-semibold text-red-600">
+                  {patient.vitals?.hba1c || patient.hba1c || '—'}
+                </p>
+                {patient.vitals?.hba1c && (
+                  <p className="text-xs text-gray-400 mt-0.5">From latest triage</p>
+                )}
               </div>
             </div>
           </Card>
@@ -542,7 +540,15 @@ const Consultation = () => {
               <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <p className="text-sm font-bold text-gray-800">{previousPlan.diagnosis}</p>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Diagnosis</p>
+                    <div className="space-y-0.5 mb-1">
+                      {parseDiagnoses(previousPlan.diagnosis).map((d, i) => (
+                        <p key={i} className="text-sm font-bold text-gray-800">
+                          {d.code && <span className="font-mono text-primary">{d.code} — </span>}
+                          {d.description}
+                        </p>
+                      ))}
+                    </div>
                     <p className="text-xs text-gray-600 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {new Date(previousPlan.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -616,7 +622,7 @@ const Consultation = () => {
             badge={!patient.vitals && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Not recorded</span>
             )}
-            isOpen={openSections.has('vitals')}
+            isOpen={openSections === 'vitals'}
             onToggle={() => toggleSection('vitals')}
             padding="p-5 space-y-4"
           >
@@ -665,7 +671,7 @@ const Consultation = () => {
             {[0, 1].map((colIdx) => (
               <div key={colIdx} className="flex-1 flex flex-col gap-3">
                 {ACCORDION_SECTIONS.filter((s) => s.id !== 'prescriptions').filter((_, i) => i % 2 === colIdx).map((section) => {
-                  const isOpen      = openSections.has(section.id);
+                  const isOpen      = openSections === section.id;
                   const isCompleted = !!tabsCompleted[section.id];
                   const isUnsaved   = !!(tabsUnsaved[section.id] && !isCompleted);
 
@@ -726,7 +732,7 @@ const Consultation = () => {
                     <Check className="w-3.5 h-3.5" /> Done
                   </span>
                 )}
-                isOpen={openSections.has('prescriptions')}
+                isOpen={openSections === 'prescriptions'}
                 onToggle={() => toggleSection('prescriptions')}
               >
                 <PrescriptionManagement
