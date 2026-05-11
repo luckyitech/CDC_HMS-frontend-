@@ -168,6 +168,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Create Patient", path: "/admin/create-patient", icon: UserPlus },
       { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
       { name: "Activity Log", path: "/admin/activity-log", icon: ShieldAlert },
+      { name: "Analytics", path: "/admin/analytics", icon: Activity },
       { name: "System Settings", path: "/admin/settings", icon: Settings },
     ],
   };

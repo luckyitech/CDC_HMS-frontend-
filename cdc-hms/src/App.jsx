@@ -76,6 +76,10 @@ const CreateLabTech = lazy(() => import("./pages/admin/CreateLabTech"));
 const AdminCreatePatient = lazy(() => import("./pages/admin/CreatePatient"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
+const AnalyticsOverview      = lazy(() => import("./pages/admin/analytics/AnalyticsOverview"));
+const DoctorAnalytics        = lazy(() => import("./pages/admin/analytics/DoctorAnalytics"));
+const StaffAnalytics         = lazy(() => import("./pages/admin/analytics/StaffAnalytics"));
+const ConsultationAnalytics  = lazy(() => import("./pages/admin/analytics/ConsultationAnalytics"));
 
 // Loading fallback shown while a lazy chunk is downloading
 const PageLoader = () => (
@@ -201,6 +205,10 @@ function App() {
                   <Route path="create-patient" element={<AdminCreatePatient />} />
                   <Route path="manage-users" element={<ManageUsers />} />
                   <Route path="activity-log" element={<ActivityLog />} />
+                  <Route path="analytics" element={<AnalyticsOverview />} />
+                  <Route path="analytics/doctors" element={<DoctorAnalytics />} />
+                  <Route path="analytics/staff" element={<StaffAnalytics />} />
+                  <Route path="analytics/consultations" element={<ConsultationAnalytics />} />
                   <Route path="reports" element={<Reports />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
