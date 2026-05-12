@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
-import VitalsGrid from '../../components/shared/VitalsGrid';
 import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   Phone, Mail, Microscope, ArrowLeft,
   ClipboardList, Zap, TrendingUp, Pill, Calendar,
   FileText, AlertTriangle,
-  AlertCircle, CheckCircle, Radio, Printer, Pencil,
+  AlertCircle, CheckCircle, Radio, Printer,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -233,7 +232,7 @@ const PatientProfile = () => {
       </div>
 
       <div>
-        {activeTab === "overview"          && <OverviewTab patient={patient} onEditVitals={() => setShowVitalsModal(true)} />}
+        {activeTab === "overview"          && <OverviewTab patient={patient} />}
         {activeTab === "equipment"         && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "visit-history"     && <VisitHistoryPanel patient={patient} />}
         {activeTab === "glycemic-charts"   && <GlycemicCharts />}
@@ -270,7 +269,7 @@ const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
   </div>
 );
 
-const OverviewTab = ({ patient, onEditVitals }) => {
+const OverviewTab = ({ patient }) => {
   return (
     <div className="space-y-6">
       {/* Personal + Medical Info */}
@@ -290,7 +289,6 @@ const OverviewTab = ({ patient, onEditVitals }) => {
           <div>
             <InfoRow label="Diagnosis" value={patient.diagnosis} />
             <InfoRow label="Diagnosis Date" value={fmtDate(patient.diagnosisDate)} />
-            <InfoRow label="Current HbA1c" value={patient.hba1c} valueClass="text-red-600" />
             <InfoRow
               label="Risk Level"
               value={patient.riskLevel}
@@ -359,15 +357,6 @@ const OverviewTab = ({ patient, onEditVitals }) => {
         </p>
       </Card>
 
-      <Card title="Latest Vitals">
-        <div className="flex justify-end mb-3">
-          <Button variant="outline" onClick={onEditVitals} className="flex items-center gap-2 text-sm">
-            <Pencil size={14} />
-            Edit Vitals
-          </Button>
-        </div>
-        <VitalsGrid vitals={patient.vitals} patient={patient} />
-      </Card>
       {/* NEW: Medical Equipment Summary */}
       {patient.medicalEquipment?.insulinPump?.hasPump && (
         <Card title="Medical Equipment">
