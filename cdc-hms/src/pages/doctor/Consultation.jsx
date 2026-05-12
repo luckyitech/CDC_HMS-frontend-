@@ -450,7 +450,7 @@ const Consultation = () => {
       {activeTab === "overview" && (
         <div className="space-y-6">
           <Card title={<span className="flex items-center gap-2"><User className="w-6 h-6" />Patient Information</span>}>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Age</p>
                 <p className="font-semibold">{patient.age} years</p>
@@ -458,15 +458,6 @@ const Consultation = () => {
               <div>
                 <p className="text-sm text-gray-600">Gender</p>
                 <p className="font-semibold">{patient.gender}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Last HbA1c</p>
-                <p className="font-semibold text-red-600">
-                  {patient.vitals?.hba1c || patient.hba1c || '—'}
-                </p>
-                {patient.vitals?.hba1c && (
-                  <p className="text-xs text-gray-400 mt-0.5">From latest triage</p>
-                )}
               </div>
             </div>
           </Card>
