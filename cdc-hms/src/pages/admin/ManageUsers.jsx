@@ -1,26 +1,58 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import Card from '../../components/shared/Card';
-import Button from '../../components/shared/Button';
 import { useNavigate } from 'react-router-dom';
+import {
+  Search, Users, Pencil, KeyRound, Trash2,
+  ArrowLeft, UserCheck, UserX,
+} from 'lucide-react';
 import api from '../../services/api';
+import EditUserModal from '../../components/admin/EditUserModal';
+
+const Tip = ({ label, children }) => (
+  <div className="relative group">
+    {children}
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+      {label}
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
+    </div>
+  </div>
+);
+
+const ROLE_LABEL = {
+  doctor: 'Doctor', staff: 'Staff', lab: 'Lab Tech',
+  patient: 'Patient', admin: 'Admin',
+};
+
+const ROLE_BADGE = {
+  doctor:  'bg-blue-100 text-blue-700',
+  staff:   'bg-violet-100 text-violet-700',
+  lab:     'bg-teal-100 text-teal-700',
+  patient: 'bg-emerald-100 text-emerald-700',
+  admin:   'bg-rose-100 text-rose-700',
+};
+
+const getInitials = (name = '') =>
+  name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
+const AVATAR_COLORS = [
+  'bg-blue-500', 'bg-violet-500', 'bg-rose-500',
+  'bg-amber-500', 'bg-teal-500', 'bg-indigo-500',
+];
+const avatarColor = (id) => AVATAR_COLORS[id % AVATAR_COLORS.length];
 
 const ManageUsers = () => {
   const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
+  const [users, setUsers]               = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [searchTerm, setSearchTerm]     = useState('');
+  const [filterRole, setFilterRole]     = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [editingUser, setEditingUser]   = useState(null);
 
   useEffect(() => {
     api.get('/users')
       .then(res => { if (res.success) setUsers(res.data.users); })
-      .catch(() => toast.error('Failed to load users', {
-        duration: 4000,
-        position: 'top-right',
-        style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
-      }))
+      .catch(() => toast.error('Failed to load users'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -44,48 +76,14 @@ const ManageUsers = () => {
     inactive: users.filter(u => u.status === 'Inactive').length,
   };
 
-  const getRoleColor = (role) => {
-    switch (role) {
-      case 'doctor':  return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'staff':   return 'bg-green-100 text-green-700 border-green-300';
-      case 'lab':     return 'bg-purple-100 text-purple-700 border-purple-300';
-      case 'patient': return 'bg-cyan-100 text-cyan-700 border-cyan-300';
-      default:        return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
+  const toastSuccess = (msg) => toast.success(msg, { duration: 3000, position: 'top-right' });
+  const toastError   = (msg) => toast.error(msg,   { duration: 4000, position: 'top-right' });
 
-  const formatRole = (role) => {
-    const map = { doctor: 'Doctor', staff: 'Staff', lab: 'Lab Tech', patient: 'Patient', admin: 'Admin' };
-    return map[role] || role;
-  };
-
-  const getStatusColor = (status) => {
-    return status === 'Active'
-      ? 'bg-green-100 text-green-700 border-green-300'
-      : 'bg-gray-100 text-gray-700 border-gray-300';
-  };
-
-  const getSpecialty = (user) => user.specialty || user.position || user.specialization || '—';
-
-  const toastSuccess = (msg) => toast.success(msg, {
-    duration: 3000, position: 'top-right',
-    style: { background: '#10B981', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
-  });
-  const toastError = (msg) => toast.error(msg, {
-    duration: 4000, position: 'top-right',
-    style: { background: '#EF4444', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
-  });
-
-  const handleEdit = (user) => {
-    toast(`Edit feature coming soon for ${user.name}`, {
-      duration: 3000, position: 'top-right', icon: '✏️',
-      style: { background: '#3B82F6', color: '#FFFFFF', fontWeight: 'bold', padding: '16px' },
-    });
-  };
+  const handleUserSaved = (updatedUser) =>
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
 
   const handleToggleStatus = async (user) => {
     const activate = user.status !== 'Active';
-    const action   = activate ? 'activate' : 'deactivate';
     if (!window.confirm(`${activate ? 'Activate' : 'Deactivate'} ${user.name}?`)) return;
     try {
       const res = await api.put(`/users/${user.id}/status`, { isActive: activate });
@@ -93,14 +91,18 @@ const ManageUsers = () => {
         setUsers(prev => prev.map(u =>
           u.id === user.id ? { ...u, status: activate ? 'Active' : 'Inactive' } : u
         ));
-        toastSuccess(`${user.name} has been ${action}d`);
+        toastSuccess(`${user.name} has been ${activate ? 'activated' : 'deactivated'}`);
       }
     } catch (err) {
-      toastError(err.message || `Failed to ${action} user`);
+      toastError(err.message || 'Failed to update status');
     }
   };
 
   const handleResetPassword = async (user) => {
+    if (!user.email) {
+      toastError(`${user.name} has no email address on file. Update their profile first.`);
+      return;
+    }
     if (!window.confirm(`Send a password reset link to ${user.email}?`)) return;
     try {
       await api.post('/auth/forgot-password', { email: user.email });
@@ -117,171 +119,256 @@ const ManageUsers = () => {
       const res = await api.delete(`/users/${user.id}`);
       if (res.success) {
         setUsers(prev => prev.filter(u => u.id !== user.id));
-        toastSuccess(`${user.name} has been deleted from the system`);
+        toastSuccess(`${user.name} has been deleted`);
       }
     } catch (err) {
       toastError(err.message || 'Failed to delete user');
     }
   };
 
+  const ActionButtons = ({ user, mobile = false }) => {
+    const isActive = user.status === 'Active';
+    const base = mobile
+      ? 'flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition'
+      : 'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition';
+
+    if (mobile) return (
+      <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
+        <button onClick={() => setEditingUser(user)} className={base}>
+          <Pencil size={13} /> Edit
+        </button>
+        <button onClick={() => handleResetPassword(user)} className={base}>
+          <KeyRound size={13} /> Reset Password
+        </button>
+        <button onClick={() => handleToggleStatus(user)} className={base}>
+          {isActive ? <><UserX size={13} /> Deactivate</> : <><UserCheck size={13} /> Activate</>}
+        </button>
+        <button onClick={() => handleDelete(user)} className={`${base} text-red-600 hover:bg-red-50 hover:text-red-700`}>
+          <Trash2 size={13} /> Delete
+        </button>
+      </div>
+    );
+
+    return (
+      <div className="flex items-center justify-end gap-0.5">
+        <Tip label="Edit">
+          <button onClick={() => setEditingUser(user)} className={base}><Pencil size={15} /></button>
+        </Tip>
+        <Tip label="Reset Password">
+          <button onClick={() => handleResetPassword(user)} className={base}><KeyRound size={15} /></button>
+        </Tip>
+        <Tip label={isActive ? 'Deactivate' : 'Activate'}>
+          <button onClick={() => handleToggleStatus(user)} className={base}>
+            {isActive ? <UserX size={15} /> : <UserCheck size={15} />}
+          </button>
+        </Tip>
+        <Tip label="Delete">
+          <button onClick={() => handleDelete(user)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition">
+            <Trash2 size={15} />
+          </button>
+        </Tip>
+      </div>
+    );
+  };
+
   return (
-    <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Manage All Users</h2>
-        <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-          ← Back to Dashboard
-        </Button>
+    <div className="space-y-5">
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={handleUserSaved}
+        />
+      )}
+
+      {/* Header */}
+      <div>
+        <button
+          onClick={() => navigate('/admin/dashboard')}
+          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-2 transition"
+        >
+          <ArrowLeft size={14} /> Back to Dashboard
+        </button>
+        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <Users size={22} className="text-gray-600" /> Manage Users
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">View, edit and manage all system accounts</p>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 lg:gap-4 mb-6">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {[
-          { label: 'Total',     value: stats.total,    from: 'from-gray-700',   to: 'to-gray-800'   },
-          { label: 'Doctors',   value: stats.doctors,  from: 'from-blue-500',   to: 'to-blue-600'   },
-          { label: 'Staff',     value: stats.staff,    from: 'from-green-500',  to: 'to-green-600'  },
-          { label: 'Lab Techs', value: stats.lab,      from: 'from-purple-500', to: 'to-purple-600' },
-          { label: 'Patients',  value: stats.patients, from: 'from-cyan-500',   to: 'to-cyan-600'   },
-          { label: 'Active',    value: stats.active,   from: 'from-green-600',  to: 'to-green-700'  },
-          { label: 'Inactive',  value: stats.inactive, from: 'from-gray-500',   to: 'to-gray-600'   },
-        ].map(({ label, value, from, to }) => (
-          <div key={label} className={`bg-gradient-to-br ${from} ${to} rounded-xl shadow-lg p-4 text-white`}>
-            <p className="text-xs opacity-90">{label}</p>
-            <p className="text-2xl lg:text-3xl font-bold mt-2">{loading ? '...' : value}</p>
+          { label: 'Total',    value: stats.total,    bg: 'bg-gray-100',    text: 'text-gray-700',    num: 'text-gray-800'    },
+          { label: 'Doctors',  value: stats.doctors,  bg: 'bg-blue-50',     text: 'text-blue-600',    num: 'text-blue-800'    },
+          { label: 'Staff',    value: stats.staff,    bg: 'bg-violet-50',   text: 'text-violet-600',  num: 'text-violet-800'  },
+          { label: 'Lab Tech', value: stats.lab,      bg: 'bg-teal-50',     text: 'text-teal-600',    num: 'text-teal-800'    },
+          { label: 'Patients', value: stats.patients, bg: 'bg-emerald-50',  text: 'text-emerald-600', num: 'text-emerald-800' },
+          { label: 'Active',   value: stats.active,   bg: 'bg-green-50',    text: 'text-green-600',   num: 'text-green-800'   },
+          { label: 'Inactive', value: stats.inactive, bg: 'bg-red-50',      text: 'text-red-500',     num: 'text-red-700'     },
+        ].map(({ label, value, bg, text, num }) => (
+          <div key={label} className={`${bg} rounded-xl border border-gray-200 p-4 shadow-sm`}>
+            <p className={`text-xs font-medium ${text}`}>{label}</p>
+            <p className={`text-2xl font-bold mt-1 ${num}`}>{loading ? '—' : value}</p>
           </div>
         ))}
       </div>
 
-      {/* Search and Filters */}
-      <Card title="🔍 Search & Filter Users" className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Search (Name, Email, Phone)</label>
+      {/* Search & Filter */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search users..."
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Search by name, email or phone…"
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
             />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Role</label>
-            <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-            >
-              <option value="all">All Roles</option>
-              <option value="doctor">Doctors</option>
-              <option value="staff">Staff</option>
-              <option value="lab">Lab Technicians</option>
-              <option value="patient">Patients</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Status</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-            >
-              <option value="all">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
+          <select
+            value={filterRole}
+            onChange={e => setFilterRole(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 text-gray-700"
+          >
+            <option value="all">All Roles</option>
+            <option value="doctor">Doctors</option>
+            <option value="staff">Staff</option>
+            <option value="lab">Lab Technicians</option>
+            <option value="patient">Patients</option>
+          </select>
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 text-gray-700"
+          >
+            <option value="all">All Status</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
         </div>
-        <div className="mt-4 text-sm text-gray-600">
-          Showing <strong>{filteredUsers.length}</strong> of <strong>{users.length}</strong> users
-        </div>
-      </Card>
+        {!loading && (
+          <p className="text-xs text-gray-400 mt-3">
+            Showing <span className="font-semibold text-gray-600">{filteredUsers.length}</span> of <span className="font-semibold text-gray-600">{users.length}</span> users
+          </p>
+        )}
+      </div>
 
-      {/* Users Table */}
-      <Card title="👥 All System Users">
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading users...</div>
-        ) : filteredUsers.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-6xl mb-4">🔍</p>
-            <p className="text-xl font-semibold text-gray-800 mb-2">No users found</p>
-            <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200">
-                <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Role</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Contact</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Specialty / Position</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase hidden lg:table-cell">Created</th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-4 sm:px-6 py-3 sm:py-4">
-                      <p className="text-sm font-bold text-gray-800">{user.name}</p>
-                      <p className="text-xs text-gray-500">{user.email || '—'}</p>
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getRoleColor(user.role)}`}>
-                        {formatRole(user.role)}
+      {/* Loading / Empty */}
+      {loading ? (
+        <div className="flex items-center justify-center py-24 text-gray-400 text-sm bg-white rounded-xl border border-gray-200">
+          Loading users…
+        </div>
+      ) : filteredUsers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-gray-400 bg-white rounded-xl border border-gray-200">
+          <Search className="w-10 h-10 mb-3 text-gray-300" />
+          <p className="font-medium text-gray-500">No users found</p>
+          <p className="text-sm mt-1">Try adjusting your search or filters</p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+            {filteredUsers.map(user => {
+              const isActive = user.status === 'Active';
+              return (
+                <div key={user.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-full ${avatarColor(user.id)} flex items-center justify-center flex-shrink-0`}>
+                      <span className="text-white text-sm font-bold">{getInitials(user.name)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{user.email || '—'}</p>
+                      <p className="text-xs text-gray-400">{user.phone || '—'}</p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${ROLE_BADGE[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {ROLE_LABEL[user.role] ?? user.role}
                       </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm text-gray-700">{user.phone || '—'}</td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm text-gray-700">{getSpecialty(user)}</td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(user.status)}`}>
+                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
+                        isActive ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
+                      }`}>
                         {user.status}
                       </span>
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-gray-600 hidden lg:table-cell">
-                      {user.createdAt
-                        ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                        : '—'}
-                    </td>
-                    <td className="px-4 sm:px-6 py-3 sm:py-4">
-                      <div className="flex flex-col gap-1">
-                        <Button variant="outline" className="text-xs py-1 px-2" onClick={() => handleEdit(user)}>
-                          ✏️ Edit
-                        </Button>
-                        <Button variant="outline" className="text-xs py-1 px-2" onClick={() => handleResetPassword(user)}>
-                          🔑 Reset Password
-                        </Button>
-                        {user.status === 'Active' ? (
-                          <Button variant="outline" className="text-xs py-1 px-2 text-orange-600 border-orange-300 hover:bg-orange-50" onClick={() => handleToggleStatus(user)}>
-                            ⏸️ Deactivate
-                          </Button>
-                        ) : (
-                          <Button variant="outline" className="text-xs py-1 px-2 text-green-600 border-green-300 hover:bg-green-50" onClick={() => handleToggleStatus(user)}>
-                            ▶️ Activate
-                          </Button>
-                        )}
-                        <Button variant="outline" className="text-xs py-1 px-2 text-red-600 border-red-300 hover:bg-red-50" onClick={() => handleDelete(user)}>
-                          🗑️ Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                    </div>
+                  </div>
+                  <ActionButtons user={user} mobile />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  {['User', 'Role', 'Phone', 'Position', 'Status', 'Joined', 'Actions'].map((h, i) => (
+                    <th key={h} className={`px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide ${
+                      h === 'Position' ? 'hidden lg:table-cell' :
+                      h === 'Joined'   ? 'hidden xl:table-cell' :
+                      h === 'Actions'  ? 'text-right' : ''
+                    }`}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredUsers.map(user => {
+                  const isActive = user.status === 'Active';
+                  return (
+                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full ${avatarColor(user.id)} flex items-center justify-center flex-shrink-0`}>
+                            <span className="text-white text-xs font-bold">{getInitials(user.name)}</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{user.name}</p>
+                            <p className="text-xs text-gray-400">{user.email || '—'}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-3.5">
+                        <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${ROLE_BADGE[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {ROLE_LABEL[user.role] ?? user.role}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-sm text-gray-600">{user.phone || '—'}</td>
+
+                      <td className="px-5 py-3.5 text-sm text-gray-600 hidden lg:table-cell">
+                        {user.specialty || user.position || user.specialization || '—'}
+                      </td>
+
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
+                          isActive ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500' : 'bg-red-400'}`} />
+                          {user.status}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-xs text-gray-400 hidden xl:table-cell">
+                        {user.createdAt
+                          ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                          : '—'}
+                      </td>
+
+                      <td className="px-5 py-3.5">
+                        <ActionButtons user={user} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        )}
-      </Card>
-
-      {/* Bulk Actions */}
-      {/* <Card title="⚡ Bulk Actions" className="mt-6">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button variant="outline" className="flex-1">📧 Send Email to All Active Users</Button>
-          <Button variant="outline" className="flex-1">📊 Export User List (Excel)</Button>
-          <Button variant="outline" className="flex-1">📄 Generate User Report (PDF)</Button>
-        </div>
-      </Card> */}
+        </>
+      )}
     </div>
   );
 };
