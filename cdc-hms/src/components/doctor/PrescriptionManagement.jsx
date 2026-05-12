@@ -15,6 +15,7 @@ const PrescriptionManagement = ({
   currentUser,
   onSuccess,
   readOnly = false,
+  hidePast = false,
 }) => {
   const [selectedMedications, setSelectedMedications] = useState([]);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
@@ -51,7 +52,7 @@ const PrescriptionManagement = ({
   return (
     <div className="space-y-6">
       {/* Layout: 2-col in readOnly, 3-col for doctors */}
-      <div className={`grid grid-cols-1 gap-6 ${readOnly ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
+      <div className={`grid grid-cols-1 gap-6 ${readOnly && !hidePast ? 'lg:grid-cols-2' : !readOnly ? 'lg:grid-cols-3' : ''}`}>
         {/* LEFT: Current Medications */}
         <Card
           title={
@@ -88,39 +89,41 @@ const PrescriptionManagement = ({
         </Card>
 
         {/* MIDDLE: Past Prescriptions */}
-        <Card
-          title={
-            <span className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
-              Past Prescriptions
-            </span>
-          }
-        >
-          {pastPrescriptions.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-              <p className="text-sm">No past prescriptions</p>
-            </div>
-          ) : (
-            <PrescriptionHistory
-              prescriptions={pastPrescriptions}
-              maxDisplay={null}
-              showViewPrint={true}
-              showAddButtons={!readOnly}
-              addedMedications={selectedMedications.map((m) => m.name)}
-              onView={(rx) => {
-                setSelectedPrescription(rx);
-                setShowViewModal(true);
-              }}
-              onPrint={(rx) => {
-                setSelectedPrescription(rx);
-                setShowPrintModal(true);
-              }}
-              onAddMedication={handleAddMedication}
-              collapsible={true}
-            />
-          )}
-        </Card>
+        {!hidePast && (
+          <Card
+            title={
+              <span className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-600" />
+                Past Prescriptions
+              </span>
+            }
+          >
+            {pastPrescriptions.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <p className="text-sm">No past prescriptions</p>
+              </div>
+            ) : (
+              <PrescriptionHistory
+                prescriptions={pastPrescriptions}
+                maxDisplay={null}
+                showViewPrint={true}
+                showAddButtons={!readOnly}
+                addedMedications={selectedMedications.map((m) => m.name)}
+                onView={(rx) => {
+                  setSelectedPrescription(rx);
+                  setShowViewModal(true);
+                }}
+                onPrint={(rx) => {
+                  setSelectedPrescription(rx);
+                  setShowPrintModal(true);
+                }}
+                onAddMedication={handleAddMedication}
+                collapsible={true}
+              />
+            )}
+          </Card>
+        )}
 
         {/* RIGHT: New Prescription — hidden in readOnly mode */}
         {!readOnly && (

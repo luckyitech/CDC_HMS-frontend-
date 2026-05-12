@@ -11,6 +11,7 @@ import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
 import { usePrescriptionContext } from '../../contexts/PrescriptionContext';
 import { useConsultationNotesContext } from '../../contexts/ConsultationNotesContext';
 import PhysicalExamFindings from '../../pages/doctor/PhysicalExamFindings';
+import PrescriptionManagement from '../doctor/PrescriptionManagement';
 import { parseDiagnoses } from './DiagnosisInput';
 
 // ── Config: maps each history record type to its date field ──────────────────
@@ -390,33 +391,14 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
 
                 {/* Prescriptions */}
                 {records.prescriptions.length > 0 && (
-                  <div className="p-5 space-y-3">
+                  <div className="p-5">
                     <SectionHeader icon={<Pill className="w-3.5 h-3.5" />} label="Prescriptions" />
-                    {records.prescriptions.map(rx => (
-                      <div key={rx.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        {(rx.prescribedBy || rx.doctorName) && (
-                          <p className="text-xs text-gray-500 mb-2">
-                            By {rx.prescribedBy || rx.doctorName}
-                            {rx.status && ` · ${rx.status}`}
-                          </p>
-                        )}
-                        <ul className="space-y-1.5">
-                          {(rx.medications || []).map((med, i) => (
-                            <li key={i}>
-                              <span className="font-medium text-gray-800 text-sm">{med.name}</span>
-                              <span className="text-gray-500 text-sm">
-                                {med.dosage    ? ` · ${med.dosage}`    : ''}
-                                {med.frequency ? ` · ${med.frequency}` : ''}
-                                {med.duration  ? ` · ${med.duration}`  : ''}
-                              </span>
-                              {med.instructions && (
-                                <p className="text-xs text-gray-400 mt-0.5">{med.instructions}</p>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+                    <PrescriptionManagement
+                      patient={patient}
+                      patientPrescriptions={records.prescriptions}
+                      readOnly
+                      hidePast
+                    />
                   </div>
                 )}
 
