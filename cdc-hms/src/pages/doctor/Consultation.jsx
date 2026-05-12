@@ -471,45 +471,6 @@ const Consultation = () => {
             </div>
           </Card>
 
-          {/* Vitals / Triage */}
-          {!patient.vitals && (
-            <Card title="Vitals">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">No vitals recorded yet.</p>
-                <Button variant="outline" onClick={() => setShowVitalsModal(true)} className="flex items-center gap-2 text-sm">
-                  <Pencil size={14} /> Record Vitals
-                </Button>
-              </div>
-            </Card>
-          )}
-          {patient.vitals && (
-            <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-6 h-6" />Today's Triage</span>}>
-              <div className="mb-4 pb-4 border-b">
-                <p className="text-sm text-gray-600">
-                  Triaged on:{" "}
-                  {patient.vitals.recordedAt ? new Date(patient.vitals.recordedAt).toLocaleString() : "Today"}
-                </p>
-              </div>
-              {patient.vitals.chiefComplaint && (
-                <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 rounded">
-                  <p className="text-sm font-semibold text-gray-700 mb-1">Reason for visit:</p>
-                  <p className="text-gray-800">{patient.vitals.chiefComplaint}</p>
-                </div>
-              )}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                    <Activity className="w-5 h-5" /> Vital Signs
-                  </h4>
-                  <Button variant="outline" onClick={() => setShowVitalsModal(true)} className="flex items-center gap-2 text-sm">
-                    <Pencil size={14} /> Edit Vitals
-                  </Button>
-                </div>
-                <VitalsGrid vitals={patient.vitals} patient={patient} />
-              </div>
-            </Card>
-          )}
-
           {/* Medical Info */}
           <Card title={<span className="flex items-center gap-2"><Activity className="w-6 h-6" />Medical Information</span>}>
             <div className="space-y-4">
