@@ -38,6 +38,7 @@ const Triage = lazy(() => import("./pages/staff/Triage"));
 const StaffCreatePatient = lazy(() => import("./pages/staff/CreatePatient"));
 const StaffPatientProfile = lazy(() => import("./pages/staff/StaffPatientProfile"));
 const StaffAppointmentsList = lazy(() => import("./pages/staff/AppointmentsList"));
+const StaffBookAppointment  = lazy(() => import("./pages/staff/BookAppointment"));
 
 // Doctor pages (lazy)
 const DoctorDashboard = lazy(() => import("./pages/doctor/DoctorDashboard"));
@@ -50,6 +51,7 @@ const Reports = lazy(() => import("./pages/doctor/Reports"));
 const PhysicalExamination = lazy(() => import("./pages/doctor/PhysicalExamination"));
 const GlycemicCharts = lazy(() => import("./pages/doctor/GlycemicCharts"));
 const DoctorAppointmentsList = lazy(() => import("./pages/doctor/AppointmentsList"));
+const MySchedule             = lazy(() => import("./pages/doctor/MySchedule"));
 
 // Patient pages (lazy)
 const PatientDashboard = lazy(() => import("./pages/patient/PatientDashboard"));
@@ -141,6 +143,7 @@ function App() {
                   <Route path="create-patient" element={<StaffCreatePatient />} />
                   <Route path="patient-profile/:uhid" element={<StaffPatientProfile />} />
                   <Route path="appointments" element={<StaffAppointmentsList />} />
+                  <Route path="book-appointment" element={<StaffBookAppointment />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
@@ -161,6 +164,7 @@ function App() {
                   <Route path="physical-exam" element={<PhysicalExamination />} />
                   <Route path="glycemic-charts" element={<GlycemicCharts />} />
                   <Route path="appointments" element={<DoctorAppointmentsList />} />
+                  <Route path="my-schedule" element={<MySchedule />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

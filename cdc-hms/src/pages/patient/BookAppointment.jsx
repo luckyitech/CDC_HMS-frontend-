@@ -55,6 +55,7 @@ const BookAppointment = () => {
   const [doctors, setDoctors] = useState([]);
   const [doctorsLoading, setDoctorsLoading] = useState(true);
   const [timeSlots, setTimeSlots] = useState([]);
+  const [slotsReason, setSlotsReason] = useState(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -82,11 +83,13 @@ const BookAppointment = () => {
     setSlotsLoading(true);
     setBookingData(prev => ({ ...prev, timeSlot: '' }));
     try {
-      const slots = await getAvailableSlots(doctorId, date);
+      const { slots, reason } = await getAvailableSlots(doctorId, date);
       setTimeSlots(slots);
+      setSlotsReason(reason);
     } catch (err) {
       console.error('Failed to load slots:', err);
       setTimeSlots([]);
+      setSlotsReason(null);
     } finally {
       setSlotsLoading(false);
     }
@@ -307,8 +310,18 @@ const BookAppointment = () => {
                   <span className="text-sm">Loading slots...</span>
                 </div>
               ) : timeSlots.length === 0 ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center text-gray-400 text-sm">
-                  No slots available on this date. Please try another date.
+                <div className="border-2 border-dashed border-red-100 bg-red-50 rounded-lg p-8 text-center text-sm">
+                  {slotsReason === 'day_blocked' ? (
+                    <>
+                      <p className="font-semibold text-red-600">Doctor not available on this date</p>
+                      <p className="text-red-400 mt-1">Please select a different date to book your appointment.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-red-600">No available slots on this date</p>
+                      <p className="text-red-400 mt-1">All time slots are fully booked. Please try another date.</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto p-1">

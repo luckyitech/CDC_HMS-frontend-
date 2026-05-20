@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import appointmentService from '../services/appointmentService';
+import doctorBlockService from '../services/doctorBlockService';
+import { TIME_SLOTS } from '../constants/appointmentSlots';
 
 // Create Context
 const AppointmentContext = createContext();
@@ -257,32 +259,28 @@ export const AppointmentProvider = ({ children }) => {
   // Generates standard slots and excludes already booked ones
   const getAvailableSlots = async (doctorId, date) => {
     try {
-      // Standard clinic time slots
-      const allSlots = [
-        '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
-        '11:00 AM', '11:30 AM', '12:00 PM', '2:00 PM', '2:30 PM', '3:00 PM',
-        '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM'
-      ];
+      const [apptResponse, blockResponse] = await Promise.all([
+        appointmentService.getByDoctor(doctorId, { date }),
+        doctorBlockService.getBlocks(doctorId, date).catch(() => ({ data: { blockedSlots: [], dayBlocked: false } })),
+      ]);
 
-      // Fetch existing appointments for this doctor on this date
-      const response = await appointmentService.getByDoctor(doctorId, { date });
-      if (response.success) {
-        const booked = (response.data.appointments || response.data)
-          .filter(a => a.status !== 'cancelled')
-          .map(a => a.timeSlot);
+      const blockedSlots = blockResponse.data?.blockedSlots || [];
+      const dayBlocked   = blockResponse.data?.dayBlocked || false;
 
-        // Return slots that are not booked
-        return allSlots.filter(slot => !booked.includes(slot));
-      }
-      return allSlots;
+      if (dayBlocked) return { slots: [], reason: 'day_blocked' };
+
+      const booked = apptResponse.success
+        ? (apptResponse.data.appointments || apptResponse.data)
+            .filter(a => a.status !== 'cancelled')
+            .map(a => a.timeSlot)
+        : [];
+
+      const slots = TIME_SLOTS.filter(slot => !booked.includes(slot) && !blockedSlots.includes(slot));
+      const reason = slots.length === 0 ? 'all_booked' : null;
+      return { slots, reason };
     } catch (err) {
       console.error('Get available slots error:', err.message);
-      // Return all slots if there's an error
-      return [
-        '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM',
-        '11:00 AM', '11:30 AM', '12:00 PM', '2:00 PM', '2:30 PM', '3:00 PM',
-        '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM'
-      ];
+      return { slots: TIME_SLOTS, reason: null };
     }
   };
 

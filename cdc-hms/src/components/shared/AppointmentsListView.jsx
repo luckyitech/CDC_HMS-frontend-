@@ -297,7 +297,7 @@ const AppointmentsListView = ({ mode }) => {
                   {a.reason && (
                     <div className="col-span-2">
                       <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Reason</p>
-                      <p className="text-sm text-gray-600 truncate">{a.reason}</p>
+                      <p className="text-sm text-gray-600">{a.reason}</p>
                     </div>
                   )}
                 </div>
@@ -372,7 +372,7 @@ const AppointmentsListView = ({ mode }) => {
                           {a.appointmentType}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600 max-w-[150px] truncate">{a.reason}</td>
+                      <td className="px-4 py-3 text-gray-600">{a.reason}</td>
                       <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{formatDateTime(a.bookedAt)}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_STYLES[a.status] || ''}`}>

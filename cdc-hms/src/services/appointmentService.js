@@ -100,9 +100,16 @@ export const appointmentService = {
 
   /**
    * Get appointment statistics
-   * @returns {Object} - { total, scheduled, checkedIn, completed, cancelled, today, todayScheduled, todayCheckedIn }
    */
   getStats: () => api.get('/appointments/stats'),
+
+  /**
+   * Get time slots for a doctor on a specific date
+   * @param {number} doctorId
+   * @param {string} date - YYYY-MM-DD
+   * @returns slots[] — each: { time, status, patientName?, patientUhid?, appointmentType?, ... }
+   */
+  getSlots: (doctorId, date) => api.get('/appointments/slots', { params: { doctorId, date } }),
 };
 
 export default appointmentService;

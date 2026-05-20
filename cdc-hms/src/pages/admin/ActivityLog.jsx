@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import activityService from '../../services/activityService';
 
@@ -30,6 +30,9 @@ const ACTION_TYPES = [
   { value: 'initial_assessment',   label: 'Recorded Initial Assessment' },
   { value: 'account_created',      label: 'Created Account' },
   { value: 'user_login',           label: 'Logged In' },
+  { value: 'appointment_booked',    label: 'Booked Appointment' },
+  { value: 'appointment_cancelled', label: 'Cancelled Appointment' },
+  { value: 'slot_blocked',          label: 'Blocked Slot' },
 ];
 
 const ACTION_STYLE = {
@@ -54,6 +57,9 @@ const ACTION_STYLE = {
   initial_assessment:    { color: 'bg-amber-100 text-amber-700',   icon: ClipboardList },
   account_created:       { color: 'bg-purple-100 text-purple-700', icon: UserCog },
   user_login:            { color: 'bg-lime-100 text-lime-700',     icon: LogIn },
+  appointment_booked:    { color: 'bg-sky-100 text-sky-700',       icon: CalendarPlus },
+  appointment_cancelled: { color: 'bg-orange-100 text-orange-700', icon: UserX },
+  slot_blocked:          { color: 'bg-red-100 text-red-700',       icon: Lock },
 };
 
 const SUMMARY_FIELDS = [
@@ -78,6 +84,9 @@ const SUMMARY_FIELDS = [
   { key: 'initialAssessment',    label: 'Assessments',           color: 'text-amber-600' },
   { key: 'accountCreated',       label: 'Accounts Created',      color: 'text-purple-600' },
   { key: 'userLogin',            label: 'Logins',                color: 'text-lime-600' },
+  { key: 'appointmentBooked',    label: 'Appointments Booked',    color: 'text-sky-600' },
+  { key: 'appointmentCancelled', label: 'Appointments Cancelled', color: 'text-orange-600' },
+  { key: 'slotBlocked',          label: 'Slots Blocked',          color: 'text-red-600' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

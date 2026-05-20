@@ -141,7 +141,8 @@ const Consultation = () => {
   const [followUpDate, setFollowUpDate]             = useState('');
   const [followUpSlot, setFollowUpSlot]             = useState('');
   const [availableSlots, setAvailableSlots]         = useState([]);
-  const [slotsLoading, setSlotsLoading]             = useState(false);
+  const [slotsReason,    setSlotsReason]             = useState(null);
+  const [slotsLoading,   setSlotsLoading]            = useState(false);
 
   // ---------------------------------------------------------------------------
   // Derived state
@@ -276,8 +277,9 @@ const Consultation = () => {
     setAvailableSlots([]);
     if (!date || !assignedDoctorId) return;
     setSlotsLoading(true);
-    const slots = await getAvailableSlots(assignedDoctorId, date);
+    const { slots, reason } = await getAvailableSlots(assignedDoctorId, date);
     setAvailableSlots(slots);
+    setSlotsReason(reason);
     setSlotsLoading(false);
   };
 
@@ -889,7 +891,11 @@ const Consultation = () => {
                         ) : slotsLoading ? (
                           <p className="text-xs text-gray-500 animate-pulse">Loading available slots…</p>
                         ) : availableSlots.length === 0 ? (
-                          <p className="text-xs text-red-500 font-medium">No slots available — choose another date.</p>
+                          <p className="text-xs text-red-500 font-medium">
+                            {slotsReason === 'day_blocked'
+                              ? 'The doctor is not available on this date.'
+                              : 'All slots are fully booked — choose another date.'}
+                          </p>
                         ) : (
                           <select
                             value={followUpSlot}
