@@ -1,4 +1,4 @@
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, Users } from 'lucide-react';
 import { SLOT_STATUS_STYLES } from '../../constants/appointmentSlots';
 
 const STATUS_LABELS = {
@@ -7,6 +7,7 @@ const STATUS_LABELS = {
   'checked-in': 'Checked In',
   completed:    'Completed',
   blocked:      'Blocked',
+  full:         'Full (2/2)',
 };
 
 // canManageBlocks = true on doctor's MySchedule — allows clicking blocked slots to unblock
@@ -31,10 +32,14 @@ const SlotGrid = ({ slots, loading, error, onSlotClick, canManageBlocks = false 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
       {slots.map(slot => {
-        const style = SLOT_STATUS_STYLES[slot.status] || SLOT_STATUS_STYLES.free;
+        const style      = SLOT_STATUS_STYLES[slot.status] || SLOT_STATUS_STYLES.free;
         const isBlocked   = slot.status === 'blocked';
         const isCompleted = slot.status === 'completed';
-        // Blocked slots are clickable only for the doctor (to unblock)
+        const isFull      = slot.status === 'full';
+        const appointments = slot.appointments || [];
+
+        // Blocked slots are clickable only for the doctor (to unblock);
+        // full slots are always clickable (to view / cancel patients)
         const isClickable = !isCompleted && (!isBlocked || canManageBlocks);
 
         return (
@@ -47,13 +52,16 @@ const SlotGrid = ({ slots, loading, error, onSlotClick, canManageBlocks = false 
             <div className="flex items-center justify-between w-full">
               <span className="font-semibold text-sm">{slot.time}</span>
               {isBlocked && <Lock className="w-3 h-3 opacity-60 flex-shrink-0" />}
+              {isFull    && <Users className="w-3 h-3 opacity-60 flex-shrink-0" />}
             </div>
             <span className="text-xs mt-0.5 opacity-75">{STATUS_LABELS[slot.status]}</span>
-            {slot.patientName && (
-              <span className="text-xs mt-1 font-medium truncate w-full">{slot.patientName}</span>
-            )}
-            {slot.appointmentType && (
-              <span className="text-xs opacity-60 capitalize">{slot.appointmentType}</span>
+            {appointments.map((appt, i) => (
+              <span key={i} className="text-xs mt-1 font-medium truncate w-full">
+                {appt.patientName}
+              </span>
+            ))}
+            {appointments[0]?.appointmentType && (
+              <span className="text-xs opacity-60 capitalize">{appointments[0].appointmentType}</span>
             )}
           </button>
         );

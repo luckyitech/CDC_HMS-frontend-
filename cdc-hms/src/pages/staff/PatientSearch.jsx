@@ -10,6 +10,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ClipboardEdit,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -190,10 +191,17 @@ const PatientSearch = () => {
               {/* Mobile: card list */}
               <div className="md:hidden space-y-3">
                 {searchResults.map((patient) => (
-                  <div key={patient.id} className="p-4 border border-gray-200 rounded-lg bg-white">
+                  <div key={patient.id} className={`p-4 border rounded-lg bg-white ${!patient.hasPortalAccount ? 'border-amber-200' : 'border-gray-200'}`}>
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
-                        <p className="font-bold text-gray-800">{patient.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-gray-800">{patient.name}</p>
+                          {!patient.hasPortalAccount && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
+                              <ClipboardEdit className="w-3 h-3" /> Incomplete
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-primary font-semibold">{patient.uhid}</p>
                         {patient.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
                       </div>
@@ -251,7 +259,14 @@ const PatientSearch = () => {
                       <tr key={patient.id} className="hover:bg-gray-50">
                         <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                         <td className="px-4 lg:px-6 py-4 text-sm">
-                          <p className="font-semibold">{patient.name}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold">{patient.name}</p>
+                            {!patient.hasPortalAccount && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold whitespace-nowrap">
+                                <ClipboardEdit className="w-3 h-3" /> Incomplete
+                              </span>
+                            )}
+                          </div>
                           {patient.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
                         </td>
                         <td className="px-4 lg:px-6 py-4 text-sm">{patient.age} yrs &middot; {patient.gender}</td>

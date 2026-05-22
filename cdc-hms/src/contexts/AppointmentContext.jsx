@@ -269,13 +269,17 @@ export const AppointmentProvider = ({ children }) => {
 
       if (dayBlocked) return { slots: [], reason: 'day_blocked' };
 
-      const booked = apptResponse.success
-        ? (apptResponse.data.appointments || apptResponse.data)
-            .filter(a => a.status !== 'cancelled')
-            .map(a => a.timeSlot)
-        : [];
+      // Count non-cancelled appointments per slot — each slot holds up to 2 patients
+      const slotCounts = {};
+      if (apptResponse.success) {
+        (apptResponse.data.appointments || apptResponse.data)
+          .filter(a => a.status !== 'cancelled')
+          .forEach(a => { slotCounts[a.timeSlot] = (slotCounts[a.timeSlot] || 0) + 1; });
+      }
 
-      const slots = TIME_SLOTS.filter(slot => !booked.includes(slot) && !blockedSlots.includes(slot));
+      const slots = TIME_SLOTS.filter(
+        slot => (slotCounts[slot] || 0) < 2 && !blockedSlots.includes(slot)
+      );
       const reason = slots.length === 0 ? 'all_booked' : null;
       return { slots, reason };
     } catch (err) {

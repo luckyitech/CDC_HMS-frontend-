@@ -1,22 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Search, User, Calendar, Clock, CheckCircle, XCircle, Lock, Unlock, CalendarPlus } from 'lucide-react';
+import { X, Search, User, Calendar, Clock, CheckCircle, XCircle, Lock, Unlock, CalendarPlus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import patientService from '../../services/patientService';
 import appointmentService from '../../services/appointmentService';
 import doctorBlockService from '../../services/doctorBlockService';
 import { APPOINTMENT_TYPES } from '../../constants/appointmentSlots';
+import QuickRegisterForm from './QuickRegisterForm';
 
-// ── Booked slot view ──────────────────────────────────────────────────────────
-const BookedSlotView = ({ slot, doctorName, date, onCancel, onClose }) => {
+// ── Single booked appointment card (with optional cancel) ─────────────────────
+const AppointmentCard = ({ appt, onCancelled }) => {
   const [cancelling, setCancelling] = useState(false);
 
   const handleCancel = async () => {
     setCancelling(true);
     try {
-      await appointmentService.cancel(slot.appointmentId);
+      await appointmentService.cancel(appt.appointmentId);
       toast.success('Appointment cancelled');
-      onCancel();
-      onClose();
+      onCancelled();
     } catch (err) {
       toast.error(err.message || 'Failed to cancel appointment');
     } finally {
@@ -25,41 +25,90 @@ const BookedSlotView = ({ slot, doctorName, date, onCancel, onClose }) => {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-blue-50 rounded-lg p-4 space-y-2">
-        <div className="flex items-center gap-2 text-blue-800">
-          <User className="w-4 h-4" />
-          <span className="font-semibold">{slot.patientName}</span>
-          <span className="text-xs text-blue-500">({slot.patientUhid})</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Calendar className="w-4 h-4" />
-          <span>{date}</span>
-          <Clock className="w-4 h-4 ml-2" />
-          <span>{slot.time}</span>
-        </div>
-        <p className="text-sm text-gray-600">
-          <span className="font-medium">Doctor:</span> {doctorName}
-        </p>
-        <p className="text-sm text-gray-600 capitalize">
-          <span className="font-medium">Type:</span> {slot.appointmentType}
-        </p>
-        {slot.reason && (
-          <p className="text-sm text-gray-600">
-            <span className="font-medium">Reason:</span> {slot.reason}
-          </p>
-        )}
-        <p className="text-xs text-gray-400">#{slot.appointmentNumber}</p>
+    <div className="bg-blue-50 rounded-lg p-3 space-y-1.5">
+      <div className="flex items-center gap-2 text-blue-800">
+        <User className="w-4 h-4 flex-shrink-0" />
+        <span className="font-semibold text-sm">{appt.patientName}</span>
+        <span className="text-xs text-blue-500">({appt.patientUhid})</span>
       </div>
-
-      {slot.status === 'scheduled' && (
+      <p className="text-xs text-gray-600 capitalize">
+        <span className="font-medium">Type:</span> {appt.appointmentType}
+      </p>
+      {appt.reason && (
+        <p className="text-xs text-gray-600">
+          <span className="font-medium">Reason:</span> {appt.reason}
+        </p>
+      )}
+      <p className="text-xs text-gray-400">#{appt.appointmentNumber}</p>
+      {appt.status === 'scheduled' && (
         <button
           onClick={handleCancel}
           disabled={cancelling}
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 py-1.5 px-3 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-xs font-medium disabled:opacity-50 mt-1"
         >
-          <XCircle className="w-4 h-4" />
+          <XCircle className="w-3 h-3" />
           {cancelling ? 'Cancelling...' : 'Cancel Appointment'}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ── Full slot view (2 patients) ───────────────────────────────────────────────
+const FullSlotView = ({ slot, date, doctorName, onCancelled, onClose }) => (
+  <div className="space-y-4">
+    <div className="flex items-center gap-3 p-3 bg-indigo-50 rounded-lg text-sm text-indigo-800">
+      <Users className="w-4 h-4 flex-shrink-0" />
+      <span>{date} at <strong>{slot.time}</strong> — {doctorName} · Slot Full</span>
+    </div>
+    <div className="space-y-3">
+      {slot.appointments.map((appt, i) => (
+        <AppointmentCard
+          key={appt.appointmentId}
+          appt={appt}
+          onCancelled={() => { onCancelled(); onClose(); }}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+// ── Partial slot view (1 patient, 1 seat still open) ─────────────────────────
+const PartialSlotView = ({ slot, date, doctorName, doctorId, onBooked, onClose, canBook }) => {
+  const [bookingSecond, setBookingSecond] = useState(false);
+  const appt = slot.appointments[0];
+
+  if (bookingSecond) {
+    return (
+      <NewBookingForm
+        slot={slot}
+        doctorId={doctorId}
+        doctorName={doctorName}
+        date={date}
+        onBooked={onBooked}
+        onClose={onClose}
+        onBack={() => setBookingSecond(false)}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+        <Clock className="w-4 h-4 flex-shrink-0" />
+        <span>{date} at <strong>{slot.time}</strong> — {doctorName}</span>
+      </div>
+      <AppointmentCard
+        appt={appt}
+        onCancelled={() => { onBooked(); onClose(); }}
+      />
+      {canBook && (
+        <button
+          onClick={() => setBookingSecond(true)}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
+        >
+          <CalendarPlus className="w-4 h-4" />
+          Book Second Patient
         </button>
       )}
     </div>
@@ -302,6 +351,7 @@ const NewBookingForm = ({ slot, doctorId, doctorName, date, onBooked, onClose, o
               ))}
             </ul>
           )}
+          <QuickRegisterForm onRegistered={p => setSelected(p)} />
         </div>
       ) : (
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -360,11 +410,13 @@ const BookingModal = ({ slot, doctorId, doctorName, date, onBooked, onClose, can
 
   const isBlocked  = slot.status === 'blocked';
   const isFree     = slot.status === 'free';
-  const isBooked   = !isFree && !isBlocked;
+  const isFull     = slot.status === 'full';
+  const isPartial  = !isFree && !isBlocked && !isFull; // 1 appointment, seat still open
 
   let title = 'Book Appointment';
   if (isBlocked) title = 'Blocked Slot';
-  else if (isBooked) title = 'Appointment Details';
+  else if (isFull)    title = 'Appointment Details';
+  else if (isPartial) title = 'Appointment Details';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
@@ -382,6 +434,26 @@ const BookingModal = ({ slot, doctorId, doctorName, date, onBooked, onClose, can
               date={date}
               onUnblocked={onBooked}
               onClose={onClose}
+            />
+          )}
+          {isFull && (
+            <FullSlotView
+              slot={slot}
+              date={date}
+              doctorName={doctorName}
+              onCancelled={onBooked}
+              onClose={onClose}
+            />
+          )}
+          {isPartial && (
+            <PartialSlotView
+              slot={slot}
+              date={date}
+              doctorName={doctorName}
+              doctorId={doctorId}
+              onBooked={onBooked}
+              onClose={onClose}
+              canBook={true}
             />
           )}
           {isFree && canManageBlocks && (
@@ -402,15 +474,6 @@ const BookingModal = ({ slot, doctorId, doctorName, date, onBooked, onClose, can
               doctorName={doctorName}
               date={date}
               onBooked={onBooked}
-              onClose={onClose}
-            />
-          )}
-          {isBooked && (
-            <BookedSlotView
-              slot={slot}
-              doctorName={doctorName}
-              date={date}
-              onCancel={onBooked}
               onClose={onClose}
             />
           )}

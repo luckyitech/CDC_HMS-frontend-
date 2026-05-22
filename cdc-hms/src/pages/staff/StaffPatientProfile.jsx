@@ -10,6 +10,8 @@ import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
+import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
+import EditPatientModal from "../../components/staff/EditPatientModal";
 import {
   Phone,
   Mail,
@@ -24,6 +26,8 @@ import {
   Radio,
   MessageSquare,
   LineChart,
+  ClipboardEdit,
+  Pencil,
 } from "lucide-react";
 
 const StaffPatientProfile = () => {
@@ -33,6 +37,8 @@ const StaffPatientProfile = () => {
   const [patient, setPatient] = useState(null);
   const [loadingPatient, setLoadingPatient] = useState(true);
   const [prescriptions, setPrescriptions] = useState([]);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const { fetchPatientByUHID } = usePatientContext();
   const { getPrescriptionsByPatient } = usePrescriptionContext();
@@ -100,8 +106,36 @@ const StaffPatientProfile = () => {
           <Button variant="outline" onClick={() => navigate("/staff/patients")}>
             ← Back to Patient Search
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowEditModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Pencil className="w-4 h-4" />
+            Edit Profile
+          </Button>
         </div>
       </div>
+
+      {/* Incomplete registration banner */}
+      {!patient.hasPortalAccount && (
+        <div className="flex items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-amber-800 text-sm">Profile Incomplete</p>
+              <p className="text-xs text-amber-700">Registered via phone booking. Complete the full profile when the patient walks in.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowCompleteModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-semibold hover:bg-amber-700 transition-colors whitespace-nowrap"
+          >
+            <ClipboardEdit className="w-4 h-4" />
+            Complete Registration
+          </button>
+        </div>
+      )}
 
       {/* Patient Summary Card */}
       <Card className="mb-6">
@@ -200,6 +234,22 @@ const StaffPatientProfile = () => {
         {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
       </div>
+
+      {showCompleteModal && (
+        <CompleteRegistrationModal
+          patient={patient}
+          onCompleted={updated => setPatient(updated)}
+          onClose={() => setShowCompleteModal(false)}
+        />
+      )}
+
+      {showEditModal && (
+        <EditPatientModal
+          patient={patient}
+          onUpdated={updated => setPatient(updated)}
+          onClose={() => setShowEditModal(false)}
+        />
+      )}
     </div>
   );
 };

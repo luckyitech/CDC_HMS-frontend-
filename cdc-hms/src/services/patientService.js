@@ -23,10 +23,18 @@ export const patientService = {
   getByUHID: (uhid) => api.get(`/patients/${uhid}`),
 
   /**
-   * Create new patient
+   * Create new patient (full registration)
    * @param {Object} data - Patient data
    */
   create: (data) => api.post('/patients', data),
+
+  /**
+   * Quick-register a placeholder patient for phone bookings.
+   * Only firstName + lastName required; no portal account created.
+   * Full profile is completed when the patient walks in.
+   * @param {{ firstName: string, lastName: string, phone?: string }} data
+   */
+  quickCreate: (data) => api.post('/patients/quick', data),
 
   /**
    * Update patient
@@ -34,6 +42,14 @@ export const patientService = {
    * @param {Object} data - Updated fields
    */
   update: (uhid, data) => api.put(`/patients/${uhid}`, data),
+
+  /**
+   * Complete registration for a quick-registered (phone booking) patient.
+   * Fills in full profile and, if email is provided, creates the portal login account.
+   * @param {string} uhid - Patient UHID
+   * @param {Object} data - Full patient data + optional password
+   */
+  completeRegistration: (uhid, data) => api.post(`/patients/${uhid}/complete-registration`, data),
 
   /**
    * Delete patient

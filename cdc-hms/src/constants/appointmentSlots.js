@@ -19,4 +19,5 @@ export const SLOT_STATUS_STYLES = {
   'checked-in': 'bg-yellow-100 border-yellow-300 text-yellow-800 cursor-pointer',
   completed:    'bg-gray-100 border-gray-300 text-gray-500 cursor-default',
   blocked:      'bg-red-50 border-red-200 text-red-500 cursor-default',
+  full:         'bg-indigo-100 border-indigo-300 text-indigo-800 cursor-pointer',
 };
