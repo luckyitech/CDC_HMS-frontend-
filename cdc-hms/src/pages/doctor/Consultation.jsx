@@ -133,6 +133,7 @@ const Consultation = () => {
   const [showOrderLabModal, setShowOrderLabModal]   = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal]     = useState(false);
+  const [billingQueueItem, setBillingQueueItem]     = useState(null);
   const [selectedCharges, setSelectedCharges]       = useState([]);
   const [selectedProcedures, setSelectedProcedures] = useState([]);
   const [billingSubmitting, setBillingSubmitting]   = useState(false);
@@ -259,7 +260,16 @@ const Consultation = () => {
       setOpenSections('diagnosis');
       return;
     }
+    // Capture the queue item now so SSE updates during the modal don't lose it
+    const queueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
+    if (!queueItem) {
+      toast.error('Could not find an active queue entry for this patient. Please refresh and try again.', {
+        duration: 5000, position: 'top-right',
+      });
+      return;
+    }
     // Reset all billing modal state before opening
+    setBillingQueueItem(queueItem);
     setSelectedCharges([]);
     setSelectedProcedures([]);
     setDoctorNotes('');
@@ -284,7 +294,7 @@ const Consultation = () => {
   };
 
   const handleBillingSubmit = async () => {
-    const queueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
+    const queueItem = billingQueueItem;
     if (!queueItem) {
       toast.error('Could not find an active queue entry for this patient. Please refresh and try again.', {
         duration: 5000, position: 'top-right',
