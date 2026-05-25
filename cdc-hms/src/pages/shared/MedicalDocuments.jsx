@@ -102,7 +102,7 @@ const MedicalDocuments = () => {
     setDateTo('');
   };
 
-  const isStaff = ['staff', 'doctor'].includes(currentUser?.role?.toLowerCase());
+  const isDoctor = currentUser?.role?.toLowerCase() === 'doctor';
   const isAdmin = currentUser?.role === 'admin';
 
   const handleArchive = async (doc) => {
@@ -338,7 +338,7 @@ const MedicalDocuments = () => {
               key={doc.id}
               doc={doc}
               showPatientBadge={true}
-              isStaff={isStaff}
+              isDoctor={isDoctor}
               isAdmin={isAdmin}
               onView={() => handleView(doc)}
               onDownload={() => handleDownload(doc)}

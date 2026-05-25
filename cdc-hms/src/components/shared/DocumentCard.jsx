@@ -3,7 +3,7 @@ import Card from './Card';
 import Button from './Button';
 import { formatDate, getStatusBadge, getCategoryIcon } from '../../utils/documentHelpers';
 
-const DocumentCard = ({ doc, showPatientBadge = false, isStaff, isAdmin, onView, onDownload, onMarkReviewed, onArchive }) => {
+const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasViewed = false, onView, onDownload, onMarkReviewed, onArchive }) => {
   return (
     <Card className="hover:shadow-lg transition">
       <div className="flex flex-col lg:flex-row gap-4">
@@ -16,9 +16,21 @@ const DocumentCard = ({ doc, showPatientBadge = false, isStaff, isAdmin, onView,
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <h4 className="font-bold text-gray-800 text-lg truncate">{doc.testType}</h4>
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(doc.status)}`}>
-              {doc.status}
-            </span>
+            {doc.status === 'Reviewed' && (
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(doc.status)}`}>
+                Reviewed
+              </span>
+            )}
+            {doc.status === 'Pending Review' && !isDoctor && (
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(doc.status)}`}>
+                Pending Review
+              </span>
+            )}
+            {doc.status === 'Archived' && (
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(doc.status)}`}>
+                Archived
+              </span>
+            )}
           </div>
 
           {showPatientBadge && (
@@ -94,7 +106,17 @@ const DocumentCard = ({ doc, showPatientBadge = false, isStaff, isAdmin, onView,
             <Download className="w-4 h-4" />
             Download
           </Button>
-          {isStaff && doc.status === 'Pending Review' && (
+          {isDoctor && doc.status === 'Pending Review' && !hasViewed && (
+            <Button
+              variant="outline"
+              disabled
+              className="w-full lg:w-auto text-sm flex items-center justify-center gap-2 opacity-40 cursor-not-allowed"
+            >
+              <FileText className="w-4 h-4" />
+              View file first
+            </Button>
+          )}
+          {isDoctor && doc.status === 'Pending Review' && hasViewed && (
             <Button
               variant="primary"
               className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"

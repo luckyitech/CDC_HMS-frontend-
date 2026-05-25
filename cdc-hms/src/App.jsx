@@ -16,6 +16,7 @@ import { LabProvider } from "./contexts/LabContext";
 import { TreatmentPlanProvider } from "./contexts/TreatmentPlanContext";
 import { AppointmentProvider } from './contexts/AppointmentContext';
 import { ConsultationNotesProvider } from './contexts/ConsultationNotesContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Layouts & shared (always needed — keep eager)
 import MainLayout from "./layouts/MainLayout";
@@ -94,25 +95,27 @@ const PageLoader = () => (
 // This component only mounts when navigating to an authenticated portal route,
 // so no API calls or SSE connections are made on the public login/portal pages.
 const AuthenticatedLayout = () => (
-  <ConsultationNotesProvider>
-    <LabProvider>
-      <InitialAssessmentProvider>
-        <PhysicalExamProvider>
-          <QueueProvider>
-            <AppointmentProvider>
-              <PatientProvider>
-                <PrescriptionProvider>
-                  <TreatmentPlanProvider>
-                    <Outlet />
-                  </TreatmentPlanProvider>
-                </PrescriptionProvider>
-              </PatientProvider>
-            </AppointmentProvider>
-          </QueueProvider>
-        </PhysicalExamProvider>
-      </InitialAssessmentProvider>
-    </LabProvider>
-  </ConsultationNotesProvider>
+  <NotificationProvider>
+    <ConsultationNotesProvider>
+      <LabProvider>
+        <InitialAssessmentProvider>
+          <PhysicalExamProvider>
+            <QueueProvider>
+              <AppointmentProvider>
+                <PatientProvider>
+                  <PrescriptionProvider>
+                    <TreatmentPlanProvider>
+                      <Outlet />
+                    </TreatmentPlanProvider>
+                  </PrescriptionProvider>
+                </PatientProvider>
+              </AppointmentProvider>
+            </QueueProvider>
+          </PhysicalExamProvider>
+        </InitialAssessmentProvider>
+      </LabProvider>
+    </ConsultationNotesProvider>
+  </NotificationProvider>
 );
 
 function App() {

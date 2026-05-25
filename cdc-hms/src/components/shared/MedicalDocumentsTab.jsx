@@ -23,6 +23,7 @@ const MedicalDocumentsTab = ({ patient }) => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortOrder, setSortOrder] = useState('desc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewedDocIds, setViewedDocIds] = useState(new Set());
 
   // State for documents loaded async
   const [allDocuments, setAllDocuments] = useState([]);
@@ -120,12 +121,14 @@ const MedicalDocumentsTab = ({ patient }) => {
       const blob = await documentService.getFile(filename);
       const blobUrl = URL.createObjectURL(blob);
       window.open(blobUrl, '_blank');
+      // Mark this document as viewed so the doctor can now confirm it
+      setViewedDocIds(prev => new Set([...prev, doc.id]));
     } catch (err) {
       showNotification('Failed to open file');
     }
   };
 
-  const isStaff = ['staff', 'doctor'].includes(currentUser?.role?.toLowerCase());
+  const isDoctor = currentUser?.role?.toLowerCase() === 'doctor';
   const isAdmin = currentUser?.role === 'admin';
 
   // Show loading state
@@ -271,8 +274,9 @@ const MedicalDocumentsTab = ({ patient }) => {
             <DocumentCard
               key={doc.id}
               doc={doc}
-              isStaff={isStaff}
+              isDoctor={isDoctor}
               isAdmin={isAdmin}
+              hasViewed={viewedDocIds.has(doc.id)}
               onView={() => handleView(doc)}
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc.id)}

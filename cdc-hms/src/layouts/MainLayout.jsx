@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-// import toast from "react-hot-toast"; // TODO: restore when notifications are implemented
+import NotificationBell from "../components/shared/NotificationBell";
 import {
   LayoutDashboard,
   Search,
@@ -30,7 +30,7 @@ import {
   UserCog,
   Settings,
   ShieldAlert,
-  // Bell, // TODO: notifications
+  Bell,
   Menu,
   X,
   // CheckCircle, // TODO: notifications
@@ -334,28 +334,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
               </div>
             )}
 
-            {/* Notifications — TODO: implement real notifications later */}
-            {/* <div className="relative">
-              <button
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative hover:scale-110 transition-transform p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <Bell size={24} className="text-gray-700" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center font-bold shadow-lg">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              {notificationsOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-2xl border-2 border-gray-200 z-50 max-h-[80vh] overflow-hidden flex flex-col">
-                    ...
-                  </div>
-                </>
-              )}
-            </div> */}
+            {/* In-app notifications — doctors only */}
+            {userRole.toLowerCase() === 'doctor' && <NotificationBell />}
 
             <div className="hidden md:flex items-center gap-3 bg-gray-100 px-3 lg:px-4 py-2 rounded-lg">
               <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg lg:text-xl shadow-lg">
