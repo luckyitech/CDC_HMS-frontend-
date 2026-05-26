@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Label,
+  BarChart, Bar,
   PieChart, Pie, Cell,
 } from 'recharts';
 import { ArrowLeft, Users } from 'lucide-react';
@@ -18,6 +19,171 @@ const formatHour = (h) => {
   return `${h - 12}pm`;
 };
 
+const fmtMinutes = (mins) => {
+  if (mins == null) return '—';
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}min`;
+};
+
+const WAIT_THEMES = {
+  blue: {
+    avgCard:     'from-blue-500 to-blue-700',
+    trackedCard: 'from-purple-500 to-purple-600',
+    distColors:  ['#22c55e', '#0066CC', '#f59e0b', '#ef4444', '#7c3aed'],
+    normalBadge: 'bg-blue-100 text-blue-700',
+    normalDot:   'bg-primary',
+    normalBar:   'from-blue-400 to-blue-600',
+    lineColor:   '#0066CC',
+  },
+  orange: {
+    avgCard:     'from-orange-500 to-orange-600',
+    trackedCard: 'from-teal-500 to-teal-600',
+    distColors:  ['#22c55e', '#f97316', '#f59e0b', '#ef4444', '#7c3aed'],
+    normalBadge: 'bg-orange-100 text-orange-700',
+    normalDot:   'bg-orange-500',
+    normalBar:   'from-orange-400 to-orange-600',
+    lineColor:   '#f97316',
+  },
+};
+
+function WaitTimeSection({ title, data, dateLabel, theme }) {
+  const t = WAIT_THEMES[theme];
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-gray-800 mb-4">{title}</h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+        <div className={`bg-gradient-to-br ${t.avgCard} rounded-xl shadow-lg p-6 text-white`}>
+          <p className="text-sm opacity-90">Avg Wait</p>
+          <p className="text-4xl font-bold mt-2">{fmtMinutes(data?.avgWaitMinutes)}</p>
+          <p className="text-sm mt-3 opacity-75">Per patient</p>
+        </div>
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+          <p className="text-sm opacity-90">Shortest Wait</p>
+          <p className="text-4xl font-bold mt-2">{fmtMinutes(data?.minWaitMinutes)}</p>
+          <p className="text-sm mt-3 opacity-75">Best recorded</p>
+        </div>
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
+          <p className="text-sm opacity-90">Longest Wait</p>
+          <p className="text-4xl font-bold mt-2">{fmtMinutes(data?.maxWaitMinutes)}</p>
+          <p className="text-sm mt-3 opacity-75">Worst recorded</p>
+        </div>
+        <div className={`bg-gradient-to-br ${t.trackedCard} rounded-xl shadow-lg p-6 text-white`}>
+          <p className="text-sm opacity-90">Patients Tracked</p>
+          <p className="text-4xl font-bold mt-2">{data?.totalRecords ?? '—'}</p>
+          <p className="text-sm mt-3 opacity-75">{dateLabel}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card title="Wait Time Distribution">
+          {data?.distribution?.some(d => d.count > 0) ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={data.distribution} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} width={30} />
+                <Tooltip
+                  formatter={(v) => [v, 'Patients']}
+                  contentStyle={{ borderRadius: '8px', fontSize: '13px', border: '1px solid #e5e7eb' }}
+                  cursor={{ fill: '#f3f4f6' }}
+                />
+                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                  {data.distribution.map((_, i) => (
+                    <Cell key={i} fill={t.distColors[i] ?? t.distColors[0]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-400 text-sm text-center py-8">No wait time data for this period.</p>
+          )}
+        </Card>
+
+        <Card title="Avg Wait by Priority">
+          {data?.waitByPriority?.length ? (
+            <div className="space-y-6 pt-2">
+              {data.waitByPriority.map(p => {
+                const isUrgent = p.priority === 'Urgent';
+                const pct = Math.min(100, (p.avgWait / (data.maxWaitMinutes || 1)) * 100);
+                return (
+                  <div key={p.priority}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                        isUrgent ? 'bg-red-100 text-red-700' : t.normalBadge
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full ${isUrgent ? 'bg-red-500' : t.normalDot}`} />
+                        {p.priority}
+                      </span>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-gray-800">{fmtMinutes(p.avgWait)}</p>
+                        <p className="text-xs text-gray-400">{p.count} patients</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden">
+                      <div
+                        className={`h-4 rounded-full transition-all duration-500 ${
+                          isUrgent
+                            ? 'bg-gradient-to-r from-red-400 to-red-600'
+                            : `bg-gradient-to-r ${t.normalBar}`
+                        }`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-gray-400 text-sm text-center py-8">No priority data for this period.</p>
+          )}
+        </Card>
+      </div>
+
+      {data?.dailyAvg?.length > 1 && (
+        <Card title="Daily Average Wait Trend" className="mt-6">
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={data.dailyAvg} margin={{ top: 8, right: 24, left: 0, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: '#6b7280' }}
+                tickLine={false}
+                axisLine={{ stroke: '#e5e7eb' }}
+                angle={-35}
+                textAnchor="end"
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 11, fill: '#6b7280' }}
+                tickLine={false}
+                axisLine={false}
+                width={40}
+                tickFormatter={fmtMinutes}
+              />
+              <Tooltip
+                formatter={(v) => [fmtMinutes(v), 'Avg Wait']}
+                contentStyle={{ borderRadius: '8px', fontSize: '13px', border: '1px solid #e5e7eb' }}
+              />
+              <Line
+                type="monotone"
+                dataKey="avgWait"
+                stroke={t.lineColor}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: t.lineColor }}
+                activeDot={{ r: 6, fill: t.lineColor }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function StaffAnalytics() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState(DEFAULT_DATE_RANGE);
@@ -26,30 +192,33 @@ export default function StaffAnalytics() {
   const [volume, setVolume]       = useState(null);
   const [priority, setPriority]   = useState(null);
   const [los, setLos]             = useState(null);
+  const [waitTime, setWaitTime]       = useState(null);
+  const [triageToDoc, setTriageToDoc] = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const [t, s, v, p, l] = await Promise.all([
-        analyticsService.getTriageMetrics(dateRange.startDate, dateRange.endDate),
-        analyticsService.getStaffTriagePerformance(dateRange.startDate, dateRange.endDate),
-        analyticsService.getPatientVolumeByHour(dateRange.startDate, dateRange.endDate),
-        analyticsService.getTriageByPriority(dateRange.startDate, dateRange.endDate),
-        analyticsService.getLengthOfStay(dateRange.startDate, dateRange.endDate),
-      ]);
-      setTriage(t.data);
-      setStaffPerf(s.data);
-      setVolume(v.data);
-      setPriority(p.data);
-      setLos(l.data);
-    } catch {
-      setError('Failed to load staff analytics.');
-    } finally {
-      setLoading(false);
-    }
+    const results = await Promise.allSettled([
+      analyticsService.getTriageMetrics(dateRange.startDate, dateRange.endDate),
+      analyticsService.getStaffTriagePerformance(dateRange.startDate, dateRange.endDate),
+      analyticsService.getPatientVolumeByHour(dateRange.startDate, dateRange.endDate),
+      analyticsService.getTriageByPriority(dateRange.startDate, dateRange.endDate),
+      analyticsService.getLengthOfStay(dateRange.startDate, dateRange.endDate),
+      analyticsService.getWaitTimeBeforeTriage(dateRange.startDate, dateRange.endDate),
+      analyticsService.getWaitTimeBetweenTriageAndConsultation(dateRange.startDate, dateRange.endDate),
+    ]);
+    const [t, s, v, p, l, w, td] = results;
+    if (t.status  === 'fulfilled') setTriage(t.value.data);
+    if (s.status  === 'fulfilled') setStaffPerf(s.value.data);
+    if (v.status  === 'fulfilled') setVolume(v.value.data);
+    if (p.status  === 'fulfilled') setPriority(p.value.data);
+    if (l.status  === 'fulfilled') setLos(l.value.data);
+    if (w.status  === 'fulfilled') setWaitTime(w.value.data);
+    if (td.status === 'fulfilled') setTriageToDoc(td.value.data);
+    if (results.some(r => r.status === 'rejected')) setError('Some analytics data failed to load.');
+    setLoading(false);
   }, [dateRange.startDate, dateRange.endDate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -113,6 +282,20 @@ export default function StaffAnalytics() {
               <p className="text-sm mt-3 opacity-75">Performed triage</p>
             </div>
           </div>
+
+          <WaitTimeSection
+            title="Patient Wait Time Before Triage"
+            data={waitTime}
+            dateLabel={dateRange.label}
+            theme="blue"
+          />
+
+          <WaitTimeSection
+            title="Wait Time: Triage to Consultation"
+            data={triageToDoc}
+            dateLabel={dateRange.label}
+            theme="orange"
+          />
 
           {/* Daily triage volume line chart */}
           <Card title="Daily Triage Volume">
@@ -233,21 +416,15 @@ export default function StaffAnalytics() {
           {/* Length of stay */}
           <Card title="Patient Length of Stay">
             <div className="flex flex-col gap-6">
-              {/* Avg stat */}
               <div className="flex items-center gap-4">
                 <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl px-6 py-4 text-white shadow-md">
                   <p className="text-xs opacity-90">Average Stay</p>
                   <p className="text-3xl font-bold mt-1">
-                    {los?.avgMinutes != null
-                      ? los.avgMinutes >= 60
-                        ? `${Math.floor(los.avgMinutes / 60)}h ${los.avgMinutes % 60}m`
-                        : `${los.avgMinutes} min`
-                      : '—'}
+                    {los?.avgMinutes != null ? fmtMinutes(los.avgMinutes) : '—'}
                   </p>
                   <p className="text-xs mt-2 opacity-75">{los?.totalPatients ?? 0} patients</p>
                 </div>
               </div>
-              {/* Distribution chart */}
               <AnalyticsBarChart
                 title=""
                 data={los?.distribution ?? []}

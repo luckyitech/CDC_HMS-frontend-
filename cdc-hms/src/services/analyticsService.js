@@ -27,6 +27,12 @@ export const analyticsService = {
 
   getRemovalReasons: (startDate, endDate) =>
     api.get('/analytics/removal-reasons', { params: { startDate, endDate } }),
+
+  getWaitTimeBeforeTriage: (startDate, endDate) =>
+    api.get('/analytics/wait-time-before-triage', { params: { startDate, endDate } }),
+
+  getWaitTimeBetweenTriageAndConsultation: (startDate, endDate) =>
+    api.get('/analytics/wait-time-triage-to-consultation', { params: { startDate, endDate } }),
 };
 
 export default analyticsService;
