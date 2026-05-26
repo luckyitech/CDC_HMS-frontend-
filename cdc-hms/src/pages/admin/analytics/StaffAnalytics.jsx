@@ -6,7 +6,7 @@ import {
   BarChart, Bar,
   PieChart, Pie, Cell,
 } from 'recharts';
-import { ArrowLeft, Users } from 'lucide-react';
+import { ArrowLeft, Users, Timer, Activity, CreditCard, Clock, TrendingDown, TrendingUp } from 'lucide-react';
 import Card from '../../../components/shared/Card';
 import AnalyticsBarChart from '../../../components/shared/AnalyticsBarChart';
 import AnalyticsDateFilter, { DEFAULT_DATE_RANGE } from '../../../components/shared/AnalyticsDateFilter';
@@ -29,6 +29,11 @@ const fmtMinutes = (mins) => {
 
 const WAIT_THEMES = {
   blue: {
+    Icon:        Timer,
+    subtitle:    'Time from queue entry to triage start',
+    borderAccent: 'border-blue-500',
+    iconBg:      'bg-blue-50',
+    iconColor:   'text-blue-600',
     avgCard:     'from-blue-500 to-blue-700',
     trackedCard: 'from-purple-500 to-purple-600',
     distColors:  ['#22c55e', '#0066CC', '#f59e0b', '#ef4444', '#7c3aed'],
@@ -38,6 +43,11 @@ const WAIT_THEMES = {
     lineColor:   '#0066CC',
   },
   orange: {
+    Icon:        Activity,
+    subtitle:    'Time from triage completion to doctor starting',
+    borderAccent: 'border-orange-500',
+    iconBg:      'bg-orange-50',
+    iconColor:   'text-orange-600',
     avgCard:     'from-orange-500 to-orange-600',
     trackedCard: 'from-teal-500 to-teal-600',
     distColors:  ['#22c55e', '#f97316', '#f59e0b', '#ef4444', '#7c3aed'],
@@ -46,34 +56,71 @@ const WAIT_THEMES = {
     normalBar:   'from-orange-400 to-orange-600',
     lineColor:   '#f97316',
   },
+  green: {
+    Icon:        CreditCard,
+    subtitle:    'Time from consultation end to billing completion',
+    borderAccent: 'border-emerald-500',
+    iconBg:      'bg-emerald-50',
+    iconColor:   'text-emerald-600',
+    avgCard:     'from-emerald-500 to-emerald-600',
+    trackedCard: 'from-cyan-500 to-cyan-600',
+    distColors:  ['#22c55e', '#10b981', '#f59e0b', '#ef4444', '#7c3aed'],
+    normalBadge: 'bg-emerald-100 text-emerald-700',
+    normalDot:   'bg-emerald-500',
+    normalBar:   'from-emerald-400 to-emerald-600',
+    lineColor:   '#059669',
+  },
 };
 
 function WaitTimeSection({ title, data, dateLabel, theme }) {
   const t = WAIT_THEMES[theme];
+  const Icon = t.Icon;
   return (
-    <div>
-      <h2 className="text-lg font-bold text-gray-800 mb-4">{title}</h2>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+
+      {/* Section header */}
+      <div className={`flex items-center gap-3 mb-6 pb-5 border-b-2 ${t.borderAccent} border-opacity-30 border-b border-gray-100`}>
+        <div className={`w-11 h-11 rounded-xl ${t.iconBg} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+          <Icon className={`w-5 h-5 ${t.iconColor}`} />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-gray-800">{title}</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{t.subtitle}</p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-        <div className={`bg-gradient-to-br ${t.avgCard} rounded-xl shadow-lg p-6 text-white`}>
-          <p className="text-sm opacity-90">Avg Wait</p>
-          <p className="text-4xl font-bold mt-2">{fmtMinutes(data?.avgWaitMinutes)}</p>
-          <p className="text-sm mt-3 opacity-75">Per patient</p>
+        <div className={`bg-gradient-to-br ${t.avgCard} rounded-xl shadow-lg p-5 text-white`}>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm opacity-90">Avg Wait</p>
+            <Clock className="w-4 h-4 opacity-50" />
+          </div>
+          <p className="text-3xl font-bold mt-1">{fmtMinutes(data?.avgWaitMinutes)}</p>
+          <p className="text-xs mt-3 opacity-75">Per patient</p>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Shortest Wait</p>
-          <p className="text-4xl font-bold mt-2">{fmtMinutes(data?.minWaitMinutes)}</p>
-          <p className="text-sm mt-3 opacity-75">Best recorded</p>
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm opacity-90">Shortest Wait</p>
+            <TrendingDown className="w-4 h-4 opacity-50" />
+          </div>
+          <p className="text-3xl font-bold mt-1">{fmtMinutes(data?.minWaitMinutes)}</p>
+          <p className="text-xs mt-3 opacity-75">Best recorded</p>
         </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Longest Wait</p>
-          <p className="text-4xl font-bold mt-2">{fmtMinutes(data?.maxWaitMinutes)}</p>
-          <p className="text-sm mt-3 opacity-75">Worst recorded</p>
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-5 text-white">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm opacity-90">Longest Wait</p>
+            <TrendingUp className="w-4 h-4 opacity-50" />
+          </div>
+          <p className="text-3xl font-bold mt-1">{fmtMinutes(data?.maxWaitMinutes)}</p>
+          <p className="text-xs mt-3 opacity-75">Worst recorded</p>
         </div>
-        <div className={`bg-gradient-to-br ${t.trackedCard} rounded-xl shadow-lg p-6 text-white`}>
-          <p className="text-sm opacity-90">Patients Tracked</p>
-          <p className="text-4xl font-bold mt-2">{data?.totalRecords ?? '—'}</p>
-          <p className="text-sm mt-3 opacity-75">{dateLabel}</p>
+        <div className={`bg-gradient-to-br ${t.trackedCard} rounded-xl shadow-lg p-5 text-white`}>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm opacity-90">Patients Tracked</p>
+            <Users className="w-4 h-4 opacity-50" />
+          </div>
+          <p className="text-3xl font-bold mt-1">{data?.totalRecords ?? '—'}</p>
+          <p className="text-xs mt-3 opacity-75">{dateLabel}</p>
         </div>
       </div>
 
@@ -192,8 +239,9 @@ export default function StaffAnalytics() {
   const [volume, setVolume]       = useState(null);
   const [priority, setPriority]   = useState(null);
   const [los, setLos]             = useState(null);
-  const [waitTime, setWaitTime]       = useState(null);
-  const [triageToDoc, setTriageToDoc] = useState(null);
+  const [waitTime, setWaitTime]           = useState(null);
+  const [triageToDoc, setTriageToDoc]     = useState(null);
+  const [docToBilling, setDocToBilling]   = useState(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
 
@@ -208,15 +256,17 @@ export default function StaffAnalytics() {
       analyticsService.getLengthOfStay(dateRange.startDate, dateRange.endDate),
       analyticsService.getWaitTimeBeforeTriage(dateRange.startDate, dateRange.endDate),
       analyticsService.getWaitTimeBetweenTriageAndConsultation(dateRange.startDate, dateRange.endDate),
+      analyticsService.getWaitTimeConsultationToBilling(dateRange.startDate, dateRange.endDate),
     ]);
-    const [t, s, v, p, l, w, td] = results;
-    if (t.status  === 'fulfilled') setTriage(t.value.data);
-    if (s.status  === 'fulfilled') setStaffPerf(s.value.data);
-    if (v.status  === 'fulfilled') setVolume(v.value.data);
-    if (p.status  === 'fulfilled') setPriority(p.value.data);
-    if (l.status  === 'fulfilled') setLos(l.value.data);
-    if (w.status  === 'fulfilled') setWaitTime(w.value.data);
-    if (td.status === 'fulfilled') setTriageToDoc(td.value.data);
+    const [t, s, v, p, l, w, td, dtb] = results;
+    if (t.status   === 'fulfilled') setTriage(t.value.data);
+    if (s.status   === 'fulfilled') setStaffPerf(s.value.data);
+    if (v.status   === 'fulfilled') setVolume(v.value.data);
+    if (p.status   === 'fulfilled') setPriority(p.value.data);
+    if (l.status   === 'fulfilled') setLos(l.value.data);
+    if (w.status   === 'fulfilled') setWaitTime(w.value.data);
+    if (td.status  === 'fulfilled') setTriageToDoc(td.value.data);
+    if (dtb.status === 'fulfilled') setDocToBilling(dtb.value.data);
     if (results.some(r => r.status === 'rejected')) setError('Some analytics data failed to load.');
     setLoading(false);
   }, [dateRange.startDate, dateRange.endDate]);
@@ -295,6 +345,13 @@ export default function StaffAnalytics() {
             data={triageToDoc}
             dateLabel={dateRange.label}
             theme="orange"
+          />
+
+          <WaitTimeSection
+            title="Wait Time: Consultation to Billing"
+            data={docToBilling}
+            dateLabel={dateRange.label}
+            theme="green"
           />
 
           {/* Daily triage volume line chart */}

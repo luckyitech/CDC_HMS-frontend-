@@ -33,6 +33,9 @@ export const analyticsService = {
 
   getWaitTimeBetweenTriageAndConsultation: (startDate, endDate) =>
     api.get('/analytics/wait-time-triage-to-consultation', { params: { startDate, endDate } }),
+
+  getWaitTimeConsultationToBilling: (startDate, endDate) =>
+    api.get('/analytics/wait-time-consultation-to-billing', { params: { startDate, endDate } }),
 };
 
 export default analyticsService;
