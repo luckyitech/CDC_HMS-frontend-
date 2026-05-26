@@ -45,6 +45,7 @@ import PrescriptionManagement from "../../components/doctor/PrescriptionManageme
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import AccordionPanel from "../../components/shared/AccordionPanel";
+import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import { parseDiagnoses } from "../../components/shared/DiagnosisInput";
 
@@ -461,6 +462,8 @@ const Consultation = () => {
       {/* ── Overview ── */}
       {activeTab === "overview" && (
         <div className="space-y-6">
+          <PatientSummaryCard patient={patient} />
+
           <Card title={<span className="flex items-center gap-2"><User className="w-6 h-6" />Patient Information</span>}>
             <div className="grid grid-cols-2 gap-4">
               <div>

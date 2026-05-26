@@ -42,6 +42,7 @@ export const patientService = {
    * @param {Object} data - Updated fields
    */
   update: (uhid, data) => api.put(`/patients/${uhid}`, data),
+  updateSummary: (uhid, summary) => api.patch(`/patients/${uhid}/summary`, { summary }),
 
   /**
    * Complete registration for a quick-registered (phone booking) patient.

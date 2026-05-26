@@ -18,6 +18,7 @@ import LabTestPrint from "../../components/lab/LabTestPrint";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
+import PatientSummaryCard from '../../components/shared/PatientSummaryCard';
 
 import GlycemicCharts from "./GlycemicCharts";
 
@@ -272,6 +273,8 @@ const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
 const OverviewTab = ({ patient }) => {
   return (
     <div className="space-y-6">
+      <PatientSummaryCard patient={patient} />
+
       {/* Personal + Medical Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card title="Personal Information">
