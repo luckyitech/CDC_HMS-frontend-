@@ -191,12 +191,12 @@ const PatientSearch = () => {
               {/* Mobile: card list */}
               <div className="md:hidden space-y-3">
                 {searchResults.map((patient) => (
-                  <div key={patient.id} className={`p-4 border rounded-lg bg-white ${!patient.hasPortalAccount ? 'border-amber-200' : 'border-gray-200'}`}>
+                  <div key={patient.id} className={`p-4 border rounded-lg bg-white ${!patient.registrationComplete ? 'border-amber-200' : 'border-gray-200'}`}>
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="font-bold text-gray-800">{patient.name}</p>
-                          {!patient.hasPortalAccount && (
+                          {!patient.registrationComplete && (
                             <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
                               <ClipboardEdit className="w-3 h-3" /> Incomplete
                             </span>
@@ -261,7 +261,7 @@ const PatientSearch = () => {
                         <td className="px-4 lg:px-6 py-4 text-sm">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-semibold">{patient.name}</p>
-                            {!patient.hasPortalAccount && (
+                            {!patient.registrationComplete && (
                               <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold whitespace-nowrap">
                                 <ClipboardEdit className="w-3 h-3" /> Incomplete
                               </span>
