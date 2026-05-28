@@ -28,13 +28,14 @@ const QuickRegisterForm = ({ onRegistered }) => {
   const handleSubmit = async () => {
     if (!firstName.trim()) return toast.error('First name is required');
     if (!lastName.trim())  return toast.error('Last name is required');
+    if (!phone.trim())     return toast.error('Phone number is required');
 
     setSubmitting(true);
     try {
       const res = await patientService.quickCreate({
         firstName: firstName.trim(),
         lastName:  lastName.trim(),
-        phone:     phone.trim() || undefined,
+        phone:     phone.trim(),
       });
       const patient = res.data;
       toast.success(`Registered ${patient.name} · ${patient.uhid}`);
@@ -89,7 +90,7 @@ const QuickRegisterForm = ({ onRegistered }) => {
           </div>
 
           <div>
-            <label className="block text-xs text-gray-500 mb-0.5">Phone Number</label>
+            <label className="block text-xs text-gray-500 mb-0.5">Phone Number <span className="text-red-400">*</span></label>
             <input
               type="tel"
               value={phone}

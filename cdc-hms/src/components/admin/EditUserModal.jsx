@@ -3,6 +3,12 @@ import { X, Save, Loader, History, ClipboardEdit } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 
+const INSURANCE_PROVIDERS = [
+  'NHIF', 'AAR Healthcare', 'Jubilee Insurance', 'Cigna', 'APA Insurance',
+  'Henner', 'Allianz', 'Bupa', 'Now Health', 'WHO', 'CIC Insurance',
+  'Madison Insurance', 'Britam', 'UAP Insurance', 'Self-Pay', 'Other',
+];
+
 // ── Field config per role ────────────────────────────────────────────────────
 // To add a new field: add one entry here. No other changes needed.
 const COMMON_FIELDS = [
@@ -19,7 +25,6 @@ const ROLE_FIELDS = {
     { key: 'address',       label: 'Address',          type: 'text' },
     { key: 'diagnosis',     label: 'Diagnosis',        type: 'text' },
     { key: 'diagnosisDate', label: 'Diagnosis Date',   type: 'date' },
-    { key: 'hba1c',         label: 'HbA1c',            type: 'text' },
   ],
   doctor: [
     { key: 'specialty',       label: 'Specialty',          type: 'text' },
@@ -98,14 +103,19 @@ const EditUserModal = ({ user, onClose, onSaved }) => {
         if (res.success) {
           const u = res.data.user;
           // Flatten emergencyContact / insurance sub-objects for patient
+          const rawProvider = u.insurance?.provider ?? '';
+          const knownProvider = INSURANCE_PROVIDERS.includes(rawProvider) ? rawProvider : (rawProvider ? 'Other' : '');
           setForm({
             ...u,
+            dateOfBirth:   u.dateOfBirth   ? u.dateOfBirth.split('T')[0]   : '',
+            diagnosisDate: u.diagnosisDate ? u.diagnosisDate.split('T')[0] : '',
             emergencyContactName:         u.emergencyContact?.name         ?? '',
             emergencyContactRelationship: u.emergencyContact?.relationship ?? '',
             emergencyContactPhone:        u.emergencyContact?.phone        ?? '',
-            insuranceProvider:    u.insurance?.provider     ?? '',
-            insurancePolicyNumber:u.insurance?.policyNumber ?? '',
-            insuranceType:        u.insurance?.type         ?? '',
+            insuranceProvider:        knownProvider,
+            customInsuranceProvider:  knownProvider === 'Other' ? rawProvider : '',
+            insurancePolicyNumber:    u.insurance?.policyNumber ?? '',
+            insuranceType:            u.insurance?.type         ?? '',
           });
         }
       })
@@ -138,7 +148,9 @@ const EditUserModal = ({ user, onClose, onSaved }) => {
           phone:        form.emergencyContactPhone,
         };
         payload.insurance = {
-          provider:     form.insuranceProvider,
+          provider:     form.insuranceProvider === 'Other'
+                          ? (form.customInsuranceProvider.trim() || 'Other')
+                          : form.insuranceProvider,
           policyNumber: form.insurancePolicyNumber,
           type:         form.insuranceType,
         };
@@ -300,7 +312,7 @@ const EditUserModal = ({ user, onClose, onSaved }) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
                     { key: 'emergencyContactName',         label: 'Name',         type: 'text' },
-                    { key: 'emergencyContactRelationship', label: 'Relationship', type: 'text' },
+                    { key: 'emergencyContactRelationship', label: 'Relationship', type: 'select', options: ['Spouse', 'Parent', 'Child', 'Sibling', 'Guardian', 'Friend', 'Other'] },
                     { key: 'emergencyContactPhone',        label: 'Phone',        type: 'text' },
                   ].map(f => (
                     <div key={f.key}>
@@ -318,15 +330,30 @@ const EditUserModal = ({ user, onClose, onSaved }) => {
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Insurance & Payment</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
-                    { key: 'insuranceProvider',    label: 'Provider',      type: 'text' },
                     { key: 'insurancePolicyNumber',label: 'Policy Number', type: 'text' },
-                    { key: 'insuranceType',        label: 'Payment Type',  type: 'select', options: ['Insurance', 'Cash', 'Government'] },
+                    { key: 'insuranceType',        label: 'Payment Type',  type: 'select', options: ['Insurance', 'Cash', 'M-Pesa'] },
                   ].map(f => (
                     <div key={f.key}>
                       <label className="block text-sm font-semibold text-gray-700 mb-1">{f.label}</label>
                       <Field field={f} value={form[f.key]} onChange={handleChange} />
                     </div>
                   ))}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Provider</label>
+                    <Field
+                      field={{ key: 'insuranceProvider', type: 'select', options: INSURANCE_PROVIDERS }}
+                      value={form.insuranceProvider}
+                      onChange={(key, val) => handleChange(key, val)}
+                    />
+                    {form.insuranceProvider === 'Other' && (
+                      <input
+                        className="mt-2 w-full px-3 py-2 border border-blue-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter provider name"
+                        value={form.customInsuranceProvider}
+                        onChange={e => handleChange('customInsuranceProvider', e.target.value)}
+                      />
+                    )}
+                  </div>
                 </div>
               </section>
             )}

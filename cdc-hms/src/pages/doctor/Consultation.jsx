@@ -468,17 +468,129 @@ const Consultation = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Age</p>
-                <p className="font-semibold">{patient.age} years</p>
+                <p className="font-semibold">{patient.age ? `${patient.age} years` : '—'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Gender</p>
-                <p className="font-semibold">{patient.gender}</p>
+                <p className="font-semibold">{patient.gender || '—'}</p>
               </div>
+              <div>
+                <p className="text-sm text-gray-600">Date of Birth</p>
+                <p className="font-semibold">
+                  {patient.dateOfBirth
+                    ? new Date(patient.dateOfBirth).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : '—'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">ID Number</p>
+                <p className="font-semibold">{patient.idNumber || '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Phone</p>
+                <p className="font-semibold">{patient.phone || '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Email</p>
+                <p className="font-semibold">{patient.email || '—'}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-sm text-gray-600">Address</p>
+                <p className="font-semibold">{patient.address || '—'}</p>
+              </div>
+              {patient.primaryDoctor && (
+                <div>
+                  <p className="text-sm text-gray-600">Primary Doctor</p>
+                  <p className="font-semibold">{patient.primaryDoctor}</p>
+                </div>
+              )}
+              {patient.referredBy && (
+                <div>
+                  <p className="text-sm text-gray-600">Referred By</p>
+                  <p className="font-semibold">{patient.referredBy}</p>
+                </div>
+              )}
             </div>
+
+            {/* Emergency Contact */}
+            {patient.emergencyContact && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Emergency Contact</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Name</p>
+                    <p className="text-sm font-semibold">{patient.emergencyContact.name || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Relationship</p>
+                    <p className="text-sm font-semibold">{patient.emergencyContact.relationship || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="text-sm font-semibold">{patient.emergencyContact.phone || '—'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Insurance */}
+            {patient.insurance && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Insurance</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-500">Provider</p>
+                    <p className="text-sm font-semibold">{patient.insurance.provider || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Policy No.</p>
+                    <p className="text-sm font-semibold">{patient.insurance.policyNumber || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Expiry</p>
+                    <p className="text-sm font-semibold">{patient.insurance.expiryDate || '—'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Medical Info */}
           <Card title={<span className="flex items-center gap-2"><Activity className="w-6 h-6" />Medical Information</span>}>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-600">Diagnosis</p>
+                <p className="font-semibold">{patient.diagnosis || '—'}</p>
+              </div>
+              {patient.diagnosisDate && (
+                <div>
+                  <p className="text-sm text-gray-600">Diagnosis Date</p>
+                  <p className="font-semibold">
+                    {new Date(patient.diagnosisDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm text-gray-600">Risk Level</p>
+                <p className={`font-semibold ${
+                  patient.riskLevel === 'High' ? 'text-red-600' :
+                  patient.riskLevel === 'Medium' ? 'text-amber-600' : 'text-green-600'
+                }`}>{patient.riskLevel || '—'}</p>
+              </div>
+              {patient.hba1c && (
+                <div>
+                  <p className="text-sm text-gray-600">HbA1c</p>
+                  <p className="font-semibold text-red-600">{patient.hba1c}</p>
+                </div>
+              )}
+              {patient.comorbidities && (
+                <div className="col-span-2">
+                  <p className="text-sm text-gray-600">Comorbidities</p>
+                  <p className="font-semibold">{patient.comorbidities}</p>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-4">
               {patient.medications && patient.medications.length > 0 && (
                 <div>

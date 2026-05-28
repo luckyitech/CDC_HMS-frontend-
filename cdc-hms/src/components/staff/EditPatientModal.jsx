@@ -217,13 +217,7 @@ const EditPatientModal = ({ patient, onUpdated, onClose }) => {
                 </select>
               </Field>
               <Field label="Diagnosis">
-                <select className={inputCls} value={form.diagnosis} onChange={e => set('diagnosis', e.target.value)}>
-                  <option value="">Select diagnosis</option>
-                  <option value="Type 1">Type 1 Diabetes</option>
-                  <option value="Type 2">Type 2 Diabetes</option>
-                  <option value="Gestational">Gestational Diabetes</option>
-                  <option value="Pre-diabetes">Pre-Diabetes</option>
-                </select>
+                <input className={inputCls} value={form.diagnosis} onChange={e => set('diagnosis', e.target.value)} placeholder="e.g. Type 2 Diabetes, Hypertension..." />
               </Field>
               <Field label="Diagnosis Date">
                 <input className={inputCls} type="date" value={form.diagnosisDate} onChange={e => set('diagnosisDate', e.target.value)} />
@@ -264,7 +258,16 @@ const EditPatientModal = ({ patient, onUpdated, onClose }) => {
                 <input className={inputCls} value={form.emergencyContactName} onChange={e => set('emergencyContactName', e.target.value)} placeholder="Contact name" />
               </Field>
               <Field label="Relationship">
-                <input className={inputCls} value={form.emergencyContactRelationship} onChange={e => set('emergencyContactRelationship', e.target.value)} placeholder="e.g. Spouse" />
+                <select className={inputCls} value={form.emergencyContactRelationship} onChange={e => set('emergencyContactRelationship', e.target.value)}>
+                  <option value="">Select relationship</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Child">Child</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Guardian">Guardian</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Other">Other</option>
+                </select>
               </Field>
               <Field label="Phone">
                 <input className={inputCls} type="tel" value={form.emergencyContactPhone} onChange={e => set('emergencyContactPhone', e.target.value)} placeholder="Phone number" />
@@ -293,8 +296,13 @@ const EditPatientModal = ({ patient, onUpdated, onClose }) => {
               <Field label="Policy Number">
                 <input className={inputCls} value={form.policyNumber} onChange={e => set('policyNumber', e.target.value)} placeholder="Policy number" />
               </Field>
-              <Field label="Insurance Type">
-                <input className={inputCls} value={form.insuranceType} onChange={e => set('insuranceType', e.target.value)} placeholder="e.g. Inpatient" />
+              <Field label="Payment Type">
+                <select className={inputCls} value={form.insuranceType} onChange={e => set('insuranceType', e.target.value)}>
+                  <option value="">Select type</option>
+                  <option value="Insurance">Insurance</option>
+                  <option value="Cash">Cash</option>
+                  <option value="M-Pesa">M-Pesa</option>
+                </select>
               </Field>
             </div>
           </section>

@@ -73,6 +73,12 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
     if (!form.firstName.trim() || !form.lastName.trim()) {
       return toast.error('First and last name are required');
     }
+    if (!form.dateOfBirth) return toast.error('Date of birth is required');
+    if (!form.gender)      return toast.error('Gender is required');
+    if (!form.idNumber.trim()) return toast.error('ID / Passport number is required');
+    if (!form.emergencyContactName.trim())         return toast.error('Emergency contact name is required');
+    if (!form.emergencyContactRelationship.trim()) return toast.error('Emergency contact relationship is required');
+    if (!form.emergencyContactPhone.trim())        return toast.error('Emergency contact phone is required');
 
     setSubmitting(true);
     try {
@@ -167,10 +173,10 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
               <Field label="Phone Number">
                 <input className={inputCls} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+254 712 345 678" />
               </Field>
-              <Field label="Date of Birth">
+              <Field label="Date of Birth" required>
                 <input className={inputCls} type="date" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} />
               </Field>
-              <Field label="Gender">
+              <Field label="Gender" required>
                 <select className={inputCls} value={form.gender} onChange={e => set('gender', e.target.value)}>
                   <option value="">Select gender</option>
                   <option value="Male">Male</option>
@@ -178,7 +184,7 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
                   <option value="Other">Other</option>
                 </select>
               </Field>
-              <Field label="ID / Passport Number">
+              <Field label="ID / Passport Number" required>
                 <input className={inputCls} value={form.idNumber} onChange={e => set('idNumber', e.target.value)} placeholder="National ID or passport" />
               </Field>
             </div>
@@ -192,13 +198,7 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Diagnosis">
-                <select className={inputCls} value={form.diagnosis} onChange={e => set('diagnosis', e.target.value)}>
-                  <option value="">Select diagnosis</option>
-                  <option value="Type 1">Type 1 Diabetes</option>
-                  <option value="Type 2">Type 2 Diabetes</option>
-                  <option value="Gestational">Gestational Diabetes</option>
-                  <option value="Pre-diabetes">Pre-Diabetes</option>
-                </select>
+                <input className={inputCls} value={form.diagnosis} onChange={e => set('diagnosis', e.target.value)} placeholder="e.g. Type 2 Diabetes, Hypertension..." />
               </Field>
               <Field label="Diagnosis Date">
                 <input className={inputCls} type="date" value={form.diagnosisDate} onChange={e => set('diagnosisDate', e.target.value)} />
@@ -240,14 +240,23 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
               <h3 className="font-semibold text-gray-700">Emergency Contact</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="Full Name">
-                <input className={inputCls} value={form.emergencyContactName} onChange={e => set('emergencyContactName', e.target.value)} placeholder="Contact name" />
+              <Field label="Contact Name" required>
+                <input className={inputCls} value={form.emergencyContactName} onChange={e => set('emergencyContactName', e.target.value)} placeholder="Full name" />
               </Field>
-              <Field label="Relationship">
-                <input className={inputCls} value={form.emergencyContactRelationship} onChange={e => set('emergencyContactRelationship', e.target.value)} placeholder="e.g. Spouse" />
+              <Field label="Relationship" required>
+                <select className={inputCls} value={form.emergencyContactRelationship} onChange={e => set('emergencyContactRelationship', e.target.value)}>
+                  <option value="">Select relationship</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Child">Child</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Guardian">Guardian</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Other">Other</option>
+                </select>
               </Field>
-              <Field label="Phone">
-                <input className={inputCls} type="tel" value={form.emergencyContactPhone} onChange={e => set('emergencyContactPhone', e.target.value)} placeholder="Phone number" />
+              <Field label="Phone Number" required>
+                <input className={inputCls} type="tel" value={form.emergencyContactPhone} onChange={e => set('emergencyContactPhone', e.target.value)} placeholder="+254 712 345 678" />
               </Field>
             </div>
           </section>
@@ -273,8 +282,13 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
               <Field label="Policy Number">
                 <input className={inputCls} value={form.policyNumber} onChange={e => set('policyNumber', e.target.value)} placeholder="Policy number" />
               </Field>
-              <Field label="Insurance Type">
-                <input className={inputCls} value={form.insuranceType} onChange={e => set('insuranceType', e.target.value)} placeholder="e.g. Inpatient" />
+              <Field label="Payment Type">
+                <select className={inputCls} value={form.insuranceType} onChange={e => set('insuranceType', e.target.value)}>
+                  <option value="">Select type</option>
+                  <option value="Insurance">Insurance</option>
+                  <option value="Cash">Cash</option>
+                  <option value="M-Pesa">M-Pesa</option>
+                </select>
               </Field>
             </div>
           </section>
