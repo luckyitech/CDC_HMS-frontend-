@@ -48,6 +48,7 @@ import AccordionPanel from "../../components/shared/AccordionPanel";
 import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import { parseDiagnoses } from "../../components/shared/DiagnosisInput";
+import { formatDOB } from "../../utils/dateUtils";
 
 // ---------------------------------------------------------------------------
 // Accordion section definitions for "Today's Consultation" tab
@@ -419,9 +420,14 @@ const Consultation = () => {
         <div className="mb-1 bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <h2 className="text-base font-bold text-gray-800 truncate">{patient.name}</h2>
-            <span className="hidden sm:inline text-sm text-gray-400">
-              {patient.uhid} · {patient.age} yrs · {patient.gender}
-            </span>
+            <div className="hidden sm:flex sm:flex-col">
+              <span className="text-sm text-gray-400">
+                {patient.uhid} · {patient.age} yrs · {patient.gender}
+              </span>
+              {patient.dateOfBirth && (
+                <span className="text-xs text-gray-400">DOB: {formatDOB(patient.dateOfBirth)}</span>
+              )}
+            </div>
           </div>
           <button
             onClick={() => navigate("/doctor/dashboard")}
@@ -469,6 +475,9 @@ const Consultation = () => {
               <div>
                 <p className="text-sm text-gray-600">Age</p>
                 <p className="font-semibold">{patient.age ? `${patient.age} years` : '—'}</p>
+                {patient.dateOfBirth && (
+                  <p className="text-xs text-gray-400 mt-0.5">DOB: {formatDOB(patient.dateOfBirth)}</p>
+                )}
               </div>
               <div>
                 <p className="text-sm text-gray-600">Gender</p>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDOB } from "../../utils/dateUtils";
 import toast from "react-hot-toast";
 import {
   Search,
@@ -210,9 +211,11 @@ const PatientSearch = () => {
                       }`}>{patient.status}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600 mb-3">
-                      <span><span className="font-semibold">Age:</span> {patient.age} yrs · {patient.gender}</span>
+                      <span>
+                        <span className="font-semibold">Age:</span> {patient.age} yrs · {patient.gender}
+                        {patient.dateOfBirth && <span className="block text-gray-400">DOB: {formatDOB(patient.dateOfBirth)}</span>}
+                      </span>
                       <span><span className="font-semibold">Phone:</span> {patient.phone || "-"}</span>
-                      <span><span className="font-semibold">Type:</span> {patient.diagnosis || "-"}</span>
                       <span><span className="font-semibold">ID:</span> {patient.idNumber || "-"}</span>
                     </div>
                     <div className="flex gap-2 mt-1">
@@ -248,7 +251,6 @@ const PatientSearch = () => {
                       <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
                       <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age/Gender</th>
                       <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Phone</th>
-                      <th className="hidden lg:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Diagnosis</th>
                       <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">ID / Passport</th>
                       <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
                       <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
@@ -269,11 +271,13 @@ const PatientSearch = () => {
                           </div>
                           {patient.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
                         </td>
-                        <td className="px-4 lg:px-6 py-4 text-sm">{patient.age} yrs &middot; {patient.gender}</td>
-                        <td className="px-4 lg:px-6 py-4 text-sm">{patient.phone}</td>
-                        <td className="hidden lg:table-cell px-4 lg:px-6 py-4">
-                          <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">{patient.diagnosis}</span>
+                        <td className="px-4 lg:px-6 py-4 text-sm">
+                          <p>{patient.age} yrs &middot; {patient.gender}</p>
+                          {patient.dateOfBirth && (
+                            <p className="text-xs text-gray-400 mt-0.5">DOB: {formatDOB(patient.dateOfBirth)}</p>
+                          )}
                         </td>
+                        <td className="px-4 lg:px-6 py-4 text-sm">{patient.phone}</td>
                         <td className="hidden xl:table-cell px-4 lg:px-6 py-4 text-sm text-gray-600">{patient.idNumber || "-"}</td>
                         <td className="hidden xl:table-cell px-4 lg:px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${

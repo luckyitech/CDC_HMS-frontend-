@@ -6,7 +6,9 @@ import {
   ArrowLeft, UserCheck, UserX,
 } from 'lucide-react';
 import api from '../../services/api';
+import patientService from '../../services/patientService';
 import EditUserModal from '../../components/admin/EditUserModal';
+import EditPatientModal from '../../components/staff/EditPatientModal';
 
 const Tip = ({ label, children }) => (
   <div className="relative group">
@@ -38,7 +40,11 @@ const AVATAR_COLORS = [
   'bg-blue-500', 'bg-violet-500', 'bg-rose-500',
   'bg-amber-500', 'bg-teal-500', 'bg-indigo-500',
 ];
-const avatarColor = (id) => AVATAR_COLORS[id % AVATAR_COLORS.length];
+// id can be a number (User record) or a prefixed string like "patient_123"
+const avatarColor = (id) => {
+  const num = typeof id === 'string' ? parseInt(id.replace(/\D/g, ''), 10) : id;
+  return AVATAR_COLORS[(num || 0) % AVATAR_COLORS.length];
+};
 
 const ManageUsers = () => {
   const navigate = useNavigate();
@@ -47,7 +53,8 @@ const ManageUsers = () => {
   const [searchTerm, setSearchTerm]     = useState('');
   const [filterRole, setFilterRole]     = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [editingUser, setEditingUser]   = useState(null);
+  const [editingUser, setEditingUser]       = useState(null);
+  const [editingPatient, setEditingPatient] = useState(null);
 
   useEffect(() => {
     api.get('/users')
@@ -57,10 +64,12 @@ const ManageUsers = () => {
   }, []);
 
   const filteredUsers = users.filter(user => {
+    const q = searchTerm.toLowerCase();
     const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.phone || '').includes(searchTerm);
+      user.name.toLowerCase().includes(q) ||
+      (user.email  || '').toLowerCase().includes(q) ||
+      (user.phone  || '').includes(searchTerm) ||
+      (user.uhid   || '').toLowerCase().includes(q);
     const matchesRole   = filterRole   === 'all' || user.role   === filterRole;
     const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
     return matchesSearch && matchesRole && matchesStatus;
@@ -86,13 +95,18 @@ const ManageUsers = () => {
     const activate = user.status !== 'Active';
     if (!window.confirm(`${activate ? 'Activate' : 'Deactivate'} ${user.name}?`)) return;
     try {
-      const res = await api.put(`/users/${user.id}/status`, { isActive: activate });
-      if (res.success) {
-        setUsers(prev => prev.map(u =>
-          u.id === user.id ? { ...u, status: activate ? 'Active' : 'Inactive' } : u
-        ));
-        toastSuccess(`${user.name} has been ${activate ? 'activated' : 'deactivated'}`);
+      if (user.hasUserAccount === false) {
+        // Patient-only record — no User account, update status directly on Patient record
+        if (!user.uhid) { toastError('Cannot update status — UHID is missing.'); return; }
+        await api.put(`/patients/${user.uhid}`, { status: activate ? 'Active' : 'Inactive' });
+      } else {
+        const res = await api.put(`/users/${user.id}/status`, { isActive: activate });
+        if (!res.success) throw new Error('Status update failed');
       }
+      setUsers(prev => prev.map(u =>
+        u.id === user.id ? { ...u, status: activate ? 'Active' : 'Inactive' } : u
+      ));
+      toastSuccess(`${user.name} has been ${activate ? 'activated' : 'deactivated'}`);
     } catch (err) {
       toastError(err.message || 'Failed to update status');
     }
@@ -116,7 +130,15 @@ const ManageUsers = () => {
     if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) return;
     if (!window.confirm(`Are you absolutely sure you want to permanently delete ${user.name}?`)) return;
     try {
-      const res = await api.delete(`/users/${user.id}`);
+      // Patient-only records have no User account — delete via the patients API using UHID
+      if (user.hasUserAccount === false && !user.uhid) {
+        toastError('Cannot delete this patient — UHID is missing. Contact support.');
+        return;
+      }
+      const endpoint = user.hasUserAccount === false
+        ? `/patients/${user.uhid}`
+        : `/users/${user.id}`;
+      const res = await api.delete(endpoint);
       if (res.success) {
         setUsers(prev => prev.filter(u => u.id !== user.id));
         toastSuccess(`${user.name} has been deleted`);
@@ -127,19 +149,39 @@ const ManageUsers = () => {
   };
 
   const ActionButtons = ({ user, mobile = false }) => {
-    const isActive = user.status === 'Active';
+    const isActive   = user.status === 'Active';
+    const hasAccount = user.hasUserAccount !== false;
+    const openEdit   = async () => {
+      if (hasAccount) { setEditingUser(user); return; }
+      // Fetch full patient data first — the minimal ManageUsers record lacks
+      // dateOfBirth, gender, diagnosis, address, etc. Saving without fetching
+      // first would overwrite those fields with null.
+      try {
+        const res = await patientService.getByUHID(user.uhid);
+        setEditingPatient(res.data);
+      } catch {
+        toastError('Failed to load patient details. Please try again.');
+      }
+    };
     const base = mobile
       ? 'flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition'
       : 'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition';
+    const disabled = 'p-1.5 rounded-lg text-gray-200 cursor-not-allowed';
 
     if (mobile) return (
       <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
-        <button onClick={() => setEditingUser(user)} className={base}>
+        <button onClick={openEdit} className={base}>
           <Pencil size={13} /> Edit
         </button>
-        <button onClick={() => handleResetPassword(user)} className={base}>
-          <KeyRound size={13} /> Reset Password
-        </button>
+        {hasAccount ? (
+          <button onClick={() => handleResetPassword(user)} className={base}>
+            <KeyRound size={13} /> Reset Password
+          </button>
+        ) : (
+          <span className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed">
+            <KeyRound size={13} /> No Account
+          </span>
+        )}
         <button onClick={() => handleToggleStatus(user)} className={base}>
           {isActive ? <><UserX size={13} /> Deactivate</> : <><UserCheck size={13} /> Activate</>}
         </button>
@@ -152,10 +194,17 @@ const ManageUsers = () => {
     return (
       <div className="flex items-center justify-end gap-0.5">
         <Tip label="Edit">
-          <button onClick={() => setEditingUser(user)} className={base}><Pencil size={15} /></button>
+          <button onClick={openEdit} className={base}>
+            <Pencil size={15} />
+          </button>
         </Tip>
-        <Tip label="Reset Password">
-          <button onClick={() => handleResetPassword(user)} className={base}><KeyRound size={15} /></button>
+        <Tip label={hasAccount ? 'Reset Password' : 'No account yet'}>
+          <button
+            onClick={() => hasAccount && handleResetPassword(user)}
+            className={hasAccount ? base : disabled}
+          >
+            <KeyRound size={15} />
+          </button>
         </Tip>
         <Tip label={isActive ? 'Deactivate' : 'Activate'}>
           <button onClick={() => handleToggleStatus(user)} className={base}>
@@ -178,6 +227,22 @@ const ManageUsers = () => {
           user={editingUser}
           onClose={() => setEditingUser(null)}
           onSaved={handleUserSaved}
+        />
+      )}
+      {editingPatient && (
+        <EditPatientModal
+          patient={editingPatient}
+          onClose={() => setEditingPatient(null)}
+          onUpdated={(updated) => {
+            // Only update fields shown in the list — do not replace the full record
+            // shape (which includes id: "patient_123", hasUserAccount, etc.)
+            setUsers(prev => prev.map(u =>
+              u.uhid === editingPatient.uhid
+                ? { ...u, name: updated.name || u.name, email: updated.email || u.email, phone: updated.phone || u.phone, status: updated.status || u.status }
+                : u
+            ));
+            setEditingPatient(null);
+          }}
         />
       )}
 
@@ -222,7 +287,7 @@ const ManageUsers = () => {
               type="text"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Search by name, email or phone…"
+              placeholder="Search by name, email, phone or UHID…"
               className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
             />
           </div>
@@ -286,6 +351,13 @@ const ManageUsers = () => {
                       <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${ROLE_BADGE[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
                         {ROLE_LABEL[user.role] ?? user.role}
                       </span>
+                      {user.role === 'patient' && (
+                        <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
+                          user.registrationComplete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {user.registrationComplete ? 'Registered' : 'Incomplete'}
+                        </span>
+                      )}
                       <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
                         isActive ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
                       }`}>
@@ -332,9 +404,18 @@ const ManageUsers = () => {
                       </td>
 
                       <td className="px-5 py-3.5">
-                        <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${ROLE_BADGE[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {ROLE_LABEL[user.role] ?? user.role}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium w-fit ${ROLE_BADGE[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
+                            {ROLE_LABEL[user.role] ?? user.role}
+                          </span>
+                          {user.role === 'patient' && (
+                            <span className={`px-2 py-0.5 rounded-md text-xs font-medium w-fit ${
+                              user.registrationComplete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {user.registrationComplete ? 'Registered' : 'Incomplete'}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="px-5 py-3.5 text-sm text-gray-600">{user.phone || '—'}</td>

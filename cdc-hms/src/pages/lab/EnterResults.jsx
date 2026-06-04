@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatDOB } from '../../utils/dateUtils';
 import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
@@ -263,6 +264,9 @@ const EnterResults = () => {
                   <div>
                     <p className="text-gray-600">Age</p>
                     <p className="font-bold text-gray-800">{selectedPatient.age} years</p>
+                    {formatDOB(selectedPatient.dateOfBirth) && (
+                      <p className="text-xs text-gray-400 mt-0.5">DOB: {formatDOB(selectedPatient.dateOfBirth)}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-gray-600">Gender</p>

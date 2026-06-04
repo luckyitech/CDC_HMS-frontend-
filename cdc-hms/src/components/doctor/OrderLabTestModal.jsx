@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { formatDOB } from "../../utils/dateUtils";
 import Button from "../shared/Button";
 import { useLabContext } from "../../contexts/LabContext";
 import VoiceInput from "../shared/VoiceInput";
@@ -135,6 +136,9 @@ const OrderLabTestModal = ({ patient, onClose, onSuccess }) => {
               <div>
                 <p className="text-gray-600">Age</p>
                 <p className="font-bold text-gray-800">{patient.age} years</p>
+                {patient.dateOfBirth && (
+                  <p className="text-xs text-gray-400 mt-0.5">DOB: {formatDOB(patient.dateOfBirth)}</p>
+                )}
               </div>
               <div>
                 <p className="text-gray-600">Gender</p>
