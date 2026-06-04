@@ -81,6 +81,12 @@ export const prescriptionService = {
    * @returns {Object} - { total, active, completed, cancelled }
    */
   getStats: () => api.get('/prescriptions/stats'),
+
+  /**
+   * Get the most-prescribed drug names (for Quick Add chips)
+   * @param {number} limit - max results (default 20)
+   */
+  getTopDrugs: (limit = 20) => api.get('/prescriptions/top-drugs', { params: { limit } }),
 };
 
 export default prescriptionService;
