@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDOB } from "../../utils/dateUtils";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -145,6 +146,9 @@ const PatientProfile = () => {
               <p className="text-sm sm:text-base text-gray-600 mt-0.5 sm:mt-1">
                 {patient.uhid} &middot; {patient.age} yrs &middot; {patient.gender}
               </p>
+              {patient.dateOfBirth && (
+                <p className="text-xs text-gray-400">DOB: {formatDOB(patient.dateOfBirth)}</p>
+              )}
               {/* Contact Info - Stacked on mobile, inline on desktop */}
               <div className="mt-1 sm:mt-1.5 space-y-0.5 sm:space-y-0">
                 <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5">
@@ -282,6 +286,7 @@ const OverviewTab = ({ patient }) => {
             <InfoRow label="Full Name" value={patient.name} />
             <InfoRow label="UHID" value={patient.uhid} valueClass="text-primary" />
             <InfoRow label="Age / Gender" value={`${patient.age} yrs · ${patient.gender}`} />
+            <InfoRow label="Date of Birth" value={formatDOB(patient.dateOfBirth)} />
             <InfoRow label="Phone" value={patient.phone} />
             <InfoRow label="Email" value={patient.email} />
             <InfoRow label="Address" value={patient.address} />

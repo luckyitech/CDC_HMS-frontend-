@@ -55,7 +55,7 @@ const EditPatientModal = ({ patient, onUpdated, onClose }) => {
     lastName:                     patient.name?.split(' ').slice(1).join(' ') || '',
     email:                        patient.email                            || '',
     phone:                        patient.phone                            || '',
-    dateOfBirth:                  patient.dateOfBirth                      || '',
+    dateOfBirth:                  patient.dateOfBirth ? patient.dateOfBirth.split('T')[0] : '',
     gender:                       patient.gender                           || '',
     idNumber:                     patient.idNumber                         || '',
     status:                       patient.status                           || 'Active',

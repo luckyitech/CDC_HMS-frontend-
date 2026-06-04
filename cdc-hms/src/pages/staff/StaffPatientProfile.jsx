@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatDOB } from "../../utils/dateUtils";
 import VitalsGrid from '../../components/shared/VitalsGrid';
 import { useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
@@ -154,6 +155,9 @@ const StaffPatientProfile = () => {
               <p className="text-sm sm:text-base text-gray-600 mt-0.5 sm:mt-1">
                 {patient.uhid} &middot; {patient.age} yrs &middot; {patient.gender}
               </p>
+              {patient.dateOfBirth && (
+                <p className="text-xs text-gray-400">DOB: {formatDOB(patient.dateOfBirth)}</p>
+              )}
               {/* Contact Info - Stacked on mobile, inline on desktop */}
               <div className="mt-1 sm:mt-1.5 space-y-0.5 sm:space-y-0">
                 <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5">
@@ -279,6 +283,9 @@ const OverviewTab = ({ patient, setActiveTab }) => {
               <p className="font-semibold text-gray-800">
                 {patient.age} years &middot; {patient.gender}
               </p>
+              {patient.dateOfBirth && (
+                <p className="text-xs text-gray-400 mt-0.5">DOB: {formatDOB(patient.dateOfBirth)}</p>
+              )}
             </div>
             <div>
               <p className="text-sm text-gray-600">Phone</p>
