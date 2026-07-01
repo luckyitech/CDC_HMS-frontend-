@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pill, ChevronDown, ChevronUp, CheckCircle2, Eye, Printer } from "lucide-react";
+import { Pill, ChevronDown, ChevronUp, CheckCircle2, Eye, Printer, RefreshCw } from "lucide-react";
 import Button from "../shared/Button";
 
 const PrescriptionHistory = ({
@@ -10,15 +10,18 @@ const PrescriptionHistory = ({
   onPrint,
   showAddButtons = false,
   onAddMedication,
-  addedMedications = [], // names of medications already added to the new prescription
+  addedMedications = [],
   collapsible = false,
+  hidePatientName = false,
+  onRenewAll,
 }) => {
-  // State for collapsible prescriptions
   const [expandedPrescriptions, setExpandedPrescriptions] = useState(
-    collapsible ? new Set() : new Set(prescriptions.map(p => p.id))
+    // Always expand the first one; collapse the rest if collapsible
+    collapsible
+      ? new Set(prescriptions.length > 0 ? [prescriptions[0].id] : [])
+      : new Set(prescriptions.map(p => p.id))
   );
 
-  // Toggle prescription expansion
   const togglePrescription = (prescriptionId) => {
     if (!collapsible) return;
     const newExpanded = new Set(expandedPrescriptions);
@@ -42,113 +45,118 @@ const PrescriptionHistory = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {displayPrescriptions.map((prescription) => {
         const isExpanded = expandedPrescriptions.has(prescription.id);
-        
+
         return (
-          <div
-            key={prescription.id}
-            className="border-2 border-gray-200 rounded-lg overflow-hidden"
-          >
-            {/* Header - Clickable if collapsible */}
+          <div key={prescription.id} className="border border-gray-200 rounded-lg overflow-hidden">
+
+            {/* Header */}
             <div
               onClick={() => collapsible && togglePrescription(prescription.id)}
-              className={`p-4 ${collapsible ? 'cursor-pointer hover:bg-gray-50' : ''} transition`}
+              className={`p-3 ${collapsible ? "cursor-pointer hover:bg-gray-50" : ""} transition`}
             >
-              <div className="flex flex-col gap-2 mb-1">
-                {/* Top row: name + badges + chevron */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-                    <h3 className="text-base font-bold text-gray-800 truncate">
-                      {prescription.patientName}
-                    </h3>
-                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold whitespace-nowrap">
-                      {prescription.uhid}
-                    </span>
-                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold whitespace-nowrap">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  {!hidePatientName && (
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h3 className="text-sm font-bold text-gray-800 truncate">
+                        {prescription.patientName}
+                      </h3>
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                        {prescription.uhid}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-gray-500">{prescription.date}</span>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
                       {prescription.status}
                     </span>
+                    <span className="text-xs text-gray-600">
+                      {prescription.medications?.length} med{prescription.medications?.length !== 1 ? "s" : ""}
+                    </span>
                   </div>
-                  {collapsible && (
-                    isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    )
+
+                  {prescription.diagnosis && (
+                    <p className="text-xs text-gray-600 mt-1 truncate">
+                      <span className="font-semibold">Dx:</span> {prescription.diagnosis}
+                    </p>
                   )}
                 </div>
 
-                <p className="text-sm text-gray-600">Date: {prescription.date}</p>
-                <p className="text-sm font-medium text-gray-700">
-                  <span className="font-semibold">Diagnosis:</span>{" "}
-                  {prescription.diagnosis}
-                </p>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {collapsible && (
+                    isExpanded
+                      ? <ChevronUp className="w-4 h-4 text-gray-400" />
+                      : <ChevronDown className="w-4 h-4 text-gray-400" />
+                  )}
+                </div>
+              </div>
 
-                {/* View/Print buttons — full width on mobile */}
+              {/* Action buttons */}
+              <div className="flex flex-wrap gap-2 mt-2">
+                {onRenewAll && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRenewAll(prescription); }}
+                    className="flex items-center gap-1 px-3 py-1 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/90 transition"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Renew All
+                  </button>
+                )}
                 {showViewPrint && (
-                  <div className="flex gap-2 mt-1">
+                  <>
                     <Button
                       variant="outline"
-                      className="text-xs py-1 px-3 flex-1 sm:flex-none flex items-center gap-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onView && onView(prescription);
-                      }}
+                      className="text-xs py-1 px-3 flex items-center gap-1"
+                      onClick={(e) => { e.stopPropagation(); onView?.(prescription); }}
                     >
                       <Eye className="w-3.5 h-3.5 text-teal-600" /> View
                     </Button>
                     <Button
                       variant="outline"
-                      className="text-xs py-1 px-3 flex-1 sm:flex-none flex items-center gap-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPrint && onPrint(prescription);
-                      }}
+                      className="text-xs py-1 px-3 flex items-center gap-1"
+                      onClick={(e) => { e.stopPropagation(); onPrint?.(prescription); }}
                     >
                       <Printer className="w-3.5 h-3.5 text-teal-600" /> Print
                     </Button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
 
-            {/* Medications - Show if expanded or not collapsible */}
+            {/* Medications list */}
             {(!collapsible || isExpanded) && (
-              <div className="bg-gray-50 rounded-lg p-4 border-t border-gray-200">
-                <h4 className="font-semibold text-gray-700 mb-3">
-                  Medications:
-                </h4>
+              <div className="bg-gray-50 border-t border-gray-200 p-3">
                 <div className="space-y-2">
                   {prescription.medications.map((med, index) => (
                     <div
                       key={index}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white rounded border border-gray-200"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-2.5 bg-white rounded border border-gray-200"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-800 flex items-center gap-1.5">
-                          <Pill className="w-4 h-4 text-teal-600 flex-shrink-0" /> {med.name}
+                        <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                          <Pill className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" /> {med.name}
                         </p>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {med.dosage} &middot; {med.frequency}
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {med.dosage} · {med.frequency} · Qty: {med.quantity || "30"}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-semibold whitespace-nowrap">
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-semibold whitespace-nowrap">
                           {med.duration}
                         </span>
                         {showAddButtons && onAddMedication && (
                           addedMedications.includes(med.name) ? (
-                            <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold whitespace-nowrap">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Added
+                            <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold whitespace-nowrap">
+                              <CheckCircle2 className="w-3 h-3" /> Added
                             </span>
                           ) : (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onAddMedication(med);
-                              }}
-                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold transition whitespace-nowrap"
+                              onClick={(e) => { e.stopPropagation(); onAddMedication(med); }}
+                              className="px-2 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold transition"
                             >
                               + Add
                             </button>
@@ -160,6 +168,7 @@ const PrescriptionHistory = ({
                 </div>
               </div>
             )}
+
           </div>
         );
       })}
