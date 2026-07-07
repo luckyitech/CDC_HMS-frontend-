@@ -13,6 +13,9 @@ import PrescriptionManagement from "../../components/doctor/PrescriptionManageme
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
+import InactivePatientBanner from "../../components/shared/InactivePatientBanner";
+import { patientService } from "../../services/patientService";
+import toast from "react-hot-toast";
 import {
   Phone,
   Mail,
@@ -40,6 +43,7 @@ const StaffPatientProfile = () => {
   const [prescriptions, setPrescriptions] = useState([]);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
 
   const { fetchPatientByUHID } = usePatientContext();
   const { getPrescriptionsByPatient } = usePrescriptionContext();
@@ -50,6 +54,21 @@ const StaffPatientProfile = () => {
       setLoadingPatient(false);
     });
   }, [uhid, fetchPatientByUHID]);
+
+  const handleReactivate = async () => {
+    if (!window.confirm(`Reactivate patient ${patient.uhid}? This will unlink them from the merged record.`)) return;
+    setReactivating(true);
+    try {
+      await patientService.reactivatePatient(patient.uhid);
+      toast.success('Patient reactivated successfully.');
+      const updated = await fetchPatientByUHID(uhid);
+      setPatient(updated || null);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to reactivate patient.');
+    } finally {
+      setReactivating(false);
+    }
+  };
 
   // Load prescriptions once the patient is resolved
   useEffect(() => {
@@ -117,6 +136,14 @@ const StaffPatientProfile = () => {
           </Button>
         </div>
       </div>
+
+      {/* Inactive / merged patient banner */}
+      <InactivePatientBanner
+        patient={patient}
+        profileBase="/staff/patients"
+        onReactivate={handleReactivate}
+        reactivating={reactivating}
+      />
 
       {/* Incomplete registration banner */}
       {!patient.registrationComplete && (

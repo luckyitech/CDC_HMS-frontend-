@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import useIdNumberCheck from '../../hooks/useIdNumberCheck';
 import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
@@ -79,6 +81,8 @@ const CreatePatient = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExistingPatient, setIsExistingPatient] = useState(false);
   const [existingUHID, setExistingUHID] = useState('');
+
+  const { status: idStatus, existing: idDuplicate } = useIdNumberCheck(patientData.idNumber);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -350,14 +354,33 @@ const CreatePatient = () => {
               </select>
             </div>
 
-            <Input
-              label="ID/Passport Number *"
-              type="text"
-              value={patientData.idNumber}
-              onChange={(e) => setPatientData({ ...patientData, idNumber: e.target.value })}
-              placeholder="ID or Passport Number"
-              required
-            />
+            <div>
+              <Input
+                label="ID/Passport Number *"
+                type="text"
+                value={patientData.idNumber}
+                onChange={(e) => setPatientData({ ...patientData, idNumber: e.target.value })}
+                placeholder="ID or Passport Number"
+                required
+              />
+              {idStatus === 'checking' && (
+                <p className="text-xs text-gray-400 mt-1">Checking...</p>
+              )}
+              {idStatus === 'clear' && (
+                <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> ID number is available
+                </p>
+              )}
+              {idStatus === 'duplicate' && idDuplicate && (
+                <div className="mt-1 border border-red-100 bg-red-100 rounded p-2">
+                  <p className="text-xs text-gray-900 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-red-500" />
+                    Already in use — <strong>{idDuplicate.name}</strong> ({idDuplicate.uhid})
+                  </p>
+                  <p className="text-xs text-gray-700 mt-0.5">Search for this patient instead of registering again.</p>
+                </div>
+              )}
+            </div>
           </div>
         </Card>
 

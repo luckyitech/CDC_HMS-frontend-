@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { formatDOB } from "../../utils/dateUtils";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
+import InactivePatientBanner from "../../components/shared/InactivePatientBanner";
+import { patientService } from "../../services/patientService";
 import toast from "react-hot-toast";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import {
@@ -45,6 +47,7 @@ const PatientProfile = () => {
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [patient, setPatient] = useState(null);
   const [patientLoading, setPatientLoading] = useState(true);
+  const [reactivating, setReactivating] = useState(false);
 
   // Always fetch from API so navigating directly to any UHID always works
   useEffect(() => {
@@ -54,6 +57,21 @@ const PatientProfile = () => {
       setPatientLoading(false);
     });
   }, [uhid, fetchPatientByUHID]);
+
+  const handleReactivate = async () => {
+    if (!window.confirm(`Reactivate patient ${patient.uhid}? This will unlink them from the merged record.`)) return;
+    setReactivating(true);
+    try {
+      await patientService.reactivatePatient(patient.uhid);
+      toast.success('Patient reactivated successfully.');
+      const updated = await fetchPatientByUHID(uhid);
+      setPatient(updated || null);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to reactivate patient.');
+    } finally {
+      setReactivating(false);
+    }
+  };
 
   // Visit dates come directly from the patient object (populated by backend from Queue + Appointment tables)
   const lastVisit       = patient?.lastVisit       || null;
@@ -129,6 +147,14 @@ const PatientProfile = () => {
           </Button>
         </div>
       </div>
+
+      {/* Inactive / merged patient banner */}
+      <InactivePatientBanner
+        patient={patient}
+        profileBase="/doctor/patients"
+        onReactivate={handleReactivate}
+        reactivating={reactivating}
+      />
 
       <Card className="mb-6">
         <div className="flex flex-col md:flex-row items-start justify-between gap-4">

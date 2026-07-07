@@ -78,6 +78,7 @@ const CreateStaff = lazy(() => import("./pages/admin/CreateStaff"));
 const CreateLabTech = lazy(() => import("./pages/admin/CreateLabTech"));
 const AdminCreatePatient = lazy(() => import("./pages/admin/CreatePatient"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
+const DuplicatePatients = lazy(() => import("./pages/admin/DuplicatePatients"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
 const AnalyticsOverview      = lazy(() => import("./pages/admin/analytics/AnalyticsOverview"));
 const DoctorAnalytics        = lazy(() => import("./pages/admin/analytics/DoctorAnalytics"));
@@ -211,6 +212,7 @@ function App() {
                   <Route path="create-lab" element={<CreateLabTech />} />
                   <Route path="create-patient" element={<AdminCreatePatient />} />
                   <Route path="manage-users" element={<ManageUsers />} />
+                  <Route path="duplicate-patients" element={<DuplicatePatients />} />
                   <Route path="activity-log" element={<ActivityLog />} />
                   <Route path="analytics" element={<AnalyticsOverview />} />
                   <Route path="analytics/doctors" element={<DoctorAnalytics />} />

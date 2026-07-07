@@ -58,6 +58,14 @@ export const patientService = {
    */
   delete: (uhid) => api.delete(`/patients/${uhid}`),
 
+  checkIdNumber: (idNumber) => api.get('/patients/check-id', { params: { idNumber } }),
+
+  getDuplicates: () => api.get('/patients/duplicates'),
+
+  mergePatients: (keepUhid, discardUhid) => api.post('/patients/merge', { keepUhid, discardUhid }),
+
+  reactivatePatient: (uhid) => api.patch(`/patients/${uhid}/reactivate`),
+
   /**
    * Get patient statistics
    */

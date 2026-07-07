@@ -39,6 +39,7 @@ import {
   LogOut,
   ShieldCheck,
   ChevronDown,
+  Copy,
   // FileStack,
   // KeyRound,
 } from "lucide-react";
@@ -170,6 +171,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Create Lab Tech", path: "/admin/create-lab", icon: TestTube },
       { name: "Create Patient", path: "/admin/create-patient", icon: UserPlus },
       { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
+      { name: "Duplicate Patients", path: "/admin/duplicate-patients", icon: Copy },
       { name: "Activity Log", path: "/admin/activity-log", icon: ShieldAlert },
       { name: "Analytics", path: "/admin/analytics", icon: Activity },
       { name: "System Settings", path: "/admin/settings", icon: Settings },
