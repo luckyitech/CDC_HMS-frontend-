@@ -39,6 +39,8 @@ import {
   LogOut,
   ShieldCheck,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   Copy,
   FileStack,
   // KeyRound,
@@ -50,7 +52,18 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const location = useLocation();
   const { currentUser } = useUserContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Desktop-only icon-rail collapse, persisted across reloads and portals
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("sidebarCollapsed") === "true"
+  );
   const [portalSwitcherOpen, setPortalSwitcherOpen] = useState(false);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      localStorage.setItem("sidebarCollapsed", String(!prev));
+      return !prev;
+    });
+  };
 
   const isAdminViewing = currentUser?.role === 'admin' && userRole.toLowerCase() !== 'admin';
 
@@ -196,18 +209,19 @@ const MainLayout = ({ userRole = "Staff" }) => {
         className={`
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         fixed lg:static inset-y-0 left-0 z-30
-        w-72 bg-gradient-to-b from-blue-600 to-blue-800 text-white 
-        transition-transform duration-300 shadow-2xl
+        w-72 ${collapsed ? "lg:w-20" : "lg:w-72"}
+        bg-gradient-to-b from-blue-600 to-blue-800 text-white
+        transition-all duration-300 shadow-2xl
       `}
       >
-        <div className="p-6 flex items-center justify-between border-b border-blue-500">
+        <div className={`p-6 ${collapsed ? "lg:p-3" : ""} flex items-center justify-between ${collapsed ? "lg:justify-center" : ""} border-b border-blue-500`}>
           {/* LEFT SIDE - Logo and Text */}
           <div
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => navigate(`/${userRole.toLowerCase()}/dashboard`)}
           >
             {/* Logo */}
-            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg p-2">
+            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg p-2 flex-shrink-0">
               <img
                 src={logo}
                 alt="CDC Logo"
@@ -215,7 +229,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
               />
             </div>
             {/* Text */}
-            <div>
+            <div className={collapsed ? "lg:hidden" : ""}>
               <h2 className="text-xl font-bold">CDC HMS</h2>
               <p className="text-xs text-blue-200 mt-0.5">{userRole} Portal</p>
             </div>
@@ -230,7 +244,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
           </button>
         </div>
 
-        <nav className="mt-6">
+        <nav className="mt-6 overflow-y-auto max-h-[calc(100vh-10.5rem)]">
           {currentMenu.filter(item => !item.path.includes('change-password')).map((item) => {
             const IconComponent = item.icon;
             const isActive = location.pathname === item.path;
@@ -241,9 +255,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
                   navigate(item.path);
                   setSidebarOpen(false);
                 }}
+                title={item.name}
                 className={`
-                  w-full flex items-center px-6 py-4 
-                  transition-all duration-200 
+                  w-full flex items-center px-6 py-4
+                  ${collapsed ? "lg:px-0 lg:justify-center" : ""}
+                  transition-all duration-200
                   border-l-4 group
                   ${
                     isActive
@@ -268,7 +284,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
                 <span
                   className={`
                   ml-4 font-medium text-lg
-                  ${isActive ? "font-bold" : ""} 
+                  ${collapsed ? "lg:hidden" : ""}
+                  ${isActive ? "font-bold" : ""}
                 `}
                 >
                   {item.name}
@@ -277,6 +294,18 @@ const MainLayout = ({ userRole = "Staff" }) => {
             );
           })}
         </nav>
+
+        {/* Collapse toggle — desktop only */}
+        <div className="hidden lg:block absolute bottom-0 left-0 right-0 border-t border-blue-500">
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`w-full flex items-center px-6 py-4 ${collapsed ? "justify-center px-0" : ""} text-blue-200 hover:text-white hover:bg-blue-700 transition-all duration-200`}
+          >
+            {collapsed ? <ChevronsRight size={24} /> : <ChevronsLeft size={24} />}
+            <span className={`ml-4 font-medium ${collapsed ? "hidden" : ""}`}>Collapse</span>
+          </button>
+        </div>
 
         {/* Logout — mobile sidebar only */}
         <div className="lg:hidden absolute bottom-0 left-0 right-0 p-4 border-t border-blue-500">
