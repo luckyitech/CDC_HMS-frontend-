@@ -24,10 +24,14 @@ const MedicalDocuments = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const loadDocuments = useCallback(async () => {
+  // 'ArchivedFiles' shows the admin archive — wrongly uploaded files hidden
+  // from every view (fetched separately with ?archived=true).
+  const showingArchived = selectedStatus === 'ArchivedFiles';
+
+  const loadDocuments = useCallback(async (archived = false) => {
     setLoading(true);
     try {
-      const response = await documentService.getAll();
+      const response = await documentService.getAll(archived ? { archived: true } : undefined);
       if (response.success) {
         setAllDocuments(response.data.documents || response.data || []);
       }
@@ -39,14 +43,18 @@ const MedicalDocuments = () => {
   }, []);
 
   useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
+    loadDocuments(showingArchived);
+  }, [loadDocuments, showingArchived]);
 
-  // Apply filters and sorting (exclude Archived from default view)
+  // Apply filters and sorting (exclude status-Archived from default view)
   const filteredDocuments = useMemo(() => {
-    let docs = allDocuments.filter(doc =>
-      selectedStatus === 'Archived' ? doc.status === 'Archived' : doc.status !== 'Archived'
-    );
+    // 'all' includes documents hidden from the patient (status 'Archived') —
+    // doctors and staff see them in patient profiles, so they belong here too
+    // and the admin must be able to find them to archive them.
+    let docs = [...allDocuments];
+    if (!showingArchived && selectedStatus !== 'all') {
+      docs = docs.filter(doc => doc.status === selectedStatus);
+    }
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -63,10 +71,6 @@ const MedicalDocuments = () => {
       docs = docs.filter(doc => doc.documentCategory === selectedCategory);
     }
 
-    if (selectedStatus !== 'all' && selectedStatus !== 'Archived') {
-      docs = docs.filter(doc => doc.status === selectedStatus);
-    }
-
     if (dateFrom) docs = docs.filter(doc => doc.testDate >= dateFrom);
     if (dateTo) docs = docs.filter(doc => doc.testDate <= dateTo);
 
@@ -77,7 +81,7 @@ const MedicalDocuments = () => {
     });
 
     return docs;
-  }, [allDocuments, searchQuery, selectedCategory, selectedStatus, dateFrom, dateTo, sortOrder]);
+  }, [allDocuments, searchQuery, selectedCategory, selectedStatus, showingArchived, dateFrom, dateTo, sortOrder]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -91,7 +95,7 @@ const MedicalDocuments = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const visibleDocuments = allDocuments.filter(d => d.status !== 'Archived');
+  const visibleDocuments = allDocuments;
   const hasActiveFilters = searchQuery || selectedCategory !== 'all' || selectedStatus !== 'all' || dateFrom || dateTo;
 
   const clearFilters = () => {
@@ -106,13 +110,44 @@ const MedicalDocuments = () => {
   const isAdmin = currentUser?.role === 'admin';
 
   const handleArchive = async (doc) => {
-    if (!window.confirm(`Archive "${doc.fileName}"? It will be hidden from all views but not permanently deleted.`)) return;
+    if (!window.confirm(`Hide "${doc.fileName}" from the patient portal? Doctors and staff will still see it.`)) return;
     const result = await updateDocumentStatus(doc.id, 'Archived');
     if (result.success) {
       setAllDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'Archived' } : d));
-      showNotification('Document archived');
+      showNotification('Document hidden from patient');
     } else {
+      showNotification('Failed to hide document');
+    }
+  };
+
+  const handleArchiveFile = async (doc) => {
+    if (!window.confirm(`Archive "${doc.fileName}"? It will be hidden from every view (doctors, staff and patients) but never deleted. You can restore it from the "Archived Files" view.`)) return;
+    const reason = window.prompt('Reason for archiving (optional):');
+    try {
+      const response = await documentService.archive(doc.id, reason || undefined);
+      if (response.success) {
+        setAllDocuments(prev => prev.filter(d => d.id !== doc.id));
+        showNotification('Document archived');
+      } else {
+        showNotification(response.message || 'Failed to archive document');
+      }
+    } catch {
       showNotification('Failed to archive document');
+    }
+  };
+
+  const handleRestore = async (doc) => {
+    if (!window.confirm(`Restore "${doc.fileName}"? It will reappear in all views.`)) return;
+    try {
+      const response = await documentService.restore(doc.id);
+      if (response.success) {
+        setAllDocuments(prev => prev.filter(d => d.id !== doc.id));
+        showNotification('Document restored');
+      } else {
+        showNotification(response.message || 'Failed to restore document');
+      }
+    } catch {
+      showNotification('Failed to restore document');
     }
   };
 
@@ -186,7 +221,17 @@ const MedicalDocuments = () => {
         </div>
       </div>
 
+      {/* Archived files banner */}
+      {showingArchived && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-red-800 font-semibold">
+            Viewing archived files — these are hidden from all views (doctors, staff and patients) but are never deleted. Use Restore to bring a file back.
+          </p>
+        </div>
+      )}
+
       {/* Statistics */}
+      {!showingArchived && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg text-center">
           <p className="text-xs text-gray-600 uppercase font-semibold">Total</p>
@@ -211,6 +256,7 @@ const MedicalDocuments = () => {
           </p>
         </div>
       </div>
+      )}
 
       {/* Filters */}
       <Card>
@@ -253,10 +299,11 @@ const MedicalDocuments = () => {
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
             >
-              <option value="all">All Active</option>
+              <option value="all">All Documents</option>
               <option value="Reviewed">Reviewed</option>
               <option value="Pending Review">Pending Review</option>
-              {isAdmin && <option value="Archived">Archived</option>}
+              {isAdmin && <option value="Archived">Hidden from Patient</option>}
+              {isAdmin && <option value="ArchivedFiles">Archived Files</option>}
             </select>
           </div>
 
@@ -344,6 +391,8 @@ const MedicalDocuments = () => {
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc)}
               onArchive={() => handleArchive(doc)}
+              onArchiveFile={() => handleArchiveFile(doc)}
+              onRestore={() => handleRestore(doc)}
             />
           ))}
         </div>

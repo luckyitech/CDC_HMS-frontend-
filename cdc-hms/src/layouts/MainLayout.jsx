@@ -40,7 +40,7 @@ import {
   ShieldCheck,
   ChevronDown,
   Copy,
-  // FileStack,
+  FileStack,
   // KeyRound,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
@@ -171,6 +171,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Create Lab Tech", path: "/admin/create-lab", icon: TestTube },
       { name: "Create Patient", path: "/admin/create-patient", icon: UserPlus },
       { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
+      { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Duplicate Patients", path: "/admin/duplicate-patients", icon: Copy },
       { name: "Activity Log", path: "/admin/activity-log", icon: ShieldAlert },
       { name: "Analytics", path: "/admin/analytics", icon: Activity },

@@ -79,12 +79,28 @@ const MedicalDocumentsTab = ({ patient }) => {
   };
 
   const handleArchive = async (documentId, fileName) => {
-    if (!window.confirm(`Archive "${fileName}"? It will be hidden from all views but not permanently deleted.`)) return;
+    if (!window.confirm(`Hide "${fileName}" from the patient portal? Doctors and staff will still see it.`)) return;
     const result = await updateDocumentStatus(documentId, 'Archived');
     if (result.success) {
-      showNotification('Document archived');
+      showNotification('Document hidden from patient');
       await refreshDocuments();
     } else {
+      showNotification('Failed to hide document');
+    }
+  };
+
+  const handleArchiveFile = async (documentId, fileName) => {
+    if (!window.confirm(`Archive "${fileName}"? It will be hidden from every view (doctors, staff and patients) but never deleted. You can restore it from Admin → Medical Documents → Archived Files.`)) return;
+    const reason = window.prompt('Reason for archiving (optional):');
+    try {
+      const response = await documentService.archive(documentId, reason || undefined);
+      if (response.success) {
+        showNotification('Document archived');
+        await refreshDocuments();
+      } else {
+        showNotification(response.message || 'Failed to archive document');
+      }
+    } catch {
       showNotification('Failed to archive document');
     }
   };
@@ -281,6 +297,7 @@ const MedicalDocumentsTab = ({ patient }) => {
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc.id)}
               onArchive={() => handleArchive(doc.id, doc.fileName)}
+              onArchiveFile={() => handleArchiveFile(doc.id, doc.fileName)}
             />
           ))}
         </div>

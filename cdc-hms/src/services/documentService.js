@@ -8,7 +8,8 @@ import api from './api';
  * - POST   /documents              - Upload document (patient, doctor, staff)
  * - GET    /documents              - List documents with filters (uhid)
  * - PUT    /documents/:id/status   - Update status (Pending Review, Reviewed, Archived)
- * - DELETE /documents/:id          - Delete document
+ * - PUT    /documents/:id/archive  - Archive wrongly uploaded document (admin only)
+ * - PUT    /documents/:id/restore  - Restore archived document (admin only)
  * - GET    /documents/file/:filename - Serve file (authenticated)
  */
 
@@ -64,10 +65,18 @@ export const documentService = {
   updateStatus: (id, data) => api.put(`/documents/${id}/status`, data),
 
   /**
-   * Delete document
+   * Archive a wrongly uploaded document (admin only).
+   * Hides it from every view — nothing is ever deleted.
+   * @param {number} id - Document ID
+   * @param {string} [reason] - Optional reason for archiving
+   */
+  archive: (id, reason) => api.put(`/documents/${id}/archive`, { reason }),
+
+  /**
+   * Restore an archived document (admin only)
    * @param {number} id - Document ID
    */
-  delete: (id) => api.delete(`/documents/${id}`),
+  restore: (id) => api.put(`/documents/${id}/restore`),
 
   /**
    * Get file URL for viewing/downloading

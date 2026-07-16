@@ -459,16 +459,6 @@ export const PatientProvider = ({ children }) => {
     }
   };
 
-  // Delete Medical Document (via API)
-  const deleteMedicalDocument = async (documentId) => {
-    try {
-      const response = await documentService.delete(documentId);
-      return response;
-    } catch (err) {
-      return { success: false, message: err.message };
-    }
-  };
-
   // Get document file URL
   const getDocumentFileUrl = (filename) => {
     return documentService.getFileUrl(filename);
@@ -534,7 +524,6 @@ export const PatientProvider = ({ children }) => {
     uploadMedicalDocument,
     getMedicalDocuments,
     updateDocumentStatus,
-    deleteMedicalDocument,
     getDocumentFileUrl,
     sortDocumentsByDate,
     filterDocumentsByCategory,

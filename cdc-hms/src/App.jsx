@@ -212,6 +212,7 @@ function App() {
                   <Route path="create-lab" element={<CreateLabTech />} />
                   <Route path="create-patient" element={<AdminCreatePatient />} />
                   <Route path="manage-users" element={<ManageUsers />} />
+                  <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="duplicate-patients" element={<DuplicatePatients />} />
                   <Route path="activity-log" element={<ActivityLog />} />
                   <Route path="analytics" element={<AnalyticsOverview />} />
