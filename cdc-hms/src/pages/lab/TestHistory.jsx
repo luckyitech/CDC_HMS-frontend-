@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
+import StatusBadge from "../../components/shared/StatusBadge";
+import { LAB_RESULT_TONES } from "../../utils/statusStyles";
 import { useNavigate } from "react-router-dom";
 import { useLabContext } from "../../contexts/LabContext";
 import LabTestDetailsModal from "../../components/lab/LabTestDetailsModal";
@@ -47,19 +49,6 @@ const TestHistory = () => {
 
   // Get unique test types
   const testTypes = ["all", ...new Set(testHistory.map((t) => t.testType))];
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Normal":
-        return "bg-green-100 text-green-700 border-green-300";
-      case "Abnormal":
-        return "bg-yellow-100 text-yellow-700 border-yellow-300";
-      case "Critical":
-        return "bg-red-100 text-red-700 border-red-300";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-300";
-    }
-  };
 
   const handleView = (test) => {
     setSelectedTest(test);
@@ -256,13 +245,9 @@ const TestHistory = () => {
                     </td>
 
                     <td className="px-4 sm:px-6 py-3 sm:py-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
-                          test.interpretation
-                        )}`}
-                      >
+                      <StatusBadge tone={LAB_RESULT_TONES[test.interpretation]}>
                         {test.interpretation}
-                      </span>
+                      </StatusBadge>
                     </td>
                     <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">
                       {new Date(test.completedDate).toLocaleDateString(

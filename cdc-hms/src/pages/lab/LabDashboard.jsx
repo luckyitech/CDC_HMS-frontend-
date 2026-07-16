@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import StatusBadge from '../../components/shared/StatusBadge';
+import { LAB_STATUS_TONES, PRIORITY_TONES, SEVERITY_SOLID_TONES } from '../../utils/statusStyles';
 import { useNavigate } from 'react-router-dom';
 
 const LabDashboard = () => {
@@ -27,31 +29,6 @@ const LabDashboard = () => {
       { id: 3, patient: 'Grace Wanjiru', uhid: 'CDC007', test: 'Creatinine', result: '3.5 mg/dL', normalRange: '0.6-1.2 mg/dL', severity: 'High' },
     ],
   });
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Pending': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'In Progress': return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'Completed': return 'bg-green-100 text-green-700 border-green-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'Urgent': return 'bg-red-100 text-red-700 border-red-300';
-      case 'Routine': return 'bg-gray-100 text-gray-700 border-gray-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
-
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'Critical': return 'bg-red-500 text-white';
-      case 'High': return 'bg-orange-500 text-white';
-      default: return 'bg-yellow-500 text-white';
-    }
-  };
 
   return (
     <div>
@@ -106,9 +83,9 @@ const LabDashboard = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${getSeverityColor(alert.severity)}`}>
+                      <StatusBadge solid tone={SEVERITY_SOLID_TONES[alert.severity] || 'warning'}>
                         {alert.severity}
-                      </span>
+                      </StatusBadge>
                       <p className="font-bold text-gray-800">{alert.patient} ({alert.uhid})</p>
                     </div>
                     <div className="text-sm text-gray-700">
@@ -159,14 +136,14 @@ const LabDashboard = () => {
                   </td>
                   <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">{test.test}</td>
                   <td className="px-4 sm:px-6 py-3 sm:py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(test.status)}`}>
+                    <StatusBadge tone={LAB_STATUS_TONES[test.status]}>
                       {test.status}
-                    </span>
+                    </StatusBadge>
                   </td>
                   <td className="px-4 sm:px-6 py-3 sm:py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(test.priority)}`}>
+                    <StatusBadge tone={PRIORITY_TONES[test.priority]}>
                       {test.priority}
-                    </span>
+                    </StatusBadge>
                   </td>
                   <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">{test.orderedBy}</td>
                   <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">

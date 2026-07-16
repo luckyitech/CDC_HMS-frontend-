@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
+import StatusBadge from "../../components/shared/StatusBadge";
+import { ROLE_TONES } from "../../utils/statusStyles";
 import { useNavigate } from "react-router-dom";
 import { usePatientContext } from "../../contexts/PatientContext";
 import api from "../../services/api";
@@ -52,16 +54,6 @@ const AdminDashboard = () => {
 
   // Most recently created accounts (API returns DESC order)
   const recentAccounts = users.slice(0, 5);
-
-  const getRoleBadgeColor = (role) => {
-    switch (role) {
-      case 'doctor':  return 'bg-blue-100 text-blue-700';
-      case 'lab':     return 'bg-purple-100 text-purple-700';
-      case 'staff':   return 'bg-green-100 text-green-700';
-      case 'patient': return 'bg-cyan-100 text-cyan-700';
-      default:        return 'bg-gray-100 text-gray-700';
-    }
-  };
 
   const formatRole = (role) => {
     const map = { doctor: 'Doctor', staff: 'Staff', lab: 'Lab Tech', patient: 'Patient', admin: 'Admin' };
@@ -168,9 +160,9 @@ const AdminDashboard = () => {
                         <p className="text-xs text-gray-500">{account.email}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getRoleBadgeColor(account.role)}`}>
+                        <StatusBadge bordered={false} tone={ROLE_TONES[account.role]}>
                           {formatRole(account.role)}
-                        </span>
+                        </StatusBadge>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 hidden md:table-cell">
                         {account.specialty || account.position || account.specialization || '—'}

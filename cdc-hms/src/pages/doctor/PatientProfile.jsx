@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
+import StatusBadge from "../../components/shared/StatusBadge";
+import { LAB_RESULT_TONES } from "../../utils/statusStyles";
 import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useLabContext } from "../../contexts/LabContext";
@@ -554,19 +556,6 @@ const ReportsTab = ({ patient }) => {
     );
   }
 
-  const getInterpretationColor = (interpretation) => {
-    switch (interpretation) {
-      case "Normal":
-        return "bg-green-100 text-green-700 border-green-300";
-      case "Abnormal":
-        return "bg-yellow-100 text-yellow-700 border-yellow-300";
-      case "Critical":
-        return "bg-red-100 text-red-700 border-red-300";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-300";
-    }
-  };
-
   const formatTestResults = (results, testType) => {
     const entries = Object.entries(results);
     if (entries.length === 1) {
@@ -680,13 +669,9 @@ const ReportsTab = ({ patient }) => {
                         LATEST
                       </span>
                     )}
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-bold border ${getInterpretationColor(
-                        test.interpretation
-                      )}`}
-                    >
+                    <StatusBadge tone={LAB_RESULT_TONES[test.interpretation]}>
                       {test.interpretation}
-                    </span>
+                    </StatusBadge>
                     {test.isCritical && (
                       <span className="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" /> CRITICAL

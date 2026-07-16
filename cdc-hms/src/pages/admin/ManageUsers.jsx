@@ -9,6 +9,8 @@ import api from '../../services/api';
 import patientService from '../../services/patientService';
 import EditUserModal from '../../components/admin/EditUserModal';
 import EditPatientModal from '../../components/staff/EditPatientModal';
+import StatusBadge from '../../components/shared/StatusBadge';
+import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statusStyles';
 
 const Tip = ({ label, children }) => (
   <div className="relative group">
@@ -23,14 +25,6 @@ const Tip = ({ label, children }) => (
 const ROLE_LABEL = {
   doctor: 'Doctor', staff: 'Staff', lab: 'Lab Tech',
   patient: 'Patient', admin: 'Admin',
-};
-
-const ROLE_BADGE = {
-  doctor:  'bg-blue-100 text-blue-700',
-  staff:   'bg-violet-100 text-violet-700',
-  lab:     'bg-teal-100 text-teal-700',
-  patient: 'bg-emerald-100 text-emerald-700',
-  admin:   'bg-rose-100 text-rose-700',
 };
 
 const getInitials = (name = '') =>
@@ -348,21 +342,27 @@ const ManageUsers = () => {
                       <p className="text-xs text-gray-400">{user.phone || '—'}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${ROLE_BADGE[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <StatusBadge shape="tag" size="xs" bordered={false} tone={ROLE_TONES[user.role]}>
                         {ROLE_LABEL[user.role] ?? user.role}
-                      </span>
+                      </StatusBadge>
                       {user.role === 'patient' && (
-                        <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
-                          user.registrationComplete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                        }`}>
+                        <StatusBadge
+                          shape="tag"
+                          size="xs"
+                          bordered={false}
+                          tone={user.registrationComplete ? REGISTRATION_TONES.complete : REGISTRATION_TONES.incomplete}
+                        >
                           {user.registrationComplete ? 'Registered' : 'Incomplete'}
-                        </span>
+                        </StatusBadge>
                       )}
-                      <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${
-                        isActive ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
-                      }`}>
+                      <StatusBadge
+                        shape="tag"
+                        size="xs"
+                        bordered={false}
+                        tone={isActive ? ACCOUNT_TONES.active : ACCOUNT_TONES.inactive}
+                      >
                         {user.status}
-                      </span>
+                      </StatusBadge>
                     </div>
                   </div>
                   <ActionButtons user={user} mobile />
@@ -405,15 +405,19 @@ const ManageUsers = () => {
 
                       <td className="px-5 py-3.5">
                         <div className="flex flex-col gap-1">
-                          <span className={`px-2.5 py-1 rounded-md text-xs font-medium w-fit ${ROLE_BADGE[user.role] ?? 'bg-gray-100 text-gray-600'}`}>
+                          <StatusBadge shape="tag" size="xs" bordered={false} className="w-fit" tone={ROLE_TONES[user.role]}>
                             {ROLE_LABEL[user.role] ?? user.role}
-                          </span>
+                          </StatusBadge>
                           {user.role === 'patient' && (
-                            <span className={`px-2 py-0.5 rounded-md text-xs font-medium w-fit ${
-                              user.registrationComplete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                            }`}>
+                            <StatusBadge
+                              shape="tag"
+                              size="xs"
+                              bordered={false}
+                              className="w-fit"
+                              tone={user.registrationComplete ? REGISTRATION_TONES.complete : REGISTRATION_TONES.incomplete}
+                            >
                               {user.registrationComplete ? 'Registered' : 'Incomplete'}
-                            </span>
+                            </StatusBadge>
                           )}
                         </div>
                       </td>
@@ -425,12 +429,15 @@ const ManageUsers = () => {
                       </td>
 
                       <td className="px-5 py-3.5">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
-                          isActive ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'
-                        }`}>
+                        <StatusBadge
+                          shape="tag"
+                          size="xs"
+                          bordered={false}
+                          tone={isActive ? ACCOUNT_TONES.active : ACCOUNT_TONES.inactive}
+                        >
                           <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500' : 'bg-red-400'}`} />
                           {user.status}
-                        </span>
+                        </StatusBadge>
                       </td>
 
                       <td className="px-5 py-3.5 text-xs text-gray-400 hidden xl:table-cell">
