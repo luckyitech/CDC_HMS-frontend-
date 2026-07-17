@@ -1,9 +1,9 @@
-import { Eye, Download, FileText, Archive } from 'lucide-react';
+import { Eye, Download, FileText, EyeOff, Archive, RotateCcw } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
 import { formatDate, getStatusBadge, getCategoryIcon } from '../../utils/documentHelpers';
 
-const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasViewed = false, onView, onDownload, onMarkReviewed, onArchive }) => {
+const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasViewed = false, onView, onDownload, onMarkReviewed, onArchive, onArchiveFile, onRestore }) => {
   return (
     <Card className="hover:shadow-lg transition">
       <div className="flex flex-col lg:flex-row gap-4">
@@ -28,6 +28,11 @@ const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasVie
             )}
             {doc.status === 'Archived' && (
               <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(doc.status)}`}>
+                Hidden from Patient
+              </span>
+            )}
+            {doc.isArchived && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-red-50 border-red-200 text-red-700">
                 Archived
               </span>
             )}
@@ -86,6 +91,15 @@ const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasVie
               Reviewed by {doc.reviewedBy} on {formatDate(doc.reviewDate)}
             </div>
           )}
+
+          {doc.isArchived && (
+            <div className="mt-3 p-2 bg-red-50 rounded border-l-4 border-red-400">
+              <p className="text-sm text-gray-700">
+                <strong>Archived</strong> by {doc.archivedBy} on {formatDate(doc.archivedAt)}
+                {doc.archiveReason && <> — {doc.archiveReason}</>}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -126,14 +140,34 @@ const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasVie
               Mark Reviewed
             </Button>
           )}
-          {isAdmin && doc.status !== 'Archived' && (
+          {isAdmin && !doc.isArchived && doc.status !== 'Archived' && (
             <Button
-              variant="danger"
+              variant="outline"
               className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"
               onClick={onArchive}
             >
+              <EyeOff className="w-4 h-4" />
+              Hide from Patient
+            </Button>
+          )}
+          {(isAdmin || isDoctor) && !doc.isArchived && onArchiveFile && (
+            <Button
+              variant="danger"
+              className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"
+              onClick={onArchiveFile}
+            >
               <Archive className="w-4 h-4" />
-              Archive
+              Archive File
+            </Button>
+          )}
+          {isAdmin && doc.isArchived && onRestore && (
+            <Button
+              variant="primary"
+              className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"
+              onClick={onRestore}
+            >
+              <RotateCcw className="w-4 h-4" />
+              Restore
             </Button>
           )}
         </div>

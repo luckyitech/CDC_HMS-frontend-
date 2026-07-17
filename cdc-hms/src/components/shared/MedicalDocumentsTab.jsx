@@ -4,6 +4,7 @@ import Card from './Card';
 import Button from './Button';
 import DocumentCard from './DocumentCard';
 import UploadDocumentModal from './UploadDocumentModal';
+import DocumentActionModal from './DocumentActionModal';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { showNotification } from '../../utils/documentHelpers';
@@ -78,15 +79,38 @@ const MedicalDocumentsTab = ({ patient }) => {
     await refreshDocuments();
   };
 
-  const handleArchive = async (documentId, fileName) => {
-    if (!window.confirm(`Archive "${fileName}"? It will be hidden from all views but not permanently deleted.`)) return;
-    const result = await updateDocumentStatus(documentId, 'Archived');
-    if (result.success) {
-      showNotification('Document archived');
-      await refreshDocuments();
-    } else {
-      showNotification('Failed to archive document');
-    }
+  // Pending document action awaiting confirmation: { type: keyof DOCUMENT_ACTIONS, doc }
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const performers = {
+    hide: async (doc) => {
+      const result = await updateDocumentStatus(doc.id, 'Archived');
+      if (result.success) {
+        showNotification('Document hidden from patient');
+        await refreshDocuments();
+      } else {
+        showNotification('Failed to hide document');
+      }
+    },
+    archive: async (doc, reason) => {
+      try {
+        const response = await documentService.archive(doc.id, reason || undefined);
+        if (response.success) {
+          showNotification('Document archived');
+          await refreshDocuments();
+        } else {
+          showNotification(response.message || 'Failed to archive document');
+        }
+      } catch {
+        showNotification('Failed to archive document');
+      }
+    },
+  };
+
+  const runPendingAction = async (reason) => {
+    const { type, doc } = pendingAction;
+    setPendingAction(null);
+    await performers[type](doc, reason);
   };
 
   const handleMarkAsReviewed = async (documentId) => {
@@ -280,7 +304,8 @@ const MedicalDocumentsTab = ({ patient }) => {
               onView={() => handleView(doc)}
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc.id)}
-              onArchive={() => handleArchive(doc.id, doc.fileName)}
+              onArchive={() => setPendingAction({ type: 'hide', doc })}
+              onArchiveFile={() => setPendingAction({ type: 'archive', doc })}
             />
           ))}
         </div>
@@ -296,6 +321,13 @@ const MedicalDocumentsTab = ({ patient }) => {
           onSuccess={handleUploadSuccess}
         />
       )}
+
+      {/* Action confirmation popup */}
+      <DocumentActionModal
+        pendingAction={pendingAction}
+        onClose={() => setPendingAction(null)}
+        onConfirm={runPendingAction}
+      />
     </div>
   );
 };

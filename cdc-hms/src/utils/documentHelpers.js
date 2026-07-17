@@ -58,3 +58,29 @@ export const showNotification = (message, isBlue = false) => {
     });
   }
 };
+
+// Confirmation copy for document actions — shared by the Medical Documents
+// page and the patient-profile documents tab so wording stays consistent.
+// Add new document actions here and both views pick them up.
+export const DOCUMENT_ACTIONS = {
+  hide: {
+    title: 'Hide from Patient',
+    confirmLabel: 'Hide from Patient',
+    variant: 'primary',
+    message: (doc) => `Hide "${doc.fileName}" from the patient portal? Doctors and staff will still see it.`,
+  },
+  archive: {
+    title: 'Archive File',
+    confirmLabel: 'Archive File',
+    variant: 'danger',
+    withReason: true,
+    reasonLabel: 'Reason for archiving (optional)',
+    message: (doc) => `Archive "${doc.fileName}"? It will be hidden from every view (doctors, staff and patients) but never deleted. You can restore it from the "Archived Files" view.`,
+  },
+  restore: {
+    title: 'Restore File',
+    confirmLabel: 'Restore',
+    variant: 'primary',
+    message: (doc) => `Restore "${doc.fileName}"? It will reappear in all views.`,
+  },
+};
