@@ -75,6 +75,31 @@ const DiagnosisInput = ({ diagnoses = [], onChange }) => {
     setShowDropdown(false);
   };
 
+  // Add the diagnosis exactly as typed (not in the ICD-10 list) — stored
+  // with an empty code, which the rest of the app already supports.
+  const commitTyped = () => {
+    const typed = query.trim();
+    if (!typed) return;
+    const duplicate = diagnoses.some(
+      (d) => d.description.toLowerCase() === typed.toLowerCase()
+    );
+    if (!duplicate) {
+      onChange([...diagnoses, { code: '', description: typed }]);
+    }
+    setQuery('');
+    setResults([]);
+    setShowDropdown(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // never submit the surrounding form from this field
+      commitTyped();
+    } else if (e.key === 'Escape') {
+      setShowDropdown(false);
+    }
+  };
+
   const handleRemove = (identifier) => {
     onChange(diagnoses.filter((d) => (d.code || d.description) !== identifier));
   };
@@ -121,6 +146,7 @@ const DiagnosisInput = ({ diagnoses = [], onChange }) => {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="Search ICD-10 diagnosis (e.g. diabetes, hypertension...)"
             className="w-full pl-10 pr-10 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
           />
@@ -141,12 +167,24 @@ const DiagnosisInput = ({ diagnoses = [], onChange }) => {
                 <span className="text-sm text-gray-800">{item.description}</span>
               </button>
             ))}
+            {/* Free-text escape hatch — diagnosis not in the ICD-10 list */}
+            <button
+              type="button"
+              onClick={commitTyped}
+              className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center gap-3 bg-gray-50 border-t-2 border-gray-200 transition-colors"
+            >
+              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <p className="text-sm text-gray-600">
+                Use "<span className="font-semibold text-gray-800">{query}</span>" as typed
+                <span className="text-xs text-gray-400 ml-2">(or press Enter)</span>
+              </p>
+            </button>
           </div>
         )}
       </div>
 
       {diagnoses.length === 0 && (
-        <p className="text-xs text-gray-400">Type at least 2 characters to search. Multiple diagnoses can be added.</p>
+        <p className="text-xs text-gray-400">Type at least 2 characters to search, or type any diagnosis and press Enter to add it as written. Multiple diagnoses can be added.</p>
       )}
     </div>
   );

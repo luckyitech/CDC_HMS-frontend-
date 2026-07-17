@@ -22,6 +22,7 @@ const PrescriptionManagement = ({
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [historyModal, setHistoryModal] = useState(null); // 'current' | 'past' | null
 
   const prescriptionsArray = Array.isArray(patientPrescriptions) ? patientPrescriptions : [];
   const currentPrescription = prescriptionsArray[0] || null;
@@ -100,61 +101,72 @@ const PrescriptionManagement = ({
     );
   }
 
-  // Doctor view — 2-column: history left, new prescription right
+  // Doctor view — full-width form; history opens in popups.
+  // Shared by both popups; view/print close the popup first so modals don't stack.
+  const historyProps = {
+    showViewPrint: true,
+    showAddButtons: true,
+    addedMedications: selectedMedications.map(m => m.name),
+    hidePatientName: true,
+    onRenewAll: handleRenewAll,
+    onAddMedication: handleAddMedication,
+    onView: (rx) => { setHistoryModal(null); setSelectedPrescription(rx); setShowViewModal(true); },
+    onPrint: (rx) => { setHistoryModal(null); setSelectedPrescription(rx); setShowPrintModal(true); },
+  };
+
+  const currentMeds = currentPrescription?.medications || [];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-6">
+    <div className="space-y-4">
 
-      {/* LEFT: Prescription history */}
-      <div className="space-y-4">
-        <Card title={<span className="flex items-center gap-2"><Pill className="w-5 h-5 text-green-600" />Current Medications</span>}>
-          {!currentPrescription ? (
-            <EmptyState icon={Pill} message="No current medications" />
-          ) : (
-            <PrescriptionHistory
-              prescriptions={[currentPrescription]}
-              maxDisplay={1}
-              showViewPrint={true}
-              showAddButtons={true}
-              addedMedications={selectedMedications.map(m => m.name)}
-              collapsible={false}
-              hidePatientName={true}
-              onRenewAll={handleRenewAll}
-              onView={(rx) => { setSelectedPrescription(rx); setShowViewModal(true); }}
-              onPrint={(rx) => { setSelectedPrescription(rx); setShowPrintModal(true); }}
-              onAddMedication={handleAddMedication}
-            />
-          )}
-        </Card>
-
+      {/* History popup triggers + currently-taking safety strip */}
+      <div className="flex flex-wrap items-center gap-3">
+        <HistoryTrigger
+          icon={<Pill className="w-4 h-4 text-green-600" />}
+          label="Current Medications"
+          count={currentMeds.length}
+          onClick={() => setHistoryModal("current")}
+        />
         {!hidePast && (
-          <Card title={<span className="flex items-center gap-2"><FileText className="w-5 h-5 text-blue-600" />Past Prescriptions</span>}>
-            {pastPrescriptions.length === 0 ? (
-              <EmptyState icon={FileText} message="No past prescriptions" />
-            ) : (
-              <PrescriptionHistory
-                prescriptions={pastPrescriptions}
-                maxDisplay={null}
-                showViewPrint={true}
-                showAddButtons={true}
-                addedMedications={selectedMedications.map(m => m.name)}
-                collapsible={true}
-                hidePatientName={true}
-                onRenewAll={handleRenewAll}
-                onView={(rx) => { setSelectedPrescription(rx); setShowViewModal(true); }}
-                onPrint={(rx) => { setSelectedPrescription(rx); setShowPrintModal(true); }}
-                onAddMedication={handleAddMedication}
-              />
+          <HistoryTrigger
+            icon={<FileText className="w-4 h-4 text-blue-600" />}
+            label="Past Prescriptions"
+            count={pastPrescriptions.length}
+            onClick={() => setHistoryModal("past")}
+          />
+        )}
+
+        {currentMeds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            <span className="text-gray-500 font-semibold">Currently taking:</span>
+            {currentMeds.slice(0, 4).map((m) => (
+              <span
+                key={m.name}
+                className="px-2 py-0.5 bg-green-50 border border-green-200 text-green-800 rounded-full text-xs font-medium"
+              >
+                {m.name}{m.dosage ? ` ${m.dosage}` : ""}
+              </span>
+            ))}
+            {currentMeds.length > 4 && (
+              <button
+                type="button"
+                onClick={() => setHistoryModal("current")}
+                className="text-xs text-blue-600 font-semibold hover:underline"
+              >
+                +{currentMeds.length - 4} more
+              </button>
             )}
-          </Card>
+          </div>
         )}
       </div>
 
-      {/* RIGHT: New prescription form */}
+      {/* Full-width new prescription form */}
       <Card title={<span className="flex items-center gap-2"><FileEdit className="w-5 h-5 text-purple-600" />New Prescription</span>}>
         <NewPrescriptionForm
           selectedPatient={patient}
           fromConsultation={true}
           embedded={true}
+          horizontal={true}
           addPrescription={addPrescription}
           currentDoctor={currentUser}
           onSuccess={() => {
@@ -170,6 +182,48 @@ const PrescriptionManagement = ({
         />
       </Card>
 
+      {/* History popups */}
+      {historyModal === "current" && (
+        <Modal
+          isOpen={true}
+          onClose={() => setHistoryModal(null)}
+          title={<span className="flex items-center gap-2"><Pill className="w-5 h-5 text-green-600" />Current Medications</span>}
+        >
+          <div className="max-h-[70vh] overflow-y-auto">
+            {!currentPrescription ? (
+              <EmptyState icon={Pill} message="No current medications" />
+            ) : (
+              <PrescriptionHistory
+                prescriptions={[currentPrescription]}
+                maxDisplay={1}
+                collapsible={false}
+                {...historyProps}
+              />
+            )}
+          </div>
+        </Modal>
+      )}
+      {historyModal === "past" && (
+        <Modal
+          isOpen={true}
+          onClose={() => setHistoryModal(null)}
+          title={<span className="flex items-center gap-2"><FileText className="w-5 h-5 text-blue-600" />Past Prescriptions</span>}
+        >
+          <div className="max-h-[70vh] overflow-y-auto">
+            {pastPrescriptions.length === 0 ? (
+              <EmptyState icon={FileText} message="No past prescriptions" />
+            ) : (
+              <PrescriptionHistory
+                prescriptions={pastPrescriptions}
+                maxDisplay={null}
+                collapsible={true}
+                {...historyProps}
+              />
+            )}
+          </div>
+        </Modal>
+      )}
+
       <Modals
         showViewModal={showViewModal} showPrintModal={showPrintModal}
         selectedPrescription={selectedPrescription}
@@ -180,6 +234,19 @@ const PrescriptionManagement = ({
     </div>
   );
 };
+
+// Compact button that opens a history popup, with a count badge
+const HistoryTrigger = ({ icon, label, count, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+  >
+    {icon}
+    {label}
+    <span className="px-2 py-0.5 bg-gray-100 rounded-full text-xs font-bold text-gray-600">{count}</span>
+  </button>
+);
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 

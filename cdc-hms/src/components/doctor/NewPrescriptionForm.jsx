@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { X, Pill, Zap } from "lucide-react";
+import { X, Pill, Zap, ChevronDown, ChevronUp } from "lucide-react";
 import Button from "../shared/Button";
 import Input from "../shared/Input";
 import VoiceInput from "../shared/VoiceInput";
 import MedicationSearchInput from "../shared/MedicationSearchInput";
 import prescriptionService from "../../services/prescriptionService";
 
+// Stable id per medication row so collapse state survives removals/reorders
+let medIdCounter = 1;
+
 const emptyMedication = () => ({
+  _id: `med-${medIdCounter++}`,
   name: "", dosage: "", quantity: "30", frequency: "", customFrequency: "", duration: "", instructions: "",
 });
 
@@ -15,6 +19,32 @@ const KNOWN_FREQUENCIES = [
   "Once daily", "Twice daily", "Three times daily",
   "Four times daily", "Every 8 hours", "Every 12 hours",
 ];
+
+const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary";
+
+// Column template shared by the header row and every medication row (lg+, horizontal mode).
+// Last column holds the remove button.
+const HORIZONTAL_GRID = "lg:grid-cols-[2fr_1fr_1.3fr_1fr_1.5fr_2rem]";
+
+// Per-field label. In horizontal mode the lg+ layout shows a single header row
+// instead, so the label only renders on small screens.
+const FieldLabel = ({ horizontal, required, children }) => (
+  <label className={`block text-sm font-semibold text-gray-700 mb-1 ${horizontal ? "lg:hidden" : ""}`}>
+    {children} {required && <span className="text-red-400">*</span>}
+  </label>
+);
+
+const AddMedicationButton = ({ onClick, className = "" }) => (
+  <Button type="button" onClick={onClick} className={className}>
+    <Pill className="w-4 h-4" /> Add Another Medication
+  </Button>
+);
+
+const RemoveMedicationButton = ({ onClick }) => (
+  <button type="button" onClick={onClick} className="text-red-400 hover:text-red-600 transition">
+    <X className="w-4 h-4" />
+  </button>
+);
 
 const NewPrescriptionForm = ({
   selectedPatient,
@@ -24,6 +54,9 @@ const NewPrescriptionForm = ({
   addPrescription,
   currentDoctor,
   embedded = false,
+  // Wide table-style layout: one line per medication on lg+ screens,
+  // actions side by side below. Falls back to stacked cards on small screens.
+  horizontal = false,
   initialMedications = [],
   loadKey = 0,
   onMedicationRemoved,
@@ -35,6 +68,24 @@ const NewPrescriptionForm = ({
 
   const [medications, setMedications] = useState([emptyMedication()]);
   const [quickDrugs, setQuickDrugs]   = useState([]);
+  // Collapsed medication rows (by _id) — stacked layout only; horizontal rows
+  // are already one line so they never collapse
+  const [collapsedIds, setCollapsedIds] = useState(new Set());
+
+  const toggleCollapsed = (id) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Collapse every existing row (used when a new row is added below them)
+  const collapseAll = (meds) => {
+    if (horizontal) return;
+    setCollapsedIds(new Set(meds.map((m) => m._id)));
+  };
 
   useEffect(() => {
     prescriptionService.getTopDrugs(20)
@@ -47,20 +98,22 @@ const NewPrescriptionForm = ({
   // resetting the doctor's edits when a medication is removed.
   useEffect(() => {
     if (loadKey === 0 || !initialMedications || initialMedications.length === 0) return;
-    setMedications(
-      initialMedications.map((med) => {
-        const freqIsKnown = KNOWN_FREQUENCIES.includes(med.frequency);
-        return {
-          name:            med.name         || "",
-          dosage:          med.dosage        || "",
-          quantity:        med.quantity      || "30",
-          frequency:       freqIsKnown ? med.frequency : "Other",
-          customFrequency: freqIsKnown ? "" : (med.frequency || ""),
-          duration:        med.duration      || "",
-          instructions:    med.instructions  || "",
-        };
-      })
-    );
+    const loaded = initialMedications.map((med) => {
+      const freqIsKnown = KNOWN_FREQUENCIES.includes(med.frequency);
+      return {
+        _id:             `med-${medIdCounter++}`,
+        name:            med.name         || "",
+        dosage:          med.dosage        || "",
+        quantity:        med.quantity      || "30",
+        frequency:       freqIsKnown ? med.frequency : "Other",
+        customFrequency: freqIsKnown ? "" : (med.frequency || ""),
+        duration:        med.duration      || "",
+        instructions:    med.instructions  || "",
+      };
+    });
+    setMedications(loaded);
+    // Loaded medications are complete — show them as compact summaries
+    collapseAll(loaded);
   }, [loadKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleMedicationChange = (index, field, value) => {
@@ -84,13 +137,19 @@ const NewPrescriptionForm = ({
     }
   };
 
+  // Add a new row and fold all existing rows into summaries (stacked layout)
+  const handleAddMedication = (prefill = {}) => {
+    collapseAll(medications);
+    setMedications([...medications, { ...emptyMedication(), ...prefill }]);
+  };
+
   // Quick-select a drug: fill the last empty row or add a new pre-filled row
   const handleQuickDrug = (drugName) => {
     const last = medications[medications.length - 1];
     if (!last.name.trim()) {
       handleMedicationChange(medications.length - 1, "name", drugName);
     } else {
-      setMedications(prev => [...prev, { ...emptyMedication(), name: drugName }]);
+      handleAddMedication({ name: drugName });
     }
     toast.success(`${drugName} added to prescription`, { duration: 2000 });
   };
@@ -103,7 +162,7 @@ const NewPrescriptionForm = ({
     const isComplete = med.name.trim() && med.dosage.trim() && freq && med.duration.trim();
     const isLastRow  = index === medications.length - 1;
     if (isComplete && isLastRow) {
-      setMedications(prev => [...prev, emptyMedication()]);
+      handleAddMedication();
     }
   };
 
@@ -126,11 +185,15 @@ const NewPrescriptionForm = ({
       patientName:     formData.patientName,
       doctorName:      currentDoctor?.name     || "Dr. Ahmed Hassan",
       doctorSpecialty: currentDoctor?.specialty || "Endocrinologist",
-      medications:     validMedications.map(({ customFrequency, ...med }) => ({
-        ...med,
-        frequency: med.frequency === "Other" ? customFrequency.trim() : med.frequency,
-        quantity:  med.quantity || "30",
-      })),
+      medications:     validMedications.map(({ customFrequency, ...med }) => {
+        const payload = {
+          ...med,
+          frequency: med.frequency === "Other" ? customFrequency.trim() : med.frequency,
+          quantity:  med.quantity || "30",
+        };
+        delete payload._id; // internal row id — not part of the API payload
+        return payload;
+      }),
     };
 
     const result = await addPrescription(newPrescription);
@@ -144,7 +207,78 @@ const NewPrescriptionForm = ({
     }
   };
 
-  const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary";
+  // All six input fields, defined once and reused by both layouts.
+  // The surrounding grid decides how they flow (stacked pairs vs one line).
+  const renderMedicationFields = (med, index) => (
+    <>
+      <div className={horizontal ? "" : "sm:col-span-2"}>
+        <FieldLabel horizontal={horizontal} required>Medication Name</FieldLabel>
+        <MedicationSearchInput
+          value={med.name}
+          onChange={(val) => handleMedicationChange(index, "name", val)}
+          onSelect={(name, dosage) => handleMedicationSelect(index, name, dosage)}
+        />
+      </div>
+
+      <div>
+        <FieldLabel horizontal={horizontal} required>Dosage</FieldLabel>
+        <input
+          type="text"
+          value={med.dosage}
+          onChange={(e) => handleMedicationChange(index, "dosage", e.target.value)}
+          placeholder="e.g. 500 mg"
+          className={inputCls}
+        />
+      </div>
+
+      <div>
+        <FieldLabel horizontal={horizontal} required>Frequency</FieldLabel>
+        <select
+          value={med.frequency}
+          onChange={(e) => handleMedicationChange(index, "frequency", e.target.value)}
+          className={inputCls}
+        >
+          <option value="">Select...</option>
+          {KNOWN_FREQUENCIES.map((f) => (
+            <option key={f} value={f}>{f}</option>
+          ))}
+          <option value="Other">Other (specify)</option>
+        </select>
+        {med.frequency === "Other" && (
+          <VoiceInput
+            value={med.customFrequency}
+            onChange={(e) => handleMedicationChange(index, "customFrequency", e.target.value)}
+            placeholder="e.g. every 6 hours..."
+            rows={1}
+            className="mt-2"
+          />
+        )}
+      </div>
+
+      <div>
+        <FieldLabel horizontal={horizontal} required>Duration</FieldLabel>
+        <input
+          type="text"
+          value={med.duration}
+          onChange={(e) => handleMedicationChange(index, "duration", e.target.value)}
+          onBlur={() => handleDurationBlur(index)}
+          placeholder="e.g. 30 days"
+          className={inputCls}
+        />
+      </div>
+
+      <div>
+        <FieldLabel horizontal={horizontal}>Special Instructions</FieldLabel>
+        <input
+          type="text"
+          value={med.instructions}
+          onChange={(e) => handleMedicationChange(index, "instructions", e.target.value)}
+          placeholder="e.g. Take with food"
+          className={inputCls}
+        />
+      </div>
+    </>
+  );
 
   return (
     <form onSubmit={handleSubmit} className={embedded ? "space-y-5" : "space-y-4 max-h-[70vh] overflow-y-auto"}>
@@ -199,136 +333,107 @@ const NewPrescriptionForm = ({
           </div>
         </div>
 
-        <div className="space-y-4">
-          {medications.map((med, index) => (
-            <div key={index} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+        {/* Column headers — horizontal layout, lg+ only */}
+        {horizontal && (
+          <div className={`hidden lg:grid ${HORIZONTAL_GRID} lg:gap-2 px-4 mb-2 text-xs font-bold text-gray-500 uppercase tracking-wide`}>
+            <span>Medication *</span>
+            <span>Dosage *</span>
+            <span>Frequency *</span>
+            <span>Duration *</span>
+            <span>Instructions</span>
+            <span />
+          </div>
+        )}
 
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                  Medication {index + 1}
-                </span>
-                {medications.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveMedication(index)}
-                    className="text-red-400 hover:text-red-600 transition"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+        <div className={horizontal ? "space-y-2" : "space-y-4"}>
+          {medications.map((med, index) => {
+            const isCollapsed = !horizontal && collapsedIds.has(med._id);
+            const freqLabel = med.frequency === "Other" ? med.customFrequency : med.frequency;
+            const summaryParts = [med.dosage, freqLabel, med.duration].filter((p) => p && p.trim());
 
-              <div className="space-y-3">
-
-                {/* Medication name */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Medication Name <span className="text-red-400">*</span>
-                  </label>
-                  <MedicationSearchInput
-                    value={med.name}
-                    onChange={(val) => handleMedicationChange(index, "name", val)}
-                    onSelect={(name, dosage) => handleMedicationSelect(index, name, dosage)}
-                  />
-                </div>
-
-                {/* Dosage + Quantity */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Dosage <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={med.dosage}
-                      onChange={(e) => handleMedicationChange(index, "dosage", e.target.value)}
-                      placeholder="e.g. 500 mg"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Quantity</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={med.quantity}
-                      onChange={(e) => handleMedicationChange(index, "quantity", e.target.value)}
-                      placeholder="30"
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
-
-                {/* Frequency + Duration */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Frequency <span className="text-red-400">*</span>
-                    </label>
-                    <select
-                      value={med.frequency}
-                      onChange={(e) => handleMedicationChange(index, "frequency", e.target.value)}
-                      className={inputCls}
-                    >
-                      <option value="">Select...</option>
-                      {KNOWN_FREQUENCIES.map((f) => (
-                        <option key={f} value={f}>{f}</option>
-                      ))}
-                      <option value="Other">Other (specify)</option>
-                    </select>
-                    {med.frequency === "Other" && (
-                      <VoiceInput
-                        value={med.customFrequency}
-                        onChange={(e) => handleMedicationChange(index, "customFrequency", e.target.value)}
-                        placeholder="e.g. every 6 hours..."
-                        rows={1}
-                        className="mt-2"
-                      />
+            // Collapsed (stacked layout): one-line summary bar — click to expand and view/edit
+            if (isCollapsed) {
+              return (
+                <div
+                  key={med._id}
+                  className="flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 hover:border-blue-300 cursor-pointer transition"
+                  onClick={() => toggleCollapsed(med._id)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wide flex-shrink-0">
+                      {index + 1}
+                    </span>
+                    <span className="font-semibold text-gray-800 truncate">
+                      {med.name.trim() || <span className="italic text-gray-400 font-normal">Empty medication</span>}
+                    </span>
+                    {summaryParts.length > 0 && (
+                      <span className="text-sm text-gray-500 truncate hidden sm:inline">
+                        {summaryParts.join(" · ")}
+                      </span>
                     )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Duration <span className="text-red-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={med.duration}
-                      onChange={(e) => handleMedicationChange(index, "duration", e.target.value)}
-                      onBlur={() => handleDurationBlur(index)}
-                      placeholder="e.g. 30 days"
-                      className={inputCls}
-                    />
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {medications.length > 1 && (
+                      <span onClick={(e) => e.stopPropagation()}>
+                        <RemoveMedicationButton onClick={() => handleRemoveMedication(index)} />
+                      </span>
+                    )}
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
                   </div>
                 </div>
+              );
+            }
 
-                {/* Instructions */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Special Instructions</label>
-                  <input
-                    type="text"
-                    value={med.instructions}
-                    onChange={(e) => handleMedicationChange(index, "instructions", e.target.value)}
-                    placeholder="e.g. Take with food"
-                    className={inputCls}
-                  />
+            return (
+              <div key={med._id} className={`border border-gray-200 rounded-lg bg-gray-50 ${horizontal ? "p-4 lg:py-3" : "p-4"}`}>
+
+                {/* Row header — stacked layout only; horizontal rows stay one line */}
+                {!horizontal && (
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                      Medication {index + 1}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {medications.length > 1 && (
+                        <RemoveMedicationButton onClick={() => handleRemoveMedication(index)} />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => toggleCollapsed(med._id)}
+                        title="Collapse"
+                        className="text-gray-400 hover:text-gray-600 transition"
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${horizontal ? `lg:gap-2 ${HORIZONTAL_GRID} lg:items-start` : ""}`}>
+                  {renderMedicationFields(med, index)}
+                  {horizontal && (
+                    <div className="sm:col-span-2 lg:col-span-1 flex justify-end lg:justify-center lg:pt-2.5">
+                      {medications.length > 1 && (
+                        <RemoveMedicationButton onClick={() => handleRemoveMedication(index)} />
+                      )}
+                    </div>
+                  )}
                 </div>
-
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setMedications(prev => [...prev, emptyMedication()])}
-          className="mt-3 w-full py-2.5 border border-dashed border-blue-300 rounded-lg text-sm font-semibold text-blue-600 flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors"
-        >
-          <Pill className="w-4 h-4" /> Add Another Medication
-        </button>
+        {!horizontal && (
+          <AddMedicationButton onClick={() => handleAddMedication()} className="mt-3 w-full" />
+        )}
       </div>
 
-      {/* Actions */}
-      <div className={`flex gap-3 ${embedded ? "" : "pt-4 border-t"}`}>
+      {/* Actions — horizontal layout puts Add + Create side by side */}
+      <div className={`flex flex-col sm:flex-row gap-3 ${embedded ? "" : "pt-4 border-t"}`}>
+        {horizontal && (
+          <AddMedicationButton onClick={() => handleAddMedication()} className="flex-1" />
+        )}
         <Button type="submit" className="flex-1">Create Prescription</Button>
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel} className="flex-1">Cancel</Button>
