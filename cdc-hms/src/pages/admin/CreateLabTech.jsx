@@ -5,8 +5,13 @@ import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { Briefcase, Microscope, Shield } from 'lucide-react';
+import CardTitle from '../../components/shared/CardTitle';
+import PersonalInfoSection from '../../components/shared/formSections/PersonalInfoSection';
+import ContactInfoSection from '../../components/shared/formSections/ContactInfoSection';
+import AccountSettingsSection from '../../components/shared/formSections/AccountSettingsSection';
 
-const CreateLabTech = () => {
+const CreateLabTech = ({ embedded = false }) => {
   const navigate = useNavigate();
   
   const [labTechData, setLabTechData] = useState({
@@ -63,6 +68,9 @@ const CreateLabTech = () => {
   const shifts = ['Morning', 'Afternoon', 'Night'];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Generic field setter used by the shared form sections
+  const handleChange = (field, value) => setLabTechData((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -145,88 +153,22 @@ const CreateLabTech = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Lab Technician Account</h2>
-        <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-          ← Back to Dashboard
-        </Button>
-      </div>
+      {/* Page header — hidden when hosted inside Create Users */}
+      {!embedded && (
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Lab Technician Account</h2>
+          <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
+            ← Back to Dashboard
+          </Button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* Personal Information */}
-        <Card title="👤 Personal Information" className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="First Name *"
-              type="text"
-              value={labTechData.firstName}
-              onChange={(e) => setLabTechData({ ...labTechData, firstName: e.target.value })}
-              placeholder="Enter first name"
-              required
-            />
-
-            <Input
-              label="Last Name *"
-              type="text"
-              value={labTechData.lastName}
-              onChange={(e) => setLabTechData({ ...labTechData, lastName: e.target.value })}
-              placeholder="Enter last name"
-              required
-            />
-
-            <Input
-              label="Email Address *"
-              type="email"
-              value={labTechData.email}
-              onChange={(e) => setLabTechData({ ...labTechData, email: e.target.value })}
-              placeholder="labtech@example.com"
-              required
-            />
-
-            <Input
-              label="Phone Number *"
-              type="tel"
-              value={labTechData.phone}
-              onChange={(e) => setLabTechData({ ...labTechData, phone: e.target.value })}
-              placeholder="+254 712 345 678"
-              required
-            />
-
-            <Input
-              label="Date of Birth"
-              type="date"
-              value={labTechData.dateOfBirth}
-              onChange={(e) => setLabTechData({ ...labTechData, dateOfBirth: e.target.value })}
-            />
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Gender *</label>
-              <select
-                value={labTechData.gender}
-                onChange={(e) => setLabTechData({ ...labTechData, gender: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-                required
-              >
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <Input
-              label="ID/Passport Number *"
-              type="text"
-              value={labTechData.idNumber}
-              onChange={(e) => setLabTechData({ ...labTechData, idNumber: e.target.value })}
-              placeholder="ID or Passport Number"
-              required
-            />
-          </div>
-        </Card>
+        <PersonalInfoSection data={labTechData} onChange={handleChange} emailPlaceholder="labtech@example.com" />
 
         {/* Professional Information */}
-        <Card title="🔬 Professional Information" className="mb-6">
+        <Card title={<CardTitle icon={Microscope}>Professional Information</CardTitle>} className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Certification/License Number *"
@@ -287,7 +229,7 @@ const CreateLabTech = () => {
         </Card>
 
         {/* Employment Details */}
-        <Card title="💼 Employment Details" className="mb-6">
+        <Card title={<CardTitle icon={Briefcase}>Employment Details</CardTitle>} className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Employment Type *</label>
@@ -331,98 +273,13 @@ const CreateLabTech = () => {
         </Card>
 
         {/* Contact Information */}
-        <Card title="📍 Contact Information" className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Residential Address</label>
-              <textarea
-                value={labTechData.address}
-                onChange={(e) => setLabTechData({ ...labTechData, address: e.target.value })}
-                placeholder="Full address"
-                rows="2"
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <Input
-              label="City"
-              type="text"
-              value={labTechData.city}
-              onChange={(e) => setLabTechData({ ...labTechData, city: e.target.value })}
-              placeholder="City"
-            />
-
-            <Input
-              label="Emergency Contact Name"
-              type="text"
-              value={labTechData.emergencyContact}
-              onChange={(e) => setLabTechData({ ...labTechData, emergencyContact: e.target.value })}
-              placeholder="Emergency contact person"
-            />
-
-            <Input
-              label="Emergency Contact Phone"
-              type="tel"
-              value={labTechData.emergencyPhone}
-              onChange={(e) => setLabTechData({ ...labTechData, emergencyPhone: e.target.value })}
-              placeholder="+254 712 345 678"
-            />
-          </div>
-        </Card>
+        <ContactInfoSection data={labTechData} onChange={handleChange} />
 
         {/* Account Settings */}
-        <Card title="🔐 Account Settings" className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* TODO: Username field — backend does not support username yet (auth is by email).
-                Uncomment and wire up once username support is added to the User model.
-            <div>
-              <Input
-                label="Username *"
-                type="text"
-                value={labTechData.username}
-                onChange={(e) => setLabTechData({ ...labTechData, username: e.target.value })}
-                placeholder="username"
-                required
-              />
-              <button
-                type="button"
-                onClick={generateUsername}
-                className="mt-2 text-xs text-primary hover:underline"
-              >
-                Generate from name
-              </button>
-            </div>
-            */}
-
-            <div>
-              <Input
-                label="Temporary Password *"
-                type="text"
-                value={labTechData.temporaryPassword}
-                onChange={(e) => setLabTechData({ ...labTechData, temporaryPassword: e.target.value })}
-                placeholder="Temporary password"
-                required
-              />
-              <button
-                type="button"
-                onClick={generatePassword}
-                className="mt-2 text-xs text-primary hover:underline"
-              >
-                Generate secure password
-              </button>
-            </div>
-
-            <div className="md:col-span-2 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
-              <p className="text-sm text-gray-700">
-                <strong>⚠️ Note:</strong> The temporary password will be sent to the lab technician's email. 
-                They will be required to change it upon first login.
-              </p>
-            </div>
-          </div>
-        </Card>
+        <AccountSettingsSection data={labTechData} onChange={handleChange} onGeneratePassword={generatePassword} roleNoun="lab technician" />
 
         {/* Permissions Note */}
-        <Card title="🔒 Lab Portal Access" className="mb-6">
+        <Card title={<CardTitle icon={Shield}>Lab Portal Access</CardTitle>} className="mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-gray-700 mb-3">
               <strong>ℹ️ Lab Technician will have access to:</strong>

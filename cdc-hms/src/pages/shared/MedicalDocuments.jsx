@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Search, Filter, FileText, SortAsc, SortDesc, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, FileText, SortAsc, SortDesc } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import DocumentCard from '../../components/shared/DocumentCard';
 import DocumentActionModal from '../../components/shared/DocumentActionModal';
+import Pagination from '../../components/shared/Pagination';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { showNotification } from '../../utils/documentHelpers';
@@ -193,18 +194,6 @@ const MedicalDocuments = () => {
     }
   };
 
-  const getPageNumbers = () => {
-    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-    const pages = [];
-    if (currentPage <= 3) {
-      pages.push(1, 2, 3, 4, '...', totalPages);
-    } else if (currentPage >= totalPages - 2) {
-      pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-    } else {
-      pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
-    }
-    return pages;
-  };
 
   if (loading) {
     return (
@@ -404,44 +393,11 @@ const MedicalDocuments = () => {
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-2 rounded-lg border-2 border-gray-300 hover:border-primary disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-700" />
-          </button>
-
-          {getPageNumbers().map((page, idx) => (
-            page === '...' ? (
-              <span key={`ellipsis-${idx}`} className="px-2 text-gray-500">...</span>
-            ) : (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-semibold text-sm transition ${
-                  currentPage === page
-                    ? 'bg-primary text-white border-2 border-primary'
-                    : 'border-2 border-gray-300 text-gray-700 hover:border-primary hover:bg-blue-50'
-                }`}
-              >
-                {page}
-              </button>
-            )
-          ))}
-
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-2 rounded-lg border-2 border-gray-300 hover:border-primary disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-700" />
-          </button>
-        </div>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
 
       {/* Action confirmation popup */}
       <DocumentActionModal

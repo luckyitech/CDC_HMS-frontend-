@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -10,7 +10,33 @@ import patientService from '../../services/patientService';
 import EditUserModal from '../../components/admin/EditUserModal';
 import EditPatientModal from '../../components/staff/EditPatientModal';
 import StatusBadge from '../../components/shared/StatusBadge';
+import Pagination from '../../components/shared/Pagination';
+import useDebounce from '../../hooks/useDebounce';
 import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statusStyles';
+
+// The clinic has hundreds of patient records; rendering them all at once
+// makes the page unusable, so the list is paged.
+const USERS_PER_PAGE = 25;
+
+// Sort choices — add an entry here and it appears in the dropdown.
+const SORT_OPTIONS = {
+  newest: {
+    label: 'Newest First',
+    compare: (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+  },
+  oldest: {
+    label: 'Oldest First',
+    compare: (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+  },
+  az: {
+    label: 'Name (A–Z)',
+    compare: (a, b) => (a.name || '').localeCompare(b.name || ''),
+  },
+  za: {
+    label: 'Name (Z–A)',
+    compare: (a, b) => (b.name || '').localeCompare(a.name || ''),
+  },
+};
 
 const Tip = ({ label, children }) => (
   <div className="relative group">
@@ -47,6 +73,7 @@ const ManageUsers = () => {
   const [searchTerm, setSearchTerm]     = useState('');
   const [filterRole, setFilterRole]     = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [sortBy, setSortBy]             = useState('newest');
   const [editingUser, setEditingUser]       = useState(null);
   const [editingPatient, setEditingPatient] = useState(null);
 
@@ -57,17 +84,37 @@ const ManageUsers = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredUsers = users.filter(user => {
-    const q = searchTerm.toLowerCase();
-    const matchesSearch =
-      user.name.toLowerCase().includes(q) ||
-      (user.email  || '').toLowerCase().includes(q) ||
-      (user.phone  || '').includes(searchTerm) ||
-      (user.uhid   || '').toLowerCase().includes(q);
-    const matchesRole   = filterRole   === 'all' || user.role   === filterRole;
-    const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  // Debounced so typing doesn't re-filter the whole list on every keystroke
+  const debouncedSearch = useDebounce(searchTerm);
+
+  const filteredUsers = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
+    const matched = users.filter(user => {
+      const matchesSearch =
+        user.name.toLowerCase().includes(q) ||
+        (user.email  || '').toLowerCase().includes(q) ||
+        (user.phone  || '').includes(debouncedSearch) ||
+        (user.uhid   || '').toLowerCase().includes(q);
+      const matchesRole   = filterRole   === 'all' || user.role   === filterRole;
+      const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+    const { compare } = SORT_OPTIONS[sortBy] || SORT_OPTIONS.newest;
+    return matched.sort(compare);
+  }, [users, debouncedSearch, filterRole, filterStatus, sortBy]);
+
+  // Pagination — only the current page is rendered
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * USERS_PER_PAGE,
+    currentPage * USERS_PER_PAGE
+  );
+
+  // Filters changing can shrink the list past the current page
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, filterRole, filterStatus, sortBy]);
 
   const stats = {
     total:    users.length,
@@ -305,10 +352,21 @@ const ManageUsers = () => {
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
           </select>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            aria-label="Sort users"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 text-gray-700"
+          >
+            {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
         </div>
         {!loading && (
           <p className="text-xs text-gray-400 mt-3">
-            Showing <span className="font-semibold text-gray-600">{filteredUsers.length}</span> of <span className="font-semibold text-gray-600">{users.length}</span> users
+            Showing <span className="font-semibold text-gray-600">{paginatedUsers.length}</span> of <span className="font-semibold text-gray-600">{filteredUsers.length}</span> matching users
+            {filteredUsers.length !== users.length && <> (filtered from {users.length})</>}
           </p>
         )}
       </div>
@@ -328,7 +386,7 @@ const ManageUsers = () => {
         <>
           {/* Mobile cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
-            {filteredUsers.map(user => {
+            {paginatedUsers.map(user => {
               const isActive = user.status === 'Active';
               return (
                 <div key={user.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
@@ -386,7 +444,7 @@ const ManageUsers = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredUsers.map(user => {
+                {paginatedUsers.map(user => {
                   const isActive = user.status === 'Active';
                   return (
                     <tr key={user.id} className="hover:bg-gray-50 transition-colors">
@@ -455,6 +513,12 @@ const ManageUsers = () => {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </>
       )}
     </div>
