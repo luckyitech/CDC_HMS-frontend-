@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Search, Loader } from 'lucide-react';
+import useCatalogSearch from '../../hooks/useCatalogSearch';
 
 // Parses a diagnosis value from the DB — handles both new JSON arrays and old plain strings.
 export const parseDiagnoses = (diagnosis) => {
@@ -19,76 +20,44 @@ export const formatDiagnosisDisplay = (diagnosis) => {
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
+// Diagnosis autocomplete backed by the clinic's own catalog
+// (Admin → Clinical Catalog), not an external API. Diagnoses not in the
+// catalog can always be added as typed (Enter or the footer row).
 const DiagnosisInput = ({ diagnoses = [], onChange }) => {
-  const [query,        setQuery]        = useState('');
-  const [results,      setResults]      = useState([]);
-  const [loading,      setLoading]      = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const debounceRef  = useRef(null);
+  const [query, setQuery] = useState('');
+  const [open, setOpen]   = useState(false);
   const containerRef = useRef(null);
+
+  const { items, loading, active } = useCatalogSearch('diagnosis', query, { limit: 10 });
 
   // Close dropdown when clicking outside.
   useEffect(() => {
     const handler = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setShowDropdown(false);
+        setOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Debounced ICD-10 search via NIH Clinical Tables API (free, no key required).
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (query.length < 2) {
-      setResults([]);
-      setShowDropdown(false);
-      return;
-    }
-
-    debounceRef.current = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const res  = await fetch(
-          `https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search?sf=code,name&terms=${encodeURIComponent(query)}&maxList=10`
-        );
-        const data = await res.json();
-        // data[3] is an array of [code, description] pairs.
-        const items = (data[3] || []).map(([code, description]) => ({ code, description }));
-        setResults(items);
-        setShowDropdown(items.length > 0);
-      } catch {
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 400);
-  }, [query]);
-
-  const handleSelect = (item) => {
-    if (diagnoses.some((d) => d.code === item.code)) return;
-    onChange([...diagnoses, item]);
+  const addDiagnosis = (entry) => {
+    const duplicate = diagnoses.some(
+      (d) => d.description.toLowerCase() === entry.description.toLowerCase()
+    );
+    if (!duplicate) onChange([...diagnoses, entry]);
     setQuery('');
-    setResults([]);
-    setShowDropdown(false);
+    setOpen(false);
   };
 
-  // Add the diagnosis exactly as typed (not in the ICD-10 list) — stored
+  // Catalog entries store the code in `detail`
+  const handleSelect = (item) => addDiagnosis({ code: item.detail || '', description: item.name });
+
+  // Add the diagnosis exactly as typed (not in the catalog) — stored
   // with an empty code, which the rest of the app already supports.
   const commitTyped = () => {
     const typed = query.trim();
-    if (!typed) return;
-    const duplicate = diagnoses.some(
-      (d) => d.description.toLowerCase() === typed.toLowerCase()
-    );
-    if (!duplicate) {
-      onChange([...diagnoses, { code: '', description: typed }]);
-    }
-    setQuery('');
-    setResults([]);
-    setShowDropdown(false);
+    if (typed) addDiagnosis({ code: '', description: typed });
   };
 
   const handleKeyDown = (e) => {
@@ -96,12 +65,8 @@ const DiagnosisInput = ({ diagnoses = [], onChange }) => {
       e.preventDefault(); // never submit the surrounding form from this field
       commitTyped();
     } else if (e.key === 'Escape') {
-      setShowDropdown(false);
+      setOpen(false);
     }
-  };
-
-  const handleRemove = (identifier) => {
-    onChange(diagnoses.filter((d) => (d.code || d.description) !== identifier));
   };
 
   return (
@@ -124,7 +89,7 @@ const DiagnosisInput = ({ diagnoses = [], onChange }) => {
                 <span className="font-semibold">{d.description}</span>
                 <button
                   type="button"
-                  onClick={() => handleRemove(key)}
+                  onClick={() => onChange(diagnoses.filter((x) => (x.code || x.description) !== key))}
                   className="ml-1 text-blue-400 hover:text-red-500 transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -145,29 +110,31 @@ const DiagnosisInput = ({ diagnoses = [], onChange }) => {
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
             onKeyDown={handleKeyDown}
-            placeholder="Search ICD-10 diagnosis (e.g. diabetes, hypertension...)"
+            placeholder="Search diagnosis (e.g. diabetes, hypertension...)"
             className="w-full pl-10 pr-10 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
           />
         </div>
 
-        {showDropdown && (
+        {open && active && (
           <div className="absolute z-50 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-            {results.map((item) => (
+            {items.map((item) => (
               <button
-                key={item.code}
+                key={item.id}
                 type="button"
                 onClick={() => handleSelect(item)}
                 className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-start gap-3 border-b border-gray-100 last:border-0 transition-colors"
               >
-                <span className="text-xs font-bold text-blue-600 font-mono mt-0.5 flex-shrink-0 w-16">
-                  {item.code}
-                </span>
-                <span className="text-sm text-gray-800">{item.description}</span>
+                {item.detail && (
+                  <span className="text-xs font-bold text-blue-600 font-mono mt-0.5 flex-shrink-0 w-16">
+                    {item.detail}
+                  </span>
+                )}
+                <span className="text-sm text-gray-800">{item.name}</span>
               </button>
             ))}
-            {/* Free-text escape hatch — diagnosis not in the ICD-10 list */}
+            {/* Free-text escape hatch — diagnosis not in the catalog */}
             <button
               type="button"
               onClick={commitTyped}
@@ -184,7 +151,7 @@ const DiagnosisInput = ({ diagnoses = [], onChange }) => {
       </div>
 
       {diagnoses.length === 0 && (
-        <p className="text-xs text-gray-400">Type at least 2 characters to search, or type any diagnosis and press Enter to add it as written. Multiple diagnoses can be added.</p>
+        <p className="text-xs text-gray-400">Type at least 2 characters to search the clinic's diagnosis list, or type any diagnosis and press Enter to add it as written. Multiple diagnoses can be added.</p>
       )}
     </div>
   );

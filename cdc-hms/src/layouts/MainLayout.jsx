@@ -193,6 +193,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         ],
       },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
+      { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
       {
         name: "Monitoring",
         icon: Activity,
