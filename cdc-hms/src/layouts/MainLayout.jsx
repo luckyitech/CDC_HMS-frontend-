@@ -118,6 +118,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Appointments", path: "/staff/appointments", icon: Calendar },
       { name: "Book Appointment", path: "/staff/book-appointment", icon: CalendarCheck },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
+      { name: "Patient Visits", path: "/staff/patient-visits", icon: TrendingUp },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
     ],
     doctor: [
@@ -140,6 +141,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // },
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
       { name: "My Schedule", path: "/doctor/my-schedule", icon: CalendarCheck },
+      { name: "Patient Visits", path: "/doctor/patient-visits", icon: TrendingUp },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
@@ -177,22 +179,151 @@ const MainLayout = ({ userRole = "Staff" }) => {
         icon: AlertTriangle,
       },
     ],
+    // An entry is a leaf ({ name, path, icon }) or a group
+    // ({ name, icon, children: [...leaves] }) rendered as an expandable section.
     admin: [
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-      { name: "Create Doctor", path: "/admin/create-doctor", icon: HeartPulse },
-      { name: "Create Staff", path: "/admin/create-staff", icon: Users },
-      { name: "Create Lab Tech", path: "/admin/create-lab", icon: TestTube },
-      { name: "Create Patient", path: "/admin/create-patient", icon: UserPlus },
-      { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
+      {
+        name: "Users",
+        icon: Users,
+        children: [
+          { name: "Create Users", path: "/admin/create-users", icon: UserPlus },
+          { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
+          { name: "Duplicate Patients", path: "/admin/duplicate-patients", icon: Copy },
+        ],
+      },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
-      { name: "Duplicate Patients", path: "/admin/duplicate-patients", icon: Copy },
-      { name: "Activity Log", path: "/admin/activity-log", icon: ShieldAlert },
-      { name: "Analytics", path: "/admin/analytics", icon: Activity },
+      {
+        name: "Monitoring",
+        icon: Activity,
+        children: [
+          { name: "Activity Log", path: "/admin/activity-log", icon: ShieldAlert },
+          { name: "Analytics", path: "/admin/analytics", icon: TrendingUp },
+          { name: "Patient Visits", path: "/admin/patient-visits", icon: ClipboardList },
+        ],
+      },
       { name: "System Settings", path: "/admin/settings", icon: Settings },
     ],
   };
 
   const currentMenu = menuItems[userRole.toLowerCase()] || menuItems.staff;
+
+  // Expanded menu groups. Defaults to open for the group holding the current
+  // page so the active item is visible on load; after that the user decides.
+  const [openGroups, setOpenGroups] = useState(() =>
+    Object.fromEntries(
+      currentMenu
+        .filter((item) => item.children)
+        .map((group) => [
+          group.name,
+          group.children.some((child) => child.path === location.pathname),
+        ])
+    )
+  );
+
+  const toggleGroup = (name) =>
+    setOpenGroups((prev) => ({ ...prev, [name]: !prev[name] }));
+
+  // A single navigable menu entry. `nested` indents it under a group header.
+  const renderLeaf = (item, nested = false) => {
+    const IconComponent = item.icon;
+    const isActive = location.pathname === item.path;
+    // Indentation is meaningless in the collapsed icon rail, where group
+    // headers are hidden and children show as plain centered icons.
+    const indentCls = nested && !collapsed ? "pl-12 lg:pl-14" : "";
+    return (
+      <button
+        key={item.path}
+        onClick={() => {
+          navigate(item.path);
+          setSidebarOpen(false);
+        }}
+        title={item.name}
+        className={`
+          w-full flex items-center px-6 py-4 ${indentCls}
+          ${collapsed ? "lg:px-0 lg:justify-center" : ""}
+          transition-all duration-200
+          border-l-4 group
+          ${
+            isActive
+              ? "bg-blue-700 border-cyan-400 text-white" // ← ACTIVE STATE
+              : "border-transparent hover:bg-blue-700 hover:border-cyan-400" // ← INACTIVE STATE
+          }
+        `}
+      >
+        <IconComponent
+          size={nested ? 20 : 24}
+          strokeWidth={2}
+          className={`
+            transition-colors
+            ${
+              isActive
+                ? "text-white" // ← ACTIVE ICON COLOR
+                : "text-blue-200 group-hover:text-white" // ← INACTIVE ICON COLOR
+            }
+          `}
+        />
+        <span
+          className={`
+          ml-4 font-medium ${nested ? "text-base" : "text-lg"}
+          ${collapsed ? "lg:hidden" : ""}
+          ${isActive ? "font-bold" : ""}
+        `}
+        >
+          {item.name}
+        </span>
+      </button>
+    );
+  };
+
+  // A collapsible section header plus its children.
+  const renderGroup = (groupItem) => {
+    const GroupIcon = groupItem.icon;
+    const hasActiveChild = groupItem.children.some(
+      (child) => child.path === location.pathname
+    );
+    const isOpen = !!openGroups[groupItem.name];
+    return (
+      <div key={groupItem.name}>
+        {/* Header — hidden in the collapsed rail, where children stand alone */}
+        <button
+          onClick={() => toggleGroup(groupItem.name)}
+          title={groupItem.name}
+          className={`
+            w-full flex items-center px-6 py-4
+            ${collapsed ? "lg:hidden" : ""}
+            transition-all duration-200
+            border-l-4 border-transparent hover:bg-blue-700 group
+          `}
+        >
+          <GroupIcon
+            size={24}
+            strokeWidth={2}
+            className={`transition-colors ${
+              hasActiveChild ? "text-white" : "text-blue-200 group-hover:text-white"
+            }`}
+          />
+          <span
+            className={`ml-4 flex-1 text-left font-medium text-lg ${
+              hasActiveChild ? "font-bold" : ""
+            }`}
+          >
+            {groupItem.name}
+          </span>
+          <ChevronDown
+            size={18}
+            className={`text-blue-200 transition-transform duration-200 ${
+              isOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {/* Children show when the group is open, and always in the rail */}
+        {(isOpen || collapsed) &&
+          groupItem.children.map((child) => renderLeaf(child, true))}
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -245,54 +376,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
         </div>
 
         <nav className="mt-6 overflow-y-auto max-h-[calc(100vh-10.5rem)]">
-          {currentMenu.filter(item => !item.path.includes('change-password')).map((item) => {
-            const IconComponent = item.icon;
-            const isActive = location.pathname === item.path;
-            return (
-              <button
-                key={item.path}
-                onClick={() => {
-                  navigate(item.path);
-                  setSidebarOpen(false);
-                }}
-                title={item.name}
-                className={`
-                  w-full flex items-center px-6 py-4
-                  ${collapsed ? "lg:px-0 lg:justify-center" : ""}
-                  transition-all duration-200
-                  border-l-4 group
-                  ${
-                    isActive
-                      ? "bg-blue-700 border-cyan-400 text-white" // ← ACTIVE STATE
-                      : "border-transparent hover:bg-blue-700 hover:border-cyan-400" // ← INACTIVE STATE
-                  }
-                `}
-                // className="w-full flex items-center px-6 py-4 hover:bg-blue-700 transition-all duration-200 border-l-4 border-transparent hover:border-cyan-400 group"
-              >
-                <IconComponent
-                  size={24}
-                  strokeWidth={2}
-                  className={`
-                    transition-colors
-                    ${
-                      isActive
-                        ? "text-white" // ← ACTIVE ICON COLOR
-                        : "text-blue-200 group-hover:text-white" // ← INACTIVE ICON COLOR
-                    }
-                  `}
-                />
-                <span
-                  className={`
-                  ml-4 font-medium text-lg
-                  ${collapsed ? "lg:hidden" : ""}
-                  ${isActive ? "font-bold" : ""}
-                `}
-                >
-                  {item.name}
-                </span>
-              </button>
-            );
-          })}
+          {currentMenu
+            .filter((item) => !item.path?.includes("change-password"))
+            .map((item) => (item.children ? renderGroup(item) : renderLeaf(item)))}
         </nav>
 
         {/* Collapse toggle — desktop only */}

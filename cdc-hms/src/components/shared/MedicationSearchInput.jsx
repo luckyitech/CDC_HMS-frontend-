@@ -88,6 +88,30 @@ const MedicationSearchInput = ({ value, onChange, onSelect, placeholder }) => {
     onSelect(item.name, item.dosage);
   };
 
+  // Commit the name exactly as typed (medication not in the API list).
+  // Keeps any dosage already entered, closes the dropdown.
+  const commitTyped = (inputEl) => {
+    const typed = query.trim();
+    if (!typed) return;
+    setShowDropdown(false);
+    onSelect(typed, '');
+    // Move focus to the next field (Dosage) so the doctor keeps typing
+    if (inputEl?.form) {
+      const els = inputEl.form.elements;
+      const idx = Array.prototype.indexOf.call(els, inputEl);
+      els[idx + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // never submit the form from this field
+      commitTyped(e.target);
+    } else if (e.key === 'Escape') {
+      setShowDropdown(false);
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <div className="relative">
@@ -99,8 +123,9 @@ const MedicationSearchInput = ({ value, onChange, onSelect, placeholder }) => {
           type="text"
           value={query}
           onChange={handleType}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder || "Search medication (e.g. Metformin, Insulin...)"}
-          className="w-full pl-10 pr-10 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
+          className="w-full pl-9 pr-9 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary"
         />
       </div>
 
@@ -122,6 +147,18 @@ const MedicationSearchInput = ({ value, onChange, onSelect, placeholder }) => {
               </div>
             </button>
           ))}
+          {/* Free-text escape hatch — medication not in the list */}
+          <button
+            type="button"
+            onClick={() => commitTyped(containerRef.current?.querySelector('input'))}
+            className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center gap-3 bg-gray-50 border-t-2 border-gray-200 transition-colors"
+          >
+            <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <p className="text-sm text-gray-600">
+              Use "<span className="font-semibold text-gray-800">{query}</span>" as typed
+              <span className="text-xs text-gray-400 ml-2">(or press Enter)</span>
+            </p>
+          </button>
         </div>
       )}
     </div>

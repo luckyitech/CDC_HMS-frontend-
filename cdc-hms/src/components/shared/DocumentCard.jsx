@@ -150,7 +150,7 @@ const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasVie
               Hide from Patient
             </Button>
           )}
-          {isAdmin && !doc.isArchived && onArchiveFile && (
+          {(isAdmin || isDoctor) && !doc.isArchived && onArchiveFile && (
             <Button
               variant="danger"
               className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"

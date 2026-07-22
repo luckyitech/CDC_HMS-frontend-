@@ -6,22 +6,6 @@ import patientService from "../../services/patientService";
 
 const LIMIT = 20;
 
-const getRiskColor = (risk) => {
-  switch (risk) {
-    case "High":   return "bg-red-100 text-red-700 border-red-300";
-    case "Medium": return "bg-yellow-100 text-yellow-700 border-yellow-300";
-    case "Low":    return "bg-green-100 text-green-700 border-green-300";
-    default:       return "bg-gray-100 text-gray-700 border-gray-300";
-  }
-};
-
-const getHbA1cColor = (value) => {
-  const n = parseFloat(value);
-  if (n < 7) return "text-green-600 font-semibold";
-  if (n < 8) return "text-yellow-600 font-semibold";
-  return "text-red-600 font-semibold";
-};
-
 const MyPatients = () => {
   const navigate = useNavigate();
 

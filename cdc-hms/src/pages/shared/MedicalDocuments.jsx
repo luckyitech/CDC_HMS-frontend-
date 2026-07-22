@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Search, Filter, FileText, SortAsc, SortDesc, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, FileText, SortAsc, SortDesc } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import DocumentCard from '../../components/shared/DocumentCard';
+import DocumentActionModal from '../../components/shared/DocumentActionModal';
+import Pagination from '../../components/shared/Pagination';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { showNotification } from '../../utils/documentHelpers';
@@ -109,46 +111,51 @@ const MedicalDocuments = () => {
   const isDoctor = currentUser?.role?.toLowerCase() === 'doctor';
   const isAdmin = currentUser?.role === 'admin';
 
-  const handleArchive = async (doc) => {
-    if (!window.confirm(`Hide "${doc.fileName}" from the patient portal? Doctors and staff will still see it.`)) return;
-    const result = await updateDocumentStatus(doc.id, 'Archived');
-    if (result.success) {
-      setAllDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'Archived' } : d));
-      showNotification('Document hidden from patient');
-    } else {
-      showNotification('Failed to hide document');
-    }
+  // Pending document action awaiting confirmation: { type: keyof DOCUMENT_ACTIONS, doc }
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const performers = {
+    hide: async (doc) => {
+      const result = await updateDocumentStatus(doc.id, 'Archived');
+      if (result.success) {
+        setAllDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, status: 'Archived' } : d));
+        showNotification('Document hidden from patient');
+      } else {
+        showNotification('Failed to hide document');
+      }
+    },
+    archive: async (doc, reason) => {
+      try {
+        const response = await documentService.archive(doc.id, reason || undefined);
+        if (response.success) {
+          setAllDocuments(prev => prev.filter(d => d.id !== doc.id));
+          showNotification('Document archived');
+        } else {
+          showNotification(response.message || 'Failed to archive document');
+        }
+      } catch {
+        showNotification('Failed to archive document');
+      }
+    },
+    restore: async (doc) => {
+      try {
+        const response = await documentService.restore(doc.id);
+        if (response.success) {
+          setAllDocuments(prev => prev.filter(d => d.id !== doc.id));
+          showNotification('Document restored');
+        } else {
+          showNotification(response.message || 'Failed to restore document');
+        }
+      } catch {
+        showNotification('Failed to restore document');
+      }
+    },
   };
 
-  const handleArchiveFile = async (doc) => {
-    if (!window.confirm(`Archive "${doc.fileName}"? It will be hidden from every view (doctors, staff and patients) but never deleted. You can restore it from the "Archived Files" view.`)) return;
-    const reason = window.prompt('Reason for archiving (optional):');
-    try {
-      const response = await documentService.archive(doc.id, reason || undefined);
-      if (response.success) {
-        setAllDocuments(prev => prev.filter(d => d.id !== doc.id));
-        showNotification('Document archived');
-      } else {
-        showNotification(response.message || 'Failed to archive document');
-      }
-    } catch {
-      showNotification('Failed to archive document');
-    }
-  };
-
-  const handleRestore = async (doc) => {
-    if (!window.confirm(`Restore "${doc.fileName}"? It will reappear in all views.`)) return;
-    try {
-      const response = await documentService.restore(doc.id);
-      if (response.success) {
-        setAllDocuments(prev => prev.filter(d => d.id !== doc.id));
-        showNotification('Document restored');
-      } else {
-        showNotification(response.message || 'Failed to restore document');
-      }
-    } catch {
-      showNotification('Failed to restore document');
-    }
+  const runPendingAction = async (reason) => {
+    const { type, doc } = pendingAction;
+    setPendingAction(null);
+    await performers[type](doc, reason);
   };
 
   const handleView = async (doc) => {
@@ -187,18 +194,6 @@ const MedicalDocuments = () => {
     }
   };
 
-  const getPageNumbers = () => {
-    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
-    const pages = [];
-    if (currentPage <= 3) {
-      pages.push(1, 2, 3, 4, '...', totalPages);
-    } else if (currentPage >= totalPages - 2) {
-      pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
-    } else {
-      pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
-    }
-    return pages;
-  };
 
   if (loading) {
     return (
@@ -390,52 +385,26 @@ const MedicalDocuments = () => {
               onView={() => handleView(doc)}
               onDownload={() => handleDownload(doc)}
               onMarkReviewed={() => handleMarkAsReviewed(doc)}
-              onArchive={() => handleArchive(doc)}
-              onArchiveFile={() => handleArchiveFile(doc)}
-              onRestore={() => handleRestore(doc)}
+              onArchive={() => setPendingAction({ type: 'hide', doc })}
+              onArchiveFile={() => setPendingAction({ type: 'archive', doc })}
+              onRestore={() => setPendingAction({ type: 'restore', doc })}
             />
           ))}
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="p-2 rounded-lg border-2 border-gray-300 hover:border-primary disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-700" />
-          </button>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
 
-          {getPageNumbers().map((page, idx) => (
-            page === '...' ? (
-              <span key={`ellipsis-${idx}`} className="px-2 text-gray-500">...</span>
-            ) : (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`w-10 h-10 rounded-lg font-semibold text-sm transition ${
-                  currentPage === page
-                    ? 'bg-primary text-white border-2 border-primary'
-                    : 'border-2 border-gray-300 text-gray-700 hover:border-primary hover:bg-blue-50'
-                }`}
-              >
-                {page}
-              </button>
-            )
-          ))}
-
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="p-2 rounded-lg border-2 border-gray-300 hover:border-primary disabled:opacity-40 disabled:cursor-not-allowed transition"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-700" />
-          </button>
-        </div>
-      )}
+      {/* Action confirmation popup */}
+      <DocumentActionModal
+        pendingAction={pendingAction}
+        onClose={() => setPendingAction(null)}
+        onConfirm={runPendingAction}
+      />
     </div>
   );
 };

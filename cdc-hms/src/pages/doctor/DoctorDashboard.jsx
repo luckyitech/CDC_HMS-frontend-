@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Clock, CheckCircle, ClipboardList, Zap, AlertTriangle } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import StatusBadge from '../../components/shared/StatusBadge';
+import { QUEUE_STATUS_TONES } from '../../utils/statusStyles';
 import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
 import useNotificationSound from '../../hooks/useNotificationSound';
@@ -111,18 +113,6 @@ const DoctorDashboard = () => {
     { title: 'Completed',         value: clinicCompleted,       Icon: CheckCircle,   gradient: 'from-green-500 to-green-600' },
     { title: 'Active Queue',      value: clinicActiveTotal,     Icon: ClipboardList, gradient: 'from-purple-500 to-purple-600'},
   ].map(s => ({ ...s, value: s.value.toString() }));
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Awaiting Triage':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'In Triage':        return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'Awaiting Doctor':  return 'bg-purple-100 text-purple-700 border-purple-300';
-      case 'With Doctor':      return 'bg-green-100 text-green-700 border-green-300';
-      case 'Pending Billing':  return 'bg-amber-100 text-amber-700 border-amber-300';
-      case 'Completed':        return 'bg-gray-100 text-gray-700 border-gray-300';
-      default:                 return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
 
   const handleStartConsultation = (queueId, uhid, alreadyWithDoctor) => {
     // Only transition to "With Doctor" on the first click.
@@ -234,9 +224,9 @@ const DoctorDashboard = () => {
                       <div>
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
                         <div className="flex flex-col gap-1">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(queueItem.status)}`}>
+                          <StatusBadge size="xs" tone={QUEUE_STATUS_TONES[queueItem.status]}>
                             {queueItem.status}
-                          </span>
+                          </StatusBadge>
                           {queueItem.referralType && (
                             <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border w-fit ${
                               queueItem.referralType === 'Internal'
@@ -333,9 +323,9 @@ const DoctorDashboard = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(queueItem.status)}`}>
+                            <StatusBadge tone={QUEUE_STATUS_TONES[queueItem.status]}>
                               {queueItem.status}
-                            </span>
+                            </StatusBadge>
                             {/* Referral badge — shown when this patient arrived via referral */}
                             {queueItem.referralType && (
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border w-fit ${

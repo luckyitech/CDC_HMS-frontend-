@@ -19,17 +19,6 @@ const CriticalAlerts = () => {
     return true;
   });
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case "Critical":
-        return "bg-red-500 text-white";
-      case "High":
-        return "bg-orange-500 text-white";
-      default:
-        return "bg-yellow-500 text-white";
-    }
-  };
-
   const formatResults = (results) => {
     return Object.entries(results)
       .map(([key, value]) => `${key}: ${value}`)
