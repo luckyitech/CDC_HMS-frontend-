@@ -34,23 +34,10 @@ export const glp1Service = {
   // ============================================
 
   /**
-   * Get the clinic formulary — drives the medication tabs
-   * @param {Object} params - { active: 'false' to include retired agents }
+   * Get the GLP-1 agents — catalogue medications tagged GLP-1 / GIP. Drives the
+   * medication tabs. Agents are managed on the admin Clinical Catalog page.
    */
   getMedications: (params = {}) => api.get('/glp1-medications', { params }),
-
-  /**
-   * Add an agent to the formulary (admin only)
-   * @param {Object} data - genericName, brandName, drugClass, route,
-   *                        strengths[], defaultTitrationWeeks, defaultSchedule[]
-   * Note: the ladder is generated from strengths if defaultSchedule is omitted
-   */
-  createMedication: (data) => api.post('/glp1-medications', data),
-
-  updateMedication: (id, data) => api.put(`/glp1-medications/${id}`, data),
-
-  /** Retires rather than deletes — patients already on the agent keep their course */
-  retireMedication: (id) => api.delete(`/glp1-medications/${id}`),
 
   // ============================================
   // THERAPIES
@@ -74,9 +61,11 @@ export const glp1Service = {
 
   /**
    * Start a patient on a GLP-1 agonist
-   * @param {Object} data - Required: uhid, medicationId, startDate, safetyScreen
-   *                        Optional: indication, startingDose, targetDose,
-   *                                  otherConditions, baseline, doseSchedule, reviewWeeks
+   * @param {Object} data - Required: uhid, medicationName, startDate, safetyScreen,
+   *                        and a ladder (rungs[] or doseSchedule[])
+   *                        Optional: medicationBrand, indication, startWeek,
+   *                                  startingDose, targetDose, otherConditions,
+   *                                  baseline, reviewWeeks
    * Note: doctorId is auto-assigned from JWT token.
    *       Returns 422 if the safety screen is incomplete or a positive finding
    *       has no override reason.
@@ -100,8 +89,8 @@ export const glp1Service = {
 
   /**
    * Switch agent — stops this course and starts the new one linked to it.
-   * @param {Object} data - medicationId and reason required;
-   *                        startDate, startingDose, targetDose, doseSchedule optional
+   * @param {Object} data - medicationName, reason and doseSchedule required;
+   *                        medicationBrand, startDate, startingDose optional
    */
   switchMedication: (id, data) => api.post(`/glp1-therapies/${id}/switch`, data),
 

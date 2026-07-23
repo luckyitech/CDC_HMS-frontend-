@@ -72,22 +72,6 @@ export const Glp1Provider = ({ children }) => {
     }
   }, []);
 
-  const addMedication = useCallback(async (data) => {
-    try {
-      const response = await glp1Service.createMedication(data);
-      if (response.success) {
-        const medication = response.data;
-        setMedications(prev => [...prev, medication].sort(
-          (a, b) => a.genericName.localeCompare(b.genericName)
-        ));
-        return { success: true, medication };
-      }
-      return { success: false, message: response.message };
-    } catch (err) {
-      return { success: false, message: err.message };
-    }
-  }, []);
-
   // ============================================
   // THERAPIES
   // ============================================
@@ -269,11 +253,10 @@ export const Glp1Provider = ({ children }) => {
     loading,
     error,
 
-    // Formulary and catalogue
+    // Agents (from the clinic catalogue) and symptom catalogue
     fetchMedications,
     fetchSymptoms,
     addSymptom,
-    addMedication,
 
     // Therapies
     getTherapiesByPatient,
