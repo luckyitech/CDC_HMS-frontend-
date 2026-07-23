@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Droplets, CalendarCheck, TrendingUp, Activity, ChevronRight, Droplet, Pill } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import StatusBadge from '../../components/shared/StatusBadge';
+import { READING_TONES } from '../../utils/statusStyles';
 import { useUserContext } from '../../contexts/UserContext';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
@@ -37,15 +39,6 @@ const getBloodSugarStatus = (value, timeSlot) => {
     if (value <= 180) return 'normal';
     if (value <= 230) return 'elevated';
     return 'high';
-  }
-};
-
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'normal': return 'text-green-600 bg-green-100';
-    case 'elevated': return 'text-yellow-600 bg-yellow-100';
-    case 'high': return 'text-red-600 bg-red-100';
-    default: return 'text-gray-600 bg-gray-100';
   }
 };
 
@@ -233,9 +226,9 @@ const PatientDashboard = () => {
                     <p className="text-xs text-gray-500 mt-0.5">{reading.typeLabel} &middot; {reading.displayTime}</p>
                     <p className="text-xs text-gray-400">{formatDate(reading.date)}</p>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(reading.status)}`}>
+                  <StatusBadge size="xs" bordered={false} tone={READING_TONES[reading.status]}>
                     {reading.status}
-                  </span>
+                  </StatusBadge>
                 </div>
               ))}
             </div>
@@ -260,9 +253,9 @@ const PatientDashboard = () => {
                       <td className="px-4 py-3 text-sm">{reading.typeLabel}</td>
                       <td className="px-4 py-3 text-sm font-semibold">{toDisplay(reading.value, unit)} {unit}</td>
                       <td className="px-4 py-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(reading.status)}`}>
+                        <StatusBadge bordered={false} tone={READING_TONES[reading.status]}>
                           {reading.status}
-                        </span>
+                        </StatusBadge>
                       </td>
                     </tr>
                   ))}

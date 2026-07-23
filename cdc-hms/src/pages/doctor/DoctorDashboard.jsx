@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Clock, CheckCircle, ClipboardList, Zap, AlertTriangle } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import StatusBadge from '../../components/shared/StatusBadge';
+import { QUEUE_STATUS_TONES } from '../../utils/statusStyles';
 import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
 import useNotificationSound from '../../hooks/useNotificationSound';
-import { queueStatusColor, queueStatusLabel, isConsultationDone, isPendingInjection } from '../../utils/queueStatus';
+import { isConsultationDone, isPendingInjection } from '../../utils/queueStatus';
 
 const QUEUE_PER_PAGE = 15;
 
@@ -228,9 +230,9 @@ const DoctorDashboard = () => {
                       <div>
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Status</p>
                         <div className="flex flex-col gap-1">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${queueStatusColor(queueItem)}`}>
-                            {queueStatusLabel(queueItem)}
-                          </span>
+                          <StatusBadge size="xs" tone={QUEUE_STATUS_TONES[queueItem.status]}>
+                            {queueItem.status}
+                          </StatusBadge>
                           {queueItem.referralType && (
                             <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border w-fit ${
                               queueItem.referralType === 'Internal'
@@ -329,9 +331,9 @@ const DoctorDashboard = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${queueStatusColor(queueItem)}`}>
-                              {queueStatusLabel(queueItem)}
-                            </span>
+                            <StatusBadge tone={QUEUE_STATUS_TONES[queueItem.status]}>
+                              {queueItem.status}
+                            </StatusBadge>
                             {/* Referral badge — shown when this patient arrived via referral */}
                             {queueItem.referralType && (
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border w-fit ${

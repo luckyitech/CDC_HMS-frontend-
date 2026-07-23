@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./components/shared/ErrorFallback";
@@ -30,6 +30,7 @@ import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 
 // Shared pages (lazy)
 const MedicalDocuments = lazy(() => import("./pages/shared/MedicalDocuments"));
+const PatientVisitsReport = lazy(() => import("./pages/shared/PatientVisitsReport"));
 const ChangePasswordPage = lazy(() => import("./pages/shared/ChangePasswordPage"));
 
 // Staff pages (lazy)
@@ -74,10 +75,8 @@ const CriticalAlerts = lazy(() => import("./pages/lab/CriticalAlerts"));
 
 // Admin pages (lazy)
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
-const CreateDoctor = lazy(() => import("./pages/admin/CreateDoctor"));
-const CreateStaff = lazy(() => import("./pages/admin/CreateStaff"));
-const CreateLabTech = lazy(() => import("./pages/admin/CreateLabTech"));
-const AdminCreatePatient = lazy(() => import("./pages/admin/CreatePatient"));
+const CreateUsers = lazy(() => import("./pages/admin/CreateUsers"));
+const ClinicalCatalog = lazy(() => import("./pages/admin/ClinicalCatalog"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 const DuplicatePatients = lazy(() => import("./pages/admin/DuplicatePatients"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
@@ -152,6 +151,7 @@ function App() {
                   <Route path="appointments" element={<StaffAppointmentsList />} />
                   <Route path="book-appointment" element={<StaffBookAppointment />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
+                  <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -168,6 +168,7 @@ function App() {
                   <Route path="prescriptions" element={<DoctorPrescriptions />} />
                   <Route path="reports" element={<Reports />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
+                  <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="physical-exam" element={<PhysicalExamination />} />
                   <Route path="glycemic-charts" element={<GlycemicCharts />} />
                   <Route path="appointments" element={<DoctorAppointmentsList />} />
@@ -210,12 +211,16 @@ function App() {
                   element={<ProtectedRoute requiredRole="admin"><MainLayout userRole="Admin" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<AdminDashboard />} />
-                  <Route path="create-doctor" element={<CreateDoctor />} />
-                  <Route path="create-staff" element={<CreateStaff />} />
-                  <Route path="create-lab" element={<CreateLabTech />} />
-                  <Route path="create-patient" element={<AdminCreatePatient />} />
+                  <Route path="create-users" element={<CreateUsers />} />
+                  {/* Old per-role URLs redirect into the combined page */}
+                  <Route path="create-doctor" element={<Navigate to="/admin/create-users?role=doctor" replace />} />
+                  <Route path="create-staff" element={<Navigate to="/admin/create-users?role=staff" replace />} />
+                  <Route path="create-lab" element={<Navigate to="/admin/create-users?role=lab" replace />} />
+                  <Route path="create-patient" element={<Navigate to="/admin/create-users?role=patient" replace />} />
                   <Route path="manage-users" element={<ManageUsers />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
+                  <Route path="patient-visits" element={<PatientVisitsReport />} />
+                  <Route path="catalog" element={<ClinicalCatalog />} />
                   <Route path="duplicate-patients" element={<DuplicatePatients />} />
                   <Route path="activity-log" element={<ActivityLog />} />
                   <Route path="analytics" element={<AnalyticsOverview />} />

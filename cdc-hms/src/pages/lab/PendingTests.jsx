@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import StatusBadge from '../../components/shared/StatusBadge';
+import { PRIORITY_TONES, LAB_STATUS_TONES } from '../../utils/statusStyles';
 import { useNavigate } from 'react-router-dom';
 
 const PendingTests = () => {
@@ -149,22 +151,6 @@ const PendingTests = () => {
   // Get unique test types for filter
   const testTypes = ['all', ...new Set(pendingTests.map(t => t.test))];
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'Urgent': return 'bg-red-100 text-red-700 border-red-300';
-      case 'Routine': return 'bg-gray-100 text-gray-700 border-gray-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Sample Collected': return 'bg-green-100 text-green-700 border-green-300';
-      case 'Pending Sample': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
-
   return (
     <div>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
@@ -281,12 +267,12 @@ const PendingTests = () => {
                   {/* Test Info */}
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getPriorityColor(test.priority)}`}>
+                      <StatusBadge tone={PRIORITY_TONES[test.priority]}>
                         {test.priority}
-                      </span>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(test.status)}`}>
+                      </StatusBadge>
+                      <StatusBadge tone={LAB_STATUS_TONES[test.status]}>
                         {test.status}
-                      </span>
+                      </StatusBadge>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

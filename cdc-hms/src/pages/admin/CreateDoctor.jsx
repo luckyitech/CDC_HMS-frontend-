@@ -5,8 +5,13 @@ import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { Stethoscope, Briefcase } from 'lucide-react';
+import CardTitle from '../../components/shared/CardTitle';
+import PersonalInfoSection from '../../components/shared/formSections/PersonalInfoSection';
+import ContactInfoSection from '../../components/shared/formSections/ContactInfoSection';
+import AccountSettingsSection from '../../components/shared/formSections/AccountSettingsSection';
 
-const CreateDoctor = () => {
+const CreateDoctor = ({ embedded = false }) => {
   const navigate = useNavigate();
   
   const [doctorData, setDoctorData] = useState({
@@ -62,6 +67,9 @@ const CreateDoctor = () => {
     'Pediatrics',
     'Surgery',
   ];
+
+  // Generic field setter used by the shared form sections
+  const handleChange = (field, value) => setDoctorData((prev) => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -151,88 +159,22 @@ const CreateDoctor = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Doctor Account</h2>
-        <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-          ← Back to Dashboard
-        </Button>
-      </div>
+      {/* Page header — hidden when hosted inside Create Users */}
+      {!embedded && (
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
+          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Doctor Account</h2>
+          <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
+            ← Back to Dashboard
+          </Button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         {/* Personal Information */}
-        <Card title="👤 Personal Information" className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="First Name *"
-              type="text"
-              value={doctorData.firstName}
-              onChange={(e) => setDoctorData({ ...doctorData, firstName: e.target.value })}
-              placeholder="Enter first name"
-              required
-            />
-
-            <Input
-              label="Last Name *"
-              type="text"
-              value={doctorData.lastName}
-              onChange={(e) => setDoctorData({ ...doctorData, lastName: e.target.value })}
-              placeholder="Enter last name"
-              required
-            />
-
-            <Input
-              label="Email Address *"
-              type="email"
-              value={doctorData.email}
-              onChange={(e) => setDoctorData({ ...doctorData, email: e.target.value })}
-              placeholder="doctor@example.com"
-              required
-            />
-
-            <Input
-              label="Phone Number *"
-              type="tel"
-              value={doctorData.phone}
-              onChange={(e) => setDoctorData({ ...doctorData, phone: e.target.value })}
-              placeholder="+254 712 345 678"
-              required
-            />
-
-            <Input
-              label="Date of Birth"
-              type="date"
-              value={doctorData.dateOfBirth}
-              onChange={(e) => setDoctorData({ ...doctorData, dateOfBirth: e.target.value })}
-            />
-
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Gender *</label>
-              <select
-                value={doctorData.gender}
-                onChange={(e) => setDoctorData({ ...doctorData, gender: e.target.value })}
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-                required
-              >
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <Input
-              label="ID/Passport Number *"
-              type="text"
-              value={doctorData.idNumber}
-              onChange={(e) => setDoctorData({ ...doctorData, idNumber: e.target.value })}
-              placeholder="ID or Passport Number"
-              required
-            />
-          </div>
-        </Card>
+        <PersonalInfoSection data={doctorData} onChange={handleChange} emailPlaceholder="doctor@example.com" />
 
         {/* Professional Information */}
-        <Card title="🩺 Professional Information" className="mb-6">
+        <Card title={<CardTitle icon={Stethoscope}>Professional Information</CardTitle>} className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Medical License Number *"
@@ -295,7 +237,7 @@ const CreateDoctor = () => {
         </Card>
 
         {/* Employment Details */}
-        <Card title="💼 Employment Details" className="mb-6">
+        <Card title={<CardTitle icon={Briefcase}>Employment Details</CardTitle>} className="mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Department *</label>
@@ -339,95 +281,10 @@ const CreateDoctor = () => {
         </Card>
 
         {/* Contact Information */}
-        <Card title="📍 Contact Information" className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Residential Address</label>
-              <textarea
-                value={doctorData.address}
-                onChange={(e) => setDoctorData({ ...doctorData, address: e.target.value })}
-                placeholder="Full address"
-                rows="2"
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            <Input
-              label="City"
-              type="text"
-              value={doctorData.city}
-              onChange={(e) => setDoctorData({ ...doctorData, city: e.target.value })}
-              placeholder="City"
-            />
-
-            <Input
-              label="Emergency Contact Name"
-              type="text"
-              value={doctorData.emergencyContact}
-              onChange={(e) => setDoctorData({ ...doctorData, emergencyContact: e.target.value })}
-              placeholder="Emergency contact person"
-            />
-
-            <Input
-              label="Emergency Contact Phone"
-              type="tel"
-              value={doctorData.emergencyPhone}
-              onChange={(e) => setDoctorData({ ...doctorData, emergencyPhone: e.target.value })}
-              placeholder="+254 712 345 678"
-            />
-          </div>
-        </Card>
+        <ContactInfoSection data={doctorData} onChange={handleChange} />
 
         {/* Account Settings */}
-        <Card title="🔐 Account Settings" className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* TODO: Username field — backend does not support username yet (auth is by email).
-                Uncomment and wire up once username support is added to the User model.
-            <div>
-              <Input
-                label="Username *"
-                type="text"
-                value={doctorData.username}
-                onChange={(e) => setDoctorData({ ...doctorData, username: e.target.value })}
-                placeholder="username"
-                required
-              />
-              <button
-                type="button"
-                onClick={generateUsername}
-                className="mt-2 text-xs text-primary hover:underline"
-              >
-                Generate from name
-              </button>
-            </div>
-            */}
-
-            <div>
-              <Input
-                label="Temporary Password *"
-                type="text"
-                value={doctorData.temporaryPassword}
-                onChange={(e) => setDoctorData({ ...doctorData, temporaryPassword: e.target.value })}
-                placeholder="Temporary password"
-                required
-              />
-              <button
-                type="button"
-                onClick={generatePassword}
-                className="mt-2 text-xs text-primary hover:underline"
-              >
-                Generate secure password
-              </button>
-            </div>
-
-            <div className="md:col-span-2 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
-              <p className="text-sm text-gray-700">
-                <strong>⚠️ Note:</strong> The temporary password will be sent to the doctor's email. 
-                They will be required to change it upon first login.
-              </p>
-            </div>
-          </div>
-        </Card>
+        <AccountSettingsSection data={doctorData} onChange={handleChange} onGeneratePassword={generatePassword} roleNoun="doctor" />
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4">

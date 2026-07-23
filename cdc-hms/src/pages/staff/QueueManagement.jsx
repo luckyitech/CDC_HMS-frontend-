@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import useNotificationSound from '../../hooks/useNotificationSound';
-import { queueStatusColor } from '../../utils/queueStatus';
 import {
   ClipboardList,
   Users,
@@ -17,6 +16,8 @@ import {
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import StatusBadge from '../../components/shared/StatusBadge';
+import { QUEUE_STATUS_TONES, QUEUE_PRIORITY_TONES } from '../../utils/statusStyles';
 import { useQueueContext } from '../../contexts/QueueContext';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
 
@@ -73,10 +74,6 @@ const QueueManagement = () => {
   // Use local stats (synchronous) for display
   const stats = getLocalQueueStats();
 
-  // Colours come from utils/queueStatus so every queue view agrees. Takes a
-  // status string here rather than an item — the call sites pass patient.status.
-  const getStatusColor = (status) => queueStatusColor({ status });
-
   const handleDischargeClick = (patient) => {
     setDischargePatient(patient);
     setFinalCharges(patient.selectedCharges || []);
@@ -116,12 +113,6 @@ const QueueManagement = () => {
     }
     setShowDischargeModal(false);
     setDischargePatient(null);
-  };
-
-  const getPriorityColor = (priority) => {
-    return priority === 'Urgent' 
-      ? 'bg-red-100 text-red-700 border-red-300' 
-      : 'bg-green-100 text-green-700 border-green-300';
   };
 
   const handleRemoveClick = (id, name) => {
@@ -254,14 +245,14 @@ const QueueManagement = () => {
                       <p className="text-sm font-semibold text-primary">{patient.uhid}</p>
                     </Field>
                     <Field label="Status">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(patient.status)}`}>
+                      <StatusBadge size="xs" tone={QUEUE_STATUS_TONES[patient.status]}>
                         {patient.status}
-                      </span>
+                      </StatusBadge>
                     </Field>
                     <Field label="Priority">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${getPriorityColor(patient.priority)}`}>
+                      <StatusBadge size="xs" tone={QUEUE_PRIORITY_TONES[patient.priority] || 'success'}>
                         {patient.priority}
-                      </span>
+                      </StatusBadge>
                     </Field>
                     <Field label="Est. Wait">
                       <p className="text-sm text-gray-600 flex items-center gap-1">
@@ -338,14 +329,14 @@ const QueueManagement = () => {
                       <td className="px-6 py-4 text-sm">{formatArrival(patient.createdAt)}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{patient.estimatedWait || '—'}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getPriorityColor(patient.priority)}`}>
+                        <StatusBadge tone={QUEUE_PRIORITY_TONES[patient.priority] || 'success'}>
                           {patient.priority}
-                        </span>
+                        </StatusBadge>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${getStatusColor(patient.status)}`}>
+                        <StatusBadge tone={QUEUE_STATUS_TONES[patient.status]}>
                           {patient.status}
-                        </span>
+                        </StatusBadge>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700 font-medium">{patient.assignedDoctorName || '—'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{patient.reason}</td>

@@ -1,18 +1,11 @@
 // LabTestDetailsModal.jsx - Reusable modal component for viewing test details
 
 import Button from "../shared/Button";
+import StatusBadge from "../shared/StatusBadge";
+import { LAB_RESULT_TONES } from "../../utils/statusStyles";
 
 const LabTestDetailsModal = ({ test, onClose }) => {
   if (!test) return null;
-
-  const getInterpretationColor = (interpretation) => {
-    switch (interpretation) {
-      case 'Normal': return 'bg-green-100 text-green-700 border-green-300';
-      case 'Abnormal': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'Critical': return 'bg-red-100 text-red-700 border-red-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
 
   const formatTestResults = (results) => {
     return Object.entries(results).map(([key, value]) => ({
@@ -44,9 +37,9 @@ const LabTestDetailsModal = ({ test, onClose }) => {
         <div className="p-6 space-y-6">
           {/* Status Badge */}
           <div className="flex flex-wrap items-center gap-3">
-            <span className={`px-4 py-2 rounded-full text-sm font-bold border-2 ${getInterpretationColor(test.interpretation)}`}>
+            <StatusBadge size="md" tone={LAB_RESULT_TONES[test.interpretation]}>
               {test.interpretation}
-            </span>
+            </StatusBadge>
             {test.isCritical && (
               <span className="px-4 py-2 bg-red-500 text-white rounded-full text-sm font-bold animate-pulse">
                 🚨 CRITICAL RESULT

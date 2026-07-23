@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Pill } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import StatusBadge from '../../components/shared/StatusBadge';
+import { PRESCRIPTION_TONES } from '../../utils/statusStyles';
 import cdcLogo from '../../assets/cdc_web_logo1.svg';
 import { usePrescriptionContext } from '../../contexts/PrescriptionContext';
 import { useUserContext } from '../../contexts/UserContext';
@@ -66,16 +68,6 @@ const PatientPrescriptions = () => {
     });
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active':    return 'bg-green-100 text-green-700 border-green-300';
-      case 'Completed': return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'Cancelled': return 'bg-red-100 text-red-700 border-red-300';
-      case 'Expired':   return 'bg-gray-100 text-gray-700 border-gray-300';
-      default:          return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
-
   return (
     <div>
       {/* Header + Filter */}
@@ -138,9 +130,9 @@ const PatientPrescriptions = () => {
                     <h3 className="text-base sm:text-xl font-bold text-gray-800">
                       Prescription #{rx.prescriptionNumber}
                     </h3>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(rx.status)}`}>
+                    <StatusBadge tone={PRESCRIPTION_TONES[rx.status]}>
                       {rx.status}
-                    </span>
+                    </StatusBadge>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 sm:gap-2">
                     <div className="bg-gray-50 rounded-lg px-3 py-2">

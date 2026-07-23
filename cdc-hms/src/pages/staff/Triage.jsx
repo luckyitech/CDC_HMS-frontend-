@@ -18,9 +18,80 @@ import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
 import { getBpColor, getTemperatureColor, getO2Color, getRbsColor, getHba1cColor, getKetonesColor } from '../../utils/clinicalColors';
 import { usePatientContext } from "../../contexts/PatientContext";
+import patientService from "../../services/patientService";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useAppointmentContext } from "../../contexts/AppointmentContext";
 import api from "../../services/api";
+
+// "Last: <value> (<date>)" line shown under vitals and calculated values
+const LastVisitNote = ({ value, className = "" }) =>
+  value ? <p className={`text-xs text-gray-400 mb-2 ${className}`}>Last: {value}</p> : null;
+
+// For each vital, keep the most recent non-null reading and when it was taken.
+// Vitals like HbA1c aren't measured every visit, so each field is looked up
+// independently across the history (which arrives newest first).
+const buildLastReadings = (history) => {
+  const readings = {};
+  history.forEach((record) => {
+    Object.entries(record).forEach(([key, value]) => {
+      if (key === "recordedAt" || value === null || value === undefined) return;
+      if (!readings[key]) readings[key] = { value, recordedAt: record.recordedAt };
+    });
+  });
+  return readings;
+};
+
+// Last known waist-to-height ratio: the stored one if any visit computed it,
+// otherwise derived from the last known waist and height (dated by the waist
+// measurement, since height barely changes).
+const lastRatioReading = (readings) => {
+  if (!readings) return null;
+  if (readings.waistHeightRatio) return readings.waistHeightRatio;
+  const waist = parseFloat(readings.waistCircumference?.value);
+  const height = parseFloat(readings.height?.value);
+  if (!Number.isFinite(waist) || !Number.isFinite(height) || height <= 0) return null;
+  return { value: (waist / height).toFixed(2), recordedAt: readings.waistCircumference.recordedAt };
+};
+
+const formatLastReading = (reading, unit = "") => {
+  if (!reading) return null;
+  const date = reading.recordedAt
+    ? ` (${new Date(reading.recordedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })})`
+    : "";
+  return `${reading.value}${unit ? ` ${unit}` : ""}${date}`;
+};
+
+// One vital-sign input: numeric guard, clinical status label, and the
+// patient's last recorded value underneath for quick comparison.
+const VitalField = ({ label, field, vitals, setVitals, placeholder, lastValue, type = "number", step, statusFn }) => {
+  const value = vitals[field];
+  const status = value && statusFn ? statusFn(value) : null;
+
+  const handleChange = (e) => {
+    const v = e.target.value;
+    if (type === "text" || v === "" || parseFloat(v) >= 0) {
+      setVitals({ ...vitals, [field]: v });
+    }
+  };
+
+  return (
+    <div>
+      <Input
+        label={label}
+        type={type}
+        min={type === "number" ? "0" : undefined}
+        step={step}
+        value={value}
+        onChange={handleChange}
+        placeholder={placeholder}
+      />
+      {status && (
+        <p className={`text-xs font-semibold -mt-4 mb-2 ${status.text}`}>{status.label}</p>
+      )}
+      <LastVisitNote value={lastValue} className={status ? "" : "-mt-2"} />
+    </div>
+  );
+};
 
 const Triage = () => {
   const { fetchPatientByUHID, updatePatientVitals } = usePatientContext();
@@ -109,6 +180,11 @@ const Triage = () => {
 
   const waistHeightRatio = calculateWaistHeightRatio();
 
+  // Per-field latest readings from the vitals history — shown under each input
+  const [lastReadings, setLastReadings] = useState(null);
+  const last = (field, unit) => formatLastReading(lastReadings?.[field], unit);
+  const lastRatio = lastRatioReading(lastReadings);
+
   // Get waist-to-height ratio status
   const getWaistRatioStatus = (ratio) => {
     const r = parseFloat(ratio);
@@ -157,6 +233,22 @@ const Triage = () => {
     // Update queue status to "In Triage" using queue item ID
     await updateQueueStatus(queueItem.id, "In Triage");
 
+    // Per-field last readings across the whole vitals history — vitals like
+    // HbA1c aren't taken every visit, so each shows its own last-taken value
+    let readings = {};
+    try {
+      const res = await patientService.getVitalsHistory(queueItem.uhid);
+      if (res.success && Array.isArray(res.data)) readings = buildLastReadings(res.data);
+    } catch {
+      // hints simply stay empty
+    }
+    setLastReadings(readings);
+
+    // Height carries over from the last known measurement (heights rarely
+    // change, so nurses shouldn't have to re-enter it): "170 cm" → "170"
+    const lastHeight = parseFloat(readings.height?.value);
+    const previousHeight = Number.isFinite(lastHeight) ? String(lastHeight) : "";
+
     // Check for saved draft data in localStorage
     const triageKey = `triage_draft_${queueItem.uhid}`;
     const savedDraft = localStorage.getItem(triageKey);
@@ -164,7 +256,7 @@ const Triage = () => {
     if (savedDraft) {
       // Restore saved data
       const draftData = JSON.parse(savedDraft);
-      setVitals(draftData.vitals);
+      setVitals({ ...draftData.vitals, height: draftData.vitals.height || previousHeight });
       setChiefComplaint(draftData.chiefComplaint || queueItem.reason || "");
       setAllergies(draftData.allergies || "");
       setAssignedDoctor(draftData.assignedDoctor || "");
@@ -188,13 +280,13 @@ const Triage = () => {
         setAssignedDoctor("");
       }
 
-      // Reset form
+      // Reset form (height carries over from the last visit)
       setVitals({
         bloodPressure: "",
         heartRate: "",
         temperature: "",
         weight: "",
-        height: "",
+        height: previousHeight,
         oxygenSaturation: "",
         rbs: "",
         hba1c: "",
@@ -792,112 +884,20 @@ const Triage = () => {
                       Vital Signs
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Input
-                          label="Blood Pressure *"
-                          type="text"
-                          value={vitals.bloodPressure}
-                          onChange={(e) =>
-                            setVitals({ ...vitals, bloodPressure: e.target.value })
-                          }
-                          placeholder="120/80 mmHg"
-                        />
-                        {vitals.bloodPressure && getBpColor(vitals.bloodPressure) && (
-                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getBpColor(vitals.bloodPressure).text}`}>
-                            {getBpColor(vitals.bloodPressure).label}
-                          </p>
-                        )}
-                      </div>
+                      <VitalField label="Blood Pressure *" field="bloodPressure" type="text" placeholder="120/80 mmHg" statusFn={getBpColor} lastValue={last("bp")} vitals={vitals} setVitals={setVitals} />
 
-                      <Input
-                        label="Heart Rate *"
-                        type="number"
-                        min="0"
-                        value={vitals.heartRate}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          // Only allow positive numbers or empty string
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, heartRate: value });
-                          }
-                        }}
-                        placeholder="bpm"
-                      />
+                      <VitalField label="Heart Rate *" field="heartRate" placeholder="bpm" lastValue={last("heartRate")} vitals={vitals} setVitals={setVitals} />
 
-                      <div>
-                        <Input
-                          label="Temperature *"
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={vitals.temperature}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === "" || parseFloat(value) >= 0) {
-                              setVitals({ ...vitals, temperature: value });
-                            }
-                          }}
-                          placeholder="°C"
-                        />
-                        {vitals.temperature && getTemperatureColor(vitals.temperature) && (
-                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getTemperatureColor(vitals.temperature).text}`}>
-                            {getTemperatureColor(vitals.temperature).label}
-                          </p>
-                        )}
-                      </div>
+                      <VitalField label="Temperature *" field="temperature" step="0.1" placeholder="°C" statusFn={getTemperatureColor} lastValue={last("temperature")} vitals={vitals} setVitals={setVitals} />
 
-                      <div>
-                        <Input
-                          label="Oxygen Saturation"
-                          type="number"
-                          min="0"
-                          value={vitals.oxygenSaturation}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === "" || parseFloat(value) >= 0) {
-                              setVitals({ ...vitals, oxygenSaturation: value });
-                            }
-                          }}
-                          placeholder="%"
-                        />
-                        {vitals.oxygenSaturation && getO2Color(vitals.oxygenSaturation) && (
-                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getO2Color(vitals.oxygenSaturation).text}`}>
-                            {getO2Color(vitals.oxygenSaturation).label}
-                          </p>
-                        )}
-                      </div>
+                      <VitalField label="Oxygen Saturation" field="oxygenSaturation" placeholder="%" statusFn={getO2Color} lastValue={last("oxygenSaturation")} vitals={vitals} setVitals={setVitals} />
 
-                      <Input
-                        label="Weight"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={vitals.weight}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, weight: value });
-                          }
-                        }}
-                        placeholder="kg"
-                      />
+                      <VitalField label="Weight" field="weight" step="0.1" placeholder="kg" lastValue={last("weight")} vitals={vitals} setVitals={setVitals} />
 
-                      <Input
-                        label="Height"
-                        type="number"
-                        min="0"
-                        value={vitals.height}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, height: value });
-                          }
-                        }}
-                        placeholder="cm"
-                      />
+                      <VitalField label="Height" field="height" placeholder="cm" lastValue={last("height")} vitals={vitals} setVitals={setVitals} />
 
                       {/* BMI Display */}
-                      {bmi && (() => {
+                      {(bmi || lastReadings?.bmi) && (() => {
                         const bmiVal = parseFloat(bmi);
                         const bmiColor = bmiVal < 18.5
                           ? { bg: 'bg-yellow-50', border: 'border-yellow-300', text: 'text-yellow-700', label: 'Underweight' }
@@ -911,125 +911,65 @@ const Triage = () => {
                             <label className="block text-sm font-semibold text-gray-700 mb-2">
                               BMI (Calculated)
                             </label>
-                            <div className={`px-4 py-3 ${bmiColor.bg} border-2 ${bmiColor.border} rounded-lg`}>
-                              <span className={`text-lg font-bold ${bmiColor.text}`}>{bmi} kg/m²</span>
-                              <span className="text-xs text-gray-600 ml-2">({bmiColor.label})</span>
-                            </div>
+                            {bmi ? (
+                              <div className={`px-4 py-3 ${bmiColor.bg} border-2 ${bmiColor.border} rounded-lg`}>
+                                <span className={`text-lg font-bold ${bmiColor.text}`}>{bmi} kg/m²</span>
+                                <span className="text-xs text-gray-600 ml-2">({bmiColor.label})</span>
+                              </div>
+                            ) : (
+                              <div className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-sm text-gray-400 italic">
+                                Enter weight &amp; height
+                              </div>
+                            )}
+                            <LastVisitNote value={last("bmi", "kg/m²")} className="mt-1" />
                           </div>
                         );
                       })()}
 
-                      {/* NEW: Waist Circumference */}
-                      <Input
-                        label="Waist Circumference"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={vitals.waistCircumference}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === "" || parseFloat(value) >= 0) {
-                            setVitals({ ...vitals, waistCircumference: value });
-                          }
-                        }}
-                        placeholder="cm"
-                      />
+                      <VitalField label="Waist Circumference" field="waistCircumference" step="0.1" placeholder="cm" lastValue={last("waistCircumference")} vitals={vitals} setVitals={setVitals} />
 
                       {/* Waist-to-Height Ratio Display */}
-                      {waistHeightRatio && (
+                      {(waistHeightRatio || lastRatio) && (
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Waist-to-Height Ratio (Calculated)
                           </label>
-                          <div
-                            className={`px-4 py-3 border-2 rounded-lg ${
-                              getWaistRatioStatus(waistHeightRatio).bg
-                            } border-${getWaistRatioStatus(
-                              waistHeightRatio
-                            ).color.replace("text-", "")}-300`}
-                          >
-                            <span
-                              className={`text-lg font-bold ${
-                                getWaistRatioStatus(waistHeightRatio).color
-                              }`}
+                          {waistHeightRatio ? (
+                            <div
+                              className={`px-4 py-3 border-2 rounded-lg ${
+                                getWaistRatioStatus(waistHeightRatio).bg
+                              } border-${getWaistRatioStatus(
+                                waistHeightRatio
+                              ).color.replace("text-", "")}-300`}
                             >
-                              {waistHeightRatio}
-                            </span>
-                            <span className="text-xs text-gray-600 ml-2">
-                              ({getWaistRatioStatus(waistHeightRatio).text})
-                            </span>
-                          </div>
+                              <span
+                                className={`text-lg font-bold ${
+                                  getWaistRatioStatus(waistHeightRatio).color
+                                }`}
+                              >
+                                {waistHeightRatio}
+                              </span>
+                              <span className="text-xs text-gray-600 ml-2">
+                                ({getWaistRatioStatus(waistHeightRatio).text})
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-lg text-sm text-gray-400 italic">
+                              Enter waist &amp; height
+                            </div>
+                          )}
+                          <LastVisitNote value={formatLastReading(lastRatio)} className="mt-1" />
                           <p className="text-xs text-gray-500 mt-1">
                             Target: &lt; 0.5 (Healthy)
                           </p>
                         </div>
                       )}
 
-                      <div>
-                        <Input
-                          label="RBS (Random Blood Sugar)"
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={vitals.rbs}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === "" || parseFloat(value) >= 0) {
-                              setVitals({ ...vitals, rbs: value });
-                            }
-                          }}
-                          placeholder="mmol/L"
-                        />
-                        {vitals.rbs && getRbsColor(vitals.rbs) && (
-                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getRbsColor(vitals.rbs).text}`}>
-                            {getRbsColor(vitals.rbs).label}
-                          </p>
-                        )}
-                      </div>
+                      <VitalField label="RBS (Random Blood Sugar)" field="rbs" step="0.1" placeholder="mmol/L" statusFn={getRbsColor} lastValue={last("rbs")} vitals={vitals} setVitals={setVitals} />
 
-                      <div>
-                        <Input
-                          label="HbA1c"
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={vitals.hba1c}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === "" || parseFloat(value) >= 0) {
-                              setVitals({ ...vitals, hba1c: value });
-                            }
-                          }}
-                          placeholder="%"
-                        />
-                        {vitals.hba1c && getHba1cColor(vitals.hba1c) && (
-                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getHba1cColor(vitals.hba1c).text}`}>
-                            {getHba1cColor(vitals.hba1c).label}
-                          </p>
-                        )}
-                      </div>
+                      <VitalField label="HbA1c" field="hba1c" step="0.1" placeholder="%" statusFn={getHba1cColor} lastValue={last("hba1c")} vitals={vitals} setVitals={setVitals} />
 
-                      <div>
-                        <Input
-                          label="Ketones"
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={vitals.ketones}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (value === "" || parseFloat(value) >= 0) {
-                              setVitals({ ...vitals, ketones: value });
-                            }
-                          }}
-                          placeholder="mmol/L"
-                        />
-                        {vitals.ketones && getKetonesColor(vitals.ketones) && (
-                          <p className={`text-xs font-semibold -mt-4 mb-2 ${getKetonesColor(vitals.ketones).text}`}>
-                            {getKetonesColor(vitals.ketones).label}
-                          </p>
-                        )}
-                      </div>
+                      <VitalField label="Ketones" field="ketones" step="0.1" placeholder="mmol/L" statusFn={getKetonesColor} lastValue={last("ketones")} vitals={vitals} setVitals={setVitals} />
                     </div>
                   </div>
                   )}
