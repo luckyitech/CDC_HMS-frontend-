@@ -20,6 +20,10 @@ import {
   ClipboardCheck,
   X,
   Pencil,
+  Wrench,
+  Syringe,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../../components/shared/Card";
@@ -36,6 +40,7 @@ import { useAppointmentContext } from "../../contexts/AppointmentContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import ReferPatientModal from "../../components/doctor/ReferPatientModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
+import { INJECTION_REASON, PENDING_INJECTION } from "../../utils/queueStatus";
 import patientService from "../../services/patientService";
 import InitialAssessment from "./InitialAssessment";
 import PhysicalExamList from "../../components/doctor/PhysicalExamList";
@@ -45,6 +50,7 @@ import PrescriptionManagement from "../../components/doctor/PrescriptionManageme
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import AccordionPanel from "../../components/shared/AccordionPanel";
+import Glp1Tracker from "../../components/doctor/Glp1Tracker";
 import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import { parseDiagnoses } from "../../components/shared/DiagnosisInput";
@@ -61,6 +67,13 @@ const ACCORDION_SECTIONS = [
   { id: 'prescriptions', label: 'Prescriptions',              icon: Pill,          required: false },
 ];
 
+// NOTE: 'tools' is deliberately NOT in ACCORDION_SECTIONS.
+// The two columns are split by index parity after filtering out prescriptions,
+// so inserting an entry shifts every later section's column — adding 'tools'
+// after 'notes' would move Diagnosis & Treatment Plan, the required section the
+// whole workflow gates on, from the right column to the left.
+// Tools renders full-width below the grid, using the same pattern as Prescriptions.
+
 // AccordionPanel, HistoryField, VisitSectionHeader — moved to shared components
 
 // ---------------------------------------------------------------------------
@@ -73,7 +86,7 @@ const Consultation = () => {
 
   const { currentUser }                               = useUserContext();
   const { fetchPatientByUHID }                        = usePatientContext();
-  const { queue, sendToBilling }                      = useQueueContext();
+  const { queue, sendToBilling, updateQueueStatus }   = useQueueContext();
   const { getLatestAssessment }                        = useInitialAssessmentContext();
   const { getLatestExamination }                       = usePhysicalExamContext();
   const { getLatestPlan }                              = useTreatmentPlanContext();
@@ -130,6 +143,31 @@ const Consultation = () => {
   // Visit History state lives in VisitHistoryPanel (shared component)
 
   // Modals
+  // True while a GLP-1 review is part-typed, so the Tools header shows the
+  // orange unsaved dot like every other section. Tools never gates Complete
+  // Consultation — only Diagnosis does.
+  const [toolsDirty, setToolsDirty] = useState(false);
+
+  // Which tool inside the Tools card is open. GLP-1 is the only one so far.
+  const [openTool, setOpenTool] = useState(null);
+
+  /**
+   * The patient's live queue entry for today.
+   *
+   * 'With Doctor' is the normal case, but a patient sent to the nurse for an
+   * injection sits in a triage status while the doctor still has the chart open.
+   * Matching on any open status means the consultation can always be completed
+   * — one helper, every caller.
+   */
+  const OPEN_QUEUE_STATUSES = [
+    'With Doctor', 'Awaiting Doctor', 'Awaiting Triage', 'In Triage', PENDING_INJECTION,
+  ];
+
+  const findQueueItem = useCallback(
+    () => queue.find(q => q.uhid === patient?.uhid && OPEN_QUEUE_STATUSES.includes(q.status)),
+    [queue, patient?.uhid]
+  );
+
   const [showVitalsModal, setShowVitalsModal]       = useState(false);
   const [showReferModal, setShowReferModal]         = useState(false);
   const [showOrderLabModal, setShowOrderLabModal]   = useState(false);
@@ -139,6 +177,12 @@ const Consultation = () => {
   const [selectedCharges, setSelectedCharges]       = useState([]);
   const [selectedProcedures, setSelectedProcedures] = useState([]);
   const [billingSubmitting, setBillingSubmitting]   = useState(false);
+  // When set, the patient goes back to the nurse for their injection instead of
+  // straight to billing. The charges picked here ride along and are merged when
+  // the nurse finally sends them to billing.
+  const [sendForInjection, setSendForInjection]     = useState(false);
+  // Procedures list is collapsed by default — most visits bill none
+  const [proceduresOpen, setProceduresOpen]         = useState(false);
   const [doctorNotes, setDoctorNotes]               = useState('');
   const [bookFollowUp, setBookFollowUp]             = useState(false);
   const [followUpDate, setFollowUpDate]             = useState('');
@@ -162,7 +206,9 @@ const Consultation = () => {
       respiratory !== ""       || gastrointestinal !== "" ||
       neurological !== ""      || musculoskeletal !== ""  ||
       skin !== ""              || examFindings !== "",
+    tools: toolsDirty,
   }), [
+    toolsDirty,
     historyOfPresentIllness, reviewOfSystems, pastMedicalHistory,
     familyHistory, socialHistory,
     generalAppearance, cardiovascular, respiratory,
@@ -263,7 +309,7 @@ const Consultation = () => {
       return;
     }
     // Capture the queue item now so SSE updates during the modal don't lose it
-    const queueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
+    const queueItem = findQueueItem();
     if (!queueItem) {
       toast.error('Could not find an active queue entry for this patient. Please refresh and try again.', {
         duration: 5000, position: 'top-right',
@@ -274,6 +320,7 @@ const Consultation = () => {
     setBillingQueueItem(queueItem);
     setSelectedCharges([]);
     setSelectedProcedures([]);
+    setSendForInjection(false);
     setDoctorNotes('');
     setBookFollowUp(false);
     setFollowUpDate('');
@@ -295,6 +342,11 @@ const Consultation = () => {
     setSlotsLoading(false);
   };
 
+  // Nothing ticked means nothing to bill. 'No Charge' and 'Free Review' are
+  // themselves options, so an empty selection is an omission rather than a
+  // deliberate zero — applies to the injection route too.
+  const hasBillingSelection = selectedCharges.length > 0 || selectedProcedures.length > 0;
+
   const handleBillingSubmit = async () => {
     const queueItem = billingQueueItem;
     if (!queueItem) {
@@ -303,9 +355,26 @@ const Consultation = () => {
       });
       return;
     }
+    if (!hasBillingSelection) {
+      toast.error('Select at least one charge or procedure. Use "No Charge" if the visit is free.', {
+        duration: 5000, position: 'top-right',
+      });
+      return;
+    }
     setBillingSubmitting(true);
     try {
-      await sendToBilling(queueItem.id, selectedCharges, selectedProcedures, doctorNotes.trim() || null);
+      if (sendForInjection) {
+        // Back to the nurse. Charges ride along on the queue entry and are
+        // merged by sendToBilling when the nurse finishes — no double entry.
+        await updateQueueStatus(queueItem.id, PENDING_INJECTION, null, {
+          selectedCharges,
+          selectedProcedures,
+          reason: INJECTION_REASON,
+          ...(doctorNotes.trim() ? { doctorNotes: doctorNotes.trim() } : {}),
+        });
+      } else {
+        await sendToBilling(queueItem.id, selectedCharges, selectedProcedures, doctorNotes.trim() || null);
+      }
 
       if (bookFollowUp && followUpDate && followUpSlot) {
         const apptResult = await addAppointment({
@@ -807,6 +876,52 @@ const Consultation = () => {
             ))}
           </div>
 
+          {/* Tools — full width, between the grid and Prescriptions.
+              Not part of ACCORDION_SECTIONS: see the note by that constant. */}
+          <AccordionPanel
+            icon={Wrench}
+            label="Clinical Tools"
+            badge={
+              <>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
+                  1 tool
+                </span>
+                {tabsUnsaved.tools && (
+                  <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes" />
+                )}
+              </>
+            }
+            isOpen={openSections === 'tools'}
+            onToggle={() => toggleSection('tools')}
+          >
+            {/* Tools is a container for several clinical tools. GLP-1 monitoring
+                is the only one so far; others get their own entry here. */}
+            <div className="border border-gray-200 rounded-lg">
+              <button
+                onClick={() => setOpenTool(openTool === 'glp1' ? null : 'glp1')}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <Syringe className={`w-4 h-4 ${openTool === 'glp1' ? 'text-primary' : 'text-gray-400'}`} />
+                  <span className={`text-sm font-medium ${openTool === 'glp1' ? 'text-primary' : 'text-gray-700'}`}>
+                    GLP-1 / GIP agonist monitoring
+                  </span>
+                </div>
+                <span className="text-xs text-gray-400">
+                  {openTool === 'glp1' ? 'Hide' : 'Open'}
+                </span>
+              </button>
+              {openTool === 'glp1' && (
+                <div className="border-t border-gray-100 p-4">
+                  <Glp1Tracker
+                    patient={patient}
+                    onDirtyChange={setToolsDirty}
+                  />
+                </div>
+              )}
+            </div>
+          </AccordionPanel>
+
           {/* Prescriptions — full width at the bottom */}
           {(() => {
             const section = ACCORDION_SECTIONS.find(s => s.id === 'prescriptions');
@@ -931,29 +1046,83 @@ const Consultation = () => {
                 </div>
               </div>
 
-              {/* Procedures */}
+              {/* Procedures — collapsed by default; most visits have none, and
+                  the list only grows as the clinic adds services */}
               <div>
-                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Procedures</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {PROCEDURE_OPTIONS.map(item => (
-                    <label
-                      key={item}
-                      className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
-                        selectedProcedures.includes(item)
-                          ? 'bg-green-50 border-green-400 text-gray-800'
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedProcedures.includes(item)}
-                        onChange={() => toggleProcedure(item)}
-                        className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
-                      />
-                      <span className="text-sm font-medium leading-tight">{item}</span>
-                    </label>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setProceduresOpen(v => !v)}
+                  className="w-full flex items-center justify-between mb-3 pb-1 border-b group"
+                >
+                  <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide group-hover:text-gray-800">
+                    Procedures
+                    {selectedProcedures.length > 0 && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold normal-case">
+                        {selectedProcedures.length} selected
+                      </span>
+                    )}
+                  </h3>
+                  {proceduresOpen
+                    ? <ChevronUp   className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
+                    : <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />}
+                </button>
+
+                {proceduresOpen ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {PROCEDURE_OPTIONS.map(item => (
+                      <label
+                        key={item}
+                        className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
+                          selectedProcedures.includes(item)
+                            ? 'bg-green-50 border-green-400 text-gray-800'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedProcedures.includes(item)}
+                          onChange={() => toggleProcedure(item)}
+                          className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
+                        />
+                        <span className="text-sm font-medium leading-tight">{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : selectedProcedures.length > 0 ? (
+                  /* Collapsed but non-empty — the doctor must still be able to
+                     see what is being billed without reopening the list */
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedProcedures.map(item => (
+                      <span key={item} className="px-2 py-1 rounded-lg bg-green-50 border border-green-300 text-xs text-gray-700">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">None selected — click to add a procedure</p>
+                )}
+              </div>
+
+              {/* Send for injection — routes to the nurse instead of billing */}
+              <div>
+                <label
+                  className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
+                    sendForInjection
+                      ? 'bg-green-50 border-green-400 text-gray-800'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={sendForInjection}
+                    onChange={() => setSendForInjection(v => !v)}
+                    className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
+                  />
+                  <span className="text-sm font-medium leading-tight">Send for injection</span>
+                  <span className="text-xs text-gray-500 ml-auto">
+                    Patient returns to the nurse before billing
+                  </span>
+                </label>
               </div>
 
               {/* Doctor's Instructions */}
@@ -987,7 +1156,7 @@ const Consultation = () => {
                 </label>
 
                 {bookFollowUp && (() => {
-                  const queueItem = queue.find(q => q.uhid === patient?.uhid && q.status === 'With Doctor');
+                  const queueItem = billingQueueItem || findQueueItem();
 
                   if (!queueItem) {
                     return (
@@ -1055,20 +1224,29 @@ const Consultation = () => {
               </div>
             </div>
 
-            <div className="flex gap-3 px-6 py-4 border-t flex-shrink-0">
-              <button
-                onClick={() => setShowBillingModal(false)}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBillingSubmit}
-                disabled={billingSubmitting || (bookFollowUp && (!followUpDate || !followUpSlot))}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {billingSubmitting ? 'Submitting…' : 'Confirm & Send to Billing'}
-              </button>
+            <div className="px-6 py-4 border-t flex-shrink-0">
+              {!hasBillingSelection && (
+                <p className="text-xs text-red-600 mb-2.5">
+                  Select at least one charge or procedure. Use "No Charge" if the visit is free.
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowBillingModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBillingSubmit}
+                  disabled={billingSubmitting || !hasBillingSelection || (bookFollowUp && (!followUpDate || !followUpSlot))}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {billingSubmitting
+                    ? 'Submitting…'
+                    : sendForInjection ? 'Confirm & Send for Injection' : 'Confirm & Send to Billing'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1095,7 +1273,7 @@ const Consultation = () => {
 
       {/* ===== Refer Patient Modal ===== */}
       {showReferModal && (() => {
-        const activeQueueItem = queue.find(q => q.uhid === patient.uhid && q.status === 'With Doctor');
+        const activeQueueItem = findQueueItem();
         if (!activeQueueItem) {
           return (
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

@@ -6,8 +6,14 @@ import {
   AlertCircle,
   UserCircle,
   Loader2,
+  Syringe,
+  Check,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
+import VitalsGrid from "../../components/shared/VitalsGrid";
+import Glp1InjectionCard from "../../components/shared/Glp1InjectionCard";
+import { NURSE_CHARGE_OPTIONS, NURSE_PROCEDURE_OPTIONS } from "../../constants/billingOptions";
+import { NURSE_QUEUE_STATUSES, isPendingInjection } from "../../utils/queueStatus";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
 import { getBpColor, getTemperatureColor, getO2Color, getRbsColor, getHba1cColor, getKetonesColor } from '../../utils/clinicalColors';
@@ -18,7 +24,7 @@ import api from "../../services/api";
 
 const Triage = () => {
   const { fetchPatientByUHID, updatePatientVitals } = usePatientContext();
-  const { getQueueByStatus, updateQueueStatus } = useQueueContext();
+  const { getQueueByStatus, updateQueueStatus, sendToBilling } = useQueueContext();
   const { getTodayAppointment, checkInAppointment } = useAppointmentContext();
 
   const [allDoctors, setAllDoctors] = useState([]);
@@ -48,6 +54,20 @@ const Triage = () => {
   });
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [allergies, setAllergies] = useState("");
+
+  // Injection-only visit: nurse records vitals, patient pays and leaves without
+  // seeing a doctor. Reuses the existing Queue billing fields — no new tables.
+  // injectionOnly is toggled via the button next to the doctor dropdown; it
+  // greyes the dropdown, skips the doctor-required validation, and surfaces the
+  // GLP-1 injection card below the form.
+  const [injectionOnly, setInjectionOnly]         = useState(false);
+  // Set by Glp1InjectionCard once it knows whether this patient is on a live
+  // course. A nurse may only bypass the doctor when the doctor has started one.
+  const [glp1Therapy, setGlp1Therapy]             = useState(null);
+  const [showNurseBilling, setShowNurseBilling]   = useState(false);
+  const [billingCharges, setBillingCharges]       = useState([]);
+  const [billingProcedures, setBillingProcedures] = useState([]);
+  const [billingSubmitting, setBillingSubmitting] = useState(false);
   // Auto-save triage data to localStorage
   useEffect(() => {
     if (selectedPatient) {
@@ -103,8 +123,19 @@ const Triage = () => {
     return { text: "High Risk", color: "text-red-700", bg: "bg-red-50" };
   };
 
-  // Get patients waiting or in triage
-  const waitingPatients = getQueueByStatus("Awaiting Triage");
+  /**
+   * This patient was already triaged today — the doctor saw them and sent them
+   * back for an injection. Their vitals belong to this visit and must not be
+   * recorded a second time, or the visit ends up with two PatientVital rows.
+   *
+   * Read from the queue item captured at selection time, which keeps its
+   * original status even after we move them to 'In Triage'.
+   */
+  const returningForInjection = isPendingInjection(selectedQueueItem);
+
+  // Patients waiting for a nurse — new arrivals plus anyone the doctor sent
+  // back for an injection
+  const waitingPatients = NURSE_QUEUE_STATUSES.flatMap(s => getQueueByStatus(s));
   const inTriagePatients = getQueueByStatus("In Triage");
 
   const handleSelectPatient = async (queueItem) => {
@@ -114,6 +145,10 @@ const Triage = () => {
     setSelectedPatient(patient || { uhid: queueItem.uhid, name: queueItem.name, age: queueItem.age, gender: queueItem.gender });
     setLoadingPatient(false);
     setSelectedQueueItem(queueItem); // Store queue item for API calls
+    // A patient the doctor sent back for an injection has already been seen —
+    // default them to the no-doctor path rather than making the nurse tick it
+    setInjectionOnly(isPendingInjection(queueItem));
+    setGlp1Therapy(null);    // Re-answered by the injection card on load
 
     // Check if patient has appointment today
     const appointment = getTodayAppointment(queueItem.uhid);
@@ -171,8 +206,82 @@ const Triage = () => {
     }
   };
 
+  // Vitals and allergies are saved identically whether the patient goes on to a
+  // doctor or leaves after an injection — one function, two callers.
+  const persistVitalsAndAllergies = async () => {
+    // Already triaged this visit — the vitals on screen are the ones the nurse
+    // took earlier. Writing them again would duplicate the record.
+    if (returningForInjection) return { success: true };
+
+    const triageData = {
+      bp: vitals.bloodPressure,
+      heartRate: parseInt(vitals.heartRate),
+      temperature: parseFloat(vitals.temperature),
+      weight: parseFloat(vitals.weight),
+      height: parseFloat(vitals.height),
+      oxygenSaturation: vitals.oxygenSaturation ? parseInt(vitals.oxygenSaturation) : null,
+      waistCircumference: vitals.waistCircumference ? parseFloat(vitals.waistCircumference) : null,
+      rbs: vitals.rbs ? parseFloat(vitals.rbs) : null,
+      hba1c: vitals.hba1c ? parseFloat(vitals.hba1c) : null,
+      ketones: vitals.ketones ? parseFloat(vitals.ketones) : null,
+      chiefComplaint: chiefComplaint,
+    };
+
+    const result = await updatePatientVitals(selectedPatient.uhid, triageData);
+
+    if (allergies.trim()) {
+      await api.put(`/patients/${selectedPatient.uhid}`, { allergies: allergies.trim() });
+    }
+
+    return result;
+  };
+
+  /**
+   * Injection-only visit: the nurse gives the injection, records vitals and the
+   * patient leaves without seeing a doctor. They still owe for the visit, so
+   * this goes to Pending Billing rather than straight to Completed — reception
+   * discharges once the patient has paid.
+   *
+   * No doctor is required on this path. That is the whole point of it.
+   */
+  const handleSendToBilling = async () => {
+    if (!chiefComplaint.trim()) {
+      toast.error('Please enter the reason for visit');
+      return;
+    }
+
+    setBillingSubmitting(true);
+
+    const result = await persistVitalsAndAllergies();
+    await sendToBilling(selectedQueueItem.id, billingCharges, billingProcedures);
+
+    setBillingSubmitting(false);
+
+    if (result.success) {
+      toast.success(`${selectedPatient.name} sent to billing`);
+      localStorage.removeItem(`triage_draft_${selectedPatient.uhid}`);
+    }
+
+    setShowNurseBilling(false);
+    setBillingCharges([]);
+    setBillingProcedures([]);
+    setSelectedPatient(null);
+    setSelectedQueueItem(null);
+    setTodayAppointment(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Injection-only mode: skip doctor assignment, go straight to billing picker
+    if (injectionOnly) {
+      if (!chiefComplaint.trim()) {
+        toast.error("Please enter the reason for visit");
+        return;
+      }
+      setShowNurseBilling(true);
+      return;
+    }
 
     // Validate all required fields with toast notifications
     if (!assignedDoctor) {
@@ -202,6 +311,17 @@ const Triage = () => {
       });
       // Scroll to and focus textarea
       document.querySelector("textarea")?.focus();
+      return;
+    }
+
+    // Vitals were taken earlier this visit — nothing to validate or re-enter
+    if (returningForInjection) {
+      await updateQueueStatus(selectedQueueItem.id, "Awaiting Doctor", parseInt(assignedDoctor));
+      toast.success(`${selectedPatient.name} sent back to the doctor`);
+      setSelectedPatient(null);
+      setSelectedQueueItem(null);
+      setTodayAppointment(null);
+      setAssignedDoctor("");
       return;
     }
 
@@ -261,30 +381,10 @@ const Triage = () => {
       },
     });
 
-    // Prepare triage data — send raw numbers, NOT strings with units
-    // Backend model columns are INTEGER/DECIMAL and validation requires isInt/isFloat
-    // Units are added by the backend's formatVitals() in the API response
-    const triageData = {
-      bp: vitals.bloodPressure,
-      heartRate: parseInt(vitals.heartRate),
-      temperature: parseFloat(vitals.temperature),
-      weight: parseFloat(vitals.weight),
-      height: parseFloat(vitals.height),
-      oxygenSaturation: vitals.oxygenSaturation ? parseInt(vitals.oxygenSaturation) : null,
-      waistCircumference: vitals.waistCircumference ? parseFloat(vitals.waistCircumference) : null,
-      rbs: vitals.rbs ? parseFloat(vitals.rbs) : null,
-      hba1c: vitals.hba1c ? parseFloat(vitals.hba1c) : null,
-      ketones: vitals.ketones ? parseFloat(vitals.ketones) : null,
-      chiefComplaint: chiefComplaint,
-    };
-
-    // Save vitals to patient record
-    const result = await updatePatientVitals(selectedPatient.uhid, triageData);
-
-    // Save allergies to patient record if entered
-    if (allergies.trim()) {
-      await api.put(`/patients/${selectedPatient.uhid}`, { allergies: allergies.trim() });
-    }
+    // Vitals are sent as raw numbers, NOT strings with units — the model columns
+    // are INTEGER/DECIMAL and validation requires isInt/isFloat. Units are added
+    // by the backend's formatVitals() on the way back out.
+    const result = await persistVitalsAndAllergies();
 
     // Update queue status to "Awaiting Doctor" and assign doctor using queue item ID
     // Patient has been triaged and assigned — they are waiting to be called into the doctor's room
@@ -348,6 +448,7 @@ const Triage = () => {
       setSelectedQueueItem(null);
       setTodayAppointment(null);
       setAssignedDoctor("");
+      setInjectionOnly(false);
 
       // Show cancellation toast
       toast.info(` Triage cancelled - ${patientName} moved back to waiting`, {
@@ -398,6 +499,11 @@ const Triage = () => {
                     <p className="text-sm text-gray-600">
                       {queueItem.age} yrs {queueItem.gender}
                     </p>
+                    {isPendingInjection(queueItem) && (
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold">
+                        Seen by doctor · for injection
+                      </span>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">
                       Arrived: {queueItem.arrivalTime}
                     </p>
@@ -458,6 +564,7 @@ const Triage = () => {
               </div>
             </Card>
           ) : (
+            <>
             <form
               onSubmit={handleSubmit}
               onKeyDown={(e) => {
@@ -554,40 +661,71 @@ const Triage = () => {
                     </div>
                   )}
 
-                  {/* Assign to Doctor */}
-                  <div className="p-4 border-2 border-gray-300 rounded-lg bg-gray-50">
-                    <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                      <UserSquare2 className="w-4 h-4" />
-                      Assign to Doctor *
-                      {todayAppointment && (
-                        <span className="text-xs text-green-600 font-normal">
-                          (Pre-selected from appointment)
-                        </span>
+                  {/* Assign to Doctor — with injection-only toggle */}
+                  <div className={`p-4 border-2 rounded-lg ${injectionOnly ? 'border-amber-300 bg-amber-50' : 'border-gray-300 bg-gray-50'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <UserSquare2 className="w-4 h-4" />
+                        {injectionOnly ? 'Assign to Doctor' : 'Assign to Doctor *'}
+                        {todayAppointment && !injectionOnly && (
+                          <span className="text-xs text-green-600 font-normal">
+                            (Pre-selected from appointment)
+                          </span>
+                        )}
+                      </label>
+                      {/* Rounded checkbox: injection-only visit. Only offered
+                          when the doctor has started a GLP-1 course — a nurse
+                          cannot otherwise route a patient past the doctor. */}
+                      {glp1Therapy && (
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            className="sr-only"
+                            checked={injectionOnly}
+                            onChange={() => {
+                              setInjectionOnly(v => !v);
+                              if (!injectionOnly) setAssignedDoctor('');
+                            }}
+                          />
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                            injectionOnly ? 'bg-amber-500 border-amber-500' : 'border-gray-300 bg-white'
+                          }`}>
+                            {injectionOnly && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                          </div>
+                          <span className={`text-sm font-medium ${injectionOnly ? 'text-amber-700' : 'text-gray-600'}`}>
+                            Patient won't see doctor
+                          </span>
+                        </label>
                       )}
-                    </label>
-                    <select
-                      value={assignedDoctor}
-                      onChange={(e) => setAssignedDoctor(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary font-semibold"
-                    >
-                      <option value="">Select a doctor...</option>
-                      {allDoctors.map((doctor) => (
-                        <option key={doctor.id} value={doctor.id}>
-                          {doctor.name} -{" "}
-                          {doctor.specialty || "General Physician"}
-                        </option>
-                      ))}
-                    </select>
-                    {assignedDoctor && (
-                      <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Patient will be assigned to{" "}
-                        {
-                          allDoctors.find(
-                            (d) => d.id === parseInt(assignedDoctor)
-                          )?.name
-                        }
-                      </p>
+                    </div>
+
+                    {injectionOnly ? (
+                      <div className="px-3 py-2 bg-amber-100 rounded-lg text-sm text-amber-800">
+                        Patient is here for injection only. Vitals will be saved and patient goes to billing — no doctor required.
+                      </div>
+                    ) : (
+                      <>
+                        <select
+                          value={assignedDoctor}
+                          onChange={(e) => setAssignedDoctor(e.target.value)}
+                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary font-semibold"
+                        >
+                          <option value="">Select a doctor...</option>
+                          {allDoctors.map((doctor) => (
+                            <option key={doctor.id} value={doctor.id}>
+                              {doctor.name} -{" "}
+                              {doctor.specialty || "General Physician"}
+                            </option>
+                          ))}
+                        </select>
+                        {assignedDoctor && (
+                          <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Patient will be assigned to{" "}
+                            {allDoctors.find((d) => d.id === parseInt(assignedDoctor))?.name}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -605,7 +743,9 @@ const Triage = () => {
                     />
                   </div>
 
-                  {/*Allergies Section */}
+                  {/*Allergies Section — captured at the original triage, so
+                      hidden on the return leg of the same visit */}
+                  {!returningForInjection && (
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Known Allergies
@@ -622,8 +762,31 @@ const Triage = () => {
                       environmental allergies
                     </p>
                   </div>
+                  )}
 
-                  {/* Vitals */}
+                  {/* Vitals — read-only for a patient already triaged this
+                      visit, so the same visit cannot get two sets of vitals */}
+                  {returningForInjection ? (
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-2">
+                        Vital Signs
+                      </h3>
+                      <div className="p-3 mb-3 bg-teal-50 border border-teal-200 rounded-lg">
+                        <p className="text-sm text-teal-800">
+                          Already recorded at triage today
+                          {selectedPatient.vitals?.recordedAt &&
+                            ` at ${new Date(selectedPatient.vitals.recordedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`}
+                          . The patient has seen the doctor and returned for their injection —
+                          record the injection below, then send them to billing.
+                        </p>
+                      </div>
+                      {selectedPatient.vitals ? (
+                        <VitalsGrid vitals={selectedPatient.vitals} patient={selectedPatient} />
+                      ) : (
+                        <p className="text-sm text-gray-500">No vitals found for this visit.</p>
+                      )}
+                    </div>
+                  ) : (
                   <div>
                     <h3 className="font-semibold text-gray-800 mb-4">
                       Vital Signs
@@ -869,11 +1032,22 @@ const Triage = () => {
                       </div>
                     </div>
                   </div>
+                  )}
+
+                  {/* GLP-1 injection card — only renders if this patient has an
+                      active GLP-1 course (i.e. the doctor has started the tool).
+                      Sits after vitals so the nurse fills those first. */}
+                  <Glp1InjectionCard
+                    patient={selectedPatient}
+                    onTherapyChange={setGlp1Therapy}
+                  />
 
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
                     <Button type="submit" className="w-full sm:flex-1">
-                      Complete Triage
+                      {returningForInjection
+                        ? 'Send to billing'
+                        : injectionOnly ? 'Save vitals & send to billing' : 'Complete Triage'}
                     </Button>
                     <Button
                       type="button"
@@ -887,9 +1061,119 @@ const Triage = () => {
                 </div>
               </Card>
             </form>
+            </>
           )}
         </div>
       </div>
+
+      {/* Nursing billing picker — the nurse-scoped subset of the clinic's
+          charge list. Anything selected here is merged with whatever the
+          doctor already billed, so reception sees one combined bill. */}
+      {showNurseBilling && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="px-5 py-4 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-800">Nursing charges</h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {returningForInjection
+                  ? `Added to what the doctor already billed for ${selectedPatient?.name}.`
+                  : `${selectedPatient?.name} leaves without seeing a doctor. Vitals are saved.`}
+              </p>
+            </div>
+
+            {/* What the doctor already put on the bill — so the nurse does not
+                re-add it and can see the visit total forming */}
+            {returningForInjection && (selectedQueueItem?.selectedCharges?.length > 0 ||
+                                        selectedQueueItem?.selectedProcedures?.length > 0) && (
+              <div className="px-5 pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Already billed by the doctor
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...(selectedQueueItem.selectedCharges || []),
+                    ...(selectedQueueItem.selectedProcedures || [])].map(item => (
+                    <span key={item} className="px-2 py-1 rounded-lg bg-gray-100 border border-gray-200 text-xs text-gray-600">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="p-5 space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Charges</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {NURSE_CHARGE_OPTIONS.map((item) => (
+                    <label
+                      key={item}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${
+                        billingCharges.includes(item)
+                          ? "border-primary bg-blue-50 text-primary"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={billingCharges.includes(item)}
+                        onChange={() =>
+                          setBillingCharges((prev) =>
+                            prev.includes(item)
+                              ? prev.filter((c) => c !== item)
+                              : [...prev, item]
+                          )
+                        }
+                      />
+                      {item}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                  Leave everything unticked if the patient brought their own injection and owes nothing.
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Procedures</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {NURSE_PROCEDURE_OPTIONS.map((item) => (
+                    <label
+                      key={item}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-sm ${
+                        billingProcedures.includes(item)
+                          ? "border-primary bg-blue-50 text-primary"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={billingProcedures.includes(item)}
+                        onChange={() =>
+                          setBillingProcedures((prev) =>
+                            prev.includes(item)
+                              ? prev.filter((p) => p !== item)
+                              : [...prev, item]
+                          )
+                        }
+                      />
+                      {item}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200">
+              <Button type="button" variant="outline" onClick={() => setShowNurseBilling(false)}>
+                Back
+              </Button>
+              <Button type="button" onClick={handleSendToBilling} disabled={billingSubmitting}>
+                {billingSubmitting ? "Sending…" : "Send to billing"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

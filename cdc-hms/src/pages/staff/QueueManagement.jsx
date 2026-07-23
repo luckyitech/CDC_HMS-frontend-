@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import useNotificationSound from '../../hooks/useNotificationSound';
+import { queueStatusColor } from '../../utils/queueStatus';
 import {
   ClipboardList,
   Users,
@@ -72,17 +73,9 @@ const QueueManagement = () => {
   // Use local stats (synchronous) for display
   const stats = getLocalQueueStats();
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Awaiting Triage':  return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-      case 'In Triage':        return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'Awaiting Doctor':  return 'bg-purple-100 text-purple-700 border-purple-300';
-      case 'With Doctor':      return 'bg-green-100 text-green-700 border-green-300';
-      case 'Pending Billing':  return 'bg-amber-100 text-amber-700 border-amber-300';
-      case 'Completed':        return 'bg-gray-100 text-gray-700 border-gray-300';
-      default:                 return 'bg-gray-100 text-gray-700 border-gray-300';
-    }
-  };
+  // Colours come from utils/queueStatus so every queue view agrees. Takes a
+  // status string here rather than an item — the call sites pass patient.status.
+  const getStatusColor = (status) => queueStatusColor({ status });
 
   const handleDischargeClick = (patient) => {
     setDischargePatient(patient);
