@@ -75,6 +75,7 @@ const CriticalAlerts = lazy(() => import("./pages/lab/CriticalAlerts"));
 // Admin pages (lazy)
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const CreateUsers = lazy(() => import("./pages/admin/CreateUsers"));
+const ClinicalCatalog = lazy(() => import("./pages/admin/ClinicalCatalog"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 const DuplicatePatients = lazy(() => import("./pages/admin/DuplicatePatients"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
@@ -216,6 +217,7 @@ function App() {
                   <Route path="manage-users" element={<ManageUsers />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
+                  <Route path="catalog" element={<ClinicalCatalog />} />
                   <Route path="duplicate-patients" element={<DuplicatePatients />} />
                   <Route path="activity-log" element={<ActivityLog />} />
                   <Route path="analytics" element={<AnalyticsOverview />} />
