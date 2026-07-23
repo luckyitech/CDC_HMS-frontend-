@@ -116,7 +116,7 @@ export const glp1Service = {
   getAdministrations: (params) => api.get('/glp1-administrations', { params }),
 
   /**
-   * Record one week as given, missed or deferred.
+   * Record one week as given, missed or omitted.
    * Recording the same week again updates it rather than duplicating.
    * @param {Object} data - therapyId, weekNumber, status required;
    *                        administeredDate, dose, site, note optional.

@@ -2,7 +2,7 @@ import { useState, Fragment } from 'react';
 import { Plus, Pencil, Trash2, Check, X, ChevronDown, ChevronRight, ArrowLeftRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Glp1WeekRows from './Glp1WeekRows';
-import { formatStepRange, lastWeekOf, toWeekFromLast } from '../../utils/glp1Weeks';
+import { formatStepRange, lastWeekOf, toWeekFromLast, impliedWeekStatus, rechainFrom } from '../../utils/glp1Weeks';
 
 /**
  * Glp1DoseSchedule — the patient's editable dose ladder.
@@ -77,9 +77,12 @@ const Glp1DoseSchedule = ({
     return true;
   };
 
+  // Editing a step's range ripples through the later steps so they stay
+  // contiguous — extend week 0–4 to 0–6 and the next step moves to 7 rather
+  // than colliding at week 4. Steps before the edited one are left untouched.
   const handleSaveEdit = (index) => {
     const next = schedule.map((s, i) => (i === index ? draftToStep() : s));
-    commit(next);
+    commit(rechainFrom(next, index));
   };
 
   const handleAdd = () => commit([...schedule, draftToStep()]);
@@ -89,7 +92,9 @@ const Glp1DoseSchedule = ({
       toast.error('A course needs at least one dose step');
       return;
     }
-    commit(schedule.filter((_, i) => i !== index));
+    // Close the gap the removed step leaves by re-chaining from the step before it
+    const filtered = schedule.filter((_, i) => i !== index);
+    commit(rechainFrom(filtered, Math.max(0, index - 1)));
   };
 
   const startEdit = (index) => {
@@ -195,12 +200,25 @@ const Glp1DoseSchedule = ({
 
             const isExpanded = expanded === index;
 
-            // How many weeks in this step already have an injection recorded
+            // Adherence for this step, read through the same week-status helper
+            // as the expanded rows. A fully-elapsed week with no record counts
+            // as given; the current week is still 'due' and is not counted until
+            // it is over or explicitly recorded.
             const stepEnd = step.toWeek === null ? step.fromWeek + 52 : step.toWeek;
-            const recorded = administrations.filter(
-              a => a.weekNumber >= step.fromWeek && a.weekNumber < stepEnd
+            const recByWeek = new Map(
+              administrations
+                .filter(a => a.weekNumber >= step.fromWeek && a.weekNumber < stepEnd)
+                .map(a => [a.weekNumber, a])
             );
-            const missedCount = recorded.filter(a => a.status !== 'given').length;
+            let countedWeeks = 0;
+            let givenCount = 0;
+            for (let w = step.fromWeek; w < stepEnd; w += 1) {
+              const st = impliedWeekStatus(w, currentWeek, recByWeek.get(w));
+              if (st === 'upcoming' || st === 'due') continue;
+              countedWeeks += 1;
+              if (st === 'given') givenCount += 1;
+            }
+            const notGivenCount = countedWeeks - givenCount;
 
             return (
               <Fragment key={index}>
@@ -217,10 +235,10 @@ const Glp1DoseSchedule = ({
                     {formatStepRange(step)}
                   </button>
                   {current && <span className="ml-2 text-xs font-normal">current</span>}
-                  {recorded.length > 0 && (
+                  {countedWeeks > 0 && (
                     <span className="ml-2 text-xs font-normal text-gray-400">
-                      {recorded.length - missedCount}/{recorded.length} given
-                      {missedCount > 0 && <span className="text-red-600"> · {missedCount} not</span>}
+                      {givenCount}/{countedWeeks} given
+                      {notGivenCount > 0 && <span className="text-red-600"> · {notGivenCount} not</span>}
                     </span>
                   )}
                 </td>

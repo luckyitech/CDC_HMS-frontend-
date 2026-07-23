@@ -139,7 +139,7 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
     return result;
   };
 
-  // One week's injection — given, missed or deferred
+  // One week's injection — given, missed or omitted
   const handleRecordWeek = async (payload) => {
     const result = await recordAdministration({ therapyId: activeTherapy.id, ...payload });
     if (result.success) await refresh();

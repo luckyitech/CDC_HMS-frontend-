@@ -105,7 +105,7 @@ const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
       />
 
       <p className="text-xs text-gray-400 mt-2">
-        Click a step to open its weeks, then tick the week given. Missed or deferred weeks ask for a reason.
+        Click a step to open its weeks. Each week is assumed given — mark a week missed or omitted (a reason is asked) if it was not.
       </p>
     </div>
   );

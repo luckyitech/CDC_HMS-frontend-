@@ -26,7 +26,7 @@ const DATE_FIELD_MAP = {
   notes:           'date',
   prescriptions:   'createdAt',
   // GLP-1 injections: administeredDate is set for 'given', createdAt used as
-  // fallback for missed/deferred (the r[field] || r.createdAt pattern below)
+  // fallback for missed/omitted (the r[field] || r.createdAt pattern below)
   glp1Injections:  'administeredDate',
   // GLP-1 monitoring reviews written by any clinician (nurse or doctor)
   glp1Reviews:     'date',
