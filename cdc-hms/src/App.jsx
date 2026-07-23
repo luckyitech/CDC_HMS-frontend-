@@ -16,6 +16,7 @@ import { LabProvider } from "./contexts/LabContext";
 import { TreatmentPlanProvider } from "./contexts/TreatmentPlanContext";
 import { AppointmentProvider } from './contexts/AppointmentContext';
 import { ConsultationNotesProvider } from './contexts/ConsultationNotesContext';
+import { Glp1Provider } from './contexts/Glp1Context';
 import { NotificationProvider } from './contexts/NotificationContext';
 
 // Layouts & shared (always needed — keep eager)
@@ -105,7 +106,9 @@ const AuthenticatedLayout = () => (
                 <PatientProvider>
                   <PrescriptionProvider>
                     <TreatmentPlanProvider>
-                      <Outlet />
+                      <Glp1Provider>
+                        <Outlet />
+                      </Glp1Provider>
                     </TreatmentPlanProvider>
                   </PrescriptionProvider>
                 </PatientProvider>

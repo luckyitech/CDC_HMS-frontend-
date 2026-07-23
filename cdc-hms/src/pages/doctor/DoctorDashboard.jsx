@@ -8,6 +8,7 @@ import { QUEUE_STATUS_TONES } from '../../utils/statusStyles';
 import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
 import useNotificationSound from '../../hooks/useNotificationSound';
+import { isConsultationDone, isPendingInjection } from '../../utils/queueStatus';
 
 const QUEUE_PER_PAGE = 15;
 
@@ -103,8 +104,10 @@ const DoctorDashboard = () => {
   // These give the doctor a full picture of how the clinic is running today.
   // Personal view is already available via the "My Patients Today" queue tab.
   const clinicWithDoctor      = todayActive.filter(q => q.status === 'With Doctor');
-  const clinicPendingBilling  = todayActive.filter(q => q.status === 'Pending Billing');
-  const clinicCompleted       = todayCompleted.length + clinicPendingBilling.length; // consultation done = Pending Billing + Completed
+  // Consultation done = the doctor has finished, whether the patient is waiting
+  // on the cashier, the nurse's injection, or already discharged
+  const clinicConsultDone     = todayActive.filter(isConsultationDone);
+  const clinicCompleted       = todayCompleted.length + clinicConsultDone.length;
   const clinicActiveTotal     = todayActive.length;
 
   const stats = [
@@ -113,6 +116,9 @@ const DoctorDashboard = () => {
     { title: 'Completed',         value: clinicCompleted,       Icon: CheckCircle,   gradient: 'from-green-500 to-green-600' },
     { title: 'Active Queue',      value: clinicActiveTotal,     Icon: ClipboardList, gradient: 'from-purple-500 to-purple-600'},
   ].map(s => ({ ...s, value: s.value.toString() }));
+
+  // Status colours and labels live in utils/queueStatus so the doctor's queue,
+  // the badges and the action column all agree on what a status means.
 
   const handleStartConsultation = (queueId, uhid, alreadyWithDoctor) => {
     // Only transition to "With Doctor" on the first click.
@@ -193,7 +199,7 @@ const DoctorDashboard = () => {
             <div className="xl:hidden space-y-3">
               {paginatedQueue.map((queueItem) => {
                 const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
-                const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
+                const consultationDone = isConsultationDone(queueItem);
 
                 return (
                   <div
@@ -269,6 +275,8 @@ const DoctorDashboard = () => {
                         <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">Done</span>
                       ) : queueItem.status === 'Pending Billing' ? (
                         <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">Awaiting Billing</span>
+                      ) : isPendingInjection(queueItem) ? (
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-700 border border-teal-300">With Nurse</span>
                       ) : isMyPatient ? (
                         <Button
                           variant="primary"
@@ -304,7 +312,7 @@ const DoctorDashboard = () => {
                 <tbody className="divide-y divide-gray-200">
                   {paginatedQueue.map((queueItem) => {
                     const isMyPatient = queueItem.assignedDoctorId === currentUser?.id;
-                    const consultationDone = queueItem.status === 'Completed' || queueItem.status === 'Pending Billing';
+                    const consultationDone = isConsultationDone(queueItem);
 
                     return (
                       <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient && queueItem.status === 'Awaiting Doctor' ? 'bg-purple-50' : isMyPatient ? 'bg-blue-50' : ''}`}>
@@ -351,6 +359,8 @@ const DoctorDashboard = () => {
                             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 border border-green-300">Done</span>
                           ) : queueItem.status === 'Pending Billing' ? (
                             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-300">Awaiting Billing</span>
+                          ) : isPendingInjection(queueItem) ? (
+                            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-700 border border-teal-300">With Nurse</span>
                           ) : isMyPatient ? (
                             <Button
                               variant="primary"

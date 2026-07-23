@@ -46,12 +46,14 @@ export const SOLID_TONES = {
 
 // 2. Domain label -> tone maps
 export const QUEUE_STATUS_TONES = {
-  'Awaiting Triage': 'warning',
-  'In Triage':       'info',
-  'Awaiting Doctor': 'purple',
-  'With Doctor':     'success',
-  'Pending Billing': 'amber',
-  'Completed':       'neutral',
+  'Awaiting Triage':   'warning',
+  'In Triage':         'info',
+  'Awaiting Doctor':   'purple',
+  'With Doctor':       'success',
+  // GLP-1: consultation done, patient with the nurse for their injection, not yet billed
+  'Pending Injection': 'teal',
+  'Pending Billing':   'amber',
+  'Completed':         'neutral',
 };
 
 export const REPORT_STATUS_TONES = {

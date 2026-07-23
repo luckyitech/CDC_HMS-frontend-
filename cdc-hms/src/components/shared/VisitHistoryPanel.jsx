@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Calendar, ChevronDown, ChevronRight,
-  Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill,
+  Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
 } from 'lucide-react';
 import VitalsGrid from './VitalsGrid';
 import patientService from '../../services/patientService';
+import glp1Service from '../../services/glp1Service';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
 import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
@@ -18,12 +19,17 @@ import { parseDiagnoses } from './DiagnosisInput';
 // To add a new section (e.g. lab results): add one entry here + one fetch call
 // + one render block below. No changes to the core filtering/pagination logic.
 const DATE_FIELD_MAP = {
-  vitals:        'recordedAt',
-  plans:         'date',
-  assessments:   'createdAt',
-  exams:         'date',
-  notes:         'date',
-  prescriptions: 'createdAt',
+  vitals:          'recordedAt',
+  plans:           'date',
+  assessments:     'createdAt',
+  exams:           'date',
+  notes:           'date',
+  prescriptions:   'createdAt',
+  // GLP-1 injections: administeredDate is set for 'given', createdAt used as
+  // fallback for missed/omitted (the r[field] || r.createdAt pattern below)
+  glp1Injections:  'administeredDate',
+  // GLP-1 monitoring reviews written by any clinician (nurse or doctor)
+  glp1Reviews:     'date',
 };
 
 const HISTORY_PAGE_SIZE = 10;
@@ -83,23 +89,30 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes] = await Promise.all([
           getAssessmentsByPatient(uhid),
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
           getPrescriptionsByPatient(uhid),
           getNotesByPatient(uhid),
           patientService.getVitalsHistory(uhid).catch(() => ({ success: false, data: [] })),
+          // GLP-1 injections and monitoring reviews — both support uhid directly
+          glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),
+          glp1Service.getReviews({ uhid }).catch(() => ({ data: { reviews: [] } })),
         ]);
         if (isMounted) {
-          const vitals = vitalsRes?.success ? (vitalsRes.data || []) : [];
+          const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
+          const glp1Injections = adminsRes?.data?.administrations  || [];
+          const glp1Reviews    = reviewsRes?.data?.reviews         || [];
           setHistoryData({
-            assessments:   Array.isArray(assessments)   ? assessments   : [],
-            exams:         Array.isArray(exams)         ? exams         : [],
-            plans:         Array.isArray(plans)         ? plans         : [],
-            prescriptions: Array.isArray(prescriptions) ? prescriptions : [],
-            notes:         Array.isArray(notes)         ? notes         : [],
-            vitals:        Array.isArray(vitals)        ? vitals        : [],
+            assessments:     Array.isArray(assessments)     ? assessments     : [],
+            exams:           Array.isArray(exams)           ? exams           : [],
+            plans:           Array.isArray(plans)           ? plans           : [],
+            prescriptions:   Array.isArray(prescriptions)   ? prescriptions   : [],
+            notes:           Array.isArray(notes)           ? notes           : [],
+            vitals:          Array.isArray(vitals)          ? vitals          : [],
+            glp1Injections:  Array.isArray(glp1Injections)  ? glp1Injections  : [],
+            glp1Reviews:     Array.isArray(glp1Reviews)     ? glp1Reviews     : [],
           });
         }
       } finally {
@@ -294,6 +307,41 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
                   </div>
                 )}
 
+                {/* GLP-1 Injections — recorded by nurses in triage */}
+                {records.glp1Injections?.length > 0 && (
+                  <div className="p-5 space-y-3">
+                    <SectionHeader icon={<Syringe className="w-3.5 h-3.5" />} label="GLP-1 Injection" />
+                    {records.glp1Injections.map(inj => (
+                      <div key={inj.id} className={`p-3 rounded-lg border-l-4 ${
+                        inj.status === 'given'    ? 'bg-green-50 border-green-400' :
+                        inj.status === 'missed'   ? 'bg-red-50   border-red-400'   :
+                                                    'bg-amber-50  border-amber-400'
+                      }`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-gray-800 capitalize">
+                            Week {inj.weekNumber} — {inj.status}
+                          </span>
+                          {inj.dose && (
+                            <span className="text-xs text-gray-500">{inj.dose} mg</span>
+                          )}
+                        </div>
+                        {inj.clinicianName && (
+                          <p className="text-xs text-gray-500 mb-1">
+                            By {inj.clinicianName}
+                            {inj.clinicianRole === 'staff' ? ' (Nurse)' : ''}
+                          </p>
+                        )}
+                        {inj.site && (
+                          <p className="text-xs text-gray-600">Site: {inj.site}</p>
+                        )}
+                        {inj.note && (
+                          <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{inj.note}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Diagnosis & Treatment Plan */}
                 {records.plans.length > 0 && (
                   <div className="p-5 space-y-3">
@@ -384,6 +432,46 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
                           <p className="text-xs text-gray-500 mb-1">By {note.doctorName}</p>
                         )}
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.notes}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* GLP-1 Monitoring Reviews — written by doctor or nurse */}
+                {records.glp1Reviews?.length > 0 && (
+                  <div className="p-5 space-y-3">
+                    <SectionHeader icon={<ClipboardList className="w-3.5 h-3.5" />} label="GLP-1 Monitoring Review" />
+                    {records.glp1Reviews.map(rev => (
+                      <div key={rev.id} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-gray-800">
+                            Week {rev.weekNumber} review
+                          </span>
+                          {rev.doseAtReview && (
+                            <span className="text-xs text-gray-500">{rev.doseAtReview} mg</span>
+                          )}
+                        </div>
+                        {rev.clinicianName && (
+                          <p className="text-xs text-gray-500 mb-2">By {rev.clinicianName}</p>
+                        )}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-2">
+                          {rev.weight       && <span className="text-gray-600">Weight: <b>{rev.weight} kg</b></span>}
+                          {rev.bmi          && <span className="text-gray-600">BMI: <b>{rev.bmi}</b></span>}
+                          {rev.bp           && <span className="text-gray-600">BP: <b>{rev.bp}</b></span>}
+                          {rev.hba1c        && <span className="text-gray-600">HbA1c: <b>{rev.hba1c}%</b></span>}
+                          {rev.fpg          && <span className="text-gray-600">FBS: <b>{rev.fpg}</b></span>}
+                          {rev.adherence    && <span className="text-gray-600 capitalize">Adherence: <b>{rev.adherence}</b></span>}
+                        </div>
+                        {rev.actionPlan && (
+                          <p className="text-xs text-gray-700 whitespace-pre-wrap bg-white rounded p-2 border border-blue-100">
+                            {rev.actionPlan}
+                          </p>
+                        )}
+                        {rev.sideEffects?.length > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Side effects: {rev.sideEffects.map(s => s.symptomName || s.name).join(', ')}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>

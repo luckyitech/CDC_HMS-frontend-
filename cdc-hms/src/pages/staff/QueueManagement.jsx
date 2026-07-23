@@ -74,7 +74,6 @@ const QueueManagement = () => {
   // Use local stats (synchronous) for display
   const stats = getLocalQueueStats();
 
-
   const handleDischargeClick = (patient) => {
     setDischargePatient(patient);
     setFinalCharges(patient.selectedCharges || []);
