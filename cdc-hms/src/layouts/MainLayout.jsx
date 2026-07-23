@@ -52,10 +52,15 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const location = useLocation();
   const { currentUser } = useUserContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Desktop-only icon-rail collapse, persisted across reloads and portals
+  // Desktop-only icon rail. Defaults to collapsed; the pinned state is
+  // persisted across reloads and portals. `false` here means "pinned open".
   const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem("sidebarCollapsed") === "true"
+    () => localStorage.getItem("sidebarCollapsed") !== "false"
   );
+  // Desktop hover expands the rail without changing the pinned preference.
+  const [hovered, setHovered] = useState(false);
+  // Effective visual state: a pinned-collapsed rail looks expanded while hovered.
+  const isCollapsed = collapsed && !hovered;
   const [portalSwitcherOpen, setPortalSwitcherOpen] = useState(false);
 
   const toggleCollapsed = () => {
@@ -231,7 +236,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     const isActive = location.pathname === item.path;
     // Indentation is meaningless in the collapsed icon rail, where group
     // headers are hidden and children show as plain centered icons.
-    const indentCls = nested && !collapsed ? "pl-12 lg:pl-14" : "";
+    const indentCls = nested && !isCollapsed ? "pl-12 lg:pl-14" : "";
     return (
       <button
         key={item.path}
@@ -242,7 +247,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         title={item.name}
         className={`
           w-full flex items-center px-6 py-4 ${indentCls}
-          ${collapsed ? "lg:px-0 lg:justify-center" : ""}
+          ${isCollapsed ? "lg:px-0 lg:justify-center" : ""}
           transition-all duration-200
           border-l-4 group
           ${
@@ -267,7 +272,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         <span
           className={`
           ml-4 font-medium ${nested ? "text-base" : "text-lg"}
-          ${collapsed ? "lg:hidden" : ""}
+          ${isCollapsed ? "lg:hidden" : ""}
           ${isActive ? "font-bold" : ""}
         `}
         >
@@ -292,7 +297,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
           title={groupItem.name}
           className={`
             w-full flex items-center px-6 py-4
-            ${collapsed ? "lg:hidden" : ""}
+            ${isCollapsed ? "lg:hidden" : ""}
             transition-all duration-200
             border-l-4 border-transparent hover:bg-blue-700 group
           `}
@@ -320,7 +325,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         </button>
 
         {/* Children show when the group is open, and always in the rail */}
-        {(isOpen || collapsed) &&
+        {(isOpen || isCollapsed) &&
           groupItem.children.map((child) => renderLeaf(child, true))}
       </div>
     );
@@ -336,17 +341,19 @@ const MainLayout = ({ userRole = "Staff" }) => {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — fixed overlay on desktop so hover-expand floats over content */}
       <aside
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         className={`
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        fixed lg:static inset-y-0 left-0 z-30
-        w-72 ${collapsed ? "lg:w-20" : "lg:w-72"}
+        fixed inset-y-0 left-0 z-30
+        w-72 ${isCollapsed ? "lg:w-20" : "lg:w-72"}
         bg-gradient-to-b from-blue-600 to-blue-800 text-white
         transition-all duration-300 shadow-2xl
       `}
       >
-        <div className={`p-6 ${collapsed ? "lg:p-3" : ""} flex items-center justify-between ${collapsed ? "lg:justify-center" : ""} border-b border-blue-500`}>
+        <div className={`p-6 ${isCollapsed ? "lg:p-3" : ""} flex items-center justify-between ${isCollapsed ? "lg:justify-center" : ""} border-b border-blue-500`}>
           {/* LEFT SIDE - Logo and Text */}
           <div
             className="flex items-center gap-3 cursor-pointer"
@@ -361,7 +368,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
               />
             </div>
             {/* Text */}
-            <div className={collapsed ? "lg:hidden" : ""}>
+            <div className={isCollapsed ? "lg:hidden" : ""}>
               <h2 className="text-xl font-bold">CDC HMS</h2>
               <p className="text-xs text-blue-200 mt-0.5">{userRole} Portal</p>
             </div>
@@ -386,11 +393,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
         <div className="hidden lg:block absolute bottom-0 left-0 right-0 border-t border-blue-500">
           <button
             onClick={toggleCollapsed}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`w-full flex items-center px-6 py-4 ${collapsed ? "justify-center px-0" : ""} text-blue-200 hover:text-white hover:bg-blue-700 transition-all duration-200`}
+            title={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
+            className={`w-full flex items-center px-6 py-4 ${isCollapsed ? "justify-center px-0" : ""} text-blue-200 hover:text-white hover:bg-blue-700 transition-all duration-200`}
           >
             {collapsed ? <ChevronsRight size={24} /> : <ChevronsLeft size={24} />}
-            <span className={`ml-4 font-medium ${collapsed ? "hidden" : ""}`}>Collapse</span>
+            <span className={`ml-4 font-medium ${isCollapsed ? "hidden" : ""}`}>
+              {collapsed ? "Pin open" : "Collapse"}
+            </span>
           </button>
         </div>
 
@@ -405,6 +414,14 @@ const MainLayout = ({ userRole = "Staff" }) => {
           </button>
         </div>
       </aside>
+
+      {/* Desktop spacer — reserves the rail's resting width so the fixed
+          sidebar's hover-expand overlays content instead of shifting it */}
+      <div
+        className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${
+          collapsed ? "w-20" : "w-72"
+        }`}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
