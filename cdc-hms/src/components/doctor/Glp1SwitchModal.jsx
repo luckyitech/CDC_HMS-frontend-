@@ -13,20 +13,21 @@ import toast from 'react-hot-toast';
  * the patient, not the molecule, and asking again invites rubber-stamping.
  */
 const Glp1SwitchModal = ({ currentTherapy, medications = [], onSwitch, onClose }) => {
+  // Agents from the clinic catalogue, minus the one the patient is already on
   const options = medications.filter(
-    m => m.isActive && m.id !== currentTherapy?.medication?.id
+    m => m.genericName !== currentTherapy?.medication?.genericName
   );
 
-  const [medicationId, setMedicationId] = useState(options[0]?.id ?? '');
-  const [reason, setReason]             = useState('');
-  const [startDate, setStartDate]       = useState(new Date().toISOString().slice(0, 10));
-  const [startingDose, setStartingDose] = useState('');
-  const [submitting, setSubmitting]     = useState(false);
+  const [medicationName, setMedicationName] = useState(options[0]?.genericName ?? '');
+  const [reason, setReason]                 = useState('');
+  const [startDate, setStartDate]           = useState(new Date().toISOString().slice(0, 10));
+  const [startingDose, setStartingDose]     = useState('');
+  const [submitting, setSubmitting]         = useState(false);
 
-  const target = options.find(m => m.id === Number(medicationId));
+  const target = options.find(m => m.genericName === medicationName);
 
   const handleSubmit = async () => {
-    if (!medicationId) {
+    if (!medicationName) {
       toast.error('Select the agent to switch to');
       return;
     }
@@ -34,13 +35,22 @@ const Glp1SwitchModal = ({ currentTherapy, medications = [], onSwitch, onClose }
       toast.error('A reason is required to switch agents');
       return;
     }
+    const dose = Number(startingDose);
+    if (!Number.isFinite(dose) || dose <= 0) {
+      toast.error('A starting dose is required — it seeds the new ladder');
+      return;
+    }
 
     setSubmitting(true);
     const result = await onSwitch({
-      medicationId: Number(medicationId),
-      reason:       reason.trim(),
+      medicationName,
+      medicationBrand: target?.brandName || null,
+      reason:          reason.trim(),
       startDate,
-      startingDose: startingDose === '' ? null : Number(startingDose),
+      startingDose:    dose,
+      // No stored default ladder — seed a single open-ended step at the starting
+      // dose, which the doctor refines in the dose schedule afterwards
+      doseSchedule: [{ fromWeek: 0, toWeek: null, dose }],
     });
     setSubmitting(false);
 
@@ -63,7 +73,7 @@ const Glp1SwitchModal = ({ currentTherapy, medications = [], onSwitch, onClose }
         <div className="p-5 space-y-4">
           {options.length === 0 ? (
             <p className="text-sm text-gray-500">
-              There is no other active agent in the formulary to switch to.
+              There is no other GLP-1 agent in the clinic catalogue to switch to.
             </p>
           ) : (
             <>
@@ -76,12 +86,12 @@ const Glp1SwitchModal = ({ currentTherapy, medications = [], onSwitch, onClose }
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Switch to</label>
                 <select
-                  value={medicationId}
-                  onChange={e => setMedicationId(e.target.value)}
+                  value={medicationName}
+                  onChange={e => setMedicationName(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                 >
                   {options.map(m => (
-                    <option key={m.id} value={m.id}>
+                    <option key={m.id} value={m.genericName}>
                       {m.genericName}{m.brandName ? ` · ${m.brandName}` : ''}
                     </option>
                   ))}
@@ -98,12 +108,12 @@ const Glp1SwitchModal = ({ currentTherapy, medications = [], onSwitch, onClose }
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">
-                    Starting dose <span className="text-gray-400">(mg)</span>
+                    Starting dose <span className="text-red-500">*</span> <span className="text-gray-400">(mg)</span>
                   </label>
                   <input
-                    type="number" step="0.25" value={startingDose}
+                    type="number" step="0.25" min="0" value={startingDose}
                     onChange={e => setStartingDose(e.target.value)}
-                    placeholder={target?.defaultSchedule?.[0]?.dose ?? ''}
+                    placeholder="e.g. 0.25"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                   />
                 </div>
@@ -124,7 +134,7 @@ const Glp1SwitchModal = ({ currentTherapy, medications = [], onSwitch, onClose }
 
               <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 space-y-1">
                 <p>The {currentTherapy?.medication?.genericName} course will be stopped, keeping its reviews and injection history.</p>
-                <p>{target?.genericName} starts on {startDate} with its own dose ladder.</p>
+                <p>{target?.genericName} starts on {startDate} at {startingDose || '—'} mg — refine its dose ladder afterwards.</p>
                 <p>The safety screen carries across — it was about the patient, not the drug.</p>
               </div>
             </>

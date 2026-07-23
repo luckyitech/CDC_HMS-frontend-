@@ -41,7 +41,7 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
   const isDoctor = currentUser?.role === 'doctor';
 
   const [therapies, setTherapies]       = useState([]);
-  const [activeMedId, setActiveMedId]   = useState(null);
+  const [activeMedName, setActiveMedName] = useState(null);
   const [detail, setDetail]             = useState(null);   // { therapy, reviews, summary }
   const [loading, setLoading]           = useState(true);
   const [starting, setStarting]         = useState(false);
@@ -50,10 +50,11 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
   const [switching, setSwitching]       = useState(false);
   const [stopping, setStopping]         = useState(false);
 
-  // The course for the medication whose tab is selected
+  // The course for the medication whose tab is selected. Agents are matched by
+  // name — a therapy records its agent name, not a formulary id.
   const activeTherapy = therapies.find(
-    t => t.medication?.id === activeMedId && ['Active', 'Paused'].includes(t.status)
-  ) || therapies.find(t => t.medication?.id === activeMedId) || null;
+    t => t.medication?.genericName === activeMedName && ['Active', 'Paused'].includes(t.status)
+  ) || therapies.find(t => t.medication?.genericName === activeMedName) || null;
 
   // ---------------------------------------------------------------------------
   // Loading
@@ -81,7 +82,7 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
       setTherapies(list);
       // Open on the agent the patient is actually on, else the first tab
       const live = list.find(t => ['Active', 'Paused'].includes(t.status));
-      setActiveMedId(live?.medication?.id ?? meds[0]?.id ?? null);
+      setActiveMedName(live?.medication?.genericName ?? meds[0]?.genericName ?? null);
       setLoading(false);
     };
 
@@ -108,7 +109,7 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
   const refresh = async () => {
     const list = await loadTherapies();
     const current = list.find(t => t.id === activeTherapy?.id) || list.find(
-      t => t.medication?.id === activeMedId
+      t => t.medication?.genericName === activeMedName
     );
     if (current) setDetail(await getFullTherapy(current.id));
   };
@@ -163,7 +164,7 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
       toast.success(`Switched to ${result.therapy.medication?.genericName}`);
       setSwitching(false);
       // Follow the patient onto the new agent's tab
-      setActiveMedId(result.therapy.medication?.id ?? activeMedId);
+      setActiveMedName(result.therapy.medication?.genericName ?? activeMedName);
       await loadTherapies();
       setDetail(await getFullTherapy(result.therapy.id));
     }
@@ -217,12 +218,13 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
   if (!medications.length) {
     return (
       <p className="text-sm text-gray-500">
-        No GLP-1 agents in the clinic formulary yet. An administrator can add one.
+        No GLP-1 agents in the clinic catalogue yet. An administrator can add a
+        medication tagged “GLP-1” or “GIP” on the Clinical Catalog page.
       </p>
     );
   }
 
-  const activeMedication = medications.find(m => m.id === activeMedId);
+  const activeMedication = medications.find(m => m.genericName === activeMedName);
   const therapy = detail?.therapy || activeTherapy;
   const courseLive = therapy && ['Active', 'Paused'].includes(therapy.status);
   // Recording what happened — open to nurses
@@ -248,17 +250,17 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
 
   return (
     <div className="space-y-5">
-      {/* Medication tabs — driven by the formulary */}
+      {/* Medication tabs — GLP-1 agents from the clinic catalogue */}
       <div className="flex flex-wrap gap-1 border-b border-gray-200">
         {medications.map(med => {
-          const selected = med.id === activeMedId;
+          const selected = med.genericName === activeMedName;
           const onThis = therapies.some(
-            t => t.medication?.id === med.id && ['Active', 'Paused'].includes(t.status)
+            t => t.medication?.genericName === med.genericName && ['Active', 'Paused'].includes(t.status)
           );
           return (
             <button
               key={med.id}
-              onClick={() => { setActiveMedId(med.id); setStarting(false); setRecordingWeek(null); setAmending(null); }}
+              onClick={() => { setActiveMedName(med.genericName); setStarting(false); setRecordingWeek(null); setAmending(null); }}
               className={`px-4 py-2 text-sm border-b-2 -mb-px transition-colors ${
                 selected
                   ? 'border-primary text-primary font-medium'

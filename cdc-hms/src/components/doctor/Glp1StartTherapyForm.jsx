@@ -72,7 +72,7 @@ const Glp1StartTherapyForm = ({ medication, patient, vitals, onStart, onCancel }
   const [form, setForm] = useState({
     indication:      'T2DM',
     startDate:       new Date().toISOString().slice(0, 10),
-    startingDose:    medication?.defaultSchedule?.[0]?.dose ?? '',
+    startingDose:    '',
     targetDose:      '',
     otherConditions: '',
   });
@@ -80,17 +80,13 @@ const Glp1StartTherapyForm = ({ medication, patient, vitals, onStart, onCancel }
   const [submitting, setSubmitting] = useState(false);
 
   /**
-   * Regimen. 'standard' uses the clinic ladder from the formulary untouched.
-   * 'custom' lets the doctor state each dose, how many weeks the patient stays
-   * on it, and which week the course starts at — non-zero when the patient
-   * transferred in already on treatment.
+   * The dose ladder is built here at initiation — there is no stored clinic
+   * default. The doctor states each dose, how many weeks the patient stays on
+   * it, and which week the course starts at (non-zero when the patient
+   * transferred in already on treatment).
    */
-  const [regimenType, setRegimenType] = useState('standard');
-  const [startWeek, setStartWeek]     = useState(0);
-  const [rungs, setRungs] = useState(() => {
-    const first = medication?.defaultSchedule?.[0];
-    return [{ dose: first?.dose ?? '', weeks: 4, note: '' }];
-  });
+  const [startWeek, setStartWeek] = useState(0);
+  const [rungs, setRungs] = useState([{ dose: '', weeks: 4, note: '' }]);
 
   const setRung = (i, key, value) =>
     setRungs(rs => rs.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
@@ -113,8 +109,7 @@ const Glp1StartTherapyForm = ({ medication, patient, vitals, onStart, onCancel }
     });
   })();
 
-  const customIncomplete = regimenType === 'custom'
-    && rungs.some(r => r.dose === '' || Number(r.dose) <= 0);
+  const scheduleIncomplete = rungs.some(r => r.dose === '' || Number(r.dose) <= 0);
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
@@ -130,26 +125,25 @@ const Glp1StartTherapyForm = ({ medication, patient, vitals, onStart, onCancel }
   const overrideNeeded = concerns.length > 0;
   const canSubmit = answered
     && (!overrideNeeded || screen.overrideReason.trim())
-    && !customIncomplete;
+    && !scheduleIncomplete;
 
   const handleSubmit = async () => {
     setSubmitting(true);
 
     const result = await onStart({
-      medicationId: medication.id,
+      // The agent is identified by name — it comes from the clinic catalogue
+      medicationName:  medication.genericName,
+      medicationBrand: medication.brandName || null,
       indication:   form.indication,
       startDate:    form.startDate,
-      regimenType,
-      // Only sent for a custom regimen; the server builds a contiguous ladder
-      // from these and derives the monitoring weeks to match
-      ...(regimenType === 'custom' ? {
-        startWeek: Number(startWeek) || 0,
-        rungs: rungs.map(r => ({
-          dose:  Number(r.dose),
-          weeks: Number(r.weeks) || null,
-          note:  r.note?.trim() || null,
-        })),
-      } : {}),
+      // The server builds a contiguous ladder from these rungs and derives the
+      // monitoring weeks to match
+      startWeek: Number(startWeek) || 0,
+      rungs: rungs.map(r => ({
+        dose:  Number(r.dose),
+        weeks: Number(r.weeks) || null,
+        note:  r.note?.trim() || null,
+      })),
       startingDose: form.startingDose === '' ? null : Number(form.startingDose),
       targetDose:   form.targetDose === '' ? null : Number(form.targetDose),
       otherConditions: form.otherConditions || null,
@@ -225,119 +219,87 @@ const Glp1StartTherapyForm = ({ medication, patient, vitals, onStart, onCancel }
           </div>
         </div>
 
-        {/* ── Regimen ─────────────────────────────────────────────────── */}
+        {/* ── Dose ladder — built here; there is no stored clinic default ── */}
         <div className="mt-4 pt-3 border-t border-gray-100">
-          <label className="block text-xs text-gray-500 mb-2">Regimen</label>
-          <div className="flex flex-wrap gap-2">
-            {[
-              ['standard', 'Standard', 'Clinic four-weekly ladder'],
-              ['custom',   'Custom',   'Set doses, intervals and start week'],
-            ].map(([value, label, hint]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setRegimenType(value)}
-                className={`flex-1 min-w-[180px] text-left px-3 py-2 rounded-lg border text-sm transition-colors ${
-                  regimenType === value
-                    ? 'border-primary bg-blue-50 text-primary'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                <span className="font-medium">{label}</span>
-                <span className="block text-xs text-gray-400">{hint}</span>
-              </button>
-            ))}
-          </div>
-
-          {regimenType === 'standard' ? (
-            <div className="mt-2 text-xs text-gray-500">
-              {(medication?.defaultSchedule || []).length
-                ? (medication.defaultSchedule || [])
-                    .map(s => `${s.dose} mg for ${s.toWeek === null ? 'maintenance' : `${s.toWeek - s.fromWeek} wk`}`)
-                    .join(' → ')
-                : 'No clinic ladder on this agent — use a custom regimen.'}
-              <span className="block mt-0.5">Monitoring visits at weeks 4, 8, 12, 24, 36, 52.</span>
+          <label className="block text-xs text-gray-500 mb-2">Dose ladder</label>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Course starts at week</label>
+              <input
+                type="number" min="0" value={startWeek}
+                onChange={e => setStartWeek(e.target.value)}
+                className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+              />
+              <span className="text-xs text-gray-400">
+                Non-zero if the patient is continuing therapy started elsewhere
+              </span>
             </div>
-          ) : (
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-500">Course starts at week</label>
-                <input
-                  type="number" min="0" value={startWeek}
-                  onChange={e => setStartWeek(e.target.value)}
-                  className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                />
-                <span className="text-xs text-gray-400">
-                  Non-zero if the patient is continuing therapy started elsewhere
-                </span>
-              </div>
 
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-gray-400">
-                    <th className="font-medium pb-1">Dose (mg)</th>
-                    <th className="font-medium pb-1">Weeks at this dose</th>
-                    <th className="font-medium pb-1">Note</th>
-                    <th className="pb-1 w-8" />
-                    <th className="font-medium pb-1 text-right">Covers</th>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-gray-400">
+                  <th className="font-medium pb-1">Dose (mg)</th>
+                  <th className="font-medium pb-1">Weeks at this dose</th>
+                  <th className="font-medium pb-1">Note</th>
+                  <th className="pb-1 w-8" />
+                  <th className="font-medium pb-1 text-right">Covers</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rungs.map((r, i) => (
+                  <tr key={i}>
+                    <td className="pr-2 py-0.5">
+                      <input
+                        type="number" step="0.05" min="0" value={r.dose}
+                        onChange={e => setRung(i, 'dose', e.target.value)}
+                        placeholder="mg"
+                        className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                      />
+                    </td>
+                    <td className="pr-2 py-0.5">
+                      <input
+                        type="number" min="1" value={r.weeks}
+                        onChange={e => setRung(i, 'weeks', e.target.value)}
+                        placeholder={i === rungs.length - 1 ? 'ongoing' : '4'}
+                        className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                      />
+                    </td>
+                    <td className="pr-2 py-0.5">
+                      <input
+                        type="text" value={r.note}
+                        onChange={e => setRung(i, 'note', e.target.value)}
+                        placeholder="optional"
+                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                      />
+                    </td>
+                    <td className="py-0.5">
+                      {rungs.length > 1 && (
+                        <button type="button" onClick={() => removeRung(i)}
+                          className="p-1 text-gray-300 hover:text-red-600 rounded" title="Remove">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </td>
+                    <td className="py-0.5 text-right text-xs text-gray-400 whitespace-nowrap">
+                      {rungPreview[i]?.to === null
+                        ? `wk ${rungPreview[i]?.from} onward`
+                        : `wk ${rungPreview[i]?.from}–${rungPreview[i]?.to - 1}`}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {rungs.map((r, i) => (
-                    <tr key={i}>
-                      <td className="pr-2 py-0.5">
-                        <input
-                          type="number" step="0.05" min="0" value={r.dose}
-                          onChange={e => setRung(i, 'dose', e.target.value)}
-                          placeholder="mg"
-                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                        />
-                      </td>
-                      <td className="pr-2 py-0.5">
-                        <input
-                          type="number" min="1" value={r.weeks}
-                          onChange={e => setRung(i, 'weeks', e.target.value)}
-                          placeholder={i === rungs.length - 1 ? 'ongoing' : '4'}
-                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
-                        />
-                      </td>
-                      <td className="pr-2 py-0.5">
-                        <input
-                          type="text" value={r.note}
-                          onChange={e => setRung(i, 'note', e.target.value)}
-                          placeholder="optional"
-                          className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                        />
-                      </td>
-                      <td className="py-0.5">
-                        {rungs.length > 1 && (
-                          <button type="button" onClick={() => removeRung(i)}
-                            className="p-1 text-gray-300 hover:text-red-600 rounded" title="Remove">
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </td>
-                      <td className="py-0.5 text-right text-xs text-gray-400 whitespace-nowrap">
-                        {rungPreview[i]?.to === null
-                          ? `wk ${rungPreview[i]?.from} onward`
-                          : `wk ${rungPreview[i]?.from}–${rungPreview[i]?.to - 1}`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                ))}
+              </tbody>
+            </table>
 
-              <button type="button" onClick={addRung}
-                className="text-sm text-primary hover:underline">
-                + Add dose step
-              </button>
+            <button type="button" onClick={addRung}
+              className="text-sm text-primary hover:underline">
+              + Add dose step
+            </button>
 
-              <p className="text-xs text-gray-500">
-                Leave the last step's weeks blank for an ongoing maintenance dose.
-                Monitoring visits are set from these dose changes.
-              </p>
-            </div>
-          )}
+            <p className="text-xs text-gray-500">
+              Leave the last step's weeks blank for an ongoing maintenance dose.
+              Monitoring visits are set from these dose changes.
+            </p>
+          </div>
         </div>
 
         <div className="mt-3">
