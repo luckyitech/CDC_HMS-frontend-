@@ -22,6 +22,12 @@ const CATALOG_TABS = [
     detailPlaceholder: 'e.g. 500 mg tablet',
     hint: 'These names appear as suggestions when a doctor types a medication on a prescription.',
     externalLabel: 'External API (RxNorm)',
+    // Clinical class → which tool the drug shows in. Mirrors the backend
+    // constants/drugClasses.js; '' means "general, no tool".
+    drugClasses: [
+      { value: '', label: 'General (no clinical tool)' },
+      { value: 'glp1', label: 'GLP-1 / GIP agonist' },
+    ],
   },
   {
     type: 'diagnosis',
@@ -39,7 +45,12 @@ const inputCls = 'px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:ou
 // Manages one catalog type: list, search, add, bulk add, edit, delete,
 // and which source doctors' suggestions come from.
 const CatalogManager = ({ config }) => {
-  const { type, label, detailLabel, detailPlaceholder, hint, externalLabel } = config;
+  const { type, label, detailLabel, detailPlaceholder, hint, externalLabel, drugClasses } = config;
+
+  // value → label for the drug-class badge/dropdown (only the real classes,
+  // not the "General" placeholder)
+  const drugClassLabel = (value) =>
+    drugClasses?.find((c) => c.value && c.value === value)?.label || null;
 
   const [items, setItems] = useState(null); // null = loading
   const [reloadKey, setReloadKey] = useState(0);
@@ -51,6 +62,7 @@ const CatalogManager = ({ config }) => {
 
   const [newName, setNewName] = useState('');
   const [newDetail, setNewDetail] = useState('');
+  const [newDrugClass, setNewDrugClass] = useState('');
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
   const [editing, setEditing] = useState(null);   // item being edited
@@ -111,11 +123,16 @@ const CatalogManager = ({ config }) => {
     const name = newName.trim();
     if (!name) return;
     try {
-      const res = await catalogService.create(type, { name, detail: newDetail.trim() || undefined });
+      const res = await catalogService.create(type, {
+        name,
+        detail: newDetail.trim() || undefined,
+        ...(drugClasses ? { drugClass: newDrugClass || null } : {}),
+      });
       if (res.success) {
         notify('success', `'${name}' added`);
         setNewName('');
         setNewDetail('');
+        setNewDrugClass('');
         reload();
       }
     } catch (err) {
@@ -147,6 +164,7 @@ const CatalogManager = ({ config }) => {
       const res = await catalogService.update(type, editing.id, {
         name,
         detail: editing.detail?.trim() || '',
+        ...(drugClasses ? { drugClass: editing.drugClass || null } : {}),
       });
       if (res.success) {
         notify('success', 'Entry updated');
@@ -224,6 +242,18 @@ const CatalogManager = ({ config }) => {
             title={detailLabel}
             className={`${inputCls} sm:w-48`}
           />
+          {drugClasses && (
+            <select
+              value={newDrugClass}
+              onChange={(e) => setNewDrugClass(e.target.value)}
+              title="Clinical class — controls which tool this drug appears in"
+              className={`${inputCls} sm:w-56`}
+            >
+              {drugClasses.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          )}
           <Button type="submit" disabled={!newName.trim()} className="flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add
           </Button>
@@ -270,7 +300,16 @@ const CatalogManager = ({ config }) => {
               <tbody className="divide-y divide-gray-100">
                 {paginated.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold text-gray-800">{item.name}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-800">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {item.name}
+                        {drugClassLabel(item.drugClass) && (
+                          <span className="px-2 py-0.5 rounded-full bg-primary-50 text-primary text-xs font-medium">
+                            {drugClassLabel(item.drugClass)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{item.detail || '—'}</td>
                     <td className="px-4 py-3 text-gray-500">{item.addedBy || '—'}</td>
                     <td className="px-4 py-3">
@@ -349,6 +388,25 @@ const CatalogManager = ({ config }) => {
                 className={`${inputCls} w-full`}
               />
             </div>
+            {drugClasses && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                  Clinical class
+                </label>
+                <select
+                  value={editing.drugClass || ''}
+                  onChange={(e) => setEditing({ ...editing, drugClass: e.target.value })}
+                  className={`${inputCls} w-full`}
+                >
+                  {drugClasses.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Controls which clinical tool this drug appears in (e.g. the GLP-1 monitoring tool).
+                </p>
+              </div>
+            )}
             <div className="flex gap-3">
               <Button onClick={handleSaveEdit} className="flex-1">Save</Button>
               <Button variant="outline" onClick={() => setEditing(null)} className="flex-1">Cancel</Button>
