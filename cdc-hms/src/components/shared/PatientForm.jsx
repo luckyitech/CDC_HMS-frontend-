@@ -92,6 +92,18 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
       return;
     }
 
+    // Phone and emergency contact are mandatory
+    if (!patientData.phone.trim()) {
+      notify('error', 'Phone number is required');
+      return;
+    }
+    if (!patientData.emergencyContactName.trim() ||
+        !patientData.emergencyContactRelationship.trim() ||
+        !patientData.emergencyContactPhone.trim()) {
+      notify('error', 'Emergency contact name, relationship, and phone are all required');
+      return;
+    }
+
     // Validate UHID only if existing patient mode
     if (isExistingPatient && !existingUHID.trim()) {
       notify('error', 'Please enter the UHID from the patient\'s physical file');
@@ -280,11 +292,12 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
             />
 
             <Input
-              label="Phone Number"
+              label="Phone Number *"
               type="tel"
               value={patientData.phone}
               onChange={(e) => setPatientData({ ...patientData, phone: e.target.value })}
               placeholder="+254 712 345 678"
+              required
             />
 
             <Input

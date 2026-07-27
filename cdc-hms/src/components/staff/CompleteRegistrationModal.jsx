@@ -76,6 +76,7 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
     if (!form.dateOfBirth) return toast.error('Date of birth is required');
     if (!form.gender)      return toast.error('Gender is required');
     if (!form.idNumber.trim()) return toast.error('ID / Passport number is required');
+    if (!form.phone.trim())    return toast.error('Phone number is required');
     if (!form.emergencyContactName.trim())         return toast.error('Emergency contact name is required');
     if (!form.emergencyContactRelationship.trim()) return toast.error('Emergency contact relationship is required');
     if (!form.emergencyContactPhone.trim())        return toast.error('Emergency contact phone is required');
@@ -170,7 +171,7 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
               <Field label="Email Address">
                 <input className={inputCls} type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="patient@example.com" />
               </Field>
-              <Field label="Phone Number">
+              <Field label="Phone Number" required>
                 <input className={inputCls} type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+254 712 345 678" />
               </Field>
               <Field label="Date of Birth" required>
