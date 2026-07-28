@@ -5,6 +5,7 @@ import Button from "./Button";
 import { code128Svg } from "../../utils/code128";
 import { formatDOB } from "../../utils/dateUtils";
 import barcodeService from "../../services/barcodeService";
+import logo from "../../assets/cdc_web_logo1.svg";
 
 // Barcode generation for a patient: preview modal + two print paths.
 //   Print card  — wallet-size identity card (CR80) the patient carries/presents.
@@ -43,11 +44,11 @@ const printHtml = (title, pageW, pageH, bodyHtml) => {
 </html>`);
   win.document.close();
   win.focus();
-  // Give the window a beat to lay out before printing, then close.
+  // Give the window a beat to lay out (and the logo to load), then print.
   setTimeout(() => {
     win.print();
     win.close();
-  }, 250);
+  }, 500);
 };
 
 const BarcodeActions = ({ patient }) => {
@@ -93,19 +94,22 @@ const BarcodeActions = ({ patient }) => {
 
   const handlePrintCard = () => {
     logPrint("print_card");
-    const svg = code128Svg(patient.uhid, { height: 44, moduleWidth: 2, showText: true });
+    const svg = code128Svg(patient.uhid, { height: 40, moduleWidth: 2, showText: true });
     printHtml(`Card ${patient.uhid}`, CARD_W_MM, CARD_H_MM, `
       <div style="width:${CARD_W_MM}mm; height:${CARD_H_MM}mm; padding:3mm 4mm;
                   display:flex; flex-direction:column; justify-content:space-between;">
-        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:2mm;">
           <div>
             <div style="font-size:9pt; font-weight:bold;">Comprehensive Diabetes Centre</div>
             <div style="font-size:6.5pt; color:#444;">Nairobi &middot; cdiabetescentre.com</div>
           </div>
+          <img src="${logo}" alt="" style="height:9mm; width:auto;" />
         </div>
         <div>
           <div style="font-size:11pt; font-weight:bold;">${patient.name}</div>
-          ${dob ? `<div style="font-size:7.5pt; color:#444;">DOB: ${dob}</div>` : ""}
+          <div style="font-size:7.5pt; color:#444;">
+            ${dob ? `DOB: ${dob}` : ""}${dob && patient.primaryDoctor ? " &middot; " : ""}${patient.primaryDoctor ? `Doctor: ${patient.primaryDoctor}` : ""}
+          </div>
         </div>
         <div style="text-align:center;">${svg}</div>
       </div>`);
@@ -158,6 +162,9 @@ const BarcodeActions = ({ patient }) => {
               <p className="font-semibold text-gray-800">{patient.name}</p>
               <p className="text-sm text-gray-600">UHID: {patient.uhid}</p>
               {dob && <p className="text-sm text-gray-600">DOB: {dob}</p>}
+              {patient.primaryDoctor && (
+                <p className="text-sm text-gray-600">Doctor: {patient.primaryDoctor}</p>
+              )}
             </div>
 
             <div className="mb-6 p-4 border-2 border-gray-200 rounded-lg bg-white flex justify-center">

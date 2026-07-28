@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { formatDOB } from "../../utils/dateUtils";
 import VitalsGrid from '../../components/shared/VitalsGrid';
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
@@ -14,6 +14,7 @@ import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
 import BarcodeActions from "../../components/shared/BarcodeActions";
+import ScanActionModal from "../../components/staff/ScanActionModal";
 import InactivePatientBanner from "../../components/shared/InactivePatientBanner";
 import { patientService } from "../../services/patientService";
 import toast from "react-hot-toast";
@@ -38,6 +39,7 @@ import {
 const StaffPatientProfile = () => {
   const navigate = useNavigate();
   const { uhid } = useParams();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [patient, setPatient] = useState(null);
   const [loadingPatient, setLoadingPatient] = useState(true);
@@ -45,6 +47,8 @@ const StaffPatientProfile = () => {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [reactivating, setReactivating] = useState(false);
+  // Set when this profile was opened by a barcode scan — shows the action popup.
+  const [showScanModal, setShowScanModal] = useState(!!location.state?.scanned);
 
   const { fetchPatientByUHID } = usePatientContext();
   const { getPrescriptionsByPatient } = usePrescriptionContext();
@@ -267,6 +271,13 @@ const StaffPatientProfile = () => {
         {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
       </div>
+
+      {showScanModal && (
+        <ScanActionModal
+          patient={patient}
+          onClose={() => setShowScanModal(false)}
+        />
+      )}
 
       {showCompleteModal && (
         <CompleteRegistrationModal

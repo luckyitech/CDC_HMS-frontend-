@@ -107,7 +107,7 @@ const PatientSearch = () => {
             });
           }
           setSearchTerm("");
-          navigate(`/staff/patient-profile/${res.data.uhid}`);
+          navigate(`/staff/patient-profile/${res.data.uhid}`, { state: { scanned: true } });
           return;
         }
       } catch {

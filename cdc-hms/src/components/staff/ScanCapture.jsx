@@ -49,7 +49,7 @@ const ScanCapture = ({ basePath = "/staff", invisible = false }) => {
           toast.success(`Opening ${name} (${uhid})`, { duration: 2000 });
         }
         setValue("");
-        navigate(`${basePath}/patient-profile/${uhid}`);
+        navigate(`${basePath}/patient-profile/${uhid}`, { state: { scanned: true } });
       } else {
         toast.error("Barcode not recognised");
       }
