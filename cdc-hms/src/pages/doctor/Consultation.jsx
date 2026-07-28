@@ -24,6 +24,7 @@ import {
   Syringe,
   ChevronUp,
   ChevronDown,
+  Package,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../../components/shared/Card";
@@ -39,6 +40,7 @@ import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useAppointmentContext } from "../../contexts/AppointmentContext";
 import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import ReferPatientModal from "../../components/doctor/ReferPatientModal";
+import RecordUseModal from "../../components/stock/RecordUseModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
 import { INJECTION_REASON, PENDING_INJECTION } from "../../utils/queueStatus";
 import patientService from "../../services/patientService";
@@ -170,6 +172,10 @@ const Consultation = () => {
 
   const [showVitalsModal, setShowVitalsModal]       = useState(false);
   const [showReferModal, setShowReferModal]         = useState(false);
+  // Point-of-care stock use mid-consultation ("I used a dressing pack").
+  // Floating-bar button — deliberately NOT an accordion section (see the
+  // ACCORDION_SECTIONS column-parity note). Open to all clinical roles.
+  const [showRecordUse, setShowRecordUse]           = useState(false);
   const [showOrderLabModal, setShowOrderLabModal]   = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal]     = useState(false);
@@ -985,12 +991,22 @@ const Consultation = () => {
         </button> */}
 
         <button
+          onClick={() => setShowRecordUse(true)}
+          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
+        >
+          <Package className="w-3.5 h-3.5" />
+          Record Use
+        </button>
+
+        <button
           onClick={() => setShowReferModal(true)}
           className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
         >
           <UserCircle className="w-3.5 h-3.5" />
           Refer Patient
         </button>
+
+        {showRecordUse && <RecordUseModal onClose={() => setShowRecordUse(false)} />}
 
         <button
           onClick={handleCompleteConsultation}

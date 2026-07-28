@@ -48,6 +48,24 @@ export const stockService = {
   getBatches: (params = {}) => api.get('/stock/batches', { params }),
   getDashboard: () => api.get('/stock/dashboard'),
 
+  // ---------- Room balancing ----------
+  getParLevels: (params = {}) => api.get('/stock/par-levels', { params }),
+  setParLevels: (locationId, entries) => api.put('/stock/par-levels', { locationId, entries }),
+  copyParLevels: (fromLocationId, toLocationId) => api.post('/stock/par-levels/copy', { fromLocationId, toLocationId }),
+  getRoomBalance: () => api.get('/stock/room-balance'),
+  getRestockPlan: (sourceLocationId) => api.get('/stock/restock-plan', { params: { sourceLocationId } }),
+  submitStocktake: (data) => api.post('/stock/stocktake', data),
+
+  // ---------- Record Use (open to all clinical roles) ----------
+  getUseOptions: (params = {}) => api.get('/stock/use-options', { params }),
+
+  // ---------- Reports ----------
+  getReorderReport: () => api.get('/stock/reports/reorder'),
+  getConsumptionReport: (months = 6) => api.get('/stock/reports/consumption', { params: { months } }),
+  getRecallReport: (query) => api.get(`/stock/reports/recall/${encodeURIComponent(query)}`),
+  getDisposalReport: (params = {}) => api.get('/stock/reports/disposal', { params }),
+  getFefoOverridesReport: (params = {}) => api.get('/stock/reports/fefo-overrides', { params }),
+
   // ---------- Admin maintenance ----------
   rebuildLevels: () => api.post('/stock/levels/rebuild'),
 };

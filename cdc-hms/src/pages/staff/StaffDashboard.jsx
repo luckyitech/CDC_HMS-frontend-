@@ -10,10 +10,12 @@ import {
   Activity,
   Calendar,
   FileText,
-  Stethoscope
+  Stethoscope,
+  Package
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import RecordUseModal from '../../components/stock/RecordUseModal';
 import { useUserContext } from '../../contexts/UserContext';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useQueueContext } from '../../contexts/QueueContext';
@@ -27,6 +29,9 @@ const StaffDashboard = () => {
   const { queue, getLocalQueueStats, getQueueByStatus } = useQueueContext();
 
   const [patientStats, setPatientStats] = useState({ total: 0, active: 0, highRisk: 0, registeredToday: 0 });
+  // Point-of-care stock use — open to all clinical roles, no stock permission
+  // needed (scanning a shelf label anywhere opens the same modal).
+  const [showRecordUse, setShowRecordUse] = useState(false);
 
   // Fetch patient stats from API once on mount
   useEffect(() => {
@@ -187,8 +192,17 @@ const StaffDashboard = () => {
               <ClipboardList className="w-5 h-5 text-purple-600" />
               <p className="font-semibold text-purple-700">Manage Queue</p>
             </button>
+            <button
+              onClick={() => setShowRecordUse(true)}
+              className="w-full text-left px-4 py-3 bg-amber-50 hover:bg-amber-100 rounded-lg transition border-l-4 border-amber-500 flex items-center gap-3"
+            >
+              <Package className="w-5 h-5 text-amber-600" />
+              <p className="font-semibold text-amber-700">Record Stock Use</p>
+            </button>
           </div>
         </Card>
+
+        {showRecordUse && <RecordUseModal onClose={() => setShowRecordUse(false)} />}
 
         <Card title={
           <span className="flex items-center gap-2">

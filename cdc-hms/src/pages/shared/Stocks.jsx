@@ -6,14 +6,16 @@ import StockItemsTab from "../../components/stock/StockItemsTab";
 import StockReceiveTab from "../../components/stock/StockReceiveTab";
 import StockMoveTab from "../../components/stock/StockMoveTab";
 import StockMovementsTab from "../../components/stock/StockMovementsTab";
+import StockRoomBalanceTab from "../../components/stock/StockRoomBalanceTab";
+import StockStocktakeTab from "../../components/stock/StockStocktakeTab";
+import StockReportsTab from "../../components/stock/StockReportsTab";
 
-// Stocks — Phase 1: dashboard, items/locations/suppliers, receive (with STK-
-// shelf-label printing), dispense + transfer (scan-first, FEFO-gated) and the
-// movement history. Shared across portals: the sidebar shows it to admins and
-// to staff/doctors granted canManageStock; the API enforces the same
-// server-side. Quantities only — no money anywhere (decision).
-//
-// Room Balance, Stocktake and Reports arrive in Phase 2/3 as further tabs.
+// Stocks — the full module: dashboard (with daily expiry sweep + write-offs),
+// items/locations/suppliers, receive (STK- shelf-label printing), dispense +
+// transfer (scan-first, FEFO-gated), room balance (par levels + restock
+// picklist), stocktake, movement history and reports. Shared across portals:
+// the sidebar shows it to admins and to staff/doctors granted canManageStock;
+// the API enforces the same server-side. Quantities only — no money anywhere.
 
 const TABS = [
   { id: "dashboard", label: "Dashboard", el: <StockDashboardTab /> },
@@ -21,7 +23,10 @@ const TABS = [
   { id: "receive", label: "Receive", el: <StockReceiveTab /> },
   { id: "dispense", label: "Dispense", el: <StockMoveTab mode="dispense" /> },
   { id: "transfer", label: "Transfer", el: <StockMoveTab mode="transfer" /> },
+  { id: "rooms", label: "Room Balance", el: <StockRoomBalanceTab /> },
+  { id: "stocktake", label: "Stocktake", el: <StockStocktakeTab /> },
   { id: "movements", label: "Movements", el: <StockMovementsTab /> },
+  { id: "reports", label: "Reports", el: <StockReportsTab /> },
 ];
 
 const Stocks = () => {

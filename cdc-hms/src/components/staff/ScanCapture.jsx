@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import Card from "../shared/Card";
 import barcodeService from "../../services/barcodeService";
+import RecordUseModal from "../stock/RecordUseModal";
 
 // Reception barcode scanner.
 //
@@ -20,6 +21,10 @@ import barcodeService from "../../services/barcodeService";
 //
 // On success it navigates to the patient profile. A merged patient's old card
 // resolves to their current record (backend follows mergedIntoId).
+//
+// Stock labels (STK-) resolve here too: scanning a batch shelf label anywhere
+// opens the Record Use mini-modal pre-filled with item + batch — the
+// point-of-care "I used something" path, open to all clinical roles.
 
 const SCAN_MAX_MS = 500; // a scanned burst completes far faster than human typing
 const MIN_LEN = 3;
@@ -27,6 +32,7 @@ const MIN_LEN = 3;
 const ScanCapture = ({ basePath = "/staff", invisible = false }) => {
   const [value, setValue] = useState("");
   const [isResolving, setIsResolving] = useState(false);
+  const [stockScan, setStockScan] = useState(null);   // resolved STK- payload → Record Use modal
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -37,7 +43,10 @@ const ScanCapture = ({ basePath = "/staff", invisible = false }) => {
     setIsResolving(true);
     try {
       const res = await barcodeService.resolveScan(code);
-      if (res.success && res.data?.uhid) {
+      if (res.success && res.data?.type === "stock") {
+        setValue("");
+        setStockScan(res.data);
+      } else if (res.success && res.data?.uhid) {
         const { uhid, name, redirectedFrom } = res.data;
         if (redirectedFrom) {
           toast(`${redirectedFrom} was merged — opening ${name} (${uhid})`, {
@@ -97,7 +106,13 @@ const ScanCapture = ({ basePath = "/staff", invisible = false }) => {
     }
   };
 
-  if (invisible) return null;
+  // The Record Use modal must render even in invisible mode — the hands-free
+  // listener is exactly how a room scan arrives.
+  const useModal = stockScan && (
+    <RecordUseModal scan={stockScan} onClose={() => setStockScan(null)} />
+  );
+
+  if (invisible) return useModal;
 
   return (
     <Card title="Scan Patient" className="mb-6">
@@ -118,6 +133,7 @@ const ScanCapture = ({ basePath = "/staff", invisible = false }) => {
       <p className="text-xs text-gray-500 mt-2">
         A USB scanner types the code and submits automatically. A merged patient&apos;s old card opens their current record.
       </p>
+      {useModal}
     </Card>
   );
 };
