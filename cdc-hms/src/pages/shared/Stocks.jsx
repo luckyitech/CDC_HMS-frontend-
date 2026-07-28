@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Package } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import StockDashboardTab from "../../components/stock/StockDashboardTab";
 import StockItemsTab from "../../components/stock/StockItemsTab";
@@ -39,27 +38,23 @@ const Stocks = () => {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-          <Package className="w-6 h-6 text-primary" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Stocks</h2>
-          <p className="text-sm text-gray-500">
-            Monitoring quantities only — batches, expiry and movements. No pricing.
-          </p>
-        </div>
+      {/* Header — standard page header block (AdminDashboard / ClinicalCatalog) */}
+      <div className="mb-6">
+        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Stocks</h2>
+        <p className="text-gray-600 mt-1">
+          Monitor medication and supply quantities — batches, expiry, movements and room balance. No pricing.
+        </p>
       </div>
 
-      <div className="flex gap-1 border-b-2 border-gray-200 mb-6 flex-wrap">
+      {/* Tab switcher — same pill group as the Clinical Catalog / Create Users tabs */}
+      <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">
         {TABS.map((t) => (
           <button
             key={t.id}
+            type="button"
             onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-semibold -mb-0.5 border-b-[3px] transition ${
-              tab === t.id
-                ? "text-primary border-primary"
-                : "text-gray-500 border-transparent hover:text-gray-700"
+            className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+              tab === t.id ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
             {t.label}

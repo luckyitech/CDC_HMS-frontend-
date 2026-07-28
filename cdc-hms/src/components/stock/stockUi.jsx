@@ -1,70 +1,68 @@
 import { useState, useEffect, useCallback } from "react";
 import { ScanLine, Loader2, AlertTriangle } from "lucide-react";
-import toast from "react-hot-toast";
 import barcodeService from "../../services/barcodeService";
+import { notify } from "../../utils/notify";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
+import StatusBadge from "../shared/StatusBadge";
+import {
+  STOCK_STATUS_TONES, STOCK_MOVEMENT_TONES, STOCK_MOVEMENT_LABELS,
+} from "../../utils/statusStyles";
 
 // Small shared pieces for the stock tabs — one implementation each for the
-// field row, headline card, status pill, the scan-a-batch box and the FEFO
-// override modal, so every tab stays uniform.
+// field row, headline card, status badge, movement badge, the scan-a-batch
+// box and the FEFO override modal, so every tab stays uniform. Colours and
+// badge shapes come from the app-wide StatusBadge + statusStyles, not
+// hand-rolled classes.
 
+// Form field label — matches the house convention (ClinicalCatalog/EditUser).
 export const Field = ({ label, children, hint }) => (
   <div className="mb-4">
-    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">
-      {label}
-    </label>
+    <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
     {children}
     {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
   </div>
 );
 
+// Input styling — same as ClinicalCatalog's inputCls (border-2, focus:primary).
 export const inputCls =
-  "w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-primary";
+  "w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary";
 
+// Headline stat tile — the app's gradient dashboard card (AdminDashboard).
 export const StatCard = ({ label, value, sub, tone = "blue" }) => {
-  const tones = {
-    blue: "border-l-4 border-l-blue-500",
-    red: "border-l-4 border-l-red-500",
-    amber: "border-l-4 border-l-amber-500",
-    green: "border-l-4 border-l-green-500",
+  const gradients = {
+    blue:  "from-blue-500 to-blue-600",
+    green: "from-green-500 to-green-600",
+    amber: "from-amber-500 to-amber-600",
+    red:   "from-red-500 to-red-600",
+    cyan:  "from-cyan-500 to-cyan-600",
+    purple:"from-purple-500 to-purple-600",
   };
   return (
-    <div className={`bg-white border border-gray-200 rounded-xl p-4 ${tones[tone]}`}>
-      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-extrabold text-gray-800 my-1">{value}</p>
-      {sub && <p className="text-xs text-gray-500">{sub}</p>}
+    <div className={`bg-gradient-to-br ${gradients[tone] || gradients.blue} rounded-xl shadow-lg p-6 text-white`}>
+      <p className="text-sm opacity-90">{label}</p>
+      <p className="text-4xl font-bold mt-2">{value}</p>
+      {sub && <p className="text-sm mt-3 opacity-75">{sub}</p>}
     </div>
   );
 };
 
-export const StatusPill = ({ value }) => {
-  const styles = {
-    active: "bg-green-100 text-green-700",
-    retired: "bg-gray-100 text-gray-500",
-    depleted: "bg-gray-100 text-gray-500",
-    expired: "bg-red-100 text-red-700",
-    recalled: "bg-red-100 text-red-700",
-  };
-  return (
-    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${styles[value] || "bg-blue-100 text-blue-700"}`}>
-      {value}
-    </span>
-  );
-};
+// Lifecycle status badge (active / retired / expired …).
+export const StatusPill = ({ value }) => (
+  <StatusBadge shape="tag" size="xs" bordered={false} tone={STOCK_STATUS_TONES[value] || "info"}>
+    {value}
+  </StatusBadge>
+);
 
-// Movement type → display tone, shared by history and dashboards.
-export const MOVEMENT_LABELS = {
-  intake: { label: "Intake", cls: "bg-green-100 text-green-700" },
-  dispense: { label: "Dispense", cls: "bg-blue-100 text-blue-700" },
-  use: { label: "Use", cls: "bg-blue-100 text-blue-700" },
-  transfer: { label: "Transfer", cls: "bg-amber-100 text-amber-700" },
-  adjustment: { label: "Adjustment", cls: "bg-purple-100 text-purple-700" },
-  expiry_writeoff: { label: "Expiry write-off", cls: "bg-red-100 text-red-700" },
-  damage_writeoff: { label: "Damage write-off", cls: "bg-red-100 text-red-700" },
-  return: { label: "Return", cls: "bg-green-100 text-green-700" },
-  reversal: { label: "Reversal", cls: "bg-gray-200 text-gray-700" },
-};
+// Movement-type badge, shared by history and reports.
+export const MovementBadge = ({ type }) => (
+  <StatusBadge shape="tag" size="xs" bordered={false} tone={STOCK_MOVEMENT_TONES[type] || "neutral"}>
+    {STOCK_MOVEMENT_LABELS[type] || type}
+  </StatusBadge>
+);
+
+// Type → label map, still exported for the movement-type filter dropdown.
+export const MOVEMENT_LABELS = STOCK_MOVEMENT_LABELS;
 
 // ---------------------------------------------------------------------
 // BatchScanBox — scan (or type) an STK- shelf label; resolves through the
@@ -90,10 +88,10 @@ export const BatchScanBox = ({ onResolved, disabled = false }) => {
         setValue("");
         onResolved(res.data);
       } else {
-        toast.error("Not a stock label — expected an STK- batch code");
+        notify("error", "Not a stock label — expected an STK- batch code");
       }
     } catch (err) {
-      toast.error(err?.message || "Label not recognised");
+      notify("error", err?.message || "Label not recognised");
     } finally {
       setBusy(false);
     }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { ClipboardCheck } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
@@ -18,7 +18,7 @@ const StockStocktakeTab = () => {
   const [busy, setBusy] = useState(false);
 
   const start = async () => {
-    if (!locationId) return toast.error("Choose a location");
+    if (!locationId) return notify("error", "Choose a location");
     setBusy(true);
     try {
       const res = await stockService.getLevels({ locationId });
@@ -35,7 +35,7 @@ const StockStocktakeTab = () => {
         })));
       }
     } catch (err) {
-      toast.error(err?.message || "Could not load expected quantities");
+      notify("error", err?.message || "Could not load expected quantities");
     } finally {
       setBusy(false);
     }
@@ -52,14 +52,14 @@ const StockStocktakeTab = () => {
         note: note.trim() || undefined,
       });
       if (res.success) {
-        toast.success(res.data?.message || "Stocktake recorded");
+        notify("success", res.data?.message || "Stocktake recorded");
         setRows(null);
         setNote("");
       } else {
-        toast.error(res.message || "Stocktake failed");
+        notify("error", res.message || "Stocktake failed");
       }
     } catch (err) {
-      toast.error(err?.message || "Stocktake failed");
+      notify("error", err?.message || "Stocktake failed");
     } finally {
       setBusy(false);
     }

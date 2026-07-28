@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { PackagePlus, Printer } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
@@ -48,9 +48,9 @@ const StockReceiveTab = () => {
   };
 
   const submit = async () => {
-    if (!form.stockItemId) return toast.error("Choose an item");
-    if (!form.locationId) return toast.error("Choose a receiving location");
-    if (!form.quantity || Number(form.quantity) < 1) return toast.error("Enter a quantity");
+    if (!form.stockItemId) return notify("error", "Choose an item");
+    if (!form.locationId) return notify("error", "Choose a receiving location");
+    if (!form.quantity || Number(form.quantity) < 1) return notify("error", "Enter a quantity");
 
     setSaving(true);
     try {
@@ -64,7 +64,7 @@ const StockReceiveTab = () => {
       });
       if (res.success) {
         const { batch, item } = res.data;
-        toast.success(`Received ${form.quantity} × ${item.name} — label ${batch.labelCode}`);
+        notify("success", `Received ${form.quantity} × ${item.name} — label ${batch.labelCode}`);
         setReceived((prev) => [{ ...batch, itemName: item.name }, ...prev]);
         printStockBatchLabel({
           labelCode: batch.labelCode,
@@ -75,10 +75,10 @@ const StockReceiveTab = () => {
         // Keep item + location for multi-line deliveries; clear the batch line.
         setForm((prev) => ({ ...prev, batchNo: "", expiryDate: "", packs: "", quantity: "" }));
       } else {
-        toast.error(res.message || "Intake failed");
+        notify("error", res.message || "Intake failed");
       }
     } catch (err) {
-      toast.error(err?.message || "Intake failed");
+      notify("error", err?.message || "Intake failed");
     } finally {
       setSaving(false);
     }

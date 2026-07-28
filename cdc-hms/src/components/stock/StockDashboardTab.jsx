@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { Trash2 } from "lucide-react";
 import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
@@ -80,9 +80,9 @@ const StockDashboardTab = () => {
   };
 
   const submitWriteOff = async () => {
-    if (!woForm.locationId) return toast.error("Choose the location");
-    if (!woForm.quantity || Number(woForm.quantity) < 1) return toast.error("Enter a quantity");
-    if (!woForm.reason.trim()) return toast.error("A reason is required");
+    if (!woForm.locationId) return notify("error", "Choose the location");
+    if (!woForm.quantity || Number(woForm.quantity) < 1) return notify("error", "Enter a quantity");
+    if (!woForm.reason.trim()) return notify("error", "A reason is required");
     setBusy(true);
     try {
       const res = await stockService.writeoff({
@@ -93,14 +93,14 @@ const StockDashboardTab = () => {
         reason: woForm.reason.trim(),
       });
       if (res.success) {
-        toast.success("Written off — recorded in the disposal register");
+        notify("success", "Written off — recorded in the disposal register");
         setWriteOff(null);
         load();
       } else {
-        toast.error(res.message || "Write-off failed");
+        notify("error", res.message || "Write-off failed");
       }
     } catch (err) {
-      toast.error(err?.message || "Write-off failed");
+      notify("error", err?.message || "Write-off failed");
     } finally {
       setBusy(false);
     }

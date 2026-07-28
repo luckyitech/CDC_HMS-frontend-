@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { SlidersHorizontal, Truck, Copy } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
@@ -71,14 +71,14 @@ const StockRoomBalanceTab = () => {
       }));
       const res = await stockService.setParLevels(editingRoom, entries);
       if (res.success) {
-        toast.success("Par levels saved");
+        notify("success", "Par levels saved");
         setEditingRoom(null);
         load();
       } else {
-        toast.error(res.message || "Save failed");
+        notify("error", res.message || "Save failed");
       }
     } catch (err) {
-      toast.error(err?.message || "Save failed");
+      notify("error", err?.message || "Save failed");
     } finally {
       setSaving(false);
     }
@@ -90,13 +90,13 @@ const StockRoomBalanceTab = () => {
     try {
       const res = await stockService.copyParLevels(Number(copyFrom), editingRoom);
       if (res.success) {
-        toast.success(res.data?.message || "Copied");
+        notify("success", res.data?.message || "Copied");
         openParEditor(editingRoom);   // reload rows with the copied values
       } else {
-        toast.error(res.message || "Copy failed");
+        notify("error", res.message || "Copy failed");
       }
     } catch (err) {
-      toast.error(err?.message || "Copy failed");
+      notify("error", err?.message || "Copy failed");
     } finally {
       setSaving(false);
     }
@@ -104,18 +104,18 @@ const StockRoomBalanceTab = () => {
 
   // ---------- Restock picklist ----------
   const buildPlan = async () => {
-    if (!sourceId) return toast.error("Choose the source store");
+    if (!sourceId) return notify("error", "Choose the source store");
     try {
       const res = await stockService.getRestockPlan(Number(sourceId));
       if (res.success) {
         setPlan(res.data);
         setDoneLines({});
-        if (!res.data.lines.length) toast("All rooms are at their maximum — nothing to restock");
+        if (!res.data.lines.length) notify("info", "All rooms are at their maximum — nothing to restock");
       } else {
-        toast.error(res.message || "Could not build the plan");
+        notify("error", res.message || "Could not build the plan");
       }
     } catch (err) {
-      toast.error(err?.message || "Could not build the plan");
+      notify("error", err?.message || "Could not build the plan");
     }
   };
 
@@ -133,11 +133,11 @@ const StockRoomBalanceTab = () => {
       if (res.success) {
         setDoneLines((prev) => ({ ...prev, [idx]: "ok" }));
       } else {
-        toast.error(res.message || "Transfer failed");
+        notify("error", res.message || "Transfer failed");
         setDoneLines((prev) => ({ ...prev, [idx]: "fail" }));
       }
     } catch (err) {
-      toast.error(err?.message || "Transfer failed");
+      notify("error", err?.message || "Transfer failed");
       setDoneLines((prev) => ({ ...prev, [idx]: "fail" }));
     }
   };

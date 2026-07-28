@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { Undo2 } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
@@ -7,7 +7,7 @@ import Spinner from "../shared/Spinner";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
 import Pagination from "../shared/Pagination";
-import { Field, inputCls, MOVEMENT_LABELS, ByLine } from "./stockUi";
+import { Field, inputCls, MOVEMENT_LABELS, MovementBadge, ByLine } from "./stockUi";
 
 // Movement history — the ledger, filterable. Rows are immutable; the only
 // correction is a reversal (reason required), offered per row.
@@ -50,15 +50,15 @@ const StockMovementsTab = () => {
     try {
       const res = await stockService.reverseMovement(reversing.id, reason.trim());
       if (res.success) {
-        toast.success("Movement reversed");
+        notify("success", "Movement reversed");
         setReversing(null);
         setReason("");
         load();
       } else {
-        toast.error(res.message || "Reverse failed");
+        notify("error", res.message || "Reverse failed");
       }
     } catch (err) {
-      toast.error(err?.message || "Reverse failed");
+      notify("error", err?.message || "Reverse failed");
     } finally {
       setBusy(false);
     }
@@ -103,14 +103,13 @@ const StockMovementsTab = () => {
               </thead>
               <tbody>
                 {data.movements.map((m) => {
-                  const t = MOVEMENT_LABELS[m.type] || { label: m.type, cls: "bg-gray-100 text-gray-600" };
                   return (
                     <tr key={m.id} className="border-t border-gray-100">
                       <td className="px-3 py-2 whitespace-nowrap">
                         <ByLine user={m.performedByUser} at={m.createdAt} />
                       </td>
                       <td className="px-3 py-2">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${t.cls}`}>{t.label}</span>
+                        <MovementBadge type={m.type} />
                       </td>
                       <td className="px-3 py-2 font-medium">{m.item?.name}</td>
                       <td className="px-3 py-2 font-mono text-xs">{m.batch?.labelCode || m.stockBatchId}</td>

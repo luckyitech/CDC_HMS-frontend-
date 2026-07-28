@@ -1,5 +1,5 @@
 import { useState } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { Plus, Pencil, Snowflake, AlertTriangle } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import Button from "../shared/Button";
@@ -56,10 +56,10 @@ const StockItemsTab = () => {
     const res = await saveReference(editing.kind, editing.id, payload);
     setSaving(false);
     if (res.success) {
-      toast.success(statusOverride === "retired" ? "Retired" : "Saved");
+      notify("success", statusOverride === "retired" ? "Retired" : "Saved");
       setEditing(null);
     } else {
-      toast.error(res.message || "Save failed");
+      notify("error", res.message || "Save failed");
     }
   };
 

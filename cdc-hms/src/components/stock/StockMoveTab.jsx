@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { AlertTriangle } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
@@ -33,7 +33,7 @@ const StockMoveTab = ({ mode }) => {
     setResolved(data);
     // Pre-select the source when the batch sits in exactly one location.
     if (data.levels?.length === 1) set("fromLocationId", String(data.levels[0].locationId));
-    toast.success(`${data.item.name} — ${data.batch.labelCode}`);
+    notify("success", `${data.item.name} — ${data.batch.labelCode}`);
   };
 
   const availableAtSource = useMemo(() => {
@@ -43,10 +43,10 @@ const StockMoveTab = ({ mode }) => {
   }, [resolved, form.fromLocationId]);
 
   const submit = async (fefoOverrideReason = null, batchIdOverride = null) => {
-    if (!resolved && !batchIdOverride) return toast.error("Scan a batch label first");
-    if (!form.fromLocationId) return toast.error("Choose the source location");
-    if (isTransfer && !form.toLocationId) return toast.error("Choose the destination");
-    if (!form.quantity || Number(form.quantity) < 1) return toast.error("Enter a quantity");
+    if (!resolved && !batchIdOverride) return notify("error", "Scan a batch label first");
+    if (!form.fromLocationId) return notify("error", "Choose the source location");
+    if (isTransfer && !form.toLocationId) return notify("error", "Choose the destination");
+    if (!form.quantity || Number(form.quantity) < 1) return notify("error", "Enter a quantity");
 
     setSaving(true);
     try {
@@ -60,10 +60,10 @@ const StockMoveTab = ({ mode }) => {
       };
       const res = isTransfer ? await stockService.transfer(payload) : await stockService.dispense(payload);
       if (res.success) {
-        toast.success(isTransfer ? "Transfer recorded" : "Dispense recorded");
+        notify("success", isTransfer ? "Transfer recorded" : "Dispense recorded");
         reset();
       } else {
-        toast.error(res.message || "Failed");
+        notify("error", res.message || "Failed");
       }
     } catch (err) {
       // FEFO gate: the backend answers 409 with the suggested batch
@@ -72,7 +72,7 @@ const StockMoveTab = ({ mode }) => {
       if (suggestion) {
         setFefo(suggestion);
       } else {
-        toast.error(err?.message || "Failed");
+        notify("error", err?.message || "Failed");
       }
     } finally {
       setSaving(false);

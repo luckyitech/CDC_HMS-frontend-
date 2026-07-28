@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { AlertTriangle } from "lucide-react";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
@@ -61,9 +61,9 @@ const RecordUseModal = ({ scan = null, onClose }) => {
     : batches.find((b) => b.stockBatchId === Number(stockBatchId));
 
   const submit = async () => {
-    if (!locationId) return toast.error("Choose the room");
-    if (!stockBatchId) return toast.error("Choose what was used");
-    if (!quantity || Number(quantity) < 1) return toast.error("Enter a quantity");
+    if (!locationId) return notify("error", "Choose the room");
+    if (!stockBatchId) return notify("error", "Choose what was used");
+    if (!quantity || Number(quantity) < 1) return notify("error", "Enter a quantity");
     setSaving(true);
     try {
       const res = await stockService.recordUse({
@@ -72,13 +72,13 @@ const RecordUseModal = ({ scan = null, onClose }) => {
         quantity: Number(quantity),
       });
       if (res.success) {
-        toast.success("Use recorded");
+        notify("success", "Use recorded");
         onClose();
       } else {
-        toast.error(res.message || "Failed to record use");
+        notify("error", res.message || "Failed to record use");
       }
     } catch (err) {
-      toast.error(err?.message || "Failed to record use");
+      notify("error", err?.message || "Failed to record use");
     } finally {
       setSaving(false);
     }

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import toast from "react-hot-toast";
+import { notify } from "../../utils/notify";
 import { Download, Search, DatabaseZap } from "lucide-react";
 import { useUserContext } from "../../contexts/UserContext";
 import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
 import Button from "../shared/Button";
-import { inputCls, MOVEMENT_LABELS, ByLine } from "./stockUi";
+import { inputCls, MovementBadge, ByLine } from "./stockUi";
 
 // Reports — straight views over the ledger. Every table exports to CSV.
 // No money anywhere.
@@ -49,11 +49,10 @@ const MovementTable = ({ rows }) => (
     </thead>
     <tbody>
       {rows.map((m) => {
-        const t = MOVEMENT_LABELS[m.type] || { label: m.type, cls: "bg-gray-100 text-gray-600" };
         return (
           <tr key={m.id} className="border-t border-gray-100">
             <td className="px-3 py-2 whitespace-nowrap"><ByLine user={m.performedByUser} at={m.createdAt} /></td>
-            <td className="px-3 py-2"><span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${t.cls}`}>{t.label}</span></td>
+            <td className="px-3 py-2"><MovementBadge type={m.type} /></td>
             <td className="px-3 py-2 font-medium">{m.item?.name}</td>
             <td className="px-3 py-2 font-mono text-xs">{m.batch?.labelCode}</td>
             <td className="px-3 py-2 font-bold">{m.quantity}</td>
@@ -98,7 +97,7 @@ const StockReportsTab = () => {
         : await stockService.getFefoOverridesReport();
       if (res.success) setData(res.data);
     } catch (err) {
-      toast.error(err?.message || "Failed to load report");
+      notify("error", err?.message || "Failed to load report");
     } finally {
       setLoading(false);
     }
@@ -114,7 +113,7 @@ const StockReportsTab = () => {
       if (res.success) setData(res.data);
     } catch (err) {
       setData(null);
-      toast.error(err?.message || "No batch matches");
+      notify("error", err?.message || "No batch matches");
     } finally {
       setLoading(false);
     }
@@ -124,9 +123,9 @@ const StockReportsTab = () => {
     if (!window.confirm("Recompute all stock levels from the ledger? Screens may shift if the levels had drifted.")) return;
     try {
       const res = await stockService.rebuildLevels();
-      if (res.success) toast.success(res.data?.message || "Levels rebuilt");
+      if (res.success) notify("success", res.data?.message || "Levels rebuilt");
     } catch (err) {
-      toast.error(err?.message || "Rebuild failed");
+      notify("error", err?.message || "Rebuild failed");
     }
   };
 
