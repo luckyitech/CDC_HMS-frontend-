@@ -59,6 +59,14 @@ export const stockService = {
   // ---------- Record Use (open to all clinical roles) ----------
   getUseOptions: (params = {}) => api.get('/stock/use-options', { params }),
 
+  // ---------- Checkout dispense (patient-linked, from the discharge desk) ----------
+  // lines: [{ stockBatchId, locationId, quantity }]
+  checkoutDispense: (uhid, lines) => api.post('/stock/checkout-dispense', { uhid, lines }),
+
+  // Earliest-expiring batch of an item at a location — drives the checkout FEFO nudge.
+  getFefoSuggestion: (stockItemId, locationId) =>
+    api.get('/stock/fefo-suggestion', { params: { stockItemId, locationId } }),
+
   // ---------- Reports ----------
   getReorderReport: () => api.get('/stock/reports/reorder'),
   getConsumptionReport: (months = 6) => api.get('/stock/reports/consumption', { params: { months } }),
