@@ -3,6 +3,7 @@ import { useStockContext } from "../../contexts/StockContext";
 import StockDashboardTab from "../../components/stock/StockDashboardTab";
 import StockItemsTab from "../../components/stock/StockItemsTab";
 import StockReceiveTab from "../../components/stock/StockReceiveTab";
+import StockDispenseTab from "../../components/stock/StockDispenseTab";
 import StockMoveTab from "../../components/stock/StockMoveTab";
 import StockMovementsTab from "../../components/stock/StockMovementsTab";
 import StockRoomBalanceTab from "../../components/stock/StockRoomBalanceTab";
@@ -20,7 +21,7 @@ const TABS = [
   { id: "dashboard", label: "Dashboard", el: <StockDashboardTab /> },
   { id: "items", label: "Items", el: <StockItemsTab /> },
   { id: "receive", label: "Receive", el: <StockReceiveTab /> },
-  { id: "dispense", label: "Dispense", el: <StockMoveTab mode="dispense" /> },
+  { id: "dispense", label: "Dispense", el: <StockDispenseTab /> },
   { id: "transfer", label: "Transfer", el: <StockMoveTab mode="transfer" /> },
   { id: "rooms", label: "Room Balance", el: <StockRoomBalanceTab /> },
   { id: "stocktake", label: "Stocktake", el: <StockStocktakeTab /> },
