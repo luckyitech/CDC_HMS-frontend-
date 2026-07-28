@@ -48,6 +48,7 @@ const StockMoveTab = ({ mode }) => {
     if (!resolved && !batchIdOverride) return notify("error", "Scan a batch label first");
     if (!form.fromLocationId) return notify("error", "Choose the source location");
     if (isTransfer && !form.toLocationId) return notify("error", "Choose the destination");
+    if (!isTransfer && !patient) return notify("error", "Attach the patient this is dispensed to");
     if (!form.quantity || Number(form.quantity) < 1) return notify("error", "Enter a quantity");
 
     setSaving(true);
@@ -142,14 +143,15 @@ const StockMoveTab = ({ mode }) => {
             <p className="text-xs text-blue-700 mb-3">❄ Cold-chain item — only fridge destinations are offered.</p>
           )}
 
-          {/* Optional patient — attach for a named collection so it lands on
-              their record and a bad-batch recall can trace it. Omit for a
-              genuine over-the-counter sale. Dispense only. */}
+          {/* Patient is required — a dispense is a named handover, so it always
+              lands on the patient's record and a bad-batch recall can trace it.
+              Dispense only. */}
           {!isTransfer && (
             <PatientAttach
               value={patient}
               onChange={setPatient}
-              hint="scan the patient card or type a UHID — leave blank for over-the-counter collection"
+              label="Attach patient (required)"
+              hint="scan the patient card or type a UHID"
             />
           )}
 
