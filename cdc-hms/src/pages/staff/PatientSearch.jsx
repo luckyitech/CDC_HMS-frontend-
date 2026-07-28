@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardEdit,
+  GitMerge,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -20,6 +21,7 @@ import { useUserContext } from "../../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
 import patientService from "../../services/patientService";
 import ScanCapture from "../../components/staff/ScanCapture";
+import barcodeService from "../../services/barcodeService";
 
 const RESULTS_PER_PAGE = 20;
 
@@ -83,7 +85,7 @@ const PatientSearch = () => {
     }
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchTerm.trim()) {
       toast.error("Please enter a search term", {
         duration: 3000,
@@ -91,6 +93,26 @@ const PatientSearch = () => {
         style: { background: "#FEE2E2", color: "#991B1B", fontWeight: "bold", padding: "16px" },
       });
       return;
+    }
+    const term = searchTerm.trim().toUpperCase();
+    if (/^CDC\d+$/.test(term)) {
+      try {
+        const res = await barcodeService.resolveScan(term);
+        if (res.success && res.data?.uhid) {
+          if (res.data.redirectedFrom) {
+            toast(`${res.data.redirectedFrom} was merged — opening ${res.data.name} (${res.data.uhid})`, {
+              icon: <GitMerge className="w-5 h-5" />,
+              duration: 4000,
+              style: { background: "#FEF3C7", color: "#92400E", fontWeight: "bold", padding: "16px" },
+            });
+          }
+          setSearchTerm("");
+          navigate(`/staff/patient-profile/${res.data.uhid}`);
+          return;
+        }
+      } catch {
+        // UHID didn't resolve (e.g. not found) — fall through to normal search
+      }
     }
     doSearch(searchTerm, 1);
   };
@@ -158,7 +180,7 @@ const PatientSearch = () => {
         <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Patient Search</h2>
       </div>
 
-      <ScanCapture />
+      <ScanCapture invisible />
 
       {/* Search Input */}
       <Card title="Search Patient">
@@ -168,7 +190,7 @@ const PatientSearch = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search by name, UHID, phone, email, or ID/passport number..."
+            placeholder="Scan a barcode, or search by name, UHID, phone, email, or ID/passport number..."
             className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary text-base"
           />
           <Button onClick={handleSearch} className="sm:w-auto flex items-center justify-center" disabled={isSearching}>

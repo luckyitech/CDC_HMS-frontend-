@@ -9,10 +9,14 @@ import barcodeService from "../../services/barcodeService";
 //
 // A USB scanner behaves like a keyboard: it "types" the code and sends Enter.
 // Two ways to use it, both handled here:
-//   1. Click the box (it auto-focuses) and scan, or type a UHID — Enter submits.
+//   1. Into any focused input — the page's own handler deals with it (the
+//      patient search bar has a UHID fast-path for exactly this).
 //   2. Hands-free — when NO input is focused, a fast keystroke burst ending in
 //      Enter anywhere on the page is captured as a scan. Manual typing in any
 //      field is left untouched, so this never fights the search box.
+//
+// With `invisible`, renders nothing and provides only the hands-free listener —
+// used on PatientSearch, where the main search bar is the visible scan target.
 //
 // On success it navigates to the patient profile. A merged patient's old card
 // resolves to their current record (backend follows mergedIntoId).
@@ -20,7 +24,7 @@ import barcodeService from "../../services/barcodeService";
 const SCAN_MAX_MS = 500; // a scanned burst completes far faster than human typing
 const MIN_LEN = 3;
 
-const ScanCapture = ({ basePath = "/staff" }) => {
+const ScanCapture = ({ basePath = "/staff", invisible = false }) => {
   const [value, setValue] = useState("");
   const [isResolving, setIsResolving] = useState(false);
   const inputRef = useRef(null);
@@ -92,6 +96,8 @@ const ScanCapture = ({ basePath = "/staff" }) => {
       resolve(value);
     }
   };
+
+  if (invisible) return null;
 
   return (
     <Card title="Scan Patient" className="mb-6">
