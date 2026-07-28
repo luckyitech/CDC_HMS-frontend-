@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Users, Pencil, KeyRound, Trash2,
-  ArrowLeft, UserCheck, UserX,
+  ArrowLeft, UserCheck, UserX, Package,
 } from 'lucide-react';
 import api from '../../services/api';
 import patientService from '../../services/patientService';
@@ -153,6 +153,22 @@ const ManageUsers = () => {
     }
   };
 
+  // Stock module access — the admin-granted per-user flag. Server reads it
+  // from the DB on every stock request, so the change takes effect without
+  // the user logging out.
+  const handleToggleStock = async (user) => {
+    const grant = !user.canManageStock;
+    if (!window.confirm(`${grant ? 'Grant' : 'Revoke'} stock access ${grant ? 'to' : 'for'} ${user.name}?`)) return;
+    try {
+      const res = await api.put(`/users/${user.id}`, { canManageStock: grant });
+      if (!res.success) throw new Error('Update failed');
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, canManageStock: grant } : u));
+      toastSuccess(`Stock access ${grant ? 'granted to' : 'revoked from'} ${user.name}`);
+    } catch (err) {
+      toastError(err.message || 'Failed to update stock access');
+    }
+  };
+
   const handleResetPassword = async (user) => {
     if (!user.email) {
       toastError(`${user.name} has no email address on file. Update their profile first.`);
@@ -226,6 +242,11 @@ const ManageUsers = () => {
         <button onClick={() => handleToggleStatus(user)} className={base}>
           {isActive ? <><UserX size={13} /> Deactivate</> : <><UserCheck size={13} /> Activate</>}
         </button>
+        {['doctor', 'staff'].includes(user.role) && (
+          <button onClick={() => handleToggleStock(user)} className={`${base} ${user.canManageStock ? 'text-primary' : ''}`}>
+            <Package size={13} /> {user.canManageStock ? 'Revoke Stock' : 'Grant Stock'}
+          </button>
+        )}
         <button onClick={() => handleDelete(user)} className={`${base} text-red-600 hover:bg-red-50 hover:text-red-700`}>
           <Trash2 size={13} /> Delete
         </button>
@@ -252,6 +273,20 @@ const ManageUsers = () => {
             {isActive ? <UserX size={15} /> : <UserCheck size={15} />}
           </button>
         </Tip>
+        {['doctor', 'staff'].includes(user.role) && (
+          <Tip label={user.canManageStock ? 'Stock access: granted — click to revoke' : 'Stock access: none — click to grant'}>
+            <button
+              onClick={() => handleToggleStock(user)}
+              className={`p-1.5 rounded-lg transition ${
+                user.canManageStock
+                  ? 'text-primary hover:bg-blue-50'
+                  : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Package size={15} />
+            </button>
+          </Tip>
+        )}
         <Tip label="Delete">
           <button onClick={() => handleDelete(user)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition">
             <Trash2 size={15} />
