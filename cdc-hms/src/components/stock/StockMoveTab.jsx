@@ -4,7 +4,7 @@ import { AlertTriangle } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
-import { Field, inputCls, BatchScanBox, FefoOverrideModal } from "./stockUi";
+import { Field, inputCls, BatchScanBox, FefoOverrideModal, PatientAttach } from "./stockUi";
 
 // One component for both stock-out flows — they differ only in whether the
 // stock has a destination:
@@ -19,6 +19,7 @@ const StockMoveTab = ({ mode }) => {
   const [resolved, setResolved] = useState(null);      // { batch, item, levels } from a scan
   const [form, setForm] = useState({ fromLocationId: "", toLocationId: "", quantity: "" });
   const [fefo, setFefo] = useState(null);              // 409 suggestion payload
+  const [patient, setPatient] = useState(null);        // { uhid, name } | null — dispense only
   const [saving, setSaving] = useState(false);
 
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -27,6 +28,7 @@ const StockMoveTab = ({ mode }) => {
     setResolved(null);
     setForm({ fromLocationId: "", toLocationId: "", quantity: "" });
     setFefo(null);
+    setPatient(null);
   };
 
   const onScan = (data) => {
@@ -56,6 +58,7 @@ const StockMoveTab = ({ mode }) => {
         ...(isTransfer
           ? { fromLocationId: Number(form.fromLocationId), toLocationId: Number(form.toLocationId) }
           : { locationId: Number(form.fromLocationId) }),
+        ...(!isTransfer && patient ? { uhid: patient.uhid } : {}),
         ...(fefoOverrideReason ? { fefoOverrideReason } : {}),
       };
       const res = isTransfer ? await stockService.transfer(payload) : await stockService.dispense(payload);
@@ -137,6 +140,17 @@ const StockMoveTab = ({ mode }) => {
           </div>
           {isTransfer && item.requiresColdChain && (
             <p className="text-xs text-blue-700 mb-3">❄ Cold-chain item — only fridge destinations are offered.</p>
+          )}
+
+          {/* Optional patient — attach for a named collection so it lands on
+              their record and a bad-batch recall can trace it. Omit for a
+              genuine over-the-counter sale. Dispense only. */}
+          {!isTransfer && (
+            <PatientAttach
+              value={patient}
+              onChange={setPatient}
+              hint="scan the patient card or type a UHID — leave blank for over-the-counter collection"
+            />
           )}
 
           <Button className="w-full" disabled={saving} onClick={() => submit()}>

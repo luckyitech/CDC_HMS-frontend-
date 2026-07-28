@@ -1006,7 +1006,12 @@ const Consultation = () => {
           Refer Patient
         </button>
 
-        {showRecordUse && <RecordUseModal onClose={() => setShowRecordUse(false)} />}
+        {showRecordUse && (
+          <RecordUseModal
+            patient={{ uhid: patient.uhid, name: patient.name }}
+            onClose={() => setShowRecordUse(false)}
+          />
+        )}
 
         <button
           onClick={handleCompleteConsultation}

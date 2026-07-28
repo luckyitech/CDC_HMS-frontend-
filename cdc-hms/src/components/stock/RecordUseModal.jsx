@@ -4,7 +4,7 @@ import { AlertTriangle } from "lucide-react";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
-import { Field, inputCls } from "./stockUi";
+import { Field, inputCls, PatientAttach } from "./stockUi";
 
 // Point-of-care "I used something" — open to ALL clinical roles, no stock
 // permission needed (gating it would guarantee unrecorded usage and rotten
@@ -14,9 +14,11 @@ import { Field, inputCls } from "./stockUi";
 //   Announce: opened from the staff dashboard / consultation quick action;
 //             pick the room, then an item held in that room (batch chosen
 //             FEFO automatically by list order).
-// Writes a 'use' movement — who/when from the JWT. Patient attachment joins
-// the future patient-linking phase (decision, 28 Jul).
-const RecordUseModal = ({ scan = null, onClose }) => {
+// Writes a 'use' movement — who/when from the JWT. Optionally attaches the
+// patient it was used on (defaults to the in-consultation patient when opened
+// from the doctor's screen), so a bad-batch recall can trace who received it.
+// FEFO is advisory here — the scan path nudges if it isn't the earliest batch.
+const RecordUseModal = ({ scan = null, patient = null, onClose }) => {
   const [locations, setLocations] = useState([]);
   const [batches, setBatches] = useState([]);          // announce path: what the room holds
   const [locationId, setLocationId] = useState("");
@@ -24,6 +26,8 @@ const RecordUseModal = ({ scan = null, onClose }) => {
   const [quantity, setQuantity] = useState("1");
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [attachedPatient, setAttachedPatient] = useState(patient); // { uhid, name } | null
+  const [fefoWarn, setFefoWarn] = useState(null);
 
   const isScan = !!scan;
 
@@ -60,6 +64,24 @@ const RecordUseModal = ({ scan = null, onClose }) => {
     ? { item: scan.item, labelCode: scan.batch.labelCode, available: scan.levels?.find((l) => String(l.locationId) === locationId)?.quantity }
     : batches.find((b) => b.stockBatchId === Number(stockBatchId));
 
+  // FEFO nudge (advisory): flag when the chosen batch isn't the earliest-
+  // expiring at the chosen room. The announce path auto-picks FEFO, so this
+  // effectively only fires on the scan path.
+  useEffect(() => {
+    const batchId = isScan ? scan?.batch?.id : Number(stockBatchId);
+    const itemId = isScan ? scan?.item?.id : chosen?.item?.id;
+    if (!batchId || !itemId || !locationId) { setFefoWarn(null); return; }
+    let cancelled = false;
+    stockService.getFefoSuggestion(itemId, Number(locationId))
+      .then((res) => {
+        if (cancelled) return;
+        const s = res.success ? res.data.suggestion : null;
+        setFefoWarn(s && s.stockBatchId !== batchId ? s : null);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isScan, scan, stockBatchId, locationId, chosen?.item?.id]);
+
   const submit = async () => {
     if (!locationId) return notify("error", "Choose the room");
     if (!stockBatchId) return notify("error", "Choose what was used");
@@ -70,6 +92,7 @@ const RecordUseModal = ({ scan = null, onClose }) => {
         stockBatchId: Number(stockBatchId),
         locationId: Number(locationId),
         quantity: Number(quantity),
+        ...(attachedPatient ? { uhid: attachedPatient.uhid } : {}),
       });
       if (res.success) {
         notify("success", "Use recorded");
@@ -143,9 +166,28 @@ const RecordUseModal = ({ scan = null, onClose }) => {
         </div>
       )}
 
+      {fefoWarn && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 text-xs text-amber-700 mb-3 flex gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            An earlier-expiring batch is in this room: <span className="font-mono">{fefoWarn.labelCode}</span>
+            {fefoWarn.expiryDate && ` (exp ${fefoWarn.expiryDate})`} — use it first if you can.
+          </span>
+        </div>
+      )}
+
       <Field label={`Quantity${chosen?.item ? ` (${chosen.item.unit}s)` : ""}`}>
         <input type="number" min="1" className={inputCls} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
       </Field>
+
+      {/* Optional patient this was used on — defaults to the in-consultation
+          patient when opened from the doctor's screen. */}
+      <PatientAttach
+        value={attachedPatient}
+        onChange={setAttachedPatient}
+        label="Used on patient (optional)"
+        hint="traces the batch to the patient for a recall — leave blank if not patient-specific"
+      />
 
       <div className="flex gap-3 mt-4">
         <Button className="flex-1" disabled={saving} onClick={submit}>Record use</Button>

@@ -196,6 +196,61 @@ export const FefoOverrideModal = ({ suggestion, onUseSuggested, onOverride, onCl
   );
 };
 
+// PatientAttach — scan a patient card or type a UHID to attach the patient a
+// dispense/use went to. Resolves through the shared barcode endpoint (which is
+// merge-aware). value is { uhid, name } | null. Used by the Dispense tab and
+// Record Use so bad-batch recalls can trace who received a batch.
+export const PatientAttach = ({ value, onChange, label = "Attach patient (optional)", hint }) => {
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const resolve = async (raw) => {
+    const c = String(raw || "").trim();
+    if (!c || busy) return;
+    setBusy(true);
+    try {
+      const res = await barcodeService.resolveScan(c);
+      if (res.success && res.data?.type === "patient") {
+        onChange({ uhid: res.data.uhid, name: res.data.name });
+        setCode("");
+      } else {
+        notify("error", "Not a patient code — scan a patient card or type a UHID");
+      }
+    } catch (err) {
+      notify("error", err?.message || "Patient not found");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Field label={label} hint={hint}>
+      {value ? (
+        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+          <span className="text-sm">
+            <b>{value.name}</b> <span className="font-mono text-xs text-gray-500">{value.uhid}</span>
+          </span>
+          <button type="button" className="text-xs text-primary font-semibold" onClick={() => onChange(null)}>
+            change
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <ScanLine className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
+          <input
+            className={`${inputCls} pl-8`}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); resolve(code); } }}
+            placeholder="Scan patient card or type a UHID (e.g. CDC042)"
+          />
+          {busy && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />}
+        </div>
+      )}
+    </Field>
+  );
+};
+
 // Compact "who · when" attribution line used on rows and history views —
 // the clinic-wide standing rule: every action shows who did it and when.
 export const ByLine = ({ user, at }) => {
