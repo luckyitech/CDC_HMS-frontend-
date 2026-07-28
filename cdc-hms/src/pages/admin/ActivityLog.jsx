@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import activityService from '../../services/activityService';
 
@@ -34,6 +34,8 @@ const ACTION_TYPES = [
   { value: 'appointment_booked',    label: 'Booked Appointment' },
   { value: 'appointment_cancelled', label: 'Cancelled Appointment' },
   { value: 'slot_blocked',          label: 'Blocked Slot' },
+  { value: 'barcode_scanned',       label: 'Scanned Barcode' },
+  { value: 'barcode_generated',     label: 'Generated Barcode' },
 ];
 
 const ACTION_STYLE = {
@@ -62,6 +64,8 @@ const ACTION_STYLE = {
   appointment_booked:    { color: 'bg-sky-100 text-sky-700',       icon: CalendarPlus },
   appointment_cancelled: { color: 'bg-orange-100 text-orange-700', icon: UserX },
   slot_blocked:          { color: 'bg-red-100 text-red-700',       icon: Lock },
+  barcode_scanned:       { color: 'bg-blue-100 text-blue-700',     icon: ScanLine },
+  barcode_generated:     { color: 'bg-teal-100 text-teal-700',     icon: QrCode },
 };
 
 const SUMMARY_FIELDS = [
@@ -90,6 +94,8 @@ const SUMMARY_FIELDS = [
   { key: 'appointmentBooked',    label: 'Appointments Booked',    color: 'text-sky-600' },
   { key: 'appointmentCancelled', label: 'Appointments Cancelled', color: 'text-orange-600' },
   { key: 'slotBlocked',          label: 'Slots Blocked',          color: 'text-red-600' },
+  { key: 'barcodeScanned',       label: 'Barcodes Scanned',       color: 'text-blue-600' },
+  { key: 'barcodeGenerated',     label: 'Barcodes Generated',     color: 'text-teal-600' },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

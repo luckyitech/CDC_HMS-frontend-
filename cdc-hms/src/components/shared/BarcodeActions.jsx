@@ -85,7 +85,14 @@ const BarcodeActions = ({ patient }) => {
 
   const dob = patient.dateOfBirth ? formatDOB(patient.dateOfBirth) : null;
 
+  // Report prints to the backend so they appear in the admin Activity Log.
+  // Fire-and-forget — logging must never block or break printing.
+  const logPrint = (action) => {
+    barcodeService.logGenerated(patient.uhid, action).catch(() => {});
+  };
+
   const handlePrintCard = () => {
+    logPrint("print_card");
     const svg = code128Svg(patient.uhid, { height: 44, moduleWidth: 2, showText: true });
     printHtml(`Card ${patient.uhid}`, CARD_W_MM, CARD_H_MM, `
       <div style="width:${CARD_W_MM}mm; height:${CARD_H_MM}mm; padding:3mm 4mm;
@@ -105,6 +112,7 @@ const BarcodeActions = ({ patient }) => {
   };
 
   const handlePrintLabel = () => {
+    logPrint("print_label");
     const svg = code128Svg(patient.uhid, { height: 32, moduleWidth: 2, showText: true });
     printHtml(`Label ${patient.uhid}`, LABEL_W_MM, LABEL_H_MM, `
       <div style="width:${LABEL_W_MM}mm; height:${LABEL_H_MM}mm; padding:1.5mm 2mm;

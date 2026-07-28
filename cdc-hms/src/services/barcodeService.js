@@ -24,6 +24,14 @@ export const barcodeService = {
    * @param {string} uhid - Patient UHID
    */
   emailBarcode: (uhid) => api.post(`/patients/${uhid}/barcode-email`),
+
+  /**
+   * Report a client-side barcode generation (print) so it appears in the
+   * admin Activity Log. Fire-and-forget from the caller.
+   * @param {string} uhid - Patient UHID
+   * @param {'print_card'|'print_label'} action
+   */
+  logGenerated: (uhid, action) => api.post(`/patients/${uhid}/barcode-event`, { action }),
 };
 
 export default barcodeService;
