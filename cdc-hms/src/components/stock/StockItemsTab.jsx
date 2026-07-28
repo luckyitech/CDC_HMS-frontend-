@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { notify } from "../../utils/notify";
-import { Plus, Pencil, Snowflake, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Snowflake, AlertTriangle, ScanLine } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
@@ -205,8 +205,24 @@ const StockItemsTab = () => {
               <Field label="Pack size" hint="units per supplier pack">
                 <input type="number" min="1" className={inputCls} value={editing.form.packSize} onChange={(e) => set("packSize", e.target.value)} />
               </Field>
-              <Field label="GTIN (manufacturer barcode)" hint="optional — lets intake identify the item by scanning the retail box">
-                <input className={inputCls} value={editing.form.gtin || ""} onChange={(e) => set("gtin", e.target.value)} />
+              <Field label="GTIN (manufacturer barcode)" hint="optional — click here and scan the box, or type it. Used at intake to find the item by scanning the box.">
+                <div className="relative">
+                  <ScanLine className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
+                  <input
+                    className={`${inputCls} pl-8`}
+                    // Scan-first flow: a new item auto-focuses here so you can
+                    // scan the retail box straight away to identify the product.
+                    autoFocus={!editing.id}
+                    value={editing.form.gtin || ""}
+                    // A USB scanner types the code as keystrokes; strip any
+                    // whitespace/newline it may append. GTINs never contain spaces.
+                    onChange={(e) => set("gtin", e.target.value.replace(/\s/g, ""))}
+                    // The scanner usually sends Enter after the code — swallow it
+                    // so it can't do anything unexpected (Save is a button).
+                    onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+                    placeholder="Scan or type the box barcode"
+                  />
+                </div>
               </Field>
               <Field label="Reorder level" hint="0 = no reorder alert">
                 <input type="number" min="0" className={inputCls} value={editing.form.reorderLevel} onChange={(e) => set("reorderLevel", e.target.value)} />
