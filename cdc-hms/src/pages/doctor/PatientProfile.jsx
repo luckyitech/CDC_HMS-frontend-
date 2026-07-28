@@ -25,6 +25,7 @@ import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
 import PatientSummaryCard from '../../components/shared/PatientSummaryCard';
 import BarcodeActions from "../../components/shared/BarcodeActions";
+import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
 
 import GlycemicCharts from "./GlycemicCharts";
 
@@ -270,7 +271,7 @@ const PatientProfile = () => {
       <div>
         {activeTab === "overview"          && <OverviewTab patient={patient} />}
         {activeTab === "equipment"         && <MedicalEquipmentTab patient={patient} />}
-        {activeTab === "visit-history"     && <VisitHistoryPanel patient={patient} />}
+        {activeTab === "visit-history"     && <><VisitHistoryPanel patient={patient} /><StockDispenseHistory uhid={uhid} /></>}
         {activeTab === "glycemic-charts"   && <GlycemicCharts />}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
       </div>

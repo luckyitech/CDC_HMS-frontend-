@@ -14,6 +14,7 @@ import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
 import BarcodeActions from "../../components/shared/BarcodeActions";
+import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
 import ScanActionModal from "../../components/staff/ScanActionModal";
 import InactivePatientBanner from "../../components/shared/InactivePatientBanner";
 import { patientService } from "../../services/patientService";
@@ -259,11 +260,14 @@ const StaffPatientProfile = () => {
           <ConsultationNotesList patient={patient} readOnly />
         )}
         {activeTab === "prescriptions" && (
-          <PrescriptionManagement
-            patient={patient}
-            patientPrescriptions={prescriptions}
-            readOnly
-          />
+          <>
+            <PrescriptionManagement
+              patient={patient}
+              patientPrescriptions={prescriptions}
+              readOnly
+            />
+            <StockDispenseHistory uhid={uhid} />
+          </>
         )}
         {activeTab === "charts" && (
           <GlycemicChartPanel patient={patient} />

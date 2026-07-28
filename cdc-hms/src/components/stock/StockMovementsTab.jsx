@@ -12,7 +12,7 @@ import { Field, inputCls, MOVEMENT_LABELS, MovementBadge, ByLine } from "./stock
 // Movement history — the ledger, filterable. Rows are immutable; the only
 // correction is a reversal (reason required), offered per row.
 
-const EMPTY_FILTERS = { itemId: "", locationId: "", type: "", from: "", to: "" };
+const EMPTY_FILTERS = { itemId: "", locationId: "", type: "", uhid: "", from: "", to: "" };
 
 const StockMovementsTab = () => {
   const { items, locations } = useStockContext();
@@ -66,7 +66,7 @@ const StockMovementsTab = () => {
 
   return (
     <div>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
         <select className={inputCls} value={filters.itemId} onChange={(e) => setFilter("itemId", e.target.value)}>
           <option value="">All items</option>
           {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
@@ -77,8 +77,14 @@ const StockMovementsTab = () => {
         </select>
         <select className={inputCls} value={filters.type} onChange={(e) => setFilter("type", e.target.value)}>
           <option value="">All types</option>
-          {Object.entries(MOVEMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          {Object.entries(MOVEMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
+        <input
+          className={inputCls}
+          value={filters.uhid}
+          onChange={(e) => setFilter("uhid", e.target.value.trim())}
+          placeholder="Patient UHID (e.g. CDC042)"
+        />
         <input type="date" className={inputCls} value={filters.from} onChange={(e) => setFilter("from", e.target.value)} />
         <input type="date" className={inputCls} value={filters.to} onChange={(e) => setFilter("to", e.target.value)} />
       </div>
@@ -97,6 +103,7 @@ const StockMovementsTab = () => {
                   <th className="px-3 py-2">Batch</th>
                   <th className="px-3 py-2">Qty</th>
                   <th className="px-3 py-2">From → To</th>
+                  <th className="px-3 py-2">Patient</th>
                   <th className="px-3 py-2">Reason</th>
                   <th className="px-3 py-2" />
                 </tr>
@@ -117,6 +124,16 @@ const StockMovementsTab = () => {
                       <td className="px-3 py-2 text-xs">
                         {m.fromLocation?.name || "—"} → {m.toLocation?.name || "—"}
                       </td>
+                      <td className="px-3 py-2 text-xs">
+                        {m.Patient ? (
+                          <span>
+                            {m.Patient.firstName} {m.Patient.lastName}
+                            <span className="block text-gray-400 font-mono">{m.Patient.uhid}</span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-xs text-gray-600">{m.reason || ""}</td>
                       <td className="px-3 py-2 text-right">
                         {m.type !== "reversal" && (
@@ -133,7 +150,7 @@ const StockMovementsTab = () => {
                   );
                 })}
                 {data.movements.length === 0 && (
-                  <tr><td colSpan="8" className="px-3 py-8 text-center text-gray-500">No movements match these filters.</td></tr>
+                  <tr><td colSpan="9" className="px-3 py-8 text-center text-gray-500">No movements match these filters.</td></tr>
                 )}
               </tbody>
             </table>

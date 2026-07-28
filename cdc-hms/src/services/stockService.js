@@ -67,6 +67,9 @@ export const stockService = {
   getFefoSuggestion: (stockItemId, locationId) =>
     api.get('/stock/fefo-suggestion', { params: { stockItemId, locationId } }),
 
+  // Everything dispensed to a patient — the profile "dispensed" panel.
+  getPatientDispenses: (uhid) => api.get('/stock/patient-dispenses', { params: { uhid } }),
+
   // ---------- Reports ----------
   getReorderReport: () => api.get('/stock/reports/reorder'),
   getConsumptionReport: (months = 6) => api.get('/stock/reports/consumption', { params: { months } }),

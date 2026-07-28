@@ -44,6 +44,7 @@ const MovementTable = ({ rows }) => (
         <th className="px-3 py-2">Batch</th>
         <th className="px-3 py-2">Qty</th>
         <th className="px-3 py-2">From</th>
+        <th className="px-3 py-2">Patient</th>
         <th className="px-3 py-2">Reason</th>
       </tr>
     </thead>
@@ -57,12 +58,15 @@ const MovementTable = ({ rows }) => (
             <td className="px-3 py-2 font-mono text-xs">{m.batch?.labelCode}</td>
             <td className="px-3 py-2 font-bold">{m.quantity}</td>
             <td className="px-3 py-2 text-xs">{m.fromLocation?.name || "—"}</td>
+            <td className="px-3 py-2 text-xs">
+              {m.Patient ? `${m.Patient.firstName} ${m.Patient.lastName}` : <span className="text-gray-300">—</span>}
+            </td>
             <td className="px-3 py-2 text-xs text-gray-600">{m.reason}</td>
           </tr>
         );
       })}
       {rows.length === 0 && (
-        <tr><td colSpan="7" className="px-3 py-8 text-center text-gray-500">Nothing recorded yet.</td></tr>
+        <tr><td colSpan="8" className="px-3 py-8 text-center text-gray-500">Nothing recorded yet.</td></tr>
       )}
     </tbody>
   </table>
@@ -265,12 +269,26 @@ const StockReportsTab = () => {
                     : <p>none — fully moved out</p>}
                 </div>
               </div>
+
+              {r.recipients?.length > 0 && (
+                <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                  <p className="text-xs font-semibold text-blue-900 mb-1">Dispensed to {r.recipients.length} patient(s):</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-blue-900">
+                    {r.recipients.map((p) => (
+                      <span key={p.uhid}>
+                        {p.name} <span className="font-mono text-blue-700">({p.uhid})</span> — {p.quantity}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <MovementTable rows={r.movements} />
             </div>
           ))}
           <p className="text-xs text-gray-500">
-            Every movement and location this batch touched. Patient-level tracing activates with the
-            future patient-linking phase — the ledger already carries the field for it.
+            Every movement, location and patient this batch touched. Over-the-counter dispenses have no
+            patient attached; supplies dispensed at checkout are traced to the patient who received them.
           </p>
         </div>
       )}
