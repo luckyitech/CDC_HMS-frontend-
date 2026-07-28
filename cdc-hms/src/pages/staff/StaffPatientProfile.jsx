@@ -13,6 +13,7 @@ import PrescriptionManagement from "../../components/doctor/PrescriptionManageme
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
+import BarcodeActions from "../../components/shared/BarcodeActions";
 import InactivePatientBanner from "../../components/shared/InactivePatientBanner";
 import { patientService } from "../../services/patientService";
 import toast from "react-hot-toast";
@@ -123,6 +124,7 @@ const StaffPatientProfile = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <BarcodeActions patient={patient} />
           <Button variant="outline" onClick={() => navigate("/staff/patients")}>
             ← Back to Patient Search
           </Button>

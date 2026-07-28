@@ -19,6 +19,7 @@ import { useQueueContext } from "../../contexts/QueueContext";
 import { useUserContext } from "../../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
 import patientService from "../../services/patientService";
+import ScanCapture from "../../components/staff/ScanCapture";
 
 const RESULTS_PER_PAGE = 20;
 
@@ -156,6 +157,8 @@ const PatientSearch = () => {
         <Search className="w-8 h-8 text-primary" />
         <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Patient Search</h2>
       </div>
+
+      <ScanCapture />
 
       {/* Search Input */}
       <Card title="Search Patient">

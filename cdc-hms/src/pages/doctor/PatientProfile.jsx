@@ -24,6 +24,7 @@ import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
 import PatientSummaryCard from '../../components/shared/PatientSummaryCard';
+import BarcodeActions from "../../components/shared/BarcodeActions";
 
 import GlycemicCharts from "./GlycemicCharts";
 
@@ -137,6 +138,8 @@ const PatientProfile = () => {
               <span>Back to Consultation</span>
             </Button>
           )}
+
+          <BarcodeActions patient={patient} />
 
           {/* Back to My Patients Button */}
           <Button
