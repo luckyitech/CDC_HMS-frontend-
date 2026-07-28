@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { notify } from "../../utils/notify";
-import { Plus, Pencil, Snowflake, AlertTriangle, ScanLine } from "lucide-react";
+import { Plus, Pencil, Snowflake, AlertTriangle, ScanLine, ChevronDown, ChevronRight } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
+import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
 import { Field, inputCls, StatusPill } from "./stockUi";
@@ -34,6 +35,31 @@ const StockItemsTab = () => {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null);        // { kind, id, form }
   const [saving, setSaving] = useState(false);
+  // Per-item location breakdown: which item's row is expanded, and the cached
+  // per-location quantities keyed by item id.
+  const [expandedItem, setExpandedItem] = useState(null);
+  const [itemLevels, setItemLevels] = useState({});    // itemId → [{ name, qty }] | 'loading'
+
+  const toggleItemLevels = async (item) => {
+    if (expandedItem === item.id) { setExpandedItem(null); return; }
+    setExpandedItem(item.id);
+    if (itemLevels[item.id]) return;                   // already loaded
+    setItemLevels((p) => ({ ...p, [item.id]: "loading" }));
+    try {
+      const res = await stockService.getLevels({ itemId: item.id });
+      const byLoc = {};
+      (res.success ? res.data : []).forEach((l) => {
+        const name = l.location?.name || "—";
+        byLoc[name] = (byLoc[name] || 0) + l.quantity;
+      });
+      const rows = Object.entries(byLoc)
+        .map(([name, qty]) => ({ name, qty }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setItemLevels((p) => ({ ...p, [item.id]: rows }));
+    } catch {
+      setItemLevels((p) => ({ ...p, [item.id]: [] }));
+    }
+  };
 
   const open = (kind, row = null) => {
     const empty = kind === "item" ? EMPTY_ITEM : kind === "location" ? EMPTY_LOCATION : EMPTY_SUPPLIER;
@@ -128,15 +154,25 @@ const StockItemsTab = () => {
           </thead>
           <tbody>
             {view === "items" && filtered(items).map((i) => (
-              <tr key={i.id} className="border-t border-gray-100">
+              <Fragment key={i.id}>
+              <tr className="border-t border-gray-100">
                 <td className="px-3 py-2 font-medium">
                   {i.name}
                   {i.catalogItem && <span className="block text-xs text-gray-500">catalogue: {i.catalogItem.name}</span>}
                 </td>
                 <td className="px-3 py-2">{i.category}</td>
                 <td className="px-3 py-2">{i.unit}</td>
-                <td className={`px-3 py-2 font-bold ${i.reorderLevel > 0 && i.totalQuantity <= i.reorderLevel ? "text-red-600" : ""}`}>
-                  {i.totalQuantity}
+                <td className="px-3 py-2">
+                  {/* Click to see where this stock physically sits, across every location */}
+                  <button
+                    type="button"
+                    onClick={() => toggleItemLevels(i)}
+                    className={`inline-flex items-center gap-1 font-bold hover:underline ${i.reorderLevel > 0 && i.totalQuantity <= i.reorderLevel ? "text-red-600" : "text-gray-800"}`}
+                    title="Show where this item is stocked"
+                  >
+                    {expandedItem === i.id ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    {i.totalQuantity}
+                  </button>
                 </td>
                 <td className="px-3 py-2">{i.reorderLevel || "—"}</td>
                 <td className="px-3 py-2">
@@ -152,6 +188,27 @@ const StockItemsTab = () => {
                   </button>
                 </td>
               </tr>
+              {expandedItem === i.id && (
+                <tr className="bg-gray-50">
+                  <td colSpan={7} className="px-3 py-2">
+                    {itemLevels[i.id] === "loading" ? (
+                      <span className="text-xs text-gray-400">Loading locations…</span>
+                    ) : (itemLevels[i.id]?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="text-xs text-gray-500 mr-1">Held at:</span>
+                        {itemLevels[i.id].map((row) => (
+                          <span key={row.name} className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-1">
+                            {row.name} <span className="font-bold text-gray-800">{row.qty}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">Not held anywhere right now.</span>
+                    ))}
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
             {view === "locations" && filtered(locations).map((l) => (
               <tr key={l.id} className="border-t border-gray-100">

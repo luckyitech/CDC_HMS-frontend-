@@ -63,6 +63,12 @@ export const stockService = {
   // lines: [{ stockBatchId, locationId, quantity }]
   checkoutDispense: (uhid, lines) => api.post('/stock/checkout-dispense', { uhid, lines }),
 
+  // ---------- Returns (patient-linked) ----------
+  // data: { stockBatchId, quantity, uhid, reason, reDispensable, toLocationId? }
+  returnStock: (data) => api.post('/stock/return', data),
+  // Was this batch ever returned (and why) — drives the dispense-time warning.
+  getBatchReturnInfo: (batchId) => api.get(`/stock/batches/${batchId}/return-info`),
+
   // Earliest-expiring batch of an item at a location — drives the checkout FEFO nudge.
   getFefoSuggestion: (stockItemId, locationId) =>
     api.get('/stock/fefo-suggestion', { params: { stockItemId, locationId } }),
@@ -76,6 +82,8 @@ export const stockService = {
   getRecallReport: (query) => api.get(`/stock/reports/recall/${encodeURIComponent(query)}`),
   getDisposalReport: (params = {}) => api.get('/stock/reports/disposal', { params }),
   getFefoOverridesReport: (params = {}) => api.get('/stock/reports/fefo-overrides', { params }),
+  // Stocktake variances + manual count corrections — the reconciliation record.
+  getVariancesReport: (params = {}) => api.get('/stock/reports/variances', { params }),
 
   // ---------- Admin maintenance ----------
   rebuildLevels: () => api.post('/stock/levels/rebuild'),

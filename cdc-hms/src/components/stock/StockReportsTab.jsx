@@ -31,6 +31,7 @@ const SUB_TABS = [
   { id: "recall", label: "Batch recall" },
   { id: "disposal", label: "Disposal register" },
   { id: "fefo", label: "FEFO overrides" },
+  { id: "variances", label: "Variances" },
 ];
 
 // Shared movement-row table used by disposal and FEFO views.
@@ -43,7 +44,7 @@ const MovementTable = ({ rows }) => (
         <th className="px-3 py-2">Item</th>
         <th className="px-3 py-2">Batch</th>
         <th className="px-3 py-2">Qty</th>
-        <th className="px-3 py-2">From</th>
+        <th className="px-3 py-2">Location</th>
         <th className="px-3 py-2">Patient</th>
         <th className="px-3 py-2">Reason</th>
       </tr>
@@ -57,7 +58,7 @@ const MovementTable = ({ rows }) => (
             <td className="px-3 py-2 font-medium">{m.item?.name}</td>
             <td className="px-3 py-2 font-mono text-xs">{m.batch?.labelCode}</td>
             <td className="px-3 py-2 font-bold">{m.quantity}</td>
-            <td className="px-3 py-2 text-xs">{m.fromLocation?.name || "—"}</td>
+            <td className="px-3 py-2 text-xs">{m.fromLocation?.name || m.toLocation?.name || "—"}</td>
             <td className="px-3 py-2 text-xs">
               {m.Patient ? `${m.Patient.firstName} ${m.Patient.lastName}` : <span className="text-gray-300">—</span>}
             </td>
@@ -98,6 +99,7 @@ const StockReportsTab = () => {
         sub === "reorder" ? await stockService.getReorderReport()
         : sub === "consumption" ? await stockService.getConsumptionReport(months)
         : sub === "disposal" ? await stockService.getDisposalReport()
+        : sub === "variances" ? await stockService.getVariancesReport()
         : await stockService.getFefoOverridesReport();
       if (res.success) setData(res.data);
     } catch (err) {
@@ -293,12 +295,15 @@ const StockReportsTab = () => {
         </div>
       )}
 
-      {/* Disposal / FEFO */}
-      {!loading && (sub === "disposal" || sub === "fefo") && Array.isArray(data) && (
+      {/* Disposal / FEFO / Variances — all movement-row reports */}
+      {!loading && (sub === "disposal" || sub === "fefo" || sub === "variances") && Array.isArray(data) && (
         <>
           <div className="flex justify-end mb-2">
             <Button variant="outline" className="!px-3 !py-1.5 text-xs"
-              onClick={() => movementCsv(sub === "disposal" ? "disposal-register.csv" : "fefo-overrides.csv", data)}>
+              onClick={() => movementCsv(
+                sub === "disposal" ? "disposal-register.csv" : sub === "variances" ? "variances-report.csv" : "fefo-overrides.csv",
+                data,
+              )}>
               <Download className="w-4 h-4" /> CSV
             </Button>
           </div>
@@ -306,7 +311,9 @@ const StockReportsTab = () => {
           <p className="text-xs text-gray-500 mt-2">
             {sub === "disposal"
               ? "Every write-off with its reason — the register an inspector asks for."
-              : "Every time the suggested earliest-expiring batch was bypassed, by whom and why."}
+              : sub === "variances"
+                ? "Every stocktake variance and manual count correction — the reason shows expected vs counted. Each row is the reconciliation: the ledger was moved to the counted figure."
+                : "Every time the suggested earliest-expiring batch was bypassed, by whom and why."}
           </p>
         </>
       )}

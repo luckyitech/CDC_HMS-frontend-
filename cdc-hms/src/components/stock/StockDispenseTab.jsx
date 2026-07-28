@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { notify } from "../../utils/notify";
 import { Plus, Minus, X, Package, AlertTriangle, ShoppingCart } from "lucide-react";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
+import Modal from "../shared/Modal";
 import { BatchScanBox, PatientAttach } from "./stockUi";
 
 // Dispense — a scan-to-cart flow. The patient is attached first (mandatory),
@@ -12,10 +13,27 @@ import { BatchScanBox, PatientAttach } from "./stockUi";
 // before committing. Confirm dispenses the whole list to the patient in ONE
 // transaction (checkout-dispense): all-or-nothing, expired batches blocked,
 // stock never goes negative. FEFO is advisory per line (staff holds the box).
-const StockDispenseTab = () => {
+const StockDispenseTab = ({ onLockChange }) => {
   const [patient, setPatient] = useState(null);
-  const [lines, setLines] = useState([]);   // see shape in onScan
+  const [lines, setLines] = useState([]);   // see shape in addScan
   const [saving, setSaving] = useState(false);
+  // A scanned high-alert item waits here for an explicit confirm before it
+  // enters the cart — the second check the design asks for on these drugs.
+  const [pendingHighAlert, setPendingHighAlert] = useState(null);
+
+  // A dispense is "in progress" once a patient is attached. While it is, the
+  // parent locks the other tabs — the staff must complete or cancel first, so a
+  // half-scanned trolley is never abandoned by wandering off to another tab.
+  useEffect(() => {
+    onLockChange?.(!!patient);
+    return () => onLockChange?.(false);
+  }, [patient, onLockChange]);
+
+  // Clear everything and release the tab lock.
+  const cancel = () => {
+    setLines([]);
+    setPatient(null);
+  };
 
   const availableAt = (line) =>
     line.levels.find((l) => String(l.locationId) === String(line.locationId))?.quantity ?? 0;
@@ -36,8 +54,38 @@ const StockDispenseTab = () => {
     }
   };
 
-  // A scanned STK- shelf label lands here.
+  // If a scanned batch was ever returned, say so — informational for a
+  // re-dispensable return, a hard warning if any of it is quarantined (the
+  // server also blocks dispensing a quarantined batch).
+  const warnIfReturned = async (batchId) => {
+    try {
+      const res = await stockService.getBatchReturnInfo(batchId);
+      if (res.success && res.data?.returned) {
+        notify(
+          res.data.inQuarantine ? "error" : "info",
+          `${res.data.inQuarantine ? "Quarantined return" : "Previously returned"}` +
+            (res.data.reason ? ` — ${res.data.reason}` : ""),
+        );
+      }
+    } catch {
+      /* advisory only */
+    }
+  };
+
+  // A scanned STK- shelf label enters here. High-alert items pause for a
+  // confirm the first time they are added; bumping an already-confirmed line
+  // just adds one more without re-prompting.
   const onScan = (data) => {
+    warnIfReturned(data.batch.id);
+    const alreadyInCart = lines.some((l) => l.stockBatchId === data.batch.id);
+    if (data.item?.isHighAlert && !alreadyInCart) {
+      setPendingHighAlert(data);
+      return;
+    }
+    addScan(data);
+  };
+
+  const addScan = (data) => {
     const held = (data.levels || []).filter((l) => l.quantity > 0);
     if (held.length === 0) {
       notify("error", `No stock of ${data.item.name} is held anywhere`);
@@ -99,9 +147,9 @@ const StockDispenseTab = () => {
   };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
-      {/* Left — patient + scan */}
-      <div>
+    <div className="grid lg:grid-cols-3 gap-6">
+      {/* Left — patient scan only */}
+      <div className="lg:col-span-1">
         <PatientAttach
           value={patient}
           onChange={setPatient}
@@ -109,24 +157,18 @@ const StockDispenseTab = () => {
           hint="scan the patient card or type a UHID — attach before dispensing"
         />
 
-        <BatchScanBox onResolved={onScan} disabled={!patient} />
-
-        {!patient && (
-          <p className="text-sm text-gray-500">
-            Attach the patient first, then scan each shelf label the patient is taking. Every scan
-            adds a line to the list on the right; scanning the same batch again adds one more.
-          </p>
-        )}
-        {patient && (
-          <p className="text-sm text-gray-500">
-            Scan each shelf label the patient is taking. Same batch again = +1. Adjust quantities and
-            remove lines on the right, then confirm to dispense the whole list at once.
-          </p>
-        )}
+        <p className="text-sm text-gray-500">
+          {patient
+            ? "Now scan each shelf label the patient is taking in the cart on the right. Complete the dispense or cancel it before leaving this tab."
+            : "Attach the patient first. Then scan each shelf label into the cart on the right — every scan lists the item, and the same batch again adds one more."}
+        </p>
       </div>
 
-      {/* Right — the dispensing list */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+      {/* Right — the cart: scan box on top, then the dispensing list */}
+      <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5">
+        {/* Scan straight into the cart */}
+        <BatchScanBox onResolved={onScan} disabled={!patient} />
+
         <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
           <ShoppingCart className="w-5 h-5 text-primary" />
           Dispensing list{totalItems > 0 ? ` (${totalItems})` : ""}
@@ -195,14 +237,47 @@ const StockDispenseTab = () => {
           </div>
         )}
 
-        <Button className="w-full mt-4" disabled={saving || lines.length === 0 || !patient} onClick={submit}>
-          <Package className="w-4 h-4" />
-          {patient ? `Confirm & dispense to ${patient.name}` : "Attach a patient to dispense"}
-        </Button>
+        <div className="flex gap-2 mt-4">
+          {(patient || lines.length > 0) && (
+            <Button variant="outline" className="flex-shrink-0" onClick={cancel} disabled={saving}>
+              Cancel
+            </Button>
+          )}
+          <Button className="flex-1" disabled={saving || lines.length === 0 || !patient} onClick={submit}>
+            <Package className="w-4 h-4" />
+            {patient ? `Confirm & dispense to ${patient.name}` : "Attach a patient to dispense"}
+          </Button>
+        </div>
         <p className="text-xs text-gray-400 mt-2">
-          Nothing leaves stock until you confirm. Everything is dispensed at once, recorded against the patient.
+          Nothing leaves stock until you confirm. Everything is dispensed at once, recorded against the patient. Cancel clears the cart and unlocks the tabs.
         </p>
       </div>
+
+      {/* High-alert confirmation — an explicit second check before the drug
+          enters the cart */}
+      {pendingHighAlert && (
+        <Modal isOpen onClose={() => setPendingHighAlert(null)} title="High-alert medication">
+          <div className="flex gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800 mb-4">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <b>{pendingHighAlert.item.name}</b> is flagged high-alert. Confirm you are dispensing it
+              {patient ? <> to <b>{patient.name}</b></> : null}.
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="primary"
+              className="flex-1"
+              onClick={() => { addScan(pendingHighAlert); setPendingHighAlert(null); }}
+            >
+              Confirm &amp; add
+            </Button>
+            <Button variant="outline" className="flex-1" onClick={() => setPendingHighAlert(null)}>
+              Cancel
+            </Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

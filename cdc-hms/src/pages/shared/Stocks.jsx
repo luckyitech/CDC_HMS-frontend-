@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { notify } from "../../utils/notify";
 import { useStockContext } from "../../contexts/StockContext";
 import StockDashboardTab from "../../components/stock/StockDashboardTab";
 import StockItemsTab from "../../components/stock/StockItemsTab";
 import StockReceiveTab from "../../components/stock/StockReceiveTab";
 import StockDispenseTab from "../../components/stock/StockDispenseTab";
+import StockReturnTab from "../../components/stock/StockReturnTab";
 import StockMoveTab from "../../components/stock/StockMoveTab";
 import StockMovementsTab from "../../components/stock/StockMovementsTab";
 import StockRoomBalanceTab from "../../components/stock/StockRoomBalanceTab";
@@ -21,7 +23,9 @@ const TABS = [
   { id: "dashboard", label: "Dashboard", el: <StockDashboardTab /> },
   { id: "items", label: "Items", el: <StockItemsTab /> },
   { id: "receive", label: "Receive", el: <StockReceiveTab /> },
-  { id: "dispense", label: "Dispense", el: <StockDispenseTab /> },
+  // Dispense is rendered separately below so it can report its lock state up
+  { id: "dispense", label: "Dispense", el: null },
+  { id: "returns", label: "Returns", el: <StockReturnTab /> },
   { id: "transfer", label: "Transfer", el: <StockMoveTab mode="transfer" /> },
   { id: "rooms", label: "Room Balance", el: <StockRoomBalanceTab /> },
   { id: "stocktake", label: "Stocktake", el: <StockStocktakeTab /> },
@@ -32,10 +36,23 @@ const TABS = [
 const Stocks = () => {
   const { loadReferenceData } = useStockContext();
   const [tab, setTab] = useState("dashboard");
+  // Set while a dispense has a patient attached — the Dispense tab reports this.
+  const [dispenseLocked, setDispenseLocked] = useState(false);
 
   // Reference data (items, locations, suppliers) loads once per visit —
   // nothing is fetched for users who never open this page.
   useEffect(() => { loadReferenceData(); }, [loadReferenceData]);
+
+  // A dispense in progress holds the staff on the Dispense tab: they must
+  // complete it or cancel before navigating away, so a scanned trolley is never
+  // left half-done behind another tab.
+  const changeTab = (id) => {
+    if (dispenseLocked && tab === "dispense" && id !== "dispense") {
+      notify("error", "Complete the dispense or cancel it before leaving this tab");
+      return;
+    }
+    setTab(id);
+  };
 
   return (
     <div>
@@ -49,22 +66,30 @@ const Stocks = () => {
 
       {/* Tab switcher — same pill group as the Clinical Catalog / Create Users tabs */}
       <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-              tab === t.id ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const blocked = dispenseLocked && tab === "dispense" && t.id !== "dispense";
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => changeTab(t.id)}
+              title={blocked ? "Complete or cancel the dispense first" : undefined}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
+                tab === t.id ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              } ${blocked ? "opacity-40 cursor-not-allowed" : ""}`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* key remounts the tab on switch so each loads fresh data */}
-      <div key={tab}>{TABS.find((t) => t.id === tab)?.el}</div>
+      <div key={tab}>
+        {tab === "dispense"
+          ? <StockDispenseTab onLockChange={setDispenseLocked} />
+          : TABS.find((t) => t.id === tab)?.el}
+      </div>
     </div>
   );
 };

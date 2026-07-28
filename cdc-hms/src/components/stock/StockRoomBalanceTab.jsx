@@ -110,7 +110,17 @@ const StockRoomBalanceTab = () => {
       if (res.success) {
         setPlan(res.data);
         setDoneLines({});
-        if (!res.data.lines.length) notify("info", "All rooms are at their maximum — nothing to restock");
+        if (!res.data.lines.length) {
+          // Distinguish "genuinely nothing needed" from "this source can't supply
+          // it" — the old blanket "all rooms at maximum" was misleading when the
+          // real reason was empty stock at the source.
+          notify(
+            "info",
+            res.data.shortfalls?.length
+              ? `${res.data.source?.name || "This source"} holds none of the stock the rooms need — see shortfalls below. Receive stock first.`
+              : `Nothing to move from ${res.data.source?.name || "here"} — rooms are at their maximum, or this source holds none of their items. To add new stock, use the Receive tab.`,
+          );
+        }
       } else {
         notify("error", res.message || "Could not build the plan");
       }
@@ -144,11 +154,32 @@ const StockRoomBalanceTab = () => {
 
   if (loading) return <div className="flex justify-center py-12"><Spinner /></div>;
 
-  const stores = locations.filter((l) => l.kind === "store" || l.kind === "fridge");
+  // Any active location can be a restock source — stock is sourced from wherever
+  // it physically sits, not only 'store'/'fridge' kinds (a clinic may hold bulk
+  // in an office or a room). The backend excludes self-transfers and re-checks
+  // stock, so widening this is safe.
+  const stores = locations.filter((l) => l.status !== "retired");
   const editableRooms = locations.filter((l) => l.kind !== "store");
 
   return (
     <div>
+      {/* Set pars for ANY editable room — the grid only shows rooms that already
+          have pars, so this is the way to start a second/third room. */}
+      {editableRooms.length > 0 && (
+        <div className="max-w-xs mb-4">
+          <Field label="Set par levels for a room">
+            <select
+              className={inputCls}
+              value=""
+              onChange={(e) => { if (e.target.value) openParEditor(Number(e.target.value)); }}
+            >
+              <option value="">— choose a room —</option>
+              {editableRooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </Field>
+        </div>
+      )}
+
       {/* Grid */}
       {grid && grid.rooms.length > 0 ? (
         <div className="overflow-x-auto mb-6">

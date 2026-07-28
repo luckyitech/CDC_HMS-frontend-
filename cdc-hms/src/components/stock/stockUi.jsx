@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ScanLine, Loader2, AlertTriangle } from "lucide-react";
 import barcodeService from "../../services/barcodeService";
 import { notify } from "../../utils/notify";
@@ -77,6 +77,16 @@ const MIN_LEN = 3;
 export const BatchScanBox = ({ onResolved, disabled = false }) => {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
+  const inputRef = useRef(null);
+
+  // Keep the cursor in the box so a USB scanner can fire one label after another
+  // without the staff clicking back in each time. Re-focus whenever it becomes
+  // enabled (patient just attached) and after every resolved scan.
+  const focusInput = useCallback(() => {
+    if (!disabled) inputRef.current?.focus();
+  }, [disabled]);
+
+  useEffect(() => { focusInput(); }, [focusInput]);
 
   const resolve = useCallback(async (raw) => {
     const code = String(raw || "").trim().toUpperCase();
@@ -94,6 +104,8 @@ export const BatchScanBox = ({ onResolved, disabled = false }) => {
       notify("error", err?.message || "Label not recognised");
     } finally {
       setBusy(false);
+      // Return focus so the next label scans straight in
+      inputRef.current?.focus();
     }
   }, [busy, disabled, onResolved]);
 
@@ -128,7 +140,9 @@ export const BatchScanBox = ({ onResolved, disabled = false }) => {
       <div className="flex items-center gap-3">
         <ScanLine className="w-6 h-6 text-primary flex-shrink-0" />
         <input
+          ref={inputRef}
           type="text"
+          autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {

@@ -86,7 +86,11 @@ const StockStocktakeTab = () => {
 
       {rows && (
         rows.length === 0 ? (
-          <p className="text-sm text-gray-500">The system expects nothing at this location.</p>
+          <p className="text-sm text-gray-500">
+            The system holds no counted stock at this location, so there is nothing to reconcile.
+            A stocktake corrects the counts of batches already here — to add stock the system
+            doesn’t yet know about, use the <b>Receive</b> tab.
+          </p>
         ) : (
           <div className="bg-white border border-gray-200 rounded-xl p-5">
             <table className="w-full text-sm">
