@@ -84,6 +84,8 @@ export const stockService = {
   getFefoOverridesReport: (params = {}) => api.get('/stock/reports/fefo-overrides', { params }),
   // Stocktake variances + manual count corrections — the reconciliation record.
   getVariancesReport: (params = {}) => api.get('/stock/reports/variances', { params }),
+  // The master inventory sheet — every item, availability, locations, last order + stocktake.
+  getInventoryReport: (params = {}) => api.get('/stock/reports/inventory', { params }),
 
   // ---------- Admin maintenance ----------
   rebuildLevels: () => api.post('/stock/levels/rebuild'),

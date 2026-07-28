@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { notify } from "../../utils/notify";
-import { Download, Search, DatabaseZap } from "lucide-react";
+import { Download, Search, DatabaseZap, FileSpreadsheet } from "lucide-react";
 import { useUserContext } from "../../contexts/UserContext";
 import stockService from "../../services/stockService";
+import { downloadWorkbook } from "../../utils/exportCsv";
 import Spinner from "../shared/Spinner";
 import Button from "../shared/Button";
 import { inputCls, MovementBadge, ByLine } from "./stockUi";
@@ -26,6 +27,7 @@ const downloadCsv = (filename, headers, rows) => {
 };
 
 const SUB_TABS = [
+  { id: "inventory", label: "Inventory overview" },
   { id: "reorder", label: "Reorder" },
   { id: "consumption", label: "Consumption" },
   { id: "recall", label: "Batch recall" },
@@ -33,6 +35,43 @@ const SUB_TABS = [
   { id: "fefo", label: "FEFO overrides" },
   { id: "variances", label: "Variances" },
 ];
+
+// Date-range presets shared by the movement reports and the Excel export.
+const RANGE_PRESETS = [
+  { id: "all", label: "All time" },
+  { id: "1m", label: "Last month" },
+  { id: "3m", label: "Last 3 months" },
+  { id: "6m", label: "Last 6 months" },
+  { id: "1y", label: "Last year" },
+  { id: "custom", label: "Custom range" },
+];
+
+// Sheet builders reused by per-report CSV and the all-in-one workbook.
+const movementRows = (rows = []) => rows.map((m) => [
+  m.createdAt ? new Date(m.createdAt).toISOString().slice(0, 10) : "",
+  m.performedByUser ? `${m.performedByUser.firstName} ${m.performedByUser.lastName}` : "",
+  m.type, m.item?.name || "", m.batch?.labelCode || "", m.quantity,
+  m.fromLocation?.name || m.toLocation?.name || "",
+  m.Patient ? `${m.Patient.firstName} ${m.Patient.lastName}` : "",
+  m.reason || "",
+]);
+const MOVEMENT_HEADERS = ["Date", "By", "Type", "Item", "Batch", "Qty", "Location", "Patient", "Reason"];
+
+const INVENTORY_HEADERS = [
+  "Item", "Category", "Availability", "Unit", "Locations", "Reorder level",
+  "Last order qty", "Last order date", "Last count", "Expected", "Variance", "Variance reason",
+];
+const inventoryRows = (rows = []) => rows.map((r) => [
+  r.name, r.category, r.totalQuantity, r.unit,
+  (r.locations || []).map((l) => `${l.name}: ${l.quantity}`).join("; "),
+  r.reorderLevel || 0,
+  r.lastOrder?.quantity ?? "",
+  r.lastOrder?.date ? new Date(r.lastOrder.date).toISOString().slice(0, 10) : "",
+  r.lastStocktake?.counted ?? "",
+  r.lastStocktake?.expected ?? "",
+  r.lastStocktake?.variance ?? "",
+  r.lastStocktake?.reason || "",
+]);
 
 // Shared movement-row table used by disposal and FEFO views.
 const MovementTable = ({ rows }) => (
@@ -85,29 +124,100 @@ const movementCsv = (name, rows) => downloadCsv(
 
 const StockReportsTab = () => {
   const { currentUser } = useUserContext();
-  const [sub, setSub] = useState("reorder");
+  const [sub, setSub] = useState("inventory");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [recallQuery, setRecallQuery] = useState("");
   const [months, setMonths] = useState(6);
+  const [preset, setPreset] = useState("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [invSort, setInvSort] = useState("name");   // name | availability
+
+  // The from/to the movement reports and the Excel export use.
+  const dateRange = useMemo(() => {
+    if (preset === "custom") return { from: customFrom || undefined, to: customTo || undefined };
+    if (preset === "all") return {};
+    const from = new Date();
+    if (preset === "1m") from.setMonth(from.getMonth() - 1);
+    else if (preset === "3m") from.setMonth(from.getMonth() - 3);
+    else if (preset === "6m") from.setMonth(from.getMonth() - 6);
+    else if (preset === "1y") from.setFullYear(from.getFullYear() - 1);
+    return { from: from.toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) };
+  }, [preset, customFrom, customTo]);
+
+  // Only the movement-based reports narrow by date; snapshots (inventory,
+  // reorder) are always "as of now".
+  const rangeApplies = ["disposal", "fefo", "variances"].includes(sub);
+
+  // Inventory overview, sorted the way the user picked.
+  const sortedInventory = useMemo(() => {
+    if (sub !== "inventory" || !Array.isArray(data)) return [];
+    const copy = [...data];
+    copy.sort((a, b) => invSort === "availability"
+      ? (a.totalQuantity - b.totalQuantity) || a.name.localeCompare(b.name)
+      : a.name.localeCompare(b.name));
+    return copy;
+  }, [sub, data, invSort]);
+
+  // Every report on its own sheet in ONE Excel workbook (no library).
+  const exportAll = async () => {
+    setLoading(true);
+    try {
+      const [inv, reorder, cons, disp, fefo, varr] = await Promise.all([
+        stockService.getInventoryReport(),
+        stockService.getReorderReport(),
+        stockService.getConsumptionReport(months),
+        stockService.getDisposalReport(dateRange),
+        stockService.getFefoOverridesReport(dateRange),
+        stockService.getVariancesReport(dateRange),
+      ]);
+      const sheets = [];
+      if (inv.success) sheets.push({ name: "Inventory", headers: INVENTORY_HEADERS, rows: inventoryRows(inv.data) });
+      if (reorder.success) sheets.push({
+        name: "Reorder",
+        headers: ["Item", "Category", "Unit", "In stock", "Reorder level", "Suggested order"],
+        rows: reorder.data.map((i) => [i.name, i.category, i.unit, i.totalQuantity, i.reorderLevel, i.suggestedOrder]),
+      });
+      if (cons.success) sheets.push({
+        name: "Consumption",
+        headers: ["Item", ...cons.data.months, "Written off"],
+        rows: cons.data.items.map((e) => [
+          e.item.name,
+          ...cons.data.months.map((k) => e.months[k]?.consumed || 0),
+          cons.data.months.reduce((s, k) => s + (e.months[k]?.writtenOff || 0), 0),
+        ]),
+      });
+      if (disp.success) sheets.push({ name: "Disposal", headers: MOVEMENT_HEADERS, rows: movementRows(disp.data) });
+      if (fefo.success) sheets.push({ name: "FEFO overrides", headers: MOVEMENT_HEADERS, rows: movementRows(fefo.data) });
+      if (varr.success) sheets.push({ name: "Variances", headers: MOVEMENT_HEADERS, rows: movementRows(varr.data) });
+
+      downloadWorkbook(`stock-reports-${new Date().toISOString().slice(0, 10)}.xls`, sheets);
+    } catch (err) {
+      notify("error", err?.message || "Excel export failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (sub === "recall") { setData(null); return; }
     setLoading(true);
     try {
       const res =
-        sub === "reorder" ? await stockService.getReorderReport()
+        sub === "inventory" ? await stockService.getInventoryReport()
+        : sub === "reorder" ? await stockService.getReorderReport()
         : sub === "consumption" ? await stockService.getConsumptionReport(months)
-        : sub === "disposal" ? await stockService.getDisposalReport()
-        : sub === "variances" ? await stockService.getVariancesReport()
-        : await stockService.getFefoOverridesReport();
+        : sub === "disposal" ? await stockService.getDisposalReport(dateRange)
+        : sub === "variances" ? await stockService.getVariancesReport(dateRange)
+        : await stockService.getFefoOverridesReport(dateRange);
       if (res.success) setData(res.data);
     } catch (err) {
       notify("error", err?.message || "Failed to load report");
     } finally {
       setLoading(false);
     }
-  }, [sub, months]);
+  }, [sub, months, dateRange]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -148,14 +258,106 @@ const StockReportsTab = () => {
             </button>
           ))}
         </div>
-        {currentUser?.role === "admin" && (
-          <Button variant="outline" className="!px-3 !py-1.5 text-xs" onClick={rebuild}>
-            <DatabaseZap className="w-4 h-4" /> Rebuild levels from ledger
+        <div className="flex items-center gap-2 flex-wrap">
+          {rangeApplies && (
+            <>
+              <select className={`${inputCls} !w-auto !py-1.5 text-xs`} value={preset} onChange={(e) => setPreset(e.target.value)}>
+                {RANGE_PRESETS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+              </select>
+              {preset === "custom" && (
+                <>
+                  <input type="date" className={`${inputCls} !w-auto !py-1.5 text-xs`} value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                  <span className="text-xs text-gray-400">to</span>
+                  <input type="date" className={`${inputCls} !w-auto !py-1.5 text-xs`} value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+                </>
+              )}
+            </>
+          )}
+          <Button variant="outline" className="!px-3 !py-1.5 text-xs" onClick={exportAll}>
+            <FileSpreadsheet className="w-4 h-4" /> Export all to Excel
           </Button>
-        )}
+          {currentUser?.role === "admin" && (
+            <Button variant="outline" className="!px-3 !py-1.5 text-xs" onClick={rebuild}>
+              <DatabaseZap className="w-4 h-4" /> Rebuild levels from ledger
+            </Button>
+          )}
+        </div>
       </div>
 
       {loading && <div className="flex justify-center py-12"><Spinner /></div>}
+
+      {/* Inventory overview — everything in one place */}
+      {!loading && sub === "inventory" && Array.isArray(data) && (
+        <>
+          <div className="flex justify-between items-center mb-2 gap-2 flex-wrap">
+            <select className={`${inputCls} !w-auto`} value={invSort} onChange={(e) => setInvSort(e.target.value)}>
+              <option value="name">Sort A–Z</option>
+              <option value="availability">Sort by availability (low → high)</option>
+            </select>
+            <Button variant="outline" className="!px-3 !py-1.5 text-xs"
+              onClick={() => downloadCsv("inventory-overview.csv", INVENTORY_HEADERS, inventoryRows(sortedInventory))}>
+              <Download className="w-4 h-4" /> Export CSV
+            </Button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
+                  <th className="px-3 py-2">Item</th>
+                  <th className="px-3 py-2">Available</th>
+                  <th className="px-3 py-2">Locations</th>
+                  <th className="px-3 py-2">Reorder</th>
+                  <th className="px-3 py-2">Last order</th>
+                  <th className="px-3 py-2">Last count</th>
+                  <th className="px-3 py-2">Variance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedInventory.map((r) => (
+                  <tr key={r.id} className="border-t border-gray-100 align-top">
+                    <td className="px-3 py-2 font-medium">
+                      {r.name}<span className="block text-xs text-gray-400">{r.category}</span>
+                    </td>
+                    <td className={`px-3 py-2 font-bold ${r.reorderLevel > 0 && r.totalQuantity <= r.reorderLevel ? "text-red-600" : ""}`}>
+                      {r.totalQuantity} {r.unit}(s)
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-600">
+                      {r.locations.length
+                        ? r.locations.map((l) => `${l.name}: ${l.quantity}`).join(" · ")
+                        : <span className="text-gray-300">not held anywhere</span>}
+                    </td>
+                    <td className="px-3 py-2">{r.reorderLevel || "—"}</td>
+                    <td className="px-3 py-2 text-xs">
+                      {r.lastOrder
+                        ? `${r.lastOrder.quantity} · ${new Date(r.lastOrder.date).toLocaleDateString("en-GB")}`
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {r.lastStocktake
+                        ? `${r.lastStocktake.counted ?? "?"} · ${new Date(r.lastStocktake.date).toLocaleDateString("en-GB")}`
+                        : <span className="text-gray-300">never</span>}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {r.lastStocktake ? (
+                        <span className={r.lastStocktake.variance === 0 ? "text-gray-500" : "text-amber-700"} title={r.lastStocktake.reason || ""}>
+                          {r.lastStocktake.variance > 0 ? `+${r.lastStocktake.variance}` : r.lastStocktake.variance}
+                        </span>
+                      ) : <span className="text-gray-300">—</span>}
+                    </td>
+                  </tr>
+                ))}
+                {data.length === 0 && (
+                  <tr><td colSpan="7" className="px-3 py-8 text-center text-gray-500">No active items.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Everything in one place — availability, where it sits, last order and last stocktake variance.
+            Export this sheet, or “Export all to Excel” for every report in one workbook.
+          </p>
+        </>
+      )}
 
       {/* Reorder */}
       {!loading && sub === "reorder" && data && (
@@ -165,7 +367,7 @@ const StockReportsTab = () => {
               onClick={() => downloadCsv("reorder-report.csv",
                 ["Item", "Category", "Unit", "In stock", "Reorder level", "Suggested order"],
                 data.map((i) => [i.name, i.category, i.unit, i.totalQuantity, i.reorderLevel, i.suggestedOrder]))}>
-              <Download className="w-4 h-4" /> CSV
+              <Download className="w-4 h-4" /> Export CSV
             </Button>
           </div>
           <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
@@ -207,7 +409,7 @@ const StockReportsTab = () => {
                   ...data.months.map((k) => e.months[k]?.consumed || 0),
                   data.months.reduce((s, k) => s + (e.months[k]?.writtenOff || 0), 0),
                 ]))}>
-              <Download className="w-4 h-4" /> CSV
+              <Download className="w-4 h-4" /> Export CSV
             </Button>
           </div>
           <div className="overflow-x-auto">
@@ -304,7 +506,7 @@ const StockReportsTab = () => {
                 sub === "disposal" ? "disposal-register.csv" : sub === "variances" ? "variances-report.csv" : "fefo-overrides.csv",
                 data,
               )}>
-              <Download className="w-4 h-4" /> CSV
+              <Download className="w-4 h-4" /> Export CSV
             </Button>
           </div>
           <MovementTable rows={data} />
