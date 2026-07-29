@@ -122,9 +122,11 @@ const movementCsv = (name, rows) => downloadCsv(
   ])
 );
 
-const StockReportsTab = () => {
+// initialSub lets the Analytics KPI cards open the reports engine on a
+// specific report (drill-down). Defaults to the inventory overview.
+const StockReportsTab = ({ initialSub = "inventory" }) => {
   const { currentUser } = useUserContext();
-  const [sub, setSub] = useState("inventory");
+  const [sub, setSub] = useState(initialSub);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [recallQuery, setRecallQuery] = useState("");

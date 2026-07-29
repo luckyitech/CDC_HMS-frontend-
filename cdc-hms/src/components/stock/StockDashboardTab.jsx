@@ -52,7 +52,10 @@ const ExpiryTable = ({ title, rows, tone, onWriteOff }) => {
   );
 };
 
-const StockDashboardTab = () => {
+// showCards=false embeds the operational detail (expiry buckets, below-reorder,
+// write-off) under the Analytics workspace, whose Executive band already owns
+// the headline KPIs. Standalone use keeps the cards.
+const StockDashboardTab = ({ showCards = true }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [writeOff, setWriteOff] = useState(null);   // expiry entry being written off
@@ -119,12 +122,14 @@ const StockDashboardTab = () => {
           blocked from dispensing and listed below for write-off.
         </div>
       )}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Active items" value={cards.activeItems} tone="blue" />
-        <StatCard label="Below reorder level" value={cards.itemsBelowReorder} tone="red" />
-        <StatCard label="Expiring ≤ 30 days" value={cards.batchesExpiring30} sub="includes already expired" tone="amber" />
-        <StatCard label="Movements today" value={cards.todaysMovements} tone="green" />
-      </div>
+      {showCards && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <StatCard label="Active items" value={cards.activeItems} tone="blue" />
+          <StatCard label="Below reorder level" value={cards.itemsBelowReorder} tone="red" />
+          <StatCard label="Expiring ≤ 30 days" value={cards.batchesExpiring30} sub="includes already expired" tone="amber" />
+          <StatCard label="Movements today" value={cards.todaysMovements} tone="green" />
+        </div>
+      )}
 
       {itemsBelowReorder?.length > 0 && (
         <div className="mb-6">

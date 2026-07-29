@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { notify } from "../../utils/notify";
 import { useStockContext } from "../../contexts/StockContext";
-import StockDashboardTab from "../../components/stock/StockDashboardTab";
 import StockItemsTab from "../../components/stock/StockItemsTab";
 import StockReceiveTab from "../../components/stock/StockReceiveTab";
 import StockDispenseTab from "../../components/stock/StockDispenseTab";
@@ -10,17 +9,18 @@ import StockMoveTab from "../../components/stock/StockMoveTab";
 import StockMovementsTab from "../../components/stock/StockMovementsTab";
 import StockRoomBalanceTab from "../../components/stock/StockRoomBalanceTab";
 import StockStocktakeTab from "../../components/stock/StockStocktakeTab";
-import StockReportsTab from "../../components/stock/StockReportsTab";
+import StockAnalyticsTab from "../../components/stock/StockAnalyticsTab";
 
-// Stocks — the full module: dashboard (with daily expiry sweep + write-offs),
-// items/locations/suppliers, receive (STK- shelf-label printing), dispense +
-// transfer (scan-first, FEFO-gated), room balance (par levels + restock
-// picklist), stocktake, movement history and reports. Shared across portals:
-// the sidebar shows it to admins and to staff/doctors granted canManageStock;
-// the API enforces the same server-side. Quantities only — no money anywhere.
+// Stocks — the full module: items/locations/suppliers, receive (STK- shelf-label
+// printing), dispense + transfer (scan-first, FEFO-gated), room balance (par
+// levels + restock picklist), stocktake, movement history, and Analytics — the
+// merged command centre (Executive KPIs → operational widgets → interactive
+// reports, with the daily expiry sweep + write-offs). Analytics replaces the old
+// separate Dashboard and Reports tabs. Shared across portals: the sidebar shows
+// it to admins and to staff/doctors granted canManageStock; the API enforces the
+// same server-side. Quantities only — no money anywhere.
 
 const TABS = [
-  { id: "dashboard", label: "Dashboard", el: <StockDashboardTab /> },
   { id: "items", label: "Items", el: <StockItemsTab /> },
   { id: "receive", label: "Receive", el: <StockReceiveTab /> },
   // Dispense is rendered separately below so it can report its lock state up
@@ -30,12 +30,12 @@ const TABS = [
   { id: "rooms", label: "Room Balance", el: <StockRoomBalanceTab /> },
   { id: "stocktake", label: "Stocktake", el: <StockStocktakeTab /> },
   { id: "movements", label: "Movements", el: <StockMovementsTab /> },
-  { id: "reports", label: "Reports", el: <StockReportsTab /> },
+  { id: "analytics", label: "Analytics", el: <StockAnalyticsTab /> },
 ];
 
 const Stocks = () => {
   const { loadReferenceData } = useStockContext();
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState("analytics");
   // Set while a dispense has a patient attached — the Dispense tab reports this.
   const [dispenseLocked, setDispenseLocked] = useState(false);
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { notify } from "../../utils/notify";
-import { SlidersHorizontal, Truck, Copy } from "lucide-react";
+import { SlidersHorizontal, Truck, Copy, RotateCw } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
@@ -23,6 +23,7 @@ const StockRoomBalanceTab = () => {
   const { items: allItems, locations } = useStockContext();
   const [grid, setGrid] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Par editor state
   const [editingRoom, setEditingRoom] = useState(null);   // locationId being edited
@@ -46,6 +47,19 @@ const StockRoomBalanceTab = () => {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Silent grid re-fetch — updates the red/amber/green cells without the full
+  // spinner, so a confirmed restock reflects immediately and the picklist stays
+  // on screen. Also the manual "Refresh" button.
+  const refreshGrid = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const res = await stockService.getRoomBalance();
+      if (res.success) setGrid(res.data);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   // ---------- Par editor ----------
   const openParEditor = async (locationId) => {
@@ -142,6 +156,9 @@ const StockRoomBalanceTab = () => {
       });
       if (res.success) {
         setDoneLines((prev) => ({ ...prev, [idx]: "ok" }));
+        // The moved stock lands in the room now — reflect it in the grid so the
+        // cell recolours without a page reload.
+        refreshGrid();
       } else {
         notify("error", res.message || "Transfer failed");
         setDoneLines((prev) => ({ ...prev, [idx]: "fail" }));
@@ -179,6 +196,14 @@ const StockRoomBalanceTab = () => {
           </Field>
         </div>
       )}
+
+      {/* Refresh the grid without a full page reload — after balancing a room,
+          or when stock has changed elsewhere (dispense, receive, transfer). */}
+      <div className="flex justify-end mb-2">
+        <Button variant="outline" className="!px-3 !py-1.5 text-xs" disabled={refreshing} onClick={refreshGrid}>
+          <RotateCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      </div>
 
       {/* Grid */}
       {grid && grid.rooms.length > 0 ? (
