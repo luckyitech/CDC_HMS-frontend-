@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import {
   UserSquare2,
@@ -12,8 +12,9 @@ import {
 import Card from "../../components/shared/Card";
 import VitalsGrid from "../../components/shared/VitalsGrid";
 import Glp1InjectionCard from "../../components/shared/Glp1InjectionCard";
+import Glp1ReviewDueBanner from "../../components/shared/Glp1ReviewDueBanner";
 import { NURSE_CHARGE_OPTIONS, NURSE_PROCEDURE_OPTIONS } from "../../constants/billingOptions";
-import { NURSE_QUEUE_STATUSES, isPendingInjection } from "../../utils/queueStatus";
+import { NURSE_QUEUE_STATUSES, isInjectionReturn } from "../../utils/queueStatus";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
 import { getBpColor, getTemperatureColor, getO2Color, getRbsColor, getHba1cColor, getKetonesColor } from '../../utils/clinicalColors';
@@ -135,10 +136,26 @@ const Triage = () => {
   // Set by Glp1InjectionCard once it knows whether this patient is on a live
   // course. A nurse may only bypass the doctor when the doctor has started one.
   const [glp1Therapy, setGlp1Therapy]             = useState(null);
+  // Whether the doctor planned to see this patient at the week they are now in.
+  // Decided by the server; the nurse may still bypass the doctor, but not
+  // without being told. Null means "no course, or we could not find out".
+  const [glp1ReviewStatus, setGlp1ReviewStatus]   = useState(null);
   const [showNurseBilling, setShowNurseBilling]   = useState(false);
   const [billingCharges, setBillingCharges]       = useState([]);
   const [billingProcedures, setBillingProcedures] = useState([]);
   const [billingSubmitting, setBillingSubmitting] = useState(false);
+
+  /**
+   * What Glp1InjectionCard reports back once it has loaded.
+   *
+   * Must keep a stable identity: the card re-runs its load whenever this
+   * changes, so an inline arrow would refetch on every render.
+   */
+  const handleGlp1TherapyChange = useCallback((therapy, reviewStatus) => {
+    setGlp1Therapy(therapy);
+    setGlp1ReviewStatus(reviewStatus);
+  }, []);
+
   // Auto-save triage data to localStorage
   useEffect(() => {
     if (selectedPatient) {
@@ -204,10 +221,11 @@ const Triage = () => {
    * back for an injection. Their vitals belong to this visit and must not be
    * recorded a second time, or the visit ends up with two PatientVital rows.
    *
-   * Read from the queue item captured at selection time, which keeps its
-   * original status even after we move them to 'In Triage'.
+   * Recognised by the injection reason the doctor stamped on the queue entry,
+   * which persists even after we move them to 'In Triage' and across a page
+   * refresh — the live 'Pending Injection' status is lost once triage starts.
    */
-  const returningForInjection = isPendingInjection(selectedQueueItem);
+  const returningForInjection = isInjectionReturn(selectedQueueItem);
 
   // Patients waiting for a nurse — new arrivals plus anyone the doctor sent
   // back for an injection
@@ -223,8 +241,9 @@ const Triage = () => {
     setSelectedQueueItem(queueItem); // Store queue item for API calls
     // A patient the doctor sent back for an injection has already been seen —
     // default them to the no-doctor path rather than making the nurse tick it
-    setInjectionOnly(isPendingInjection(queueItem));
-    setGlp1Therapy(null);    // Re-answered by the injection card on load
+    setInjectionOnly(isInjectionReturn(queueItem));
+    setGlp1Therapy(null);      // Both re-answered by the injection card on load
+    setGlp1ReviewStatus(null);
 
     // Check if patient has appointment today
     const appointment = getTodayAppointment(queueItem.uhid);
@@ -591,7 +610,7 @@ const Triage = () => {
                     <p className="text-sm text-gray-600">
                       {queueItem.age} yrs {queueItem.gender}
                     </p>
-                    {isPendingInjection(queueItem) && (
+                    {isInjectionReturn(queueItem) && (
                       <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold">
                         Seen by doctor · for injection
                       </span>
@@ -625,6 +644,11 @@ const Triage = () => {
                   >
                     <p className="font-semibold text-sm">{queueItem.name}</p>
                     <p className="text-xs text-gray-600">{queueItem.uhid}</p>
+                    {isInjectionReturn(queueItem) && (
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 text-xs font-semibold">
+                        Seen by doctor · for injection
+                      </span>
+                    )}
                     <p className="text-xs text-blue-600 mt-1">
                       Click to continue triage
                     </p>
@@ -790,6 +814,15 @@ const Triage = () => {
                         </label>
                       )}
                     </div>
+
+                    {/* Qualifies the checkbox above rather than disabling it: the
+                        nurse keeps the decision, but stops making it blind. Turns
+                        red once they have actually ticked past a planned review. */}
+                    <Glp1ReviewDueBanner
+                      reviewStatus={glp1ReviewStatus}
+                      emphasis={injectionOnly ? 'urgent' : 'warning'}
+                      className="mb-3"
+                    />
 
                     {injectionOnly ? (
                       <div className="px-3 py-2 bg-amber-100 rounded-lg text-sm text-amber-800">
@@ -979,7 +1012,7 @@ const Triage = () => {
                       Sits after vitals so the nurse fills those first. */}
                   <Glp1InjectionCard
                     patient={selectedPatient}
-                    onTherapyChange={setGlp1Therapy}
+                    onTherapyChange={handleGlp1TherapyChange}
                   />
 
                   {/* Action Buttons */}
