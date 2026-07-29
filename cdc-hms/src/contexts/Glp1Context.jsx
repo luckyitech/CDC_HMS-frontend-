@@ -103,6 +103,44 @@ export const Glp1Provider = ({ children }) => {
   }, []);
 
   /**
+   * The patient's live course and its full detail together, with a failed
+   * request reported rather than swallowed.
+   *
+   * The two helpers above return [] / null both when a patient has no course
+   * and when the request failed. Triage cannot live with that ambiguity: an
+   * outage would make a patient who IS on a GLP-1 look like one who was never
+   * started on it, and the nurse would be shown neither the injection card nor
+   * the review warning, with nothing on screen to say anything had gone wrong.
+   * So this one tells the caller which of the two happened. It goes to the
+   * service directly for that reason, not out of preference.
+   *
+   * Returns { ok, therapy, detail }. therapy is null when there is genuinely no
+   * live course AND when the load failed — callers should read `ok` to tell
+   * them apart, and treat !ok as "we do not know", never as "no course".
+   */
+  const loadActiveTherapy = useCallback(async (uhid) => {
+    if (!uhid) return { ok: true, therapy: null, detail: null };
+
+    const failed = { ok: false, therapy: null, detail: null };
+
+    try {
+      const listRes = await glp1Service.getTherapies(uhid, { status: 'Active' });
+      if (!listRes.success) return failed;
+
+      const live = (listRes.data?.therapies || [])[0] || null;
+      if (!live) return { ok: true, therapy: null, detail: null };
+
+      const fullRes = await glp1Service.getFull(live.id);
+      if (!fullRes.success) return failed;
+
+      return { ok: true, therapy: live, detail: fullRes.data };
+    } catch (err) {
+      console.error('Load active GLP-1 therapy error:', err.message);
+      return failed;
+    }
+  }, []);
+
+  /**
    * Starts a course. A 422 here is the safety screen refusing, and its message
    * names the finding — it is meant to be shown to the doctor verbatim.
    */
@@ -261,6 +299,7 @@ export const Glp1Provider = ({ children }) => {
     // Therapies
     getTherapiesByPatient,
     getFullTherapy,
+    loadActiveTherapy,
     startTherapy,
     updateTherapy,
     updateSchedule,

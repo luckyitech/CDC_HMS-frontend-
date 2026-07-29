@@ -16,6 +16,18 @@ export const NURSE_QUEUE_STATUSES = ['Awaiting Triage', PENDING_INJECTION];
 /** Consultation done, waiting on the nurse to give an injection. */
 export const isPendingInjection = (item) => item?.status === PENDING_INJECTION;
 
+/**
+ * True when the doctor sent this patient back to the nurse for an injection.
+ *
+ * Unlike isPendingInjection, this survives the nurse opening the patient (which
+ * flips the live status to 'In Triage') and a page refresh: the doctor stamps
+ * INJECTION_REASON on the queue entry, and that reason persists through the
+ * status change. Relying on status alone loses the injection context the moment
+ * triage starts, which wrongly reverts the form to a normal "Complete Triage".
+ */
+export const isInjectionReturn = (item) =>
+  isPendingInjection(item) || item?.reason === INJECTION_REASON;
+
 export const queueStatusLabel = (item) => item?.status;
 
 export const queueStatusColor = (item) => {

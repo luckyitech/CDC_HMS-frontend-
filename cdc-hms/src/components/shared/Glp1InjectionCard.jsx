@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Syringe } from 'lucide-react';
+import { Syringe, AlertCircle, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useGlp1Context } from '../../contexts/Glp1Context';
 import Glp1DoseSchedule from '../doctor/Glp1DoseSchedule';
+import Glp1ReviewDueBanner from './Glp1ReviewDueBanner';
 
 /**
  * Glp1InjectionCard — the nurse's view in triage.
@@ -15,35 +16,89 @@ import Glp1DoseSchedule from '../doctor/Glp1DoseSchedule';
  * Renders nothing when the patient has no live course, which is what gates the
  * injection-only path in triage: the doctor starting a course is what turns
  * this on.
+ *
+ * Also carries the review warning. A course marks certain weeks as ones the
+ * doctor means to SEE the patient on; the nurse is the one deciding whether a
+ * doctor is involved, so that has to be visible here and not only in the
+ * doctor's tracker.
+ *
+ * onTherapyChange(therapy, reviewStatus) reports both up to triage, which uses
+ * them to qualify the "patient won't see doctor" option.
  */
 
 const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
-  const {
-    getTherapiesByPatient, getFullTherapy,
-    recordAdministration, removeAdministration,
-  } = useGlp1Context();
+  const { loadActiveTherapy, recordAdministration, removeAdministration } = useGlp1Context();
 
   const [therapy, setTherapy] = useState(null);
   const [detail, setDetail]   = useState(null);
+  // First paint only. Never set back to true: load() also runs after every week
+  // the nurse records, and blanking the card each time would collapse the dose
+  // ladder they are working in.
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed]   = useState(false);
+  const [busy, setBusy]       = useState(false);
 
   const uhid = patient?.uhid;
 
   const load = useCallback(async () => {
     if (!uhid) return;
-    const list = await getTherapiesByPatient(uhid, { status: 'Active' });
-    const live = list[0] || null;
-    setTherapy(live);
-    setDetail(live ? await getFullTherapy(live.id) : null);
+
+    const { ok, therapy: live, detail: full } = await loadActiveTherapy(uhid);
+
+    setFailed(!ok);
+    setTherapy(ok ? live : null);
+    setDetail(ok ? full : null);
     setLoading(false);
-    // Tell triage whether this patient is on a GLP-1 — drives the
-    // "patient won't see doctor" option
-    onTherapyChange?.(live);
-  }, [uhid, getTherapiesByPatient, getFullTherapy, onTherapyChange]);
+
+    // Tell triage whether this patient is on a GLP-1 and whether a review is
+    // outstanding — drives the "patient won't see doctor" option and its
+    // warning. A failed load reports null, which hides the option entirely and
+    // leaves the nurse on the ordinary assign-a-doctor path: the safe way to be
+    // wrong is to send the patient to a doctor, never to skip one.
+    onTherapyChange?.(ok ? live : null, ok ? full?.reviewStatus ?? null : null);
+  }, [uhid, loadActiveTherapy, onTherapyChange]);
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading || !therapy) return null;
+  // Retry is the only place that shows progress. load() itself stays free of
+  // synchronous setState so the mount effect above cannot cascade renders.
+  const handleRetry = async () => {
+    setBusy(true);
+    await load();
+    setBusy(false);
+  };
+
+  if (loading) return null;
+
+  // Silence here would read as "this patient has no GLP-1 course", which is the
+  // one thing a failed load must not be mistaken for.
+  if (failed) {
+    return (
+      <div className="flex items-start gap-3 bg-red-50 border border-red-300 rounded-xl px-4 py-3">
+        <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-red-900">
+            Could not load this patient's GLP-1 record
+          </p>
+          <p className="text-xs text-red-800 mt-0.5">
+            If they are on a weekly injection it cannot be recorded or checked until
+            this loads. Try again, and assign a doctor if it keeps failing.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRetry}
+          disabled={busy}
+          className="flex items-center gap-1.5 px-3 py-2 bg-white border border-red-300 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50 transition-colors whitespace-nowrap flex-shrink-0"
+        >
+          <RotateCcw className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
+          {busy ? 'Trying…' : 'Try again'}
+        </button>
+      </div>
+    );
+  }
+
+  if (!therapy) return null;
 
   const administrations = detail?.administrations || [];
   const lastGiven = [...administrations].reverse().find(a => a.status === 'given');
@@ -76,6 +131,10 @@ const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
           {therapy.medication?.genericName}
         </span>
       </div>
+
+      {/* Above the week tiles on purpose: the nurse should meet this before
+          reading "week 8, 1.0 mg" and treating it as a routine injection. */}
+      <Glp1ReviewDueBanner reviewStatus={detail?.reviewStatus} className="mb-4" />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
         {[
