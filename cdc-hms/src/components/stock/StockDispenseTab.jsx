@@ -91,14 +91,24 @@ const StockDispenseTab = ({ onLockChange }) => {
       notify("error", `No stock of ${data.item.name} is held anywhere`);
       return;
     }
-    let targetLocation;
+    // Work the target location out BEFORE touching state.
+    //
+    // This used to be assigned inside the setLines updater and read straight
+    // after, which is a race with React's scheduling: an updater is only
+    // guaranteed to run during render, so the variable was usually still
+    // undefined by the time evaluateFefo() saw it — and evaluateFefo returns
+    // early on a falsy location. The FEFO nudge therefore fired only when React
+    // happened to compute the state eagerly, and silently did nothing the rest
+    // of the time. A safety warning that works intermittently is worse than one
+    // that doesn't exist, because staff learn to trust it.
+    const existing = lines.find((s) => s.stockBatchId === data.batch.id);
+    const targetLocation = existing ? existing.locationId : held[0].locationId;
+
     setLines((prev) => {
       const idx = prev.findIndex((s) => s.stockBatchId === data.batch.id);
       if (idx !== -1) {
-        targetLocation = prev[idx].locationId;
         return prev.map((s, i) => i === idx ? { ...s, quantity: s.quantity + 1 } : s);
       }
-      targetLocation = held.length === 1 ? held[0].locationId : (held[0]?.locationId ?? "");
       return [...prev, {
         stockBatchId: data.batch.id,
         stockItemId:  data.item.id,
@@ -125,6 +135,18 @@ const StockDispenseTab = ({ onLockChange }) => {
     for (const l of lines) {
       if (!l.locationId) return notify("error", `Choose where "${l.name}" comes from`);
       if (Number(l.quantity) < 1) return notify("error", `"${l.name}" needs a quantity of at least 1`);
+      // The cart happily counts past what the shelf holds — every scan of the
+      // same label adds one, and the +/- buttons have no ceiling. The server
+      // then refuses the WHOLE transaction, so one over-counted line threw away
+      // a trolley of correctly scanned ones with a single unhelpful message.
+      // Name the offending line here instead.
+      const held = availableAt(l);
+      if (Number(l.quantity) > held) {
+        return notify(
+          "error",
+          `Only ${held} ${l.unit}(s) of "${l.name}" are held there — reduce the quantity or pick another batch`
+        );
+      }
     }
     setSaving(true);
     try {
