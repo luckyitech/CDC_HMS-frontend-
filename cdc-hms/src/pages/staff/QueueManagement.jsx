@@ -187,6 +187,10 @@ const QueueManagement = () => {
             locationId:   Number(s.locationId),
             quantity:     Number(s.quantity),
           })),
+          // The visit. If saving the discharge below fails and this whole flow
+          // is retried, the server recognises the repeat and refuses rather
+          // than sending the same supplies out a second time.
+          dischargePatient.id,
         );
         if (!disp.success) {
           setDischarging(false);
@@ -196,11 +200,17 @@ const QueueManagement = () => {
           return;
         }
       } catch (err) {
-        setDischarging(false);
-        toast.error(err?.message || 'Could not dispense supplies', {
-          style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
-        });
-        return;
+        // Already dispensed for this visit — this is a retry after the discharge
+        // save failed, so the supplies are out and the right thing to do is
+        // carry on and finish the discharge. Treating it as an error would
+        // leave the visit permanently undischargeable.
+        if (!err?.data?.alreadyDispensed) {
+          setDischarging(false);
+          toast.error(err?.message || 'Could not dispense supplies', {
+            style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
+          });
+          return;
+        }
       }
     }
 
@@ -228,6 +238,10 @@ const QueueManagement = () => {
         duration: 3000,
         style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
       });
+      // Stay open on failure. The supplies have already left stock by this
+      // point, so closing sent reception back to the queue to start the whole
+      // discharge again — which is how the same supplies got dispensed twice.
+      return;
     }
     setShowDischargeModal(false);
     setDischargePatient(null);

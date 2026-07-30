@@ -61,7 +61,10 @@ export const stockService = {
 
   // ---------- Checkout dispense (patient-linked, from the discharge desk) ----------
   // lines: [{ stockBatchId, locationId, quantity }]
-  checkoutDispense: (uhid, lines) => api.post('/stock/checkout-dispense', { uhid, lines }),
+  // queueId ties the dispense to the visit, so a retried discharge cannot send
+  // the same supplies out twice. Pass it whenever dispensing from a visit.
+  checkoutDispense: (uhid, lines, queueId = null) =>
+    api.post('/stock/checkout-dispense', { uhid, lines, queueId }),
 
   // ---------- Returns (patient-linked) ----------
   // data: { stockBatchId, quantity, uhid, reason, reDispensable, toLocationId? }
