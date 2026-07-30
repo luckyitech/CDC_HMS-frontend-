@@ -16,6 +16,11 @@ const StockStocktakeTab = () => {
   const [rows, setRows] = useState(null);    // [{ level fields…, counted }]
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  // When this list was drawn. Sent with the count so the server can tell a
+  // batch that is genuinely missing from one that was delivered into the room
+  // while the count was in progress — the latter was never on the shelf to
+  // scan and must not be written down to zero.
+  const [startedAt, setStartedAt] = useState(null);
 
   const start = async () => {
     if (!locationId) return notify("error", "Choose a location");
@@ -23,6 +28,7 @@ const StockStocktakeTab = () => {
     try {
       const res = await stockService.getLevels({ locationId });
       if (res.success) {
+        setStartedAt(new Date().toISOString());
         setRows(res.data.map((l) => ({
           stockBatchId: l.stockBatchId,
           itemName: l.batch?.item?.name,
@@ -50,11 +56,16 @@ const StockStocktakeTab = () => {
         locationId: Number(locationId),
         counts: rows.map((r) => ({ stockBatchId: r.stockBatchId, countedQty: Number(r.counted) })),
         note: note.trim() || undefined,
+        // Full count: this screen lists every batch the room holds, so anything
+        // the server still has here that isn't in `counts` really is missing.
+        mode: "full",
+        startedAt,
       });
       if (res.success) {
         notify("success", res.data?.message || "Stocktake recorded");
         setRows(null);
         setNote("");
+        setStartedAt(null);
       } else {
         notify("error", res.message || "Stocktake failed");
       }
