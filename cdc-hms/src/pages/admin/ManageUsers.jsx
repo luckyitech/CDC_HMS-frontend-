@@ -3,18 +3,13 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Users, Pencil, KeyRound, Trash2,
-  ArrowLeft, UserCheck, UserX, Package, ShieldCheck,
+  ArrowLeft, UserCheck, UserX, Package,
 } from 'lucide-react';
 import api from '../../services/api';
-import { PERMISSIONS } from '../../utils/permissions';
 import patientService from '../../services/patientService';
 import EditUserModal from '../../components/admin/EditUserModal';
 import EditPatientModal from '../../components/staff/EditPatientModal';
 import StatusBadge from '../../components/shared/StatusBadge';
-
-// Roles that may hold capabilities. Patients never can — the server enforces
-// this too; this only keeps the toggles off rows where they make no sense.
-const PERMISSIBLE_ROLES = ['doctor', 'staff', 'lab'];
 import Pagination from '../../components/shared/Pagination';
 import useDebounce from '../../hooks/useDebounce';
 import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statusStyles';
@@ -158,32 +153,19 @@ const ManageUsers = () => {
     }
   };
 
-  // Grant or revoke one capability. Server-side these are a list on the user,
-  // read from the database on every request, so a change takes effect without
-  // the user logging out — and a revoke lands immediately.
-  //
-  // One handler for every capability rather than a copy per toggle: the whole
-  // point of the permission list is that adding a capability is a string, not
-  // another button with its own bespoke handler.
-  const handleTogglePermission = async (user, permission, label, warning) => {
-    const held = (user.permissions || []).includes(permission);
-    const grant = !held;
-    const question = grant
-      ? `Grant ${label} to ${user.name}?${warning ? `\n\n${warning}` : ''}`
-      : `Revoke ${label} for ${user.name}?`;
-    if (!window.confirm(question)) return;
-
-    const next = grant
-      ? [...(user.permissions || []), permission]
-      : (user.permissions || []).filter(p => p !== permission);
-
+  // Stock module access — the admin-granted per-user flag. Server reads it
+  // from the DB on every stock request, so the change takes effect without
+  // the user logging out.
+  const handleToggleStock = async (user) => {
+    const grant = !user.canManageStock;
+    if (!window.confirm(`${grant ? 'Grant' : 'Revoke'} stock access ${grant ? 'to' : 'for'} ${user.name}?`)) return;
     try {
-      const res = await api.put(`/users/${user.id}`, { permissions: next });
+      const res = await api.put(`/users/${user.id}`, { canManageStock: grant });
       if (!res.success) throw new Error('Update failed');
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, permissions: next } : u));
-      toastSuccess(`${label} ${grant ? 'granted to' : 'revoked from'} ${user.name}`);
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, canManageStock: grant } : u));
+      toastSuccess(`Stock access ${grant ? 'granted to' : 'revoked from'} ${user.name}`);
     } catch (err) {
-      toastError(err.message || `Failed to update ${label}`);
+      toastError(err.message || 'Failed to update stock access');
     }
   };
 
@@ -260,25 +242,9 @@ const ManageUsers = () => {
         <button onClick={() => handleToggleStatus(user)} className={base}>
           {isActive ? <><UserX size={13} /> Deactivate</> : <><UserCheck size={13} /> Activate</>}
         </button>
-        {PERMISSIBLE_ROLES.includes(user.role) && (
-          <button
-            onClick={() => handleTogglePermission(user, PERMISSIONS.STOCK_MANAGE, 'stock access')}
-            className={`${base} ${user.canManageStock ? 'text-primary' : ''}`}
-          >
+        {['doctor', 'staff'].includes(user.role) && (
+          <button onClick={() => handleToggleStock(user)} className={`${base} ${user.canManageStock ? 'text-primary' : ''}`}>
             <Package size={13} /> {user.canManageStock ? 'Revoke Stock' : 'Grant Stock'}
-          </button>
-        )}
-        {PERMISSIBLE_ROLES.includes(user.role) && (
-          <button
-            onClick={() => handleTogglePermission(
-              user,
-              PERMISSIONS.ADMIN_ACCESS,
-              'admin access',
-              'They will be able to do everything an administrator can, except grant permissions to others.'
-            )}
-            className={`${base} ${user.hasAdminAccess ? 'text-primary' : ''}`}
-          >
-            <ShieldCheck size={13} /> {user.hasAdminAccess ? 'Revoke Admin' : 'Grant Admin'}
           </button>
         )}
         <button onClick={() => handleDelete(user)} className={`${base} text-red-600 hover:bg-red-50 hover:text-red-700`}>
@@ -307,29 +273,10 @@ const ManageUsers = () => {
             {isActive ? <UserX size={15} /> : <UserCheck size={15} />}
           </button>
         </Tip>
-        {PERMISSIBLE_ROLES.includes(user.role) && (
-          <Tip label={user.hasAdminAccess ? 'Admin access: granted — click to revoke' : 'Admin access: none — click to grant'}>
-            <button
-              onClick={() => handleTogglePermission(
-                user,
-                PERMISSIONS.ADMIN_ACCESS,
-                'admin access',
-                'They will be able to do everything an administrator can, except grant permissions to others.'
-              )}
-              className={`p-1.5 rounded-lg transition ${
-                user.hasAdminAccess
-                  ? 'text-primary hover:bg-blue-50'
-                  : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <ShieldCheck size={15} />
-            </button>
-          </Tip>
-        )}
-        {PERMISSIBLE_ROLES.includes(user.role) && (
+        {['doctor', 'staff'].includes(user.role) && (
           <Tip label={user.canManageStock ? 'Stock access: granted — click to revoke' : 'Stock access: none — click to grant'}>
             <button
-              onClick={() => handleTogglePermission(user, PERMISSIONS.STOCK_MANAGE, 'stock access')}
+              onClick={() => handleToggleStock(user)}
               className={`p-1.5 rounded-lg transition ${
                 user.canManageStock
                   ? 'text-primary hover:bg-blue-50'
