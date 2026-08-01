@@ -13,6 +13,9 @@ import {
   RefreshCw,
   Loader2,
   Receipt,
+  Plus,
+  Minus,
+  Package,
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
@@ -20,6 +23,8 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import { QUEUE_STATUS_TONES, QUEUE_PRIORITY_TONES } from '../../utils/statusStyles';
 import { useQueueContext } from '../../contexts/QueueContext';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
+import { BatchScanBox } from '../../components/stock/stockUi';
+import stockService from '../../services/stockService';
 
 const formatArrival = (iso) => {
   if (!iso) return '-';
@@ -49,6 +54,10 @@ const QueueManagement = () => {
   const [finalCharges, setFinalCharges] = useState([]);
   const [finalProcedures, setFinalProcedures] = useState([]);
   const [dischargeComment, setDischargeComment] = useState('');
+  // Supplies scanned onto the charge sheet at checkout. Each line:
+  // { stockBatchId, stockItemId, name, unit, labelCode, expiryDate,
+  //   isHighAlert, levels:[{locationId,locationName,quantity}], locationId, quantity }
+  const [supplies, setSupplies] = useState([]);
 
   // Only show active entries — hide Completed and Removed
   const activeQueue = queue.filter(p => p.status !== 'Completed' && p.status !== 'Removed');
@@ -79,6 +88,7 @@ const QueueManagement = () => {
     setFinalCharges(patient.selectedCharges || []);
     setFinalProcedures(patient.selectedProcedures || []);
     setDischargeComment('');
+    setSupplies([]);              // supplies are scanned fresh at checkout
     setShowDischargeModal(true);
   };
 
@@ -88,12 +98,130 @@ const QueueManagement = () => {
   const toggleFinalProcedure = (item) =>
     setFinalProcedures(prev => prev.includes(item) ? prev.filter(p => p !== item) : [...prev, item]);
 
+  // Available units of a supply line at its chosen location (for the cap/hint).
+  const availableAt = (line) =>
+    line.levels.find(l => String(l.locationId) === String(line.locationId))?.quantity ?? 0;
+
+  // FEFO nudge (advisory, always shown): flag a line when it isn't the
+  // earliest-expiring batch of that item at its chosen location.
+  const evaluateFefo = async (stockBatchId, stockItemId, locationId) => {
+    if (!locationId) return;
+    try {
+      const res = await stockService.getFefoSuggestion(stockItemId, locationId);
+      const sugg = res.success ? res.data.suggestion : null;
+      const warn = sugg && sugg.stockBatchId !== stockBatchId ? sugg : null;
+      setSupplies(prev => prev.map(s => s.stockBatchId === stockBatchId ? { ...s, fefoWarn: warn } : s));
+    } catch {
+      /* the nudge is best-effort — never block checkout on it */
+    }
+  };
+
+  // A scanned STK- shelf label lands here. Same batch scanned again → +1.
+  const handleSupplyScanned = (data) => {
+    const held = (data.levels || []).filter(l => l.quantity > 0);
+    if (held.length === 0) {
+      toast.error(`No stock of ${data.item.name} is held anywhere`, {
+        style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
+      });
+      return;
+    }
+    let targetLocation;
+    setSupplies(prev => {
+      const idx = prev.findIndex(s => s.stockBatchId === data.batch.id);
+      if (idx !== -1) {
+        targetLocation = prev[idx].locationId;
+        return prev.map((s, i) => i === idx ? { ...s, quantity: s.quantity + 1 } : s);
+      }
+      targetLocation = held.length === 1 ? held[0].locationId : (held[0]?.locationId ?? '');
+      return [...prev, {
+        stockBatchId: data.batch.id,
+        stockItemId:  data.item.id,
+        name:         data.item.name,
+        unit:         data.item.unit,
+        labelCode:    data.batch.labelCode,
+        expiryDate:   data.batch.expiryDate,
+        isHighAlert:  data.item.isHighAlert,
+        levels:       held,
+        locationId:   targetLocation,
+        quantity:     1,
+        fefoWarn:     null,
+      }];
+    });
+    evaluateFefo(data.batch.id, data.item.id, targetLocation);
+  };
+
+  const setSupply = (idx, patch) =>
+    setSupplies(prev => prev.map((s, i) => i === idx ? { ...s, ...patch } : s));
+  const removeSupply = (idx) =>
+    setSupplies(prev => prev.filter((_, i) => i !== idx));
+
   const confirmDischarge = async () => {
     if (!dischargePatient) return;
+
+    // Guard the supply lines before touching stock.
+    for (const s of supplies) {
+      if (!s.locationId) {
+        toast.error(`Choose where "${s.name}" comes from`, {
+          style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
+        });
+        return;
+      }
+      if (Number(s.quantity) < 1) {
+        toast.error(`"${s.name}" needs a quantity of at least 1`, {
+          style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
+        });
+        return;
+      }
+    }
+
     setDischarging(true);
+
+    // Dispense the supplies FIRST — if stock can't be taken (expired, short),
+    // stop before discharging so the bill never claims un-dispensed stock.
+    if (supplies.length > 0) {
+      try {
+        const disp = await stockService.checkoutDispense(
+          dischargePatient.uhid,
+          supplies.map(s => ({
+            stockBatchId: s.stockBatchId,
+            locationId:   Number(s.locationId),
+            quantity:     Number(s.quantity),
+          })),
+          // The visit. If saving the discharge below fails and this whole flow
+          // is retried, the server recognises the repeat and refuses rather
+          // than sending the same supplies out a second time.
+          dischargePatient.id,
+        );
+        if (!disp.success) {
+          setDischarging(false);
+          toast.error(disp.message || 'Could not dispense supplies', {
+            style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
+          });
+          return;
+        }
+      } catch (err) {
+        // Already dispensed for this visit — this is a retry after the discharge
+        // save failed, so the supplies are out and the right thing to do is
+        // carry on and finish the discharge. Treating it as an error would
+        // leave the visit permanently undischargeable.
+        if (!err?.data?.alreadyDispensed) {
+          setDischarging(false);
+          toast.error(err?.message || 'Could not dispense supplies', {
+            style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
+          });
+          return;
+        }
+      }
+    }
+
+    const finalSupplies = supplies.map(s => ({
+      name: s.name, quantity: Number(s.quantity), labelCode: s.labelCode, stockBatchId: s.stockBatchId,
+    }));
+
     const result = await updateQueueStatus(dischargePatient.id, 'Completed', null, {
       finalCharges,
       finalProcedures,
+      finalSupplies,
       dischargeComment: dischargeComment.trim() || null,
     });
     setDischarging(false);
@@ -110,6 +238,10 @@ const QueueManagement = () => {
         duration: 3000,
         style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
       });
+      // Stay open on failure. The supplies have already left stock by this
+      // point, so closing sent reception back to the queue to start the whole
+      // discharge again — which is how the same supplies got dispensed twice.
+      return;
     }
     setShowDischargeModal(false);
     setDischargePatient(null);
@@ -394,7 +526,7 @@ const QueueManagement = () => {
                 </div>
               </div>
               <button
-                onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); }}
+                onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); setSupplies([]); }}
                 className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
@@ -461,6 +593,103 @@ const QueueManagement = () => {
                 )}
               </div>
 
+              {/* Supplies — scanned onto the bill at checkout. Finalising
+                  dispenses them from stock against this patient. */}
+              <div>
+                <div className="flex items-center gap-2 mb-3 pb-1 border-b">
+                  <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wide">Supplies</h4>
+                  <span className="text-xs text-gray-400">scan each item the patient is taking</span>
+                </div>
+
+                <BatchScanBox onResolved={handleSupplyScanned} />
+
+                {supplies.length > 0 ? (
+                  <div className="space-y-2">
+                    {supplies.map((s, idx) => (
+                      <div key={s.stockBatchId} className="flex flex-wrap items-center gap-3 p-2.5 rounded-lg border border-gray-200">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">
+                            {s.name}
+                            {s.isHighAlert && (
+                              <span className="ml-2 text-[11px] font-bold text-red-600">HIGH ALERT</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-400 font-mono">
+                            {s.labelCode}{s.expiryDate && ` · exp ${s.expiryDate}`}
+                          </p>
+                          {s.levels.length > 1 ? (
+                            <select
+                              value={s.locationId}
+                              onChange={(e) => { setSupply(idx, { locationId: e.target.value }); evaluateFefo(s.stockBatchId, s.stockItemId, Number(e.target.value)); }}
+                              className="mt-1 text-xs border border-gray-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-primary"
+                            >
+                              {s.levels.map(l => (
+                                <option key={l.locationId} value={l.locationId}>
+                                  {l.locationName} ({l.quantity} held)
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <p className="text-xs text-gray-400">
+                              from {s.levels[0]?.locationName} ({availableAt(s)} held)
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            type="button"
+                            aria-label="Decrease"
+                            onClick={() => setSupply(idx, { quantity: Math.max(1, Number(s.quantity) - 1) })}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            value={s.quantity}
+                            onChange={(e) => setSupply(idx, { quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                            className="w-12 text-center text-sm font-semibold border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-primary"
+                          />
+                          <button
+                            type="button"
+                            aria-label="Increase"
+                            onClick={() => setSupply(idx, { quantity: Number(s.quantity) + 1 })}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Remove"
+                            onClick={() => removeSupply(idx)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {s.fefoWarn && (
+                          <div className="w-full basis-full flex items-start gap-1.5 mt-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+                            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                            <span>
+                              An earlier-expiring batch is here: <span className="font-mono">{s.fefoWarn.labelCode}</span>
+                              {s.fefoWarn.expiryDate && ` (exp ${s.fefoWarn.expiryDate})`} — use it first if you can.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5" />
+                      Finalising removes these from stock, recorded against {dischargePatient.name}. Unticking a
+                      charge above only edits the bill; removing a supply here also removes it from the dispense.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic">No supplies scanned — the patient is taking nothing home.</p>
+                )}
+              </div>
+
               {/* Doctor's instructions — read-only for billing staff */}
               {dischargePatient.doctorNotes && (
                 <div>
@@ -497,7 +726,7 @@ const QueueManagement = () => {
             {/* Footer */}
             <div className="flex gap-3 px-6 py-4 border-t flex-shrink-0">
               <button
-                onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); }}
+                onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); setSupplies([]); }}
                 className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancel
@@ -513,7 +742,7 @@ const QueueManagement = () => {
                     disabled={discharging || commentRequired}
                     className="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {discharging ? 'Discharging…' : 'Confirm & Discharge'}
+                    {discharging ? 'Discharging…' : supplies.length > 0 ? 'Finalise & Discharge' : 'Confirm & Discharge'}
                   </button>
                 );
               })()}

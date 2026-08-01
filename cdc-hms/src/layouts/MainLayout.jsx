@@ -43,6 +43,7 @@ import {
   ChevronsRight,
   Copy,
   FileStack,
+  Package,
   // KeyRound,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
@@ -114,6 +115,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // const handleMarkAsRead = () => { toast.success(...) };
   // const handleMarkAllAsRead = () => { toast.success(...); setNotificationsOpen(false); };
 
+  // Stocks appears only for users the admin has granted stock access
+  // (admins always — their auth profile carries canManageStock: true).
+  // Hiding the link is UX; the API is guarded server-side regardless.
+  const hasStockAccess = !!currentUser?.canManageStock;
+  const stockEntry = (portal) =>
+    hasStockAccess ? [{ name: "Stocks", path: `/${portal}/stock`, icon: Package }] : [];
+
   const menuItems = {
     staff: [
       { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },
@@ -124,6 +132,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Book Appointment", path: "/staff/book-appointment", icon: CalendarCheck },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
       { name: "Patient Visits", path: "/staff/patient-visits", icon: TrendingUp },
+      ...stockEntry("staff"),
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
     ],
     doctor: [
@@ -147,6 +156,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
       { name: "My Schedule", path: "/doctor/my-schedule", icon: CalendarCheck },
       { name: "Patient Visits", path: "/doctor/patient-visits", icon: TrendingUp },
+      ...stockEntry("doctor"),
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
@@ -199,6 +209,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
+      { name: "Stocks", path: "/admin/stock", icon: Package },
       {
         name: "Monitoring",
         icon: Activity,

@@ -18,6 +18,7 @@ import { AppointmentProvider } from './contexts/AppointmentContext';
 import { ConsultationNotesProvider } from './contexts/ConsultationNotesContext';
 import { Glp1Provider } from './contexts/Glp1Context';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { StockProvider } from './contexts/StockContext';
 
 // Layouts & shared (always needed — keep eager)
 import MainLayout from "./layouts/MainLayout";
@@ -32,6 +33,7 @@ import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 const MedicalDocuments = lazy(() => import("./pages/shared/MedicalDocuments"));
 const PatientVisitsReport = lazy(() => import("./pages/shared/PatientVisitsReport"));
 const ChangePasswordPage = lazy(() => import("./pages/shared/ChangePasswordPage"));
+const Stocks = lazy(() => import("./pages/shared/Stocks"));
 
 // Staff pages (lazy)
 const StaffDashboard = lazy(() => import("./pages/staff/StaffDashboard"));
@@ -107,7 +109,9 @@ const AuthenticatedLayout = () => (
                   <PrescriptionProvider>
                     <TreatmentPlanProvider>
                       <Glp1Provider>
-                        <Outlet />
+                        <StockProvider>
+                          <Outlet />
+                        </StockProvider>
                       </Glp1Provider>
                     </TreatmentPlanProvider>
                   </PrescriptionProvider>
@@ -152,6 +156,7 @@ function App() {
                   <Route path="book-appointment" element={<StaffBookAppointment />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
+                  <Route path="stock" element={<Stocks />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -173,6 +178,7 @@ function App() {
                   <Route path="glycemic-charts" element={<GlycemicCharts />} />
                   <Route path="appointments" element={<DoctorAppointmentsList />} />
                   <Route path="my-schedule" element={<MySchedule />} />
+                  <Route path="stock" element={<Stocks />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -221,6 +227,7 @@ function App() {
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="catalog" element={<ClinicalCatalog />} />
+                  <Route path="stock" element={<Stocks />} />
                   <Route path="duplicate-patients" element={<DuplicatePatients />} />
                   <Route path="activity-log" element={<ActivityLog />} />
                   <Route path="analytics" element={<AnalyticsOverview />} />

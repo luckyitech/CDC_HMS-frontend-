@@ -69,8 +69,10 @@ api.interceptors.response.use(
       }
     }
 
-    // Reject with a clean error object
-    return Promise.reject({ message, status });
+    // Reject with a clean error object. `data` carries the backend's full
+    // response body for callers that need structured payloads on error
+    // (e.g. the stock FEFO gate's 409 with its fefoSuggestion).
+    return Promise.reject({ message, status, data: error.response?.data });
   }
 );
 

@@ -5,51 +5,19 @@ import Button from "./Button";
 import { code128Svg } from "../../utils/code128";
 import { formatDOB } from "../../utils/dateUtils";
 import barcodeService from "../../services/barcodeService";
+import { printHtml, LABEL_W_MM, LABEL_H_MM } from "../../utils/print";
 import logo from "../../assets/cdc_web_logo1.svg";
 
 // Barcode generation for a patient: preview modal + two print paths.
 //   Print card  — wallet-size identity card (CR80) the patient carries/presents.
 //   Print label — file-folder sticker for the thermal printer.
-// Used from both the staff and doctor patient profiles. Email arrives in the
-// email slice and will add a third action here.
+// Used from both the staff and doctor patient profiles.
+// printHtml and the thermal label dimensions live in utils/print — shared
+// with the stock module's batch shelf labels (same printer, same stock).
 //
-// Thermal label size — confirm against the clinic's printer and adjust in one
-// place. Common desktop thermal labels are 50×30mm.
-const LABEL_W_MM = 50;
-const LABEL_H_MM = 30;
 // CR80 wallet card
 const CARD_W_MM = 85.6;
 const CARD_H_MM = 54;
-
-const printHtml = (title, pageW, pageH, bodyHtml) => {
-  const win = window.open("", "_blank", "width=480,height=360");
-  if (!win) {
-    toast.error("Pop-up blocked — allow pop-ups to print");
-    return;
-  }
-  win.document.write(`<!doctype html>
-<html>
-<head>
-<title>${title}</title>
-<style>
-  @page { size: ${pageW}mm ${pageH}mm; margin: 0; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: ${pageW}mm; height: ${pageH}mm; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff;
-         display: flex; align-items: center; justify-content: center; }
-  svg { max-width: 100%; height: auto; }
-</style>
-</head>
-<body>${bodyHtml}</body>
-</html>`);
-  win.document.close();
-  win.focus();
-  // Give the window a beat to lay out (and the logo to load), then print.
-  setTimeout(() => {
-    win.print();
-    win.close();
-  }, 500);
-};
 
 const BarcodeActions = ({ patient }) => {
   const [showModal, setShowModal] = useState(false);

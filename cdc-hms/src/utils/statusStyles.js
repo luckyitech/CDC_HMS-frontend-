@@ -140,3 +140,45 @@ export const SEVERITY_SOLID_TONES = {
   Critical: 'danger',
   High:     'orange',
 };
+
+// Stock item / location / batch lifecycle status
+export const STOCK_STATUS_TONES = {
+  active:   'success',
+  retired:  'neutral',
+  depleted: 'neutral',
+  expired:  'danger',
+  recalled: 'danger',
+};
+
+// Stock movement type — semantic where it carries meaning (stock in = green,
+// out = blue, corrections = purple, losses = red), neutral for reversals.
+export const STOCK_MOVEMENT_TONES = {
+  intake:          'success',
+  dispense:        'info',
+  use:             'info',
+  transfer:        'amber',
+  adjustment:      'purple',
+  expiry_writeoff: 'danger',
+  damage_writeoff: 'danger',
+  return:          'success',
+  reversal:        'neutral',
+};
+
+export const STOCK_MOVEMENT_LABELS = {
+  intake:          'Intake',
+  dispense:        'Dispense',
+  use:             'Use',
+  transfer:        'Transfer',
+  adjustment:      'Adjustment',
+  expiry_writeoff: 'Expiry write-off',
+  damage_writeoff: 'Damage write-off',
+  return:          'Return',
+  reversal:        'Reversal',
+};
+
+// Room-balance cell RAG — red below min, amber near min, green in range.
+export const STOCK_RAG_TONES = {
+  red:   'danger',
+  amber: 'warning',
+  green: 'success',
+};
