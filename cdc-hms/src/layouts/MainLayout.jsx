@@ -44,7 +44,7 @@ import {
   Copy,
   FileStack,
   Package,
-  // KeyRound,
+  KeyRound,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
@@ -134,6 +134,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Patient Visits", path: "/staff/patient-visits", icon: TrendingUp },
       ...stockEntry("staff"),
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
+      { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
     ],
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
@@ -160,6 +161,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
+      { name: "Change Password", path: "/doctor/change-password", icon: KeyRound },
     ],
     patient: [
       { name: "Home", path: "/patient/dashboard", icon: Home },
@@ -173,6 +175,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         icon: Calendar,
       },
       { name: "My Documents", path: "/patient/upload-results", icon: FileText },
+      { name: "Change Password", path: "/patient/change-password", icon: KeyRound },
     ],
     lab: [
       { name: "Dashboard", path: "/lab/dashboard", icon: LayoutDashboard },
@@ -193,6 +196,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         path: "/lab/critical-alerts",
         icon: AlertTriangle,
       },
+      { name: "Change Password", path: "/lab/change-password", icon: KeyRound },
     ],
     // An entry is a leaf ({ name, path, icon }) or a group
     // ({ name, icon, children: [...leaves] }) rendered as an expandable section.
@@ -219,7 +223,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
           { name: "Patient Visits", path: "/admin/patient-visits", icon: ClipboardList },
         ],
       },
-      { name: "System Settings", path: "/admin/settings", icon: Settings },
+      // "System Settings" used to sit here pointing at /admin/settings, which
+      // has no route and no page — it 404'd every time. Replaced with the one
+      // setting that does exist and that every account needs, especially the
+      // admin, whose mailbox does not exist so the emailed-reset flow is no
+      // help. Restore a settings section here when there is a page behind it.
+      { name: "Change Password", path: "/admin/change-password", icon: KeyRound },
     ],
   };
 
@@ -395,9 +404,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         </div>
 
         <nav className="mt-6 overflow-y-auto max-h-[calc(100vh-10.5rem)]">
-          {currentMenu
-            .filter((item) => !item.path?.includes("change-password"))
-            .map((item) => (item.children ? renderGroup(item) : renderLeaf(item)))}
+          {currentMenu.map((item) => (item.children ? renderGroup(item) : renderLeaf(item)))}
         </nav>
 
         {/* Collapse toggle — desktop only */}
