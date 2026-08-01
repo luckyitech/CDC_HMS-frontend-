@@ -76,15 +76,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // role: a granted staff member gets the same banner as the admin does.
   const isAdminViewing = canAccessAdmin(currentUser) && userRole.toLowerCase() !== 'admin';
 
-  // Greet the person, not their job title. The header used to read "Welcome,
-  // Staff", which told you nothing you did not already know and read oddly to
-  // anyone sharing a workstation. Doctors keep the "Dr." the rest of the app
-  // gives them. Falls back to the role if the profile has no name yet, so the
-  // header never renders "Welcome, undefined".
-  const greetingName = currentUser?.name
-    ? (currentUser.role === 'doctor' ? `Dr. ${currentUser.name}` : currentUser.name)
-    : userRole;
-
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
   const { showWarning, countdown, resetTimer } = useSessionTimeout(sessionTimeoutEnabled);
@@ -469,8 +460,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
             <Menu size={30} />
           </button>
 
-          <h1 className="text-xl lg:text-3xl font-bold text-gray-800 min-w-0 truncate">
-            Welcome, <span className="text-primary">{greetingName}</span>
+          <h1 className="text-xl lg:text-3xl font-bold text-gray-800">
+            Welcome, <span className="text-primary">{userRole}</span>
           </h1>
 
           <div className="flex items-center gap-3 lg:gap-6">
