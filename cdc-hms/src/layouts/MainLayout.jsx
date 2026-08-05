@@ -5,6 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
+import { canAccessAdmin } from "../utils/permissions";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
   LayoutDashboard,
@@ -71,17 +72,23 @@ const MainLayout = ({ userRole = "Staff" }) => {
     });
   };
 
-  const isAdminViewing = currentUser?.role === 'admin' && userRole.toLowerCase() !== 'admin';
+  // Someone with admin capabilities looking at another portal. Capability, not
+  // role: a granted staff member gets the same banner as the admin does.
+  const isAdminViewing = canAccessAdmin(currentUser) && userRole.toLowerCase() !== 'admin';
 
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
   const { showWarning, countdown, resetTimer } = useSessionTimeout(sessionTimeoutEnabled);
 
+  // Where an admin-capable user can jump to. The admin portal is included for
+  // granted users too — otherwise a nurse given admin access would have no way
+  // to reach it, since their own portal is where they land at login.
   const portalOptions = [
+    { label: 'Admin Portal', path: '/admin/dashboard' },
     { label: 'Doctor Portal', path: '/doctor/dashboard' },
     { label: 'Staff Portal', path: '/staff/dashboard' },
     { label: 'Lab Portal', path: '/lab/dashboard' },
-  ];
+  ].filter(({ path }) => !path.startsWith(`/${userRole.toLowerCase()}/`));
   // const [notificationsOpen, setNotificationsOpen] = useState(false); // TODO: notifications
   // const [doctorApptCount, setDoctorApptCount] = useState(0); // TODO: notifications
 
@@ -459,7 +466,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
           <div className="flex items-center gap-3 lg:gap-6">
             {/* Admin Portal Switcher */}
-            {userRole.toLowerCase() === 'admin' && (
+            {canAccessAdmin(currentUser) && (
               <div className="relative">
                 <button
                   onClick={() => setPortalSwitcherOpen(!portalSwitcherOpen)}
