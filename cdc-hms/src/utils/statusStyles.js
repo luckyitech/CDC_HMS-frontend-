@@ -182,3 +182,37 @@ export const STOCK_RAG_TONES = {
   amber: 'warning',
   green: 'success',
 };
+
+// Invoice lifecycle. 'issued' is amber for the same reason 'Pending Billing' is:
+// it is money the clinic is waiting on. Void is neutral rather than danger — a
+// void bill is a correction that worked, not a failure.
+export const INVOICE_STATUS_TONES = {
+  draft:          'neutral',
+  issued:         'amber',
+  partially_paid: 'info',
+  paid:           'success',
+  void:           'neutral',
+};
+
+// The server stores snake_case; these are what a person reads.
+export const INVOICE_STATUS_LABELS = {
+  draft:          'Draft',
+  issued:         'Issued',
+  partially_paid: 'Part paid',
+  paid:           'Paid',
+  void:           'Void',
+};
+
+// Payment direction. Reversal is neutral, matching STOCK_MOVEMENT_TONES —
+// a correction is not an error.
+export const PAYMENT_TYPE_TONES = {
+  payment:  'success',
+  refund:   'warning',
+  reversal: 'neutral',
+};
+
+export const PAYMENT_TYPE_LABELS = {
+  payment:  'Payment',
+  refund:   'Refund',
+  reversal: 'Reversal',
+};

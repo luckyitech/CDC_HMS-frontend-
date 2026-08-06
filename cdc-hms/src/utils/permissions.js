@@ -7,6 +7,8 @@
 export const PERMISSIONS = {
   ADMIN_ACCESS: 'admin.access',
   STOCK_MANAGE: 'stock.manage',
+  BILLING_MANAGE: 'billing.manage',
+  BILLING_VIEW_PRICES: 'billing.viewPrices',
 };
 
 /**
@@ -27,3 +29,17 @@ export const canAccessAdmin = (user) => hasPermission(user, PERMISSIONS.ADMIN_AC
 
 /** The admin ACCOUNT, as opposed to someone granted admin capabilities. */
 export const isTrueAdmin = (user) => user?.role === 'admin';
+
+/** Can this user run the billing desk — issue bills, take payments, set prices? */
+export const canManageBilling = (user) => hasPermission(user, PERMISSIONS.BILLING_MANAGE);
+
+/**
+ * May this user see prices at all?
+ *
+ * Clinical staff are money-blind unless granted. The server already strips
+ * price fields from its responses for anyone without this, so the UI never has
+ * to hide a number it was sent — this only decides whether to render a column
+ * that would otherwise be empty. `billing.manage` implies it, resolved by the
+ * server when it builds the user's permission list.
+ */
+export const canViewPrices = (user) => hasPermission(user, PERMISSIONS.BILLING_VIEW_PRICES);

@@ -23,6 +23,12 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import { QUEUE_STATUS_TONES, QUEUE_PRIORITY_TONES } from '../../utils/statusStyles';
 import { useQueueContext } from '../../contexts/QueueContext';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
+import { useUserContext } from '../../contexts/UserContext';
+import { canManageBilling } from '../../utils/permissions';
+import useCheckoutBill from '../../hooks/useCheckoutBill';
+import CheckoutBill from '../../components/billing/CheckoutBill';
+import DischargedBill from '../../components/billing/DischargedBill';
+import { Money } from '../../components/billing/billingUi';
 import { BatchScanBox } from '../../components/stock/stockUi';
 import stockService from '../../services/stockService';
 
@@ -58,6 +64,23 @@ const QueueManagement = () => {
   // { stockBatchId, stockItemId, name, unit, labelCode, expiryDate,
   //   isHighAlert, levels:[{locationId,locationName,quantity}], locationId, quantity }
   const [supplies, setSupplies] = useState([]);
+  // Set once a discharge succeeds and there is a bill worth showing — carries
+  // the invoice so its numbers can be read out and the receipt printed.
+  const [dischargedBill, setDischargedBill] = useState(null);
+
+  // Billing is a capability, not a role. Without it this modal behaves exactly
+  // as it always has: no prices, no totals, no payment, and no billing requests
+  // made at all.
+  const { currentUser } = useUserContext();
+  const canBill = canManageBilling(currentUser);
+
+  const bill = useCheckoutBill({
+    enabled: canBill && showDischargeModal,
+    queueItem: dischargePatient,
+    charges: finalCharges,
+    procedures: finalProcedures,
+    supplies,
+  });
 
   // Only show active entries — hide Completed and Removed
   const activeQueue = queue.filter(p => p.status !== 'Completed' && p.status !== 'Removed');
@@ -218,6 +241,24 @@ const QueueManagement = () => {
       name: s.name, quantity: Number(s.quantity), labelCode: s.labelCode, stockBatchId: s.stockBatchId,
     }));
 
+    // Issue the bill and bank any payment BEFORE closing the visit — same
+    // reasoning as dispensing first. Skipped entirely when something is still
+    // unpriced: the draft survives against the visit and is finished later from
+    // Billing → Invoices. Billing must never be the reason a patient can't
+    // leave. Both steps inside finalise() are safe to retry.
+    let billed = null;
+    if (canBill && bill.canIssue) {
+      const res = await bill.finalise();
+      if (!res.ok) {
+        setDischarging(false);
+        toast.error(res.message || 'Could not complete the bill', {
+          style: { background: '#FEE2E2', color: '#991B1B', fontWeight: 'bold', padding: '16px' },
+        });
+        return;
+      }
+      billed = res.invoice;
+    }
+
     const result = await updateQueueStatus(dischargePatient.id, 'Completed', null, {
       finalCharges,
       finalProcedures,
@@ -245,6 +286,11 @@ const QueueManagement = () => {
     }
     setShowDischargeModal(false);
     setDischargePatient(null);
+    // A bill was issued — hold the numbers so reception can read them out and
+    // print a receipt. Nothing prints by itself: a dialog on every discharge
+    // gets dismissed reflexively, and then the one patient who wanted a receipt
+    // has to be chased down.
+    if (billed) setDischargedBill(billed);
   };
 
   const handleRemoveClick = (id, name) => {
@@ -555,7 +601,12 @@ const QueueManagement = () => {
                           onChange={() => toggleFinalCharge(item)}
                           className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                         />
-                        <span className="text-sm font-medium leading-tight">{item}</span>
+                        <span className="text-sm font-medium leading-tight flex-1">{item}</span>
+                        {canBill && finalCharges.includes(item) && (
+                          <span className="text-sm font-semibold text-gray-700">
+                            <Money minor={bill.lineByLabel.get(item)?.grossMinor} />
+                          </span>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -584,7 +635,12 @@ const QueueManagement = () => {
                           onChange={() => toggleFinalProcedure(item)}
                           className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                         />
-                        <span className="text-sm font-medium leading-tight">{item}</span>
+                        <span className="text-sm font-medium leading-tight flex-1">{item}</span>
+                        {canBill && finalProcedures.includes(item) && (
+                          <span className="text-sm font-semibold text-gray-700">
+                            <Money minor={bill.lineByLabel.get(item)?.grossMinor} />
+                          </span>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -667,6 +723,11 @@ const QueueManagement = () => {
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
+                          {canBill && (
+                            <span className="text-sm font-semibold text-gray-700 min-w-[64px] text-right">
+                              <Money minor={bill.lineByBatch.get(s.stockBatchId)?.grossMinor} />
+                            </span>
+                          )}
                         </div>
                         {s.fefoWarn && (
                           <div className="w-full basis-full flex items-start gap-1.5 mt-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
@@ -689,6 +750,11 @@ const QueueManagement = () => {
                   <p className="text-sm text-gray-400 italic">No supplies scanned — the patient is taking nothing home.</p>
                 )}
               </div>
+
+              {/* Bill — totals, anything unpriced, and payment. Rendered only
+                  for users granted billing.manage; everyone else sees the
+                  checkout exactly as it has always been. */}
+              {canBill && <CheckoutBill bill={bill} />}
 
               {/* Doctor's instructions — read-only for billing staff */}
               {dischargePatient.doctorNotes && (
@@ -736,13 +802,25 @@ const QueueManagement = () => {
                   (dischargePatient.selectedCharges || []).some(c => !finalCharges.includes(c)) ||
                   (dischargePatient.selectedProcedures || []).some(p => !finalProcedures.includes(p));
                 const commentRequired = itemsRemoved && !dischargeComment.trim();
+
+                // The label states the consequence, so nobody discharges a
+                // debtor — or an unbilled visit — without having read it.
+                // A blocked bill NEVER disables this button.
+                const label = () => {
+                  if (discharging) return 'Discharging…';
+                  if (!canBill) return supplies.length > 0 ? 'Finalise & Discharge' : 'Confirm & Discharge';
+                  if (!bill.canIssue) return 'Discharge anyway';
+                  const owing = bill.invoice?.balanceMinor > 0;
+                  return owing ? 'Issue & Discharge (balance due)' : 'Issue & Discharge';
+                };
+
                 return (
                   <button
                     onClick={confirmDischarge}
-                    disabled={discharging || commentRequired}
+                    disabled={discharging || commentRequired || bill.busy}
                     className="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {discharging ? 'Discharging…' : supplies.length > 0 ? 'Finalise & Discharge' : 'Confirm & Discharge'}
+                    {label()}
                   </button>
                 );
               })()}
@@ -750,6 +828,16 @@ const QueueManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Bill issued — numbers plus the receipt. Extracted so this screen
+          stays a queue screen. */}
+      <DischargedBill
+        invoice={dischargedBill}
+        patientName={dischargedBill?.Patient
+          ? `${dischargedBill.Patient.firstName} ${dischargedBill.Patient.lastName}`
+          : null}
+        onClose={() => setDischargedBill(null)}
+      />
 
       {/* Confirmation Modal */}
       {showConfirmModal && patientToRemove && (

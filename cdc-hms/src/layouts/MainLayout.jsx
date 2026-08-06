@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canAccessAdmin } from "../utils/permissions";
+import { canAccessAdmin, canManageBilling } from "../utils/permissions";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
   LayoutDashboard,
@@ -45,6 +45,7 @@ import {
   Copy,
   FileStack,
   Package,
+  CreditCard,
   KeyRound,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
@@ -129,6 +130,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const stockEntry = (portal) =>
     hasStockAccess ? [{ name: "Stocks", path: `/${portal}/stock`, icon: Package }] : [];
 
+  // Billing appears only for users granted 'billing.manage' (admins always).
+  // Same rule and same shape as Stocks above — hiding the link is UX; the API
+  // is guarded server-side regardless.
+  const billingEntry = (portal) =>
+    canManageBilling(currentUser) ? [{ name: "Billing", path: `/${portal}/billing`, icon: CreditCard }] : [];
+
   const menuItems = {
     staff: [
       { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },
@@ -139,6 +146,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Book Appointment", path: "/staff/book-appointment", icon: CalendarCheck },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
       { name: "Patient Visits", path: "/staff/patient-visits", icon: TrendingUp },
+      ...billingEntry("staff"),
       ...stockEntry("staff"),
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
@@ -164,6 +172,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
       { name: "My Schedule", path: "/doctor/my-schedule", icon: CalendarCheck },
       { name: "Patient Visits", path: "/doctor/patient-visits", icon: TrendingUp },
+      ...billingEntry("doctor"),
       ...stockEntry("doctor"),
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
@@ -220,6 +229,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
+      { name: "Billing", path: "/admin/billing", icon: CreditCard },
       { name: "Stocks", path: "/admin/stock", icon: Package },
       {
         name: "Monitoring",
