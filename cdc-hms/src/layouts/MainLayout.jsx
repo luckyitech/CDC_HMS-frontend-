@@ -53,7 +53,7 @@ import logo from "../assets/cdc_web_logo1.svg";
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser } = useUserContext();
+  const { currentUser, logout } = useUserContext();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Desktop-only icon rail. Defaults to collapsed; the pinned state is
   // persisted across reloads and portals. `false` here means "pinned open".
@@ -107,7 +107,19 @@ const MainLayout = ({ userRole = "Staff" }) => {
   //     .catch(() => {});
   // }, [userRole, currentUser?.id]);
 
-  const handleLogout = () => {
+  // Actually sign out, then leave.
+  //
+  // This used to navigate("/") and nothing else, so the token and the stored
+  // user survived: you landed on the login page still authenticated. It looked
+  // like a logout only because the login page happened to render. Once the
+  // login page started redirecting a signed-in user to their dashboard, the
+  // same click began bouncing straight back into the portal — and a shared
+  // machine could be handed over with the previous session still live.
+  //
+  // logout() invalidates the token server-side and clears sessionStorage; it
+  // has existed on the context all along and was simply never called.
+  const handleLogout = async () => {
+    await logout();
     navigate("/");
   };
 
