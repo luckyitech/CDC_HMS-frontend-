@@ -18,6 +18,7 @@ import {
   FileText,
   Activity,
   Pill,
+  BedDouble,
   Home,
   Edit,
   TrendingUp,
@@ -178,12 +179,14 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
       { name: "Patient Visits", path: "/staff/patient-visits", icon: TrendingUp },
       ...stockEntry("staff"),
+      { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
     ],
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
       { name: "Patients", path: "/doctor/patients", icon: Users },
+      { name: "Ward Board", path: "/inpatient/board", icon: BedDouble },
       // {
       //   name: "Consultations",
       //   path: "/doctor/consultations",
@@ -243,6 +246,16 @@ const MainLayout = ({ userRole = "Staff" }) => {
       },
       { name: "Change Password", path: "/lab/change-password", icon: KeyRound },
     ],
+    // HMIS V3 — nurse portal (inpatient home + OPD nursing work)
+    nurse: [
+      { name: "Ward Board", path: "/nurse/dashboard", icon: BedDouble },
+      { name: "Queue Management", path: "/nurse/queue", icon: ClipboardList },
+      { name: "Triage", path: "/nurse/triage", icon: Stethoscope },
+    ],
+    // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
+    inpatient: [
+      { name: "Ward Board", path: "/inpatient/board", icon: BedDouble },
+    ],
     // An entry is a leaf ({ name, path, icon }) or a group
     // ({ name, icon, children: [...leaves] }) rendered as an expandable section.
     admin: [
@@ -259,6 +272,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
       { name: "Stocks", path: "/admin/stock", icon: Package },
+      { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble },
       {
         name: "Monitoring",
         icon: Activity,
@@ -505,6 +519,23 @@ const MainLayout = ({ userRole = "Staff" }) => {
               horizontally below the avatar; stack as icons in the collapsed rail */}
           <div className={`flex items-center gap-2 px-4 pb-3 ${isCollapsed ? "md:flex-col md:px-0" : ""}`}>
             <NotificationBell userRole={userRole} />
+            {/* HMIS V3 — workspace switcher for doctors & nurses (Outpatient <-> Inpatient) */}
+            {["doctor", "nurse"].includes(currentUser?.role) && (
+              <button
+                onClick={() =>
+                  navigate(
+                    userRole.toLowerCase() === "inpatient"
+                      ? (currentUser?.role === "nurse" ? "/nurse/dashboard" : "/doctor/dashboard")
+                      : "/inpatient/board"
+                  )
+                }
+                title={userRole.toLowerCase() === "inpatient" ? "Go to Outpatient" : "Go to Inpatient"}
+                aria-label="Switch workspace"
+                className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <BedDouble className="w-5 h-5" />
+              </button>
+            )}
             {userRole.toLowerCase() === "patient" ? (
               <button
                 onClick={() => navigate("/patient/dashboard")}

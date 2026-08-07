@@ -1,11 +1,12 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
-import { HeartPulse, Users, TestTube, UserPlus } from 'lucide-react';
+import { HeartPulse, Users, TestTube, UserPlus, BedDouble } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import CreateDoctor from './CreateDoctor';
 import CreateStaff from './CreateStaff';
+import CreateNurse from './CreateNurse';
 import CreateLabTech from './CreateLabTech';
 import CreatePatient from './CreatePatient';
 
@@ -14,6 +15,7 @@ import CreatePatient from './CreatePatient';
 const ROLES = [
   { key: 'doctor',  label: 'Doctor',   icon: <HeartPulse className="w-4 h-4" />, Form: CreateDoctor },
   { key: 'staff',   label: 'Staff',    icon: <Users className="w-4 h-4" />,      Form: CreateStaff },
+  { key: 'nurse',   label: 'Nurse',    icon: <BedDouble className="w-4 h-4" />,  Form: CreateNurse },
   { key: 'lab',     label: 'Lab Tech', icon: <TestTube className="w-4 h-4" />,   Form: CreateLabTech },
   { key: 'patient', label: 'Patient',  icon: <UserPlus className="w-4 h-4" />,   Form: CreatePatient },
 ];

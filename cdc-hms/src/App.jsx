@@ -86,6 +86,12 @@ const AnalyticsOverview      = lazy(() => import("./pages/admin/analytics/Analyt
 const DoctorAnalytics        = lazy(() => import("./pages/admin/analytics/DoctorAnalytics"));
 const StaffAnalytics         = lazy(() => import("./pages/admin/analytics/StaffAnalytics"));
 const ConsultationAnalytics  = lazy(() => import("./pages/admin/analytics/ConsultationAnalytics"));
+const WardConfig             = lazy(() => import("./pages/admin/WardConfig"));
+
+// HMIS V3 — inpatient (lazy)
+const WardBoard          = lazy(() => import("./pages/inpatient/WardBoard"));
+const AdmissionDetail    = lazy(() => import("./pages/inpatient/AdmissionDetail"));
+const InpatientAdmissions = lazy(() => import("./pages/staff/InpatientAdmissions"));
 
 // Loading fallback shown while a lazy chunk is downloading
 const PageLoader = () => (
@@ -157,6 +163,7 @@ function App() {
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="stock" element={<Stocks />} />
+                  <Route path="inpatient-admissions" element={<InpatientAdmissions />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -235,7 +242,30 @@ function App() {
                   <Route path="analytics/staff" element={<StaffAnalytics />} />
                   <Route path="analytics/consultations" element={<ConsultationAnalytics />} />
                   <Route path="reports" element={<Reports />} />
+                  <Route path="ward-config" element={<WardConfig />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
+
+                {/* Nurse Portal (HMIS V3) — inpatient home + OPD nursing work */}
+                <Route
+                  path="/nurse"
+                  element={<ProtectedRoute requiredRole="nurse"><MainLayout userRole="Nurse" /></ProtectedRoute>}
+                >
+                  <Route path="dashboard" element={<WardBoard />} />
+                  <Route path="queue" element={<QueueManagement />} />
+                  <Route path="triage" element={<Triage />} />
+                  <Route path="patient-profile/:uhid" element={<StaffPatientProfile />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
+
+                {/* Inpatient workspace (HMIS V3) — doctors + nurses switch in */}
+                <Route
+                  path="/inpatient"
+                  element={<ProtectedRoute requiredRoles={["doctor", "nurse"]}><MainLayout userRole="Inpatient" /></ProtectedRoute>}
+                >
+                  <Route path="dashboard" element={<WardBoard />} />
+                  <Route path="board" element={<WardBoard />} />
+                  <Route path="admission/:id" element={<AdmissionDetail />} />
                 </Route>
 
               </Route>{/* end AuthenticatedLayout */}

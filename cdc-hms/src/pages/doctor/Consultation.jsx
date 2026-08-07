@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Menu as MenuIcon,
   Package,
+  BedDouble,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../../components/shared/Card";
@@ -33,6 +34,7 @@ import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useAppointmentContext } from "../../contexts/AppointmentContext";
 import ReferPatientModal from "../../components/doctor/ReferPatientModal";
 import RecordUseModal from "../../components/stock/RecordUseModal";
+import AdmitPatientModal from "../../components/doctor/AdmitPatientModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
 import { INJECTION_REASON, PENDING_INJECTION } from "../../utils/queueStatus";
 import patientService from "../../services/patientService";
@@ -163,6 +165,7 @@ const Consultation = () => {
   // Floating-bar button — deliberately NOT an accordion section (see the
   // ACCORDION_SECTIONS column-parity note). Open to all clinical roles.
   const [showRecordUse, setShowRecordUse]           = useState(false);
+  const [showAdmitModal, setShowAdmitModal]         = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal]     = useState(false);
   const [billingQueueItem, setBillingQueueItem]     = useState(null);
@@ -870,6 +873,14 @@ const Consultation = () => {
         )}
 
         <button
+          onClick={() => setShowAdmitModal(true)}
+          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+        >
+          <BedDouble className="w-3.5 h-3.5" />
+          Admit Patient
+        </button>
+
+        <button
           onClick={handleCompleteConsultation}
           disabled={!tabsCompleted.diagnosis && !hasActiveDx}
           className="flex items-center gap-1.5 bg-primary hover:opacity-90 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1226,6 +1237,39 @@ const Consultation = () => {
             onSuccess={() => {
               sessionStorage.removeItem(DRAFT_KEY);
               setShowReferModal(false);
+              navigate('/doctor/dashboard');
+            }}
+          />
+        );
+      })()}
+
+      {/* ===== Admit Patient Modal (HMIS V3) ===== */}
+      {showAdmitModal && (() => {
+        const activeQueueItem = findQueueItem();
+        if (!activeQueueItem) {
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center space-y-4">
+                <p className="text-gray-700 font-medium">Unable to load queue data.</p>
+                <p className="text-sm text-gray-500">Please refresh the page and try again.</p>
+                <button
+                  onClick={() => setShowAdmitModal(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <AdmitPatientModal
+            patient={patient}
+            queueItem={activeQueueItem}
+            onClose={() => setShowAdmitModal(false)}
+            onSuccess={() => {
+              sessionStorage.removeItem(DRAFT_KEY);
+              setShowAdmitModal(false);
               navigate('/doctor/dashboard');
             }}
           />
