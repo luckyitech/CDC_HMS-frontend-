@@ -61,9 +61,16 @@ const ServiceEditModal = ({ service, onClose }) => {
 
   const submit = async () => {
     if (!form.name.trim()) return notify("error", "Give the service a name");
+    // A price is required. An unpriced service cannot be billed, and it fails
+    // at the CHECKOUT DESK, where nobody has the rights to fix it — so the
+    // whole visit's bill stalls on something only an admin can resolve.
+    // 0 is accepted: that means the clinic gives it away deliberately.
+    if (form.unitPrice.trim() === "") {
+      return notify("error", "Set a price — use 0 if the service is free");
+    }
     // Checked here only so the desk hears immediately; the server is the
     // authority and rejects anything this misses.
-    if (form.unitPrice !== "" && !isAmountLike(form.unitPrice)) {
+    if (!isAmountLike(form.unitPrice)) {
       return notify("error", "Price must be an amount like 2500 or 2500.50");
     }
 
@@ -73,8 +80,7 @@ const ServiceEditModal = ({ service, onClose }) => {
       code: form.code.trim() || null,
       category: form.category,
       vatClass: form.vatClass,
-      // null clears the price back to "not yet priced".
-      unitPrice: form.unitPrice === "" ? null : form.unitPrice,
+      unitPrice: form.unitPrice,
       stockItemId: form.stockItemId === "" ? null : Number(form.stockItemId),
     });
     setSaving(false);
@@ -125,8 +131,8 @@ const ServiceEditModal = ({ service, onClose }) => {
         </Field>
 
         <Field
-          label={`Price (${currency})`}
-          hint="Leave empty for “not priced yet”. A genuinely free service is 0."
+          label={`Price (${currency}) *`}
+          hint="Required. Use 0 if the clinic gives this away — an unpriced service can’t be billed at the desk."
         >
           <input
             className={inputCls}

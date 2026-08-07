@@ -1,71 +1,46 @@
-import { useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { notify } from "../../utils/notify";
-import { inputCls } from "../shared/formUi";
 import { isAmountLike } from "../../utils/money";
 import { Money } from "./billingUi";
 import PaymentBlock from "./PaymentBlock";
 import { hasPayment } from "./paymentForm";
 
 // The money half of the Confirm & Discharge modal: totals, anything still
-// unpriced, and the payment. Rendered only for a user holding billing.manage —
-// everyone else sees the checkout exactly as it has always been.
+// unpriced, and the payment.
+//
+// Shown to EVERYONE who can discharge a patient, permission or not. When it was
+// gated on 'billing.manage', a receptionist without it discharged patients and
+// no bill was created at all — take the cash, close the visit, and nothing in
+// the system said anything was ever owed. Billing rights now follow discharge
+// rights exactly; 'billing.manage' guards changing and undoing the record
+// instead.
 //
 // Every figure here comes from the server's draft invoice. Nothing on this
 // screen adds anything up.
 
-/** One unpriced line, with a box to price it if there is a service behind it. */
-const UnpricedLine = ({ line, onPrice }) => {
-  const [amount, setAmount] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    if (!isAmountLike(amount)) return notify("error", "Enter a price like 1500 or 1500.00");
-    setSaving(true);
-    const res = await onPrice(line, amount);
-    setSaving(false);
-    if (res.success) notify("success", `${line.description} priced`);
-  };
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 py-2 border-b border-amber-200 last:border-0">
-      <span className="flex-1 min-w-[120px] text-sm font-semibold text-gray-800">
-        {line.description}
-        {line.quantity > 1 && <span className="text-gray-400 font-normal"> × {line.quantity}</span>}
-      </span>
-
-      {line.serviceItemId ? (
-        <>
-          <input
-            className={`${inputCls} w-28`}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-            inputMode="decimal"
-            aria-label={`Price for ${line.description}`}
-          />
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="px-3 py-2 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 whitespace-nowrap"
-          >
-            {saving ? "Saving…" : "Save price"}
-          </button>
-        </>
-      ) : (
-        // Nothing to set a price on: no price list entry maps to this item, so
-        // it has to be created and linked under Billing → Price List first.
-        <span className="text-xs text-amber-700">
-          not on the price list — add it under Billing to bill this
-        </span>
-      )}
-    </div>
-  );
-};
+/**
+ * One line that cannot be billed yet.
+ *
+ * There is no input here. A scanned SUPPLY is priced on its own row further up
+ * the modal, where the supply state lives — that price is a one-off on this
+ * bill and never touches the price list. A CHARGE or PROCEDURE whose price list
+ * row has no price cannot be fixed from the desk at all: setting prices is
+ * 'billing.manage' work, and letting the person taking the money set them is
+ * the thing this module exists to prevent.
+ */
+const UnpricedLine = ({ line }) => (
+  <div className="flex flex-wrap items-center gap-2 py-1.5 border-b border-amber-200 last:border-0">
+    <span className="flex-1 min-w-[120px] text-sm font-semibold text-gray-800">
+      {line.description}
+      {line.quantity > 1 && <span className="text-gray-400 font-normal"> × {line.quantity}</span>}
+    </span>
+    <span className="text-xs text-amber-700">
+      {line.stockBatchId ? "set a price on the row above" : "no price set — an administrator must price this"}
+    </span>
+  </div>
+);
 
 const CheckoutBill = ({ bill }) => {
-  const { invoice, currency, methods, syncing, unpricedLines, payment, setPayment, priceLine } = bill;
+  const { invoice, currency, methods, syncing, unpricedLines, payment, setPayment } = bill;
 
   if (!invoice) {
     return (
@@ -120,12 +95,12 @@ const CheckoutBill = ({ bill }) => {
               <span className="font-bold">
                 {unpricedLines.length} item{unpricedLines.length > 1 ? "s have" : " has"} no price.
               </span>{" "}
-              Set {unpricedLines.length > 1 ? "them" : "it"} below to bill this visit, or discharge
-              now — the bill stays as a draft under Billing → Invoices.
+              This bill can’t be issued until {unpricedLines.length > 1 ? "they are" : "it is"} priced —
+              or discharge now, and it stays as a draft under Billing → Invoices.
             </p>
           </div>
           {unpricedLines.map((line) => (
-            <UnpricedLine key={line.id} line={line} onPrice={priceLine} />
+            <UnpricedLine key={line.id} line={line} />
           ))}
         </div>
       )}

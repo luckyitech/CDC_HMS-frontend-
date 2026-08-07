@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Receipt, Banknote, Undo2, Ban, Tag, PlusCircle, PencilLine } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import activityService from '../../services/activityService';
 
@@ -36,6 +36,16 @@ const ACTION_TYPES = [
   { value: 'slot_blocked',          label: 'Blocked Slot' },
   { value: 'barcode_scanned',       label: 'Scanned Barcode' },
   { value: 'barcode_generated',     label: 'Generated Barcode' },
+  // Billing — who took money, and who changed or undid the record.
+  { value: 'bill_issued',           label: 'Issued Bill' },
+  { value: 'payment_taken',         label: 'Took Payment' },
+  { value: 'payment_reversed',      label: 'Reversed Payment' },
+  { value: 'payment_refunded',      label: 'Refunded Payment' },
+  { value: 'bill_voided',           label: 'Voided Bill' },
+  { value: 'bill_edited',           label: 'Edited a Draft Bill' },
+  { value: 'price_changed',         label: 'Changed a Price' },
+  { value: 'service_added',         label: 'Added a Service' },
+  { value: 'adhoc_price_set',       label: 'Priced an Item at Checkout' },
 ];
 
 const ACTION_STYLE = {
@@ -66,6 +76,15 @@ const ACTION_STYLE = {
   slot_blocked:          { color: 'bg-red-100 text-red-700',       icon: Lock },
   barcode_scanned:       { color: 'bg-blue-100 text-blue-700',     icon: ScanLine },
   barcode_generated:     { color: 'bg-teal-100 text-teal-700',     icon: QrCode },
+  bill_issued:           { color: 'bg-blue-100 text-blue-700',     icon: Receipt },
+  payment_taken:         { color: 'bg-green-100 text-green-700',   icon: Banknote },
+  payment_reversed:      { color: 'bg-red-100 text-red-700',       icon: Undo2 },
+  payment_refunded:      { color: 'bg-amber-100 text-amber-800',   icon: Undo2 },
+  bill_voided:           { color: 'bg-red-100 text-red-700',       icon: Ban },
+  bill_edited:           { color: 'bg-gray-100 text-gray-700',     icon: PencilLine },
+  price_changed:         { color: 'bg-amber-100 text-amber-800',   icon: Tag },
+  service_added:         { color: 'bg-blue-100 text-blue-700',     icon: PlusCircle },
+  adhoc_price_set:       { color: 'bg-amber-100 text-amber-800',   icon: Tag },
 };
 
 const SUMMARY_FIELDS = [

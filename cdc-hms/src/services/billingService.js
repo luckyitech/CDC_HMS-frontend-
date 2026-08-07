@@ -64,6 +64,13 @@ const billingService = {
   // ---------- Reports ----------
   getCashUp: (date) => api.get('/billing/reports/cash-up', { params: date ? { date } : {} }),
   getOutstanding: (params = {}) => api.get('/billing/reports/outstanding', { params }),
+
+  // The audit three — each surfaces a way money could leave without a record.
+  // Defaults to today when no range is given, so the report answers "did
+  // anything slip through today" rather than opening on years of history.
+  getUnbilled: (params = {}) => api.get('/billing/reports/unbilled', { params }),
+  getRemovedItems: (params = {}) => api.get('/billing/reports/removed-items', { params }),
+  getAdhocPriced: (params = {}) => api.get('/billing/reports/adhoc-priced', { params }),
 };
 
 export default billingService;

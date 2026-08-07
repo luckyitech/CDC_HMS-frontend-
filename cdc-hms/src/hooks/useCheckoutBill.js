@@ -29,7 +29,7 @@ import { emptyPayment, validatePayment, paymentPayload, hasPayment } from "../co
 const SYNC_DELAY_MS = 500;
 
 export const useCheckoutBill = ({ enabled, queueItem, charges, procedures, supplies }) => {
-  const { options, currency, run, saveService } = useBillingContext();
+  const { config, options, currency, run, loadConfig } = useBillingContext();
 
   const [invoice, setInvoice] = useState(null);
   const [opening, setOpening] = useState(false);
@@ -59,6 +59,16 @@ export const useCheckoutBill = ({ enabled, queueItem, charges, procedures, suppl
     setBanked(false);
   }
 
+  // ---- make sure the clinic's billing config is loaded ---------------------
+  // The payment methods, their reference rules and the currency all come from
+  // it. Only the Billing page used to fetch it, so a receptionist who went
+  // straight from the queue to a discharge — the normal path — was shown a
+  // payment form with NO methods on it and could not take money at all.
+  useEffect(() => {
+    if (!enabled || config) return;
+    loadConfig();
+  }, [enabled, config, loadConfig]);
+
   // ---- open the draft ------------------------------------------------------
   useEffect(() => {
     if (!enabled || !queueId) return;
@@ -80,10 +90,15 @@ export const useCheckoutBill = ({ enabled, queueItem, charges, procedures, suppl
   // ---- keep the draft in step with the screen ------------------------------
   // A string key rather than the arrays themselves: QueueManagement rebuilds
   // those on every render, so depending on them directly would sync forever.
+  // `p` is the price reception typed for a supply that no service prices. It
+  // rides along in the selection — and therefore in this key — so it survives
+  // the re-sync that replaces every line, and so typing it triggers one.
   const selectionKey = useMemo(() => JSON.stringify({
     charges,
     procedures,
-    supplies: (supplies || []).map((s) => ({ b: s.stockBatchId, q: Number(s.quantity), n: s.name })),
+    supplies: (supplies || []).map((s) => ({
+      b: s.stockBatchId, q: Number(s.quantity), n: s.name, p: s.adhocPrice || null,
+    })),
   }), [charges, procedures, supplies]);
 
   const invoiceId = invoice?.id;
@@ -102,7 +117,9 @@ export const useCheckoutBill = ({ enabled, queueItem, charges, procedures, suppl
         () => billingService.setSelection(invoiceId, {
           charges: selection.charges,
           procedures: selection.procedures,
-          supplies: selection.supplies.map((s) => ({ stockBatchId: s.b, quantity: s.q, name: s.n })),
+          supplies: selection.supplies.map((s) => ({
+            stockBatchId: s.b, quantity: s.q, name: s.n, adhocPrice: s.p,
+          })),
         }),
         { fallback: "Could not price this visit" }
       );
@@ -138,31 +155,19 @@ export const useCheckoutBill = ({ enabled, queueItem, charges, procedures, suppl
   // quietly undercharge. Either way there is nothing to issue.
   const canIssue = lines.length > 0 && unpricedLines.length === 0;
 
-  /**
-   * Price a service from inside the checkout, then re-price the bill.
-   *
-   * Only possible for a line that already maps to a price list entry — the 19
-   * seeded services that arrive unpriced all do. A scanned supply with no
-   * service behind it cannot be priced here, because there is nothing to set a
-   * price on; that needs a service created and linked under Billing.
-   */
-  const priceLine = useCallback(async (line, amount) => {
-    if (!line.serviceItemId) return { success: false, message: "This item has no price list entry yet" };
-
-    const res = await saveService(line.serviceItemId, { unitPrice: amount });
-    if (!res.success) return res;
-
-    // Re-price the draft immediately so the total reflects it without waiting
-    // for the debounce.
-    const selection = JSON.parse(selectionKey);
-    const synced = await run(() => billingService.setSelection(invoiceId, {
-      charges: selection.charges,
-      procedures: selection.procedures,
-      supplies: selection.supplies.map((s) => ({ stockBatchId: s.b, quantity: s.q, name: s.n })),
-    }));
-    if (synced.success) setInvoice(synced.data);
-    return synced;
-  }, [saveService, selectionKey, invoiceId, run]);
+  // Pricing an unpriced item no longer happens here.
+  //
+  // A scanned supply that no service prices is given a price ON ITS OWN ROW in
+  // the checkout, which sets `adhocPrice` in the supply state and flows through
+  // the selection above. That keeps it a ONE-OFF price on ONE line: it never
+  // touches the price list, so the person taking the money cannot set what the
+  // clinic charges — only what this patient is charged for this item, with
+  // their name recorded against it.
+  //
+  // An unpriced SERVICE (a charge or procedure whose price list row has none)
+  // is deliberately not fixable from here: changing the price list is
+  // 'billing.manage' work. The visit still discharges; the bill stays a draft
+  // and appears on the Unbilled visits report.
 
   /**
    * Issue the bill and bank the payment, as part of the discharge.
@@ -217,7 +222,6 @@ export const useCheckoutBill = ({ enabled, queueItem, charges, procedures, suppl
     canIssue,
     payment,
     setPayment,
-    priceLine,
     finalise,
   };
 };

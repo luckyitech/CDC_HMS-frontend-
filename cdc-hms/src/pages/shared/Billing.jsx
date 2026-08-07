@@ -5,6 +5,7 @@ import InvoicesTab from "../../components/billing/InvoicesTab";
 import PaymentsTab from "../../components/billing/PaymentsTab";
 import CashUpTab from "../../components/billing/CashUpTab";
 import OutstandingTab from "../../components/billing/OutstandingTab";
+import AuditTab from "../../components/billing/AuditTab";
 
 // Billing — the full module: the price list, invoices, the payment ledger, the
 // daily cash-up and the debtors list. Shared across portals: the sidebar shows
@@ -23,6 +24,11 @@ const TABS = [
   { id: "payments", label: "Payments", el: <PaymentsTab /> },
   { id: "cashup", label: "Cash-up", el: <CashUpTab /> },
   { id: "outstanding", label: "Outstanding", el: <OutstandingTab /> },
+  // The audit three. Separated from the working tabs above because these are
+  // CHECKED, not used — and on a good day all three are empty.
+  { id: "unbilled", label: "Unbilled", el: <AuditTab report="unbilled" /> },
+  { id: "removed", label: "Removed items", el: <AuditTab report="removed" /> },
+  { id: "adhoc", label: "Desk prices", el: <AuditTab report="adhoc" /> },
 ];
 
 const Billing = () => {

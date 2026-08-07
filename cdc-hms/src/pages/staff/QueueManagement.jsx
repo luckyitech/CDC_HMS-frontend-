@@ -23,8 +23,6 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import { QUEUE_STATUS_TONES, QUEUE_PRIORITY_TONES } from '../../utils/statusStyles';
 import { useQueueContext } from '../../contexts/QueueContext';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
-import { useUserContext } from '../../contexts/UserContext';
-import { canManageBilling } from '../../utils/permissions';
 import useCheckoutBill from '../../hooks/useCheckoutBill';
 import CheckoutBill from '../../components/billing/CheckoutBill';
 import DischargedBill from '../../components/billing/DischargedBill';
@@ -68,14 +66,13 @@ const QueueManagement = () => {
   // the invoice so its numbers can be read out and the receipt printed.
   const [dischargedBill, setDischargedBill] = useState(null);
 
-  // Billing is a capability, not a role. Without it this modal behaves exactly
-  // as it always has: no prices, no totals, no payment, and no billing requests
-  // made at all.
-  const { currentUser } = useUserContext();
-  const canBill = canManageBilling(currentUser);
-
+  // Billing is NOT gated here. Anyone who can discharge a patient bills them,
+  // because when it was gated a receptionist without the permission discharged
+  // patients and no bill was created at all — no invoice, no draft, nothing on
+  // any report. 'billing.manage' now guards changing and undoing the record
+  // (prices, voids, reversals), which is where the risk actually is.
   const bill = useCheckoutBill({
-    enabled: canBill && showDischargeModal,
+    enabled: showDischargeModal,
     queueItem: dischargePatient,
     charges: finalCharges,
     procedures: finalProcedures,
@@ -247,7 +244,7 @@ const QueueManagement = () => {
     // Billing → Invoices. Billing must never be the reason a patient can't
     // leave. Both steps inside finalise() are safe to retry.
     let billed = null;
-    if (canBill && bill.canIssue) {
+    if (bill.canIssue) {
       const res = await bill.finalise();
       if (!res.ok) {
         setDischarging(false);
@@ -602,7 +599,7 @@ const QueueManagement = () => {
                           className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                         />
                         <span className="text-sm font-medium leading-tight flex-1">{item}</span>
-                        {canBill && finalCharges.includes(item) && (
+                        {finalCharges.includes(item) && (
                           <span className="text-sm font-semibold text-gray-700">
                             <Money minor={bill.lineByLabel.get(item)?.grossMinor} />
                           </span>
@@ -636,7 +633,7 @@ const QueueManagement = () => {
                           className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                         />
                         <span className="text-sm font-medium leading-tight flex-1">{item}</span>
-                        {canBill && finalProcedures.includes(item) && (
+                        {finalProcedures.includes(item) && (
                           <span className="text-sm font-semibold text-gray-700">
                             <Money minor={bill.lineByLabel.get(item)?.grossMinor} />
                           </span>
@@ -723,12 +720,40 @@ const QueueManagement = () => {
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
-                          {canBill && (
-                            <span className="text-sm font-semibold text-gray-700 min-w-[64px] text-right">
-                              <Money minor={bill.lineByBatch.get(s.stockBatchId)?.grossMinor} />
-                            </span>
-                          )}
+                          <span className="text-sm font-semibold text-gray-700 min-w-[64px] text-right">
+                            <Money minor={bill.lineByBatch.get(s.stockBatchId)?.grossMinor} />
+                          </span>
                         </div>
+
+                        {/* Nothing on the price list covers this item, so there
+                            is no price to look up. Reception sets one here
+                            rather than sending the patient away with something
+                            unbilled.
+
+                            It prices THIS LINE on THIS BILL only — it never
+                            touches the price list, so the person taking the
+                            money never sets what the clinic charges. Their name
+                            is recorded against it and it appears on the ad-hoc
+                            report for review. */}
+                        {bill.lineByBatch.get(s.stockBatchId)?.unitPriceMinor == null && (
+                          <div className="w-full basis-full flex flex-wrap items-center gap-2 mt-1.5 px-2 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-700 flex-shrink-0" />
+                            <span className="text-[11px] text-amber-800 flex-1 min-w-[110px]">
+                              Not on the price list — set a price to bill it
+                            </span>
+                            <span className="text-[11px] font-bold text-amber-800">KES</span>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={s.adhocPrice || ''}
+                              onChange={(e) => setSupply(idx, { adhocPrice: e.target.value })}
+                              placeholder="0.00"
+                              aria-label={`Price for ${s.name}`}
+                              className="w-24 text-sm text-right border border-amber-300 rounded-lg px-2 py-1 focus:outline-none focus:border-amber-500"
+                            />
+                          </div>
+                        )}
+
                         {s.fefoWarn && (
                           <div className="w-full basis-full flex items-start gap-1.5 mt-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
                             <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
@@ -754,7 +779,7 @@ const QueueManagement = () => {
               {/* Bill — totals, anything unpriced, and payment. Rendered only
                   for users granted billing.manage; everyone else sees the
                   checkout exactly as it has always been. */}
-              {canBill && <CheckoutBill bill={bill} />}
+              <CheckoutBill bill={bill} />
 
               {/* Doctor's instructions — read-only for billing staff */}
               {dischargePatient.doctorNotes && (
@@ -808,7 +833,6 @@ const QueueManagement = () => {
                 // A blocked bill NEVER disables this button.
                 const label = () => {
                   if (discharging) return 'Discharging…';
-                  if (!canBill) return supplies.length > 0 ? 'Finalise & Discharge' : 'Confirm & Discharge';
                   if (!bill.canIssue) return 'Discharge anyway';
                   const owing = bill.invoice?.balanceMinor > 0;
                   return owing ? 'Issue & Discharge (balance due)' : 'Issue & Discharge';
