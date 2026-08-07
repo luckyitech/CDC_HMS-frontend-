@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Users, Pencil, KeyRound, Trash2,
-  ArrowLeft, UserCheck, UserX, Package, ShieldCheck,
+  ArrowLeft, UserCheck, UserX, Package, ShieldCheck, CreditCard,
 } from 'lucide-react';
 import api from '../../services/api';
 import { PERMISSIONS } from '../../utils/permissions';
@@ -165,6 +165,10 @@ const ManageUsers = () => {
   // One handler for every capability rather than a copy per toggle: the whole
   // point of the permission list is that adding a capability is a string, not
   // another button with its own bespoke handler.
+  // Stock access arrives as a derived `canManageStock` boolean for historical
+  // reasons; every other capability is read straight off the permission list.
+  const holds = (user, permission) => (user.permissions || []).includes(permission);
+
   const handleTogglePermission = async (user, permission, label, warning) => {
     const held = (user.permissions || []).includes(permission);
     const grant = !held;
@@ -270,6 +274,14 @@ const ManageUsers = () => {
         )}
         {PERMISSIBLE_ROLES.includes(user.role) && (
           <button
+            onClick={() => handleTogglePermission(user, PERMISSIONS.BILLING_MANAGE, 'billing access')}
+            className={`${base} ${holds(user, PERMISSIONS.BILLING_MANAGE) ? 'text-primary' : ''}`}
+          >
+            <CreditCard size={13} /> {holds(user, PERMISSIONS.BILLING_MANAGE) ? 'Revoke Billing' : 'Grant Billing'}
+          </button>
+        )}
+        {PERMISSIBLE_ROLES.includes(user.role) && (
+          <button
             onClick={() => handleTogglePermission(
               user,
               PERMISSIONS.ADMIN_ACCESS,
@@ -337,6 +349,22 @@ const ManageUsers = () => {
               }`}
             >
               <Package size={15} />
+            </button>
+          </Tip>
+        )}
+        {PERMISSIBLE_ROLES.includes(user.role) && (
+          <Tip label={holds(user, PERMISSIONS.BILLING_MANAGE)
+            ? 'Billing access: granted — click to revoke'
+            : 'Billing access: none — click to grant'}>
+            <button
+              onClick={() => handleTogglePermission(user, PERMISSIONS.BILLING_MANAGE, 'billing access')}
+              className={`p-1.5 rounded-lg transition ${
+                holds(user, PERMISSIONS.BILLING_MANAGE)
+                  ? 'text-primary hover:bg-blue-50'
+                  : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <CreditCard size={15} />
             </button>
           </Tip>
         )}

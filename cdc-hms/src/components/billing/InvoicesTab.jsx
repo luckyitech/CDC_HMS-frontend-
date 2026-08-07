@@ -27,6 +27,7 @@ const InvoicesTab = () => {
   );
   const { data, loading, reload } = useBillingResource(fetcher);
   const invoices = data || [];
+  const hasFilters = Object.values(filters).some(Boolean);
 
   const set = (field, value) => setFilters((prev) => ({ ...prev, [field]: value }));
 
@@ -93,7 +94,17 @@ const InvoicesTab = () => {
             <tbody className="divide-y divide-gray-100">
               {invoices.length === 0 && (
                 <EmptyRow colSpan={7}>
-                  {loading ? "Loading invoices…" : "No bills match those filters."}
+                  {loading ? "Loading invoices…" : hasFilters ? (
+                    "No bills match those filters."
+                  ) : (
+                    // No filters set and still nothing: the clinic has not
+                    // billed anyone yet. Saying "no matches" here reads as a
+                    // broken screen rather than an empty one.
+                    <>
+                      <p className="font-semibold text-gray-700 mb-1">No bills have been raised yet.</p>
+                      <p>A bill is created when reception discharges a patient from the queue.</p>
+                    </>
+                  )}
                 </EmptyRow>
               )}
               {invoices.map((inv) => (

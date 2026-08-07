@@ -22,6 +22,7 @@ const PaymentsTab = () => {
   );
   const { data, loading } = useBillingResource(fetcher);
   const payments = data || [];
+  const hasFilters = Object.values(filters).some(Boolean);
 
   const set = (field, value) => setFilters((prev) => ({ ...prev, [field]: value }));
 
@@ -65,7 +66,14 @@ const PaymentsTab = () => {
           <tbody className="divide-y divide-gray-100">
             {payments.length === 0 && (
               <EmptyRow colSpan={8}>
-                {loading ? "Loading payments…" : "No payments match those filters."}
+                {loading ? "Loading payments…" : hasFilters ? (
+                  "No payments match those filters."
+                ) : (
+                  <>
+                    <p className="font-semibold text-gray-700 mb-1">No payments have been recorded yet.</p>
+                    <p>Payments appear here once a bill has been issued and paid.</p>
+                  </>
+                )}
               </EmptyRow>
             )}
             {payments.map((p) => (
