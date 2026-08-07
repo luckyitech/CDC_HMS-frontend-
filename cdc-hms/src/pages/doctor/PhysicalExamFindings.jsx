@@ -1,8 +1,8 @@
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
-import cdcLogo from "../../assets/cdc_web_logo1.svg";
 import { useState } from "react";
 import usePrint from "../../hooks/usePrint";
+import PrintLetterhead from "../../components/shared/PrintLetterhead";
 import ImageViewerModal from "../../components/doctor/ImageViewerModal";
 import {
   physicalExamSections,
@@ -90,6 +90,8 @@ const PhysicalExamFindings = ({
 
   return (
     <div ref={printRef} className="space-y-6 px-2">
+      {/* Clinic letterhead — print only (DRY §4e) */}
+      <PrintLetterhead />
       {/* Header - Screen View */}
       <Card className="bg-blue-50 print:hidden">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
@@ -125,35 +127,8 @@ const PhysicalExamFindings = ({
         </div>
       </Card>
 
-      {/* Print Header - Only visible when printing */}
+      {/* Print-only document title (letterhead is the shared component above) */}
       <div className="hidden print:block">
-        {/* Hospital Header - Logo on RIGHT only */}
-        <div className="mb-6 pb-4 border-b-2 border-primary">
-          <div className="flex items-center justify-between">
-            {/* Left side - Clinic Name */}
-            <div className="flex-1 px-4">
-              <h1 className="text-3xl font-bold text-primary">
-                CDC DIABETES CLINIC
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care
-              </p>
-              <p className="text-xs text-gray-600 mt-1">
-                Tel: (+254) 711781299 &middot; Doctors Park, Parklands, Nairobi - Kenya &middot; Email: info@comprehensivediabetescentre.com
-              </p>
-            </div>
-
-            {/* Right side - Logo ONLY */}
-            <div>
-              <img
-                src={cdcLogo}
-                alt="CDC Logo"
-                className="w-40 h-40 object-contain py-4"
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Document Title */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800 uppercase">

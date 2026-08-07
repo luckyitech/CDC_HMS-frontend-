@@ -1,6 +1,8 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
+import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import { useNavigate } from "react-router-dom";
 import { useLabContext } from "../../contexts/LabContext";
@@ -54,14 +56,14 @@ const CriticalAlerts = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          Critical Results Alerts
-        </h2>
-        <Button variant="outline" onClick={() => navigate("/lab/dashboard")}>
-          ← Back to Dashboard
-        </Button>
-      </div>
+      <PageHeader
+        title="Critical Results Alerts"
+        actions={
+          <Button variant="outline" onClick={() => navigate("/lab/dashboard")}>
+            ← Back to Dashboard
+          </Button>
+        }
+      />
 
       {/* Alert Banner */}
       {filteredAlerts.filter((a) => !a.notified).length > 0 && (
@@ -82,25 +84,10 @@ const CriticalAlerts = () => {
       )}
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Total Critical</p>
-          <p className="text-4xl font-bold mt-2">{criticalAlerts.length}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Pending Notification</p>
-          <p className="text-4xl font-bold mt-2">
-            {criticalAlerts.filter((a) => !a.notified).length}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Doctor Notified</p>
-          <p className="text-4xl font-bold mt-2">
-            {criticalAlerts.filter((a) => a.notified).length}
-          </p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 mb-6">
+        <StatCard title="Total Critical" value={criticalAlerts.length} gradient="from-red-500 to-red-600" />
+        <StatCard title="Pending Notification" value={criticalAlerts.filter((a) => !a.notified).length} gradient="from-yellow-500 to-yellow-600" />
+        <StatCard title="Doctor Notified" value={criticalAlerts.filter((a) => a.notified).length} gradient="from-green-500 to-green-600" />
       </div>
 
       {/* Filter Buttons */}

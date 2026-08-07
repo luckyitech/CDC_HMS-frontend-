@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Users, UserCheck, UserPlus, Repeat, Footprints, CalendarCheck, CalendarDays, Download } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import Pagination from '../../components/shared/Pagination';
 import api from '../../services/api';
@@ -109,20 +110,19 @@ const PatientVisitsReport = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Patient Visits Report</h2>
-          <p className="text-gray-600 mt-1">Patients who visited the clinic over a period</p>
-        </div>
-        <Button
-          onClick={handleDownload}
-          disabled={!report || report.days.length === 0}
-          className="flex items-center gap-2"
-        >
-          <Download className="w-4 h-4" /> Download CSV
-        </Button>
-      </div>
+      <PageHeader
+        title="Patient Visits Report"
+        subtitle="Patients who visited the clinic over a period"
+        actions={
+          <Button
+            onClick={handleDownload}
+            disabled={!report || report.days.length === 0}
+            className="flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Download CSV
+          </Button>
+        }
+      />
 
       {/* Date range */}
       <Card className="mb-6">

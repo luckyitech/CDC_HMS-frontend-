@@ -1,5 +1,5 @@
-import cdcLogo from "../../assets/cdc_web_logo1.svg";
 import usePrint from "../../hooks/usePrint";
+import PrintLetterhead from "../shared/PrintLetterhead";
 import { parseDiagnoses } from "../shared/DiagnosisInput";
 
 const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
@@ -29,25 +29,8 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
 
         {/* Print Content */}
         <div ref={printRef} id="treatment-plan-print-content" className="p-8">
-          {/* Hospital Header */}
-          <div className="flex justify-between items-center mb-8 border-b-2 border-primary pb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-primary">
-                COMPREHENSIVE DIABETES CENTRE
-              </h1>
-              <p className="text-sm text-gray-600 mt-2">
-                Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care
-              </p>
-              <p className="text-sm text-gray-600">
-                Tel: (+254) 711781299 &middot; Doctors Park, Parklands, Nairobi - Kenya &middot; Email: info@comprehensivediabetescentre.com
-              </p>
-            </div>
-            <img
-              src={cdcLogo}
-              alt="CDC Logo"
-              className="w-40 h-40 object-contain py-4"
-            />
-          </div>
+          {/* Hospital letterhead — shared component (DRY §4e) */}
+          <PrintLetterhead show />
 
           {/* Document Title */}
           <div className="text-center mb-6">

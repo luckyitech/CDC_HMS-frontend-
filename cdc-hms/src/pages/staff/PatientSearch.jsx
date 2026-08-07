@@ -15,6 +15,7 @@ import {
   GitMerge,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
 import Button from "../../components/shared/Button";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useUserContext } from "../../contexts/UserContext";
@@ -175,10 +176,9 @@ const PatientSearch = () => {
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Search className="w-8 h-8 text-primary" />
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Patient Search</h2>
-      </div>
+      <PageHeader
+        title={<span className="flex items-center gap-2"><Search className="w-5 h-5 text-primary" />Patient Search</span>}
+      />
 
       <ScanCapture invisible />
 

@@ -2,6 +2,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HeartPulse, Users, TestTube, UserPlus } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import CreateDoctor from './CreateDoctor';
 import CreateStaff from './CreateStaff';
@@ -41,12 +42,14 @@ const CreateUsers = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Users</h2>
-        <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-          ← Back to Dashboard
-        </Button>
-      </div>
+      <PageHeader
+        title="Create Users"
+        actions={
+          <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
+            ← Back to Dashboard
+          </Button>
+        }
+      />
 
       {/* Role switcher — same pattern as the doctor dashboard queue tabs */}
       <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">

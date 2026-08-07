@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { formatDOB } from '../../utils/dateUtils';
 import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import { useNavigate } from 'react-router-dom';
 import { useLabContext } from '../../contexts/LabContext';
@@ -149,7 +150,7 @@ const EnterResults = () => {
     const interpretation = determineInterpretation(selectedTest, testResults);
 
     // Save to LabContext
-    const savedTest = addLabTest({
+    addLabTest({
       uhid: selectedPatient.uhid,
       patientName: selectedPatient.patientName,
       testType: selectedTest,
@@ -194,12 +195,14 @@ const EnterResults = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Enter Test Results</h2>
-        <Button variant="outline" onClick={() => navigate('/lab/dashboard')}>
-          ← Back to Dashboard
-        </Button>
-      </div>
+      <PageHeader
+        title="Enter Test Results"
+        actions={
+          <Button variant="outline" onClick={() => navigate('/lab/dashboard')}>
+            ← Back to Dashboard
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Patient Selection */}

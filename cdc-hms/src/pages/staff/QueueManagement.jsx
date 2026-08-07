@@ -18,6 +18,8 @@ import {
   Package,
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
+import StatCard from '../../components/shared/StatCard';
 import Button from '../../components/shared/Button';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { QUEUE_STATUS_TONES, QUEUE_PRIORITY_TONES } from '../../utils/statusStyles';
@@ -291,50 +293,22 @@ const QueueManagement = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <ClipboardList className="w-8 h-8 text-primary" />
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Queue Management</h2>
-        </div>
-        <Button variant="outline" onClick={fetchQueue} disabled={loading} className="flex items-center gap-2">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Refresh
-        </Button>
-      </div>
+      <PageHeader
+        title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5 text-primary" />Queue Management</span>}
+        actions={
+          <Button variant="outline" onClick={fetchQueue} disabled={loading} className="flex items-center gap-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Refresh
+          </Button>
+        }
+      />
 
       {/* Statistics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-5 h-5" />
-            <p className="text-sm opacity-90">Waiting for Triage</p>
-          </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.waiting}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="w-5 h-5" />
-            <p className="text-sm opacity-90">In Triage</p>
-          </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.inTriage}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5" />
-            <p className="text-sm opacity-90">Awaiting Doctor</p>
-          </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.awaitingDoctor}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-5 h-5" />
-            <p className="text-sm opacity-90">With Doctor</p>
-          </div>
-          <p className="text-3xl lg:text-4xl font-bold mt-2">{stats.withDoctor}</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <StatCard title="Waiting for Triage" value={stats.waiting} icon={Clock} gradient="from-yellow-500 to-yellow-600" />
+        <StatCard title="In Triage" value={stats.inTriage} icon={Activity} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Awaiting Doctor" value={stats.awaitingDoctor} icon={Users} gradient="from-purple-500 to-purple-600" />
+        <StatCard title="With Doctor" value={stats.withDoctor} icon={AlertTriangle} gradient="from-green-500 to-green-600" />
       </div>
 
       {/* Queue Table */}

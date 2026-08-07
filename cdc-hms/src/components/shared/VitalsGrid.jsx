@@ -68,14 +68,14 @@ const VITAL_GROUPS = {
 const VitalCard = ({ label, value, colorClass, textClass, cardLabel, onClick }) => (
   <div
     onClick={onClick}
-    className={`${colorClass} p-4 rounded-lg text-center ${onClick ? 'cursor-pointer hover:opacity-80 hover:shadow-md transition-all' : ''}`}
+    className={`${colorClass} px-2.5 py-2 rounded-md text-center ${onClick ? 'cursor-pointer hover:opacity-80 hover:shadow-sm transition-all' : ''}`}
   >
-    <p className="text-xs text-gray-600 uppercase">{label}</p>
-    <p className={`text-lg font-bold ${textClass} mt-1`}>{value || 'N/A'}</p>
-    {cardLabel && <p className="text-xs text-gray-500 mt-1">{cardLabel}</p>}
+    <p className="text-[10px] text-gray-600 uppercase tracking-wide leading-tight truncate">{label}</p>
+    <p className={`text-sm font-bold ${textClass} mt-0.5 leading-none`}>{value || 'N/A'}</p>
+    {cardLabel && <p className="text-[10px] text-gray-500 mt-0.5 leading-tight truncate">{cardLabel}</p>}
     {onClick && (
-      <p className="text-[10px] text-gray-400 mt-1 flex items-center justify-center gap-1">
-        <TrendingUp className="w-3 h-3" /> View trend
+      <p className="text-[9px] text-gray-400 mt-0.5 flex items-center justify-center gap-0.5">
+        <TrendingUp className="w-2.5 h-2.5" /> Trend
       </p>
     )}
   </div>
@@ -210,8 +210,30 @@ const VitalsTrendModal = ({ group, history, loading, onClose }) => {
   );
 };
 
+// ── DenseCell — compact label–value row (variant="dense") ─────────────────────
+// Status is carried by the tint alone; clicking still opens the trend modal.
+const DenseCell = ({ label, value, colorClass, textClass, onClick }) => (
+  <div
+    onClick={onClick}
+    className={`${colorClass} flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg ${
+      onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+    }`}
+  >
+    <span className="text-[11px] text-gray-600 truncate">{label}</span>
+    <b className={`text-xs font-semibold whitespace-nowrap ${textClass}`}>{value || '—'}</b>
+  </div>
+);
+
 // ── VitalsGrid ────────────────────────────────────────────────────────────────
-const VitalsGrid = ({ vitals, patient }) => {
+// gridClass: override the grid columns/gap for constrained containers.
+// variant:   'cards' (default — the colored vital cards) or 'dense'
+//            (label–value rows, tint-only status; used by the summary panel).
+const VitalsGrid = ({
+  vitals,
+  patient,
+  gridClass = 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2',
+  variant = 'cards',
+}) => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [history, setHistory]             = useState([]);
   const [loading, setLoading]             = useState(false);
@@ -257,65 +279,49 @@ const VitalsGrid = ({ vitals, patient }) => {
     : whr < 0.6           ? { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', label: 'Inc. Risk' }
     :                       { bg: 'bg-red-50',    border: 'border-red-200',    text: 'text-red-700',    label: 'High Risk' };
 
+  // One data source for both variants — label (cards), short label (dense),
+  // value, colours, optional trend group. show:false rows are skipped.
+  const slate = { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-700', label: null };
+  const items = [
+    { label: 'Blood Pressure', short: 'BP',      value: vitals.bp,                c: bpC,      group: 'bp' },
+    { label: 'Heart Rate',     short: 'HR',      value: vitals.heartRate,         c: slate,    group: 'heartRate' },
+    { label: 'Temperature',    short: 'Temp',    value: vitals.temperature,       c: tempC,    group: 'temperature' },
+    { label: 'O2 Saturation',  short: 'O₂',      value: vitals.oxygenSaturation,  c: o2C,      group: 'oxygenSaturation' },
+    // Weight / Height / BMI — grouped: clicking any opens the same table
+    { label: 'Weight',         short: 'Weight',  value: vitals.weight,            c: slate,    group: 'bodyMeasurements' },
+    { label: 'Height',         short: 'Height',  value: vitals.height,            c: slate,    group: 'bodyMeasurements' },
+    { label: 'BMI',            short: 'BMI',     value: vitals.bmi,               c: bmiC,     group: 'bodyMeasurements' },
+    { label: 'Waist Circ.',    short: 'Waist',   value: vitals.waistCircumference, c: slate,   group: null, show: !!vitals.waistCircumference },
+    { label: 'Waist/Height',   short: 'W/H',     value: vitals.waistHeightRatio,  c: whrC,     group: null, show: !!vitals.waistHeightRatio },
+    { label: 'RBS',            short: 'RBS',     value: vitals.rbs,               c: rbsC,     group: 'rbs',    show: !!vitals.rbs },
+    { label: 'HbA1c',          short: 'HbA1c',   value: vitals.hba1c,             c: hba1cC,   group: 'hba1c',  show: !!vitals.hba1c },
+    { label: 'Ketones',        short: 'Ketones', value: vitals.ketones,           c: ketonesC, group: 'ketones', show: !!vitals.ketones },
+  ].filter((it) => it.show !== false);
+
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-
-        <VitalCard label="Blood Pressure" value={vitals.bp}
-          colorClass={`${bpC.bg} border-2 ${bpC.border}`} textClass={bpC.text} cardLabel={bpC.label}
-          onClick={clickable ? () => openTrend('bp') : undefined} />
-
-        <VitalCard label="Heart Rate" value={vitals.heartRate}
-          colorClass="bg-slate-50 border-2 border-slate-200" textClass="text-slate-700"
-          onClick={clickable ? () => openTrend('heartRate') : undefined} />
-
-        <VitalCard label="Temperature" value={vitals.temperature}
-          colorClass={`${tempC.bg} border-2 ${tempC.border}`} textClass={tempC.text} cardLabel={tempC.label}
-          onClick={clickable ? () => openTrend('temperature') : undefined} />
-
-        <VitalCard label="O2 Saturation" value={vitals.oxygenSaturation}
-          colorClass={`${o2C.bg} border-2 ${o2C.border}`} textClass={o2C.text} cardLabel={o2C.label}
-          onClick={clickable ? () => openTrend('oxygenSaturation') : undefined} />
-
-        {/* Weight / Height / BMI — grouped: clicking any opens the same table */}
-        <VitalCard label="Weight" value={vitals.weight}
-          colorClass="bg-slate-50 border-2 border-slate-200" textClass="text-slate-700"
-          onClick={clickable ? () => openTrend('bodyMeasurements') : undefined} />
-
-        <VitalCard label="Height" value={vitals.height}
-          colorClass="bg-slate-50 border-2 border-slate-200" textClass="text-slate-700"
-          onClick={clickable ? () => openTrend('bodyMeasurements') : undefined} />
-
-        <VitalCard label="BMI" value={vitals.bmi}
-          colorClass={`${bmiC.bg} border-2 ${bmiC.border}`} textClass={bmiC.text} cardLabel={bmiC.label}
-          onClick={clickable ? () => openTrend('bodyMeasurements') : undefined} />
-
-        {vitals.waistCircumference && (
-          <VitalCard label="Waist Circ." value={vitals.waistCircumference}
-            colorClass="bg-slate-50 border-2 border-slate-200" textClass="text-slate-700" />
-        )}
-
-        {vitals.waistHeightRatio && (
-          <VitalCard label="Waist/Height" value={vitals.waistHeightRatio}
-            colorClass={`${whrC.bg} border-2 ${whrC.border}`} textClass={whrC.text} cardLabel={whrC.label} />
-        )}
-
-        {vitals.rbs && (
-          <VitalCard label="RBS" value={vitals.rbs}
-            colorClass={`${rbsC.bg} border-2 ${rbsC.border}`} textClass={rbsC.text} cardLabel={rbsC.label}
-            onClick={clickable ? () => openTrend('rbs') : undefined} />
-        )}
-
-        {vitals.hba1c && (
-          <VitalCard label="HbA1c" value={vitals.hba1c}
-            colorClass={`${hba1cC.bg} border-2 ${hba1cC.border}`} textClass={hba1cC.text} cardLabel={hba1cC.label}
-            onClick={clickable ? () => openTrend('hba1c') : undefined} />
-        )}
-
-        {vitals.ketones && (
-          <VitalCard label="Ketones" value={vitals.ketones}
-            colorClass={`${ketonesC.bg} border-2 ${ketonesC.border}`} textClass={ketonesC.text} cardLabel={ketonesC.label}
-            onClick={clickable ? () => openTrend('ketones') : undefined} />
+      <div className={`grid ${gridClass}`}>
+        {items.map((it) =>
+          variant === 'dense' ? (
+            <DenseCell
+              key={it.label}
+              label={it.short}
+              value={it.value}
+              colorClass={`${it.c.bg} border ${it.c.border}`}
+              textClass={it.c.text}
+              onClick={clickable && it.group ? () => openTrend(it.group) : undefined}
+            />
+          ) : (
+            <VitalCard
+              key={it.label}
+              label={it.label}
+              value={it.value}
+              colorClass={`${it.c.bg} border-2 ${it.c.border}`}
+              textClass={it.c.text}
+              cardLabel={it.c.label}
+              onClick={clickable && it.group ? () => openTrend(it.group) : undefined}
+            />
+          )
         )}
       </div>
 

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import usePrint from "../../hooks/usePrint";
 import { useUserContext } from "../../contexts/UserContext";
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import { physicalExamSections } from "./physicalExamData";
+import PrintLetterhead from "../../components/shared/PrintLetterhead";
 import VoiceInput from "../../components/shared/VoiceInput";
 import ImageViewerModal from "../../components/doctor/ImageViewerModal";
 import toast from "react-hot-toast";
@@ -15,8 +16,6 @@ import {
   FileText,
   Clock,
   UserCircle,
-  FolderOpen,
-  Folder,
   RotateCcw,
   Save,
   Lock,
@@ -31,6 +30,9 @@ import {
   Footprints,
   Printer,
 } from "lucide-react";
+
+// Draft key for an in-progress NEW exam (cleared on successful save)
+export const examDraftKey = (uhid) => `physical_exam_draft_${uhid}`;
 
 // Icon mapping helper - converts emoji strings to Lucide components
 const getIconComponent = (emojiIcon) => {
@@ -54,63 +56,68 @@ const PhysicalExamEntry = ({
   onCancel,
   initialData = {},
   readOnly = false,
+  // Consultation context: patient identity + progress are already on screen
+  hidePatientHeader = false,
 }) => {
   const { currentUser } = useUserContext();
   const { printRef, handlePrint } = usePrint();
-  // Auto-fill vitals from triage data when creating a new exam (no initialData.vitalSigns)
-  // Backend returns patient.vitals with names like heartRate, temperature, oxygenSaturation
-  // and values with units appended (e.g., "80 bpm", "36.5°C", "98%")
-  // Physical exam form expects short names (hr, temp, spo2) with raw numeric values
-  const computeInitialData = () => {
-    if (initialData.vitalSigns) return initialData; // Editing existing exam — use its data
-    const vitals = patientData.currentVitals || patientData.vitals;
-    if (!vitals) return initialData; // No triage vitals available
 
-    const strip = (val) => {
-      if (!val) return "";
-      return String(val).replace(/\s*(mmHg|bpm|°C|%|kg|cm|kg\/m²|mmol\/L)\s*$/i, "").trim();
-    };
+  // Vital Signs removed from the exam ENTRY form — triage owns vitals and they
+  // live in the summary panel. Historical exams that recorded vitals still show
+  // them in PhysicalExamFindings, and editing such an exam preserves the data
+  // (it just isn't shown/edited here).
+  const entrySections = physicalExamSections.filter((s) => s.id !== "vitalSigns");
 
-    return {
-      ...initialData,
-      vitalSigns: {
-        bp: strip(vitals.bp) || "",
-        hr: strip(vitals.heartRate || vitals.hr) || "",
-        rr: "18",
-        temp: strip(vitals.temperature || vitals.temp) || "",
-        spo2: strip(vitals.oxygenSaturation || vitals.spo2) || "",
-        bmi: strip(vitals.bmi) || "",
-        waistCircumference: strip(vitals.waistCircumference) || "",
-        waistHeightRatio: strip(vitals.waistHeightRatio) || "",
-        rbs: strip(vitals.rbs) || "",
-        hba1c: strip(vitals.hba1c) || "",
-        ketones: strip(vitals.ketones) || "",
-        _autoFilled: true,
-        _recordedBy: vitals.recordedBy,
-        _recordedAt: vitals.recordedAt,
-      },
-    };
-  };
+  // ── Draft persistence ──────────────────────────────────────────────────────
+  // A NEW exam in progress survives page refreshes and tab switches: findings
+  // are mirrored to localStorage (same-day only) and cleared on successful save
+  // (see examDraftKey removal in PhysicalExamList.handleSave).
+  const isNewExam = !readOnly && Object.keys(initialData || {}).length === 0;
+  const draftRef = useRef(undefined);
+  if (draftRef.current === undefined) {
+    draftRef.current = null;
+    if (isNewExam) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(examDraftKey(patientData.uhid)));
+        if (saved?.date === new Date().toISOString().slice(0, 10)) draftRef.current = saved;
+      } catch { /* corrupt draft — start fresh */ }
+    }
+  }
 
-  const [examData, setExamData] = useState(computeInitialData);
-  const [expandedSections, setExpandedSections] = useState(["vitalSigns"]); // Vital signs open by default
-  const [completedSections, setCompletedSections] = useState([]);
+  const [examData, setExamData] = useState(() => draftRef.current?.examData || initialData);
+  // Single-open accordion: all sections start collapsed; at most one open.
+  const [expandedSections, setExpandedSections] = useState([]);
+  const [completedSections, setCompletedSections] = useState(() => draftRef.current?.completedSections || []);
 
   // Clinical Images state
   const [clinicalImages, setClinicalImages] = useState(
-    initialData.clinicalImages || []
+    () => draftRef.current?.clinicalImages || initialData.clinicalImages || []
   );
+
+  // Mirror the in-progress exam to localStorage
+  useEffect(() => {
+    if (!isNewExam) return;
+    try {
+      localStorage.setItem(
+        examDraftKey(patientData.uhid),
+        JSON.stringify({
+          date: new Date().toISOString().slice(0, 10),
+          examData,
+          completedSections,
+          clinicalImages,
+        })
+      );
+    } catch { /* storage full (e.g. large images) — draft skipped */ }
+  }, [isNewExam, patientData.uhid, examData, completedSections, clinicalImages]);
   const [selectedBodyArea, setSelectedBodyArea] = useState("");
   const [imageCaption, setImageCaption] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageViewer, setShowImageViewer] = useState(false);
-  // Toggle section expansion
+  // Toggle section expansion — single-open: opening one collapses the others
   const toggleSection = (sectionId) => {
-    if (expandedSections.includes(sectionId)) {
-      setExpandedSections(expandedSections.filter((id) => id !== sectionId));
-    } else {
-      setExpandedSections([...expandedSections, sectionId]);
-    }
+    setExpandedSections((prev) =>
+      prev.includes(sectionId) ? [] : [sectionId]
+    );
   };
 
   // Handle checkbox change
@@ -122,19 +129,6 @@ const PhysicalExamEntry = ({
       [sectionId]: {
         ...examData[sectionId],
         [itemId]: !examData[sectionId]?.[itemId],
-      },
-    });
-  };
-
-  // Handle vital signs input
-  const handleVitalsChange = (fieldId, value) => {
-    if (readOnly) return; // Don't allow changes in read-only mode
-
-    setExamData({
-      ...examData,
-      vitalSigns: {
-        ...examData.vitalSigns,
-        [fieldId]: value,
       },
     });
   };
@@ -246,7 +240,7 @@ const PhysicalExamEntry = ({
   const markAllNormal = (sectionId) => {
     if (readOnly) return; // Don't allow changes in read-only mode
 
-    const section = physicalExamSections.find((s) => s.id === sectionId);
+    const section = entrySections.find((s) => s.id === sectionId);
     if (!section || !section.subsections) return;
 
     const normalState = {};
@@ -264,10 +258,8 @@ const PhysicalExamEntry = ({
       },
     });
 
-    // Expand the section so doctor can review and add notes
-    if (!expandedSections.includes(sectionId)) {
-      setExpandedSections([...expandedSections, sectionId]);
-    }
+    // Expand the section (single-open) so the doctor can review and add notes
+    setExpandedSections([sectionId]);
 
     toast.success(`All ${section.title} marked as normal`, {
       duration: 2000,
@@ -279,7 +271,7 @@ const PhysicalExamEntry = ({
   const markSectionComplete = (sectionId) => {
     if (readOnly) return; // Don't allow in read-only mode
 
-    const section = physicalExamSections.find((s) => s.id === sectionId);
+    const section = entrySections.find((s) => s.id === sectionId);
 
     if (!completedSections.includes(sectionId)) {
       setCompletedSections([...completedSections, sectionId]);
@@ -295,9 +287,9 @@ const PhysicalExamEntry = ({
 
   // Calculate progress
   const progress =
-    (completedSections.length / physicalExamSections.length) * 100;
+    (completedSections.length / entrySections.length) * 100;
 
-  const handleSave = (generateFindings = false) => {
+  const handleSave = () => {
     if (readOnly) return; // Don't allow save in read-only mode
 
     // Clean vital signs - remove metadata fields
@@ -323,11 +315,13 @@ const PhysicalExamEntry = ({
       uhid: patientData.uhid,
       data: cleanedExamData,
     };
-    onSave(saveData, generateFindings);
+    onSave(saveData);
   };
 
   return (
     <div ref={printRef} className="space-y-6">
+      {/* Clinic letterhead — print only (DRY §4e) */}
+      <PrintLetterhead />
       {/* Read-Only Banner */}
       {readOnly && (
         <Card>
@@ -347,7 +341,8 @@ const PhysicalExamEntry = ({
         </Card>
       )}
 
-      {/* Patient Info Banner */}
+      {/* Patient Info Banner — hidden in the consultation (redundant there) */}
+      {!hidePatientHeader && (
       <Card className={readOnly ? "bg-gray-50" : "bg-blue-50"}>
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <div>
@@ -377,34 +372,14 @@ const PhysicalExamEntry = ({
           </div>
         )}
       </Card>
-
-      {/* Quick Actions (only show in edit mode) */}
-      {!readOnly && (
-        <div className="flex gap-3 flex-wrap">
-          <Button
-            variant="outline"
-            className="text-sm"
-            onClick={() =>
-              setExpandedSections(physicalExamSections.map((s) => s.id))
-            }
-          >
-            <FolderOpen className="w-4 h-4 inline mr-1" />
-            Expand All
-          </Button>
-          <Button
-            variant="outline"
-            className="text-sm"
-            onClick={() => setExpandedSections([])}
-          >
-            <Folder className="w-4 h-4 inline mr-1" />
-            Collapse All
-          </Button>
-        </div>
       )}
+
+      {/* Expand All / Collapse All removed — sections are a single-open
+          accordion: all collapsed by default, opening one closes the rest. */}
 
       {/* Examination Sections */}
       <div className="space-y-4">
-        {physicalExamSections.map((section) => {
+        {entrySections.map((section) => {
           const isExpanded = expandedSections.includes(section.id);
           const isCompleted = completedSections.includes(section.id);
 
@@ -461,73 +436,6 @@ const PhysicalExamEntry = ({
               {/* Section Content */}
               {isExpanded && (
                 <div className="mt-6 space-y-6">
-                  {/* Vital Signs (Special handling) */}
-                  {section.type === "vitals" && (
-                    <>
-                      {/* Auto-fill notification */}
-                      {examData.vitalSigns?._autoFilled && !readOnly && (
-                        <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-500 rounded">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-green-600 font-semibold">
-                                ✓ Auto-filled from Triage
-                              </span>
-                              <span className="text-sm text-gray-600">
-                                {examData.vitalSigns._recordedAt
-                                  ? `Recorded on ${new Date(examData.vitalSigns._recordedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} at ${new Date(examData.vitalSigns._recordedAt).toLocaleTimeString()}`
-                                  : ""}
-                              </span>
-                            </div>
-                            <Button
-                              variant="outline"
-                              className="text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setExamData({
-                                  ...examData,
-                                  vitalSigns: {},
-                                });
-                              }}
-                            >
-                              <RotateCcw className="w-4 h-4 inline mr-1" />
-                              Clear & Re-enter
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {section.fields.map((field) => (
-                          <div key={field.id}>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              {field.label}
-                            </label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type={field.type}
-                                step={field.step}
-                                placeholder={field.placeholder}
-                                value={examData.vitalSigns?.[field.id] || ""}
-                                onChange={(e) =>
-                                  handleVitalsChange(field.id, e.target.value)
-                                }
-                                disabled={readOnly}
-                                className={`flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary ${
-                                  readOnly
-                                    ? "bg-gray-100 cursor-not-allowed"
-                                    : ""
-                                }`}
-                              />
-                              <span className="text-sm text-gray-600 font-medium">
-                                {field.unit}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-
                   {/* Clinical Images (Special handling) */}
                   {section.type === "images" && (
                     <div className="space-y-6">
@@ -751,12 +659,12 @@ const PhysicalExamEntry = ({
                         onClick={() => {
                           markSectionComplete(section.id);
                           const nextIndex =
-                            physicalExamSections.findIndex(
+                            entrySections.findIndex(
                               (s) => s.id === section.id
                             ) + 1;
-                          if (nextIndex < physicalExamSections.length) {
+                          if (nextIndex < entrySections.length) {
                             setExpandedSections([
-                              physicalExamSections[nextIndex].id,
+                              entrySections[nextIndex].id,
                             ]);
                           }
                         }}
@@ -788,18 +696,10 @@ const PhysicalExamEntry = ({
       <Card>
         <div className="flex flex-col sm:flex-row gap-3">
           {!readOnly ? (
-            <>
-              <Button onClick={() => handleSave(false)} className="flex-1 flex items-center justify-center gap-1">
-                <Save className="w-4 h-4" />
-                Save Draft
-              </Button>
-              <Button onClick={() => handleSave(true)} className="flex-1 flex items-center justify-center gap-1">
-                <ClipboardList className="w-4 h-4" /> Save & Generate Findings
-              </Button>
-              <Button variant="outline" onClick={onCancel} className="flex-1">
-                Cancel
-              </Button>
-            </>
+            <Button onClick={handleSave} className="flex-1 flex items-center justify-center gap-1">
+              <Save className="w-4 h-4" />
+              Save Physical Examination
+            </Button>
           ) : (
             <>
               <Button

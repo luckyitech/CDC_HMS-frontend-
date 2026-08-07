@@ -233,6 +233,7 @@ const MedicalEquipmentTab = ({ patient }) => {
     };
     load();
     return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.uhid, getEquipment, getMedicalEquipmentHistory, getEquipmentAuditLog]);
 
   // Refresh after any equipment mutation.

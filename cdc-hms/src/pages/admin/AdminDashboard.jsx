@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
+import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import StatusBadge from "../../components/shared/StatusBadge";
 import { ROLE_TONES } from "../../utils/statusStyles";
@@ -62,34 +64,14 @@ const AdminDashboard = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Admin Dashboard</h2>
-        <p className="text-gray-600 mt-1">System Overview & User Management</p>
-      </div>
+      <PageHeader title="Admin Dashboard" subtitle="System Overview & User Management" />
 
       {/* Statistics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Total Doctors</p>
-          <p className="text-4xl font-bold mt-2">{loading ? '...' : stats.totalDoctors}</p>
-          <p className="text-sm mt-3 opacity-75">+{stats.newThisMonth.doctors} this month</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Total Staff</p>
-          <p className="text-4xl font-bold mt-2">{loading ? '...' : stats.totalStaff}</p>
-          <p className="text-sm mt-3 opacity-75">+{stats.newThisMonth.staff} this month</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Lab Technicians</p>
-          <p className="text-4xl font-bold mt-2">{loading ? '...' : stats.totalLabTechs}</p>
-          <p className="text-sm mt-3 opacity-75">+{stats.newThisMonth.labTechs} this month</p>
-        </div>
-        <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Total Patients</p>
-          <p className="text-4xl font-bold mt-2">{totalPatients}</p>
-          <p className="text-sm mt-3 opacity-75">Registered patients</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <StatCard title="Total Doctors" value={loading ? '...' : stats.totalDoctors} gradient="from-blue-500 to-blue-600" sub={`+${stats.newThisMonth.doctors} this month`} />
+        <StatCard title="Total Staff" value={loading ? '...' : stats.totalStaff} gradient="from-green-500 to-green-600" sub={`+${stats.newThisMonth.staff} this month`} />
+        <StatCard title="Lab Technicians" value={loading ? '...' : stats.totalLabTechs} gradient="from-purple-500 to-purple-600" sub={`+${stats.newThisMonth.labTechs} this month`} />
+        <StatCard title="Total Patients" value={totalPatients} gradient="from-cyan-500 to-cyan-600" sub="Registered patients" />
       </div>
 
       {/* System Status + Quick Actions */}

@@ -87,6 +87,16 @@ export const patientService = {
    */
   getVitalsHistory: (uhid) => api.get(`/patients/${uhid}/vitals/history`),
 
+  /** Chart metrics the doctor follows on the consultation summary panel */
+  getChartMetrics: (uhid) => api.get(`/patients/${uhid}/chart-metrics`),
+  updateChartMetrics: (uhid, chartMetrics) => api.patch(`/patients/${uhid}/chart-metrics`, { chartMetrics }),
+
+  /** Tracked diagnosis list (summary panel). Retiring never deletes — clinical record. */
+  getDiagnoses: (uhid) => api.get(`/patients/${uhid}/diagnoses`),
+  addDiagnosis: (uhid, { diagnosis, code }) => api.post(`/patients/${uhid}/diagnoses`, { diagnosis, code }),
+  resolveDiagnosis: (uhid, id) => api.patch(`/patients/${uhid}/diagnoses/${id}/resolve`),
+  reactivateDiagnosis: (uhid, id) => api.patch(`/patients/${uhid}/diagnoses/${id}/reactivate`),
+
   /**
    * Record new vitals for patient
    * @param {string} uhid - Patient UHID

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Clock, CheckCircle, ClipboardList, Zap, AlertTriangle } from 'lucide-react';
+import { Users, Clock, CheckCircle, ClipboardList } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
+import PageHeader from '../../components/shared/PageHeader';
+import StatCard from '../../components/shared/StatCard';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { QUEUE_STATUS_TONES } from '../../utils/statusStyles';
 import { useUserContext } from '../../contexts/UserContext';
@@ -132,28 +134,21 @@ const DoctorDashboard = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Doctor Dashboard</h2>
-          <p className="text-gray-600 mt-1">Welcome back, {currentUser?.name || 'Doctor'}</p>
-        </div>
-        <div className="flex gap-3">
-          <Button onClick={() => navigate('/doctor/patients')}>
-            View Patients
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Doctor Dashboard"
+        subtitle={`Welcome back, ${currentUser?.name || 'Doctor'}`}
+      />
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
         {stats.map((stat) => (
-          <div key={stat.title} className={`bg-gradient-to-br ${stat.gradient} rounded-xl shadow-xl p-4 lg:p-6 text-white transform hover:scale-105 transition-all duration-300 hover:shadow-2xl`}>
-            <div className="flex items-center justify-between mb-2 lg:mb-4">
-              <h3 className="text-xs sm:text-sm lg:text-lg font-semibold opacity-90 leading-tight">{stat.title}</h3>
-              <stat.Icon className="w-6 h-6 lg:w-10 lg:h-10 flex-shrink-0 ml-1" />
-            </div>
-            <p className="text-3xl lg:text-5xl font-bold">{stat.value}</p>
-          </div>
+          <StatCard
+            key={stat.title}
+            title={stat.title}
+            value={stat.value}
+            icon={stat.Icon}
+            gradient={stat.gradient}
+          />
         ))}
       </div>
 
@@ -432,53 +427,6 @@ const DoctorDashboard = () => {
           </div>
         )}
       </Card>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        <Card title={<span className="flex items-center gap-2"><Zap className="w-5 h-5" />Quick Actions</span>}>
-          <div className="space-y-3">
-            <button 
-              onClick={() => navigate('/doctor/patients')}
-              className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500"
-            >
-              <p className="font-semibold text-blue-700 flex items-center gap-2"><Users className="w-4 h-4" />View All Patients</p>
-            </button>
-            {/* <button 
-              onClick={() => navigate('/doctor/prescriptions')}
-              className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition border-l-4 border-green-500"
-            >
-              <p className="font-semibold text-green-700">💊 My Prescriptions</p>
-            </button> */}
-            {/* <button 
-              onClick={() => navigate('/doctor/reports')}
-              className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition border-l-4 border-purple-500"
-            >
-              <p className="font-semibold text-purple-700">📊 Generate Reports</p>
-            </button> */}
-          </div>
-        </Card>
-
-        <Card title={<span className="flex items-center gap-2"><AlertTriangle className="w-5 h-5" />Patients Alerts</span>} className="md:col-span-2">
-          {myTodayQueue.filter(q => q.status === 'With Doctor').length > 0 ? (
-            <div className="space-y-3">
-              {myTodayQueue.filter(q => q.status === 'With Doctor').slice(0, 3).map((queueItem) => {
-                return (
-                  <div key={queueItem.id} className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
-                    <p className="font-semibold text-blue-700">Patient Waiting</p>
-                    <p className="text-sm text-blue-600 mt-1">
-                      {queueItem.name} ({queueItem.uhid}) - Arrived at {formatArrival(queueItem.createdAt)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No patients assigned to you currently</p>
-            </div>
-          )}
-        </Card>
-      </div>
     </div>
   );
 };

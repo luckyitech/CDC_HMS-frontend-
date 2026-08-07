@@ -1,29 +1,25 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import VitalsGrid from '../../components/shared/VitalsGrid';
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Check,
   AlertCircle,
-  ClipboardList,
   FileEdit,
   Stethoscope,
   MessageSquare,
   Target,
   User,
-  Activity,
   Pill,
-  // FlaskConical, // Order Lab — hidden, not in use yet
   LineChart,
   UserCircle,
   FileText,
   Calendar,
-  ClipboardCheck,
   X,
   Pencil,
   Wrench,
   Syringe,
   ChevronUp,
   ChevronDown,
+  Menu as MenuIcon,
   Package,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -33,48 +29,38 @@ import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useUserContext } from "../../contexts/UserContext";
-import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
-import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
-import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useAppointmentContext } from "../../contexts/AppointmentContext";
-import OrderLabTestModal from "../../components/doctor/OrderLabTestModal";
 import ReferPatientModal from "../../components/doctor/ReferPatientModal";
 import RecordUseModal from "../../components/stock/RecordUseModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
 import { INJECTION_REASON, PENDING_INJECTION } from "../../utils/queueStatus";
 import patientService from "../../services/patientService";
-import InitialAssessment from "./InitialAssessment";
-import PhysicalExamList from "../../components/doctor/PhysicalExamList";
-import TreatmentPlansList from "../../components/doctor/TreatmentPlansList";
-import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
+import ConsultationNotesPlan from "../../components/doctor/ConsultationNotesPlan";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import AccordionPanel from "../../components/shared/AccordionPanel";
 import Glp1Tracker from "../../components/doctor/Glp1Tracker";
 import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
+import ConsultationSummaryContainer from "../../components/doctor/ConsultationSummaryContainer";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
-import { parseDiagnoses } from "../../components/shared/DiagnosisInput";
 import { formatDOB } from "../../utils/dateUtils";
 
 // ---------------------------------------------------------------------------
 // Accordion section definitions for "Today's Consultation" tab
 // ---------------------------------------------------------------------------
 const ACCORDION_SECTIONS = [
-  { id: 'assessment',    label: 'Assessment',                 icon: FileEdit,      required: false },
-  { id: 'exam',          label: 'Physical Exam',              icon: Stethoscope,   required: false },
-  { id: 'notes',         label: 'Consultation Notes',         icon: MessageSquare, required: false },
-  { id: 'diagnosis',     label: 'Diagnosis & Treatment Plan', icon: Target,        required: true  },
-  { id: 'prescriptions', label: 'Prescriptions',              icon: Pill,          required: false },
+  // Notes + Assessment + Physical Exam + Diagnosis & Treatment Plan merged into
+  // ONE section. Assessment, exam and plan are optional click-to-add blocks
+  // inside it. Keeps the id 'diagnosis' so completion gating, drafts and jumps
+  // are unchanged.
+  { id: 'diagnosis',     label: 'Consultation',   icon: MessageSquare, required: true  },
+  { id: 'prescriptions', label: 'Prescriptions',  icon: Pill,          required: false },
 ];
 
-// NOTE: 'tools' is deliberately NOT in ACCORDION_SECTIONS.
-// The two columns are split by index parity after filtering out prescriptions,
-// so inserting an entry shifts every later section's column — adding 'tools'
-// after 'notes' would move Diagnosis & Treatment Plan, the required section the
-// whole workflow gates on, from the right column to the left.
-// Tools renders full-width below the grid, using the same pattern as Prescriptions.
+// NOTE: 'tools' is deliberately NOT in ACCORDION_SECTIONS — it renders as its
+// own full-width panel between Consultation and Prescriptions.
 
 // AccordionPanel, HistoryField, VisitSectionHeader — moved to shared components
 
@@ -89,9 +75,6 @@ const Consultation = () => {
   const { currentUser }                               = useUserContext();
   const { fetchPatientByUHID }                        = usePatientContext();
   const { queue, sendToBilling, updateQueueStatus }   = useQueueContext();
-  const { getLatestAssessment }                        = useInitialAssessmentContext();
-  const { getLatestExamination }                       = usePhysicalExamContext();
-  const { getLatestPlan }                              = useTreatmentPlanContext();
   const { getPrescriptionsByPatient, addPrescription } = usePrescriptionContext();
   const { getAvailableSlots, addAppointment }         = useAppointmentContext();
 
@@ -103,7 +86,28 @@ const Consultation = () => {
   const [loadingPatient, setLoadingPatient] = useState(true);
 
   // Which of the 5 top-level tabs is active
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("consultation");
+  // Patient bar dropdown — slides the full Overview details open under the bar
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const overviewScrollRef = useRef(null);
+  // Always open at the top, and freeze the page behind it while expanded
+  // (MainLayout's <main> is the app scroll container; the overview scrolls itself)
+  useEffect(() => {
+    if (!overviewOpen) return undefined;
+    if (overviewScrollRef.current) overviewScrollRef.current.scrollTop = 0;
+    const main = document.querySelector('main');
+    const prev = main?.style.overflowY;
+    if (main) main.style.overflowY = 'hidden';
+    return () => { if (main) main.style.overflowY = prev || ''; };
+  }, [overviewOpen]);
+  // Patient summary drawer — mobile/tablet only (always visible ≥ xl)
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  // Tracked diagnoses (summary panel is their single home). Active ones are
+  // auto-attached to treatment plans; returning patients with an active
+  // diagnosis don't re-enter one every visit.
+  const [trackedDiagnoses, setTrackedDiagnoses] = useState([]);
+  const activeDiagnoses = trackedDiagnoses.filter((d) => d.status === 'active');
+  const hasActiveDx = activeDiagnoses.length > 0;
 
   // Only one accordion section open at a time (stores the open section id or null)
   const [openSections, setOpenSections] = useState(null);
@@ -121,26 +125,8 @@ const Consultation = () => {
     }
   });
 
-  // Data loaded for the Overview tab
-  const [previousPlan, setPreviousPlan]             = useState(null);
+  // Prescriptions feed the summary panel's Current Medications card
   const [patientPrescriptions, setPatientPrescriptions] = useState([]);
-
-  // Unsaved form state for Assessment section (pre-populated from last visit)
-  const [historyOfPresentIllness, setHistoryOfPresentIllness] = useState("");
-  const [reviewOfSystems, setReviewOfSystems]                 = useState("");
-  const [pastMedicalHistory, setPastMedicalHistory]           = useState("");
-  const [familyHistory, setFamilyHistory]                     = useState("");
-  const [socialHistory, setSocialHistory]                     = useState("");
-
-  // Unsaved form state for Exam section
-  const [generalAppearance, setGeneralAppearance] = useState("");
-  const [cardiovascular, setCardiovascular]       = useState("");
-  const [respiratory, setRespiratory]             = useState("");
-  const [gastrointestinal, setGastrointestinal]   = useState("");
-  const [neurological, setNeurological]           = useState("");
-  const [musculoskeletal, setMusculoskeletal]     = useState("");
-  const [skin, setSkin]                           = useState("");
-  const [examFindings, setExamFindings]           = useState("");
 
   // Visit History state lives in VisitHistoryPanel (shared component)
 
@@ -167,6 +153,7 @@ const Consultation = () => {
 
   const findQueueItem = useCallback(
     () => queue.find(q => q.uhid === patient?.uhid && OPEN_QUEUE_STATUSES.includes(q.status)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [queue, patient?.uhid]
   );
 
@@ -176,7 +163,6 @@ const Consultation = () => {
   // Floating-bar button — deliberately NOT an accordion section (see the
   // ACCORDION_SECTIONS column-parity note). Open to all clinical roles.
   const [showRecordUse, setShowRecordUse]           = useState(false);
-  const [showOrderLabModal, setShowOrderLabModal]   = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal]     = useState(false);
   const [billingQueueItem, setBillingQueueItem]     = useState(null);
@@ -203,22 +189,9 @@ const Consultation = () => {
 
   // Orange dot shown on accordion section headers when fields are dirty
   const tabsUnsaved = useMemo(() => ({
-    assessment:
-      historyOfPresentIllness !== "" || reviewOfSystems !== "" ||
-      pastMedicalHistory !== ""      || familyHistory !== ""   ||
-      socialHistory !== "",
-    exam:
-      generalAppearance !== "" || cardiovascular !== ""  ||
-      respiratory !== ""       || gastrointestinal !== "" ||
-      neurological !== ""      || musculoskeletal !== ""  ||
-      skin !== ""              || examFindings !== "",
     tools: toolsDirty,
   }), [
     toolsDirty,
-    historyOfPresentIllness, reviewOfSystems, pastMedicalHistory,
-    familyHistory, socialHistory,
-    generalAppearance, cardiovascular, respiratory,
-    gastrointestinal, neurological, musculoskeletal, skin, examFindings,
   ]);
 
   // visitDates — moved to VisitHistoryPanel (shared component)
@@ -235,48 +208,27 @@ const Consultation = () => {
     });
   }, [uhid, fetchPatientByUHID]);
 
-  // Load overview data (prescriptions, latest plan, last assessment/exam values)
+  // Does the patient already have an active tracked diagnosis?
+  // (Waives the diagnosis requirement for returning patients; the summary panel
+  // keeps this in sync via onDiagnosesChange after adds/retires.)
+  useEffect(() => {
+    if (!uhid) return;
+    patientService.getDiagnoses(uhid)
+      .then((res) => setTrackedDiagnoses(res.data?.diagnoses ?? []))
+      .catch(() => {});
+  }, [uhid]);
+
+  // Load the patient's prescriptions (summary panel medications + Rx section)
   useEffect(() => {
     if (!patient) return;
     let isMounted = true;
 
-    const loadData = async () => {
-      const [prescriptions, latestPlan, prevAssessment, prevExam] = await Promise.all([
-        getPrescriptionsByPatient(uhid),
-        getLatestPlan(uhid),
-        getLatestAssessment(uhid),
-        getLatestExamination(uhid),
-      ]);
-      if (!isMounted) return;
+    getPrescriptionsByPatient(uhid).then((prescriptions) => {
+      if (isMounted) setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
+    });
 
-      setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
-      setPreviousPlan(latestPlan || null);
-
-      if (prevAssessment) {
-        setHistoryOfPresentIllness(prevAssessment.historyOfPresentIllness || "");
-        setReviewOfSystems(prevAssessment.reviewOfSystems   || "");
-        setPastMedicalHistory(prevAssessment.pastMedicalHistory || "");
-        setFamilyHistory(prevAssessment.familyHistory       || "");
-        setSocialHistory(prevAssessment.socialHistory       || "");
-      }
-      if (prevExam) {
-        setGeneralAppearance(prevExam.generalAppearance || "");
-        setCardiovascular(prevExam.cardiovascular       || "");
-        setRespiratory(prevExam.respiratory             || "");
-        setGastrointestinal(prevExam.gastrointestinal   || "");
-        setNeurological(prevExam.neurological           || "");
-        setMusculoskeletal(prevExam.musculoskeletal     || "");
-        setSkin(prevExam.skin                           || "");
-        setExamFindings(prevExam.examFindings           || "");
-      }
-    };
-
-    loadData();
     return () => { isMounted = false; };
-  }, [
-    uhid, patient,
-    getPrescriptionsByPatient, getLatestPlan, getLatestAssessment, getLatestExamination,
-  ]);
+  }, [uhid, patient, getPrescriptionsByPatient]);
 
   // History fetch and pagination — moved to VisitHistoryPanel (shared component)
 
@@ -304,7 +256,9 @@ const Consultation = () => {
   };
 
   const handleCompleteConsultation = () => {
-    if (!tabsCompleted.diagnosis) {
+    // Diagnosis is required only for patients with no active tracked diagnosis —
+    // returning patients don't re-enter the same diagnosis every visit.
+    if (!tabsCompleted.diagnosis && !hasActiveDx) {
       toast.error(
         "Please complete Diagnosis & Treatment Plan before completing consultation",
         { duration: 4000, position: "top-right", icon: "❌",
@@ -402,7 +356,7 @@ const Consultation = () => {
       setShowBillingModal(false);
       setShowSuccessMessage(true);
       setTimeout(() => navigate("/doctor/dashboard"), 3000);
-    } catch (err) {
+    } catch {
       toast.error('Something went wrong. Please try again.', { duration: 5000, position: 'top-right' });
     } finally {
       setBillingSubmitting(false);
@@ -472,11 +426,11 @@ const Consultation = () => {
   // ---------------------------------------------------------------------------
   // Tab configuration (5 tabs)
   // ---------------------------------------------------------------------------
+  // Overview is no longer a tab — its content opens from the patient bar dropdown.
   const tabs = [
-    { id: "overview",      label: "Overview",             icon: ClipboardList },
     { id: "consultation",  label: "Today's Consultation", icon: Stethoscope   },
     { id: "history",       label: "Visit History",        icon: Calendar      },
-    { id: "documents",     label: "Documents",            icon: FileText      },
+    { id: "documents",     label: "Diagnostics",          icon: FileText      },
     { id: "charts",        label: "Charts",               icon: LineChart     },
   ];
 
@@ -489,63 +443,73 @@ const Consultation = () => {
     <div className="pb-12">
 
       {/* ===== Sticky Header ===== */}
-      <div className="sticky top-0 z-10 bg-gray-50 pb-1">
+      <div className="sticky top-0 z-10 bg-gray-50 pb-3">
 
-        {/* Patient info bar */}
-        <div className="mb-1 bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 flex items-center justify-between gap-4">
+        {/* Patient info bar — click to slide the full patient overview open.
+            While open it takes the active-tab treatment (blue, white text). */}
+        <div
+          onClick={() => setOverviewOpen((o) => !o)}
+          className={`mb-1 px-4 py-1.5 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
+            overviewOpen
+              ? "bg-primary border-primary text-white"
+              : "bg-white border-gray-200 hover:bg-gray-50"
+          }`}
+        >
           <div className="flex items-center gap-3 min-w-0">
-            <h2 className="text-base font-bold text-gray-800 truncate">{patient.name}</h2>
+            <ChevronDown
+              className={`w-4 h-4 flex-shrink-0 transition-transform ${
+                overviewOpen ? "rotate-180 text-white" : "text-gray-400"
+              }`}
+            />
+            <h2 className={`text-base font-bold truncate ${overviewOpen ? "text-white" : "text-gray-800"}`}>
+              {patient.name}
+            </h2>
             <div className="hidden sm:flex sm:flex-col">
-              <span className="text-sm text-gray-400">
+              <span className={`text-sm ${overviewOpen ? "text-blue-100" : "text-gray-400"}`}>
                 {patient.uhid} · {patient.age} yrs · {patient.gender}
               </span>
               {patient.dateOfBirth && (
-                <span className="text-xs text-gray-400">DOB: {formatDOB(patient.dateOfBirth)}</span>
+                <span className={`text-xs ${overviewOpen ? "text-blue-100" : "text-gray-400"}`}>
+                  DOB: {formatDOB(patient.dateOfBirth)}
+                </span>
               )}
             </div>
           </div>
-          <button
-            onClick={() => navigate("/doctor/dashboard")}
-            className="flex-shrink-0 text-sm font-medium text-gray-600 hover:text-primary transition-colors"
-          >
-            ← Dashboard
-          </button>
+          {/* Patient Summary toggle — mobile/tablet, Today's Consultation tab only
+              (the panel is scoped to that tab; always visible there ≥ xl).
+              Replaces the old "← Dashboard" back button (sidebar covers navigation). */}
+          {activeTab === "consultation" && !overviewOpen && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setSummaryOpen(true); }}
+              className={`xl:hidden flex-shrink-0 flex items-center gap-1.5 text-sm font-semibold border rounded-lg px-3 py-1.5 transition-colors ${
+                overviewOpen
+                  ? "text-white border-white/60 hover:bg-white/10"
+                  : "text-primary border-primary hover:bg-blue-50"
+              }`}
+            >
+              <MenuIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Patient Summary</span>
+              <span className="sm:hidden">Summary</span>
+            </button>
+          )}
         </div>
 
-        {/* Tab navigation */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
-          <div className="flex">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 min-w-max px-4 py-2.5 text-sm font-medium transition-all ${
-                  activeTab === tab.id ? "bg-primary text-white" : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                  {tab.id === 'consultation' && tabsCompleted.diagnosis && (
-                    <Check className="w-4 h-4 text-green-500 bg-white rounded-full p-0.5" />
-                  )}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      {/* ===== End Sticky Header ===== */}
 
+        {/* Overview panel — expands in flow with a smooth slide, pushing the
+            tabs and all content below it down (65vh cap, scrolls internally) */}
+        <div
+          className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            overviewOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden min-h-0">
+            <div
+              ref={overviewScrollRef}
+              className="h-[calc(100dvh-16rem)] md:h-[calc(100dvh-11rem)] overflow-y-auto no-scrollbar overscroll-contain py-2 mb-1 space-y-6"
+            >
+          <PatientSummaryCard patient={patient} shadow={false} />
 
-      {/* ===== Tab Content ===== */}
-
-      {/* ── Overview ── */}
-      {activeTab === "overview" && (
-        <div className="space-y-6">
-          <PatientSummaryCard patient={patient} />
-
-          <Card title={<span className="flex items-center gap-2"><User className="w-6 h-6" />Patient Information</span>}>
+          <Card shadow={false} title={<span className="flex items-center gap-2"><User className="w-6 h-6" />Patient Information</span>}>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Age</p>
@@ -639,102 +603,20 @@ const Consultation = () => {
             )}
           </Card>
 
-          {/* Medical Info */}
-          <Card title={<span className="flex items-center gap-2"><Activity className="w-6 h-6" />Medical Information</span>}>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <p className="text-sm text-gray-600">Diagnosis</p>
-                <p className="font-semibold">{patient.diagnosis || '—'}</p>
-              </div>
-              {patient.diagnosisDate && (
-                <div>
-                  <p className="text-sm text-gray-600">Diagnosis Date</p>
-                  <p className="font-semibold">
-                    {new Date(patient.diagnosisDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                  </p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm text-gray-600">Risk Level</p>
-                <p className={`font-semibold ${
-                  patient.riskLevel === 'High' ? 'text-red-600' :
-                  patient.riskLevel === 'Medium' ? 'text-amber-600' : 'text-green-600'
-                }`}>{patient.riskLevel || '—'}</p>
-              </div>
-              {patient.hba1c && (
-                <div>
-                  <p className="text-sm text-gray-600">HbA1c</p>
-                  <p className="font-semibold text-red-600">{patient.hba1c}</p>
-                </div>
-              )}
-              {patient.comorbidities && (
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-600">Comorbidities</p>
-                  <p className="font-semibold">{patient.comorbidities}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              {patient.medications && patient.medications.length > 0 && (
-                <div>
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Current Medications:</p>
-                  <ul className="list-disc list-inside space-y-1">
-                    {patient.medications.map((med, i) => (
-                      <li key={i} className="text-sm text-gray-600">{med}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {patient.allergies && (
-                <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
-                  <p className="text-sm font-semibold text-red-700 mb-1 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" /> Allergies:
-                  </p>
-                  <p className="text-sm text-gray-800 font-medium">{patient.allergies}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-
-          {/* Previous Treatment Plan */}
-          {previousPlan && (
-            <Card title={<span className="flex items-center gap-2"><ClipboardCheck className="w-6 h-6" />Previous Treatment Plan</span>}>
-              <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Diagnosis</p>
-                    <div className="space-y-0.5 mb-1">
-                      {parseDiagnoses(previousPlan.diagnosis).map((d, i) => (
-                        <p key={i} className="text-sm font-bold text-gray-800">
-                          {d.code && <span className="font-mono text-primary">{d.code} — </span>}
-                          {d.description}
-                        </p>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-600 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(previousPlan.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      {" "}&mdash; By {previousPlan.doctorName}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    previousPlan.status === "Active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
-                  }`}>
-                    {previousPlan.status}
-                  </span>
-                </div>
-                <div className="bg-white rounded p-3">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Plan:</p>
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">{previousPlan.plan}</pre>
-                </div>
+          {/* Allergies — safety-critical, kept; the rest of the old Medical
+              Information grid (dx/risk/HbA1c/comorbidities) is covered by the
+              summary panel and removed. */}
+          {patient.allergies && (
+            <Card shadow={false} title={<span className="flex items-center gap-2"><AlertCircle className="w-6 h-6 text-red-500" />Allergies</span>}>
+              <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
+                <p className="text-sm text-gray-800 font-medium">{patient.allergies}</p>
               </div>
             </Card>
           )}
 
           {/* Medical Equipment */}
           {patient.medicalEquipment?.insulinPump?.hasPump && (
-            <Card title={<span className="flex items-center gap-2"><span className="text-2xl">🔋</span>Medical Equipment</span>}>
+            <Card shadow={false} title={<span className="flex items-center gap-2"><span className="text-2xl">🔋</span>Medical Equipment</span>}>
               <div className="space-y-3">
                 {patient.medicalEquipment.insulinPump.current && (
                   <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
@@ -762,14 +644,50 @@ const Consultation = () => {
               </div>
             </Card>
           )}
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Tab navigation */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
+          <div className="flex">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setOverviewOpen(false); }}
+                className={`flex-1 min-w-max px-4 py-2.5 text-sm font-medium transition-all ${
+                  activeTab === tab.id && !overviewOpen
+                    ? "bg-primary text-white"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                  {tab.id === 'consultation' && tabsCompleted.diagnosis && (
+                    <Check className="w-4 h-4 text-green-500 bg-white rounded-full p-0.5" />
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* ===== End Sticky Header ===== */}
+
+
+      {/* ===== Tab Content =====
+          Two-column layout: main tab content + right summary panel.
+          The panel lives OUTSIDE the accordion grid, so ACCORDION_SECTIONS
+          parity is untouched. */}
+      <div className="flex flex-col xl:flex-row xl:items-start gap-4">
+      <div className="flex-1 min-w-0">
 
       {/* ── Today's Consultation (accordion) ── */}
       {activeTab === "consultation" && (
         <div className="space-y-3">
-          {/* Reminder banner when diagnosis hasn't been completed */}
-          {!tabsCompleted.diagnosis && (
+          {/* Reminder banner — only for patients with no active tracked diagnosis */}
+          {!tabsCompleted.diagnosis && !hasActiveDx && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
               <p className="text-sm text-amber-800">
@@ -778,108 +696,54 @@ const Consultation = () => {
             </div>
           )}
 
-          {/* Triage Vitals — full width */}
-          <AccordionPanel
-            icon={Activity}
-            label="Today's Triage Vitals"
-            badge={!patient.vitals && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Not recorded</span>
-            )}
-            isOpen={openSections === 'vitals'}
-            onToggle={() => toggleSection('vitals')}
-            padding="p-5 space-y-4"
-          >
-            {patient.vitals ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
-                    Recorded: {patient.vitals.recordedAt
-                      ? new Date(patient.vitals.recordedAt).toLocaleString()
-                      : 'Today'}
-                  </p>
-                  <button
-                    onClick={() => setShowVitalsModal(true)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-primary border border-primary rounded-lg px-3 py-1.5 hover:bg-blue-50 transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Edit Vitals
-                  </button>
-                </div>
-                {patient.vitals.chiefComplaint && (
-                  <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
-                    <p className="text-xs font-semibold text-gray-600 mb-0.5">Reason for Visit</p>
-                    <p className="text-sm text-gray-800">{patient.vitals.chiefComplaint}</p>
-                  </div>
-                )}
-                <VitalsGrid vitals={patient.vitals} patient={patient} />
-              </>
-            ) : (
-              <div className="flex items-center justify-between py-2">
-                <p className="text-sm text-gray-500">No triage vitals recorded for today&apos;s visit.</p>
-                <button
-                  onClick={() => setShowVitalsModal(true)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-primary border border-primary rounded-lg px-3 py-1.5 hover:bg-blue-50 transition-colors"
+          {/* Triage Vitals block removed — vitals (with reason for visit, trends and
+              edit/record action) live in the summary panel's Vitals card. */}
+
+          {/* The merged consultation section — full width (Assessment, Physical
+              Exam and Treatment Plan are optional click-to-add blocks inside).
+              The old two-column parity split is gone with only one section left. */}
+          <div className="flex flex-col gap-3">
+            {ACCORDION_SECTIONS.filter((s) => s.id !== 'prescriptions').map((section) => {
+              const isOpen      = openSections === section.id;
+              const isCompleted = !!tabsCompleted[section.id];
+              const isUnsaved   = !!(tabsUnsaved[section.id] && !isCompleted);
+
+              const badge = (
+                <>
+                  {section.required && !hasActiveDx && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Required</span>
+                  )}
+                  {isCompleted && (
+                    <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                      <Check className="w-3.5 h-3.5" /> Done
+                    </span>
+                  )}
+                  {isUnsaved && (
+                    <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes" />
+                  )}
+                </>
+              );
+
+              return (
+                <AccordionPanel
+                  key={section.id}
+                  icon={section.icon}
+                  label={section.label}
+                  badge={badge}
+                  isOpen={isOpen}
+                  onToggle={() => toggleSection(section.id)}
                 >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Record Vitals
-                </button>
-              </div>
-            )}
-          </AccordionPanel>
-
-          {/* Two independent columns for the first 4 sections, Prescriptions full-width below.
-              Left column: even-indexed sections (0, 2) — Assessment, Notes
-              Right column: odd-indexed sections (1, 3)  — Physical Exam, Diagnosis */}
-          <div className="flex flex-col lg:flex-row gap-3 lg:items-start">
-            {[0, 1].map((colIdx) => (
-              <div key={colIdx} className="flex-1 flex flex-col gap-3">
-                {ACCORDION_SECTIONS.filter((s) => s.id !== 'prescriptions').filter((_, i) => i % 2 === colIdx).map((section) => {
-                  const isOpen      = openSections === section.id;
-                  const isCompleted = !!tabsCompleted[section.id];
-                  const isUnsaved   = !!(tabsUnsaved[section.id] && !isCompleted);
-
-                  const badge = (
-                    <>
-                      {section.required && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Required</span>
-                      )}
-                      {isCompleted && (
-                        <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                          <Check className="w-3.5 h-3.5" /> Done
-                        </span>
-                      )}
-                      {isUnsaved && (
-                        <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes" />
-                      )}
-                    </>
-                  );
-
-                  return (
-                    <AccordionPanel
-                      key={section.id}
-                      icon={section.icon}
-                      label={section.label}
-                      badge={badge}
-                      isOpen={isOpen}
-                      onToggle={() => toggleSection(section.id)}
-                    >
-                      {section.id === 'assessment' && <InitialAssessment uhid={uhid} embedded={true} />}
-                      {section.id === 'exam'       && <PhysicalExamList patient={patient} embedded={true} />}
-                      {section.id === 'notes'      && <ConsultationNotesList patient={patient} />}
-                      {section.id === 'diagnosis'  && (
-                        <TreatmentPlansList
-                          patient={patient}
-                          showStatistics={false}
-                          showCreateForm={true}
-                          currentUser={currentUser}
-                          onSuccess={handleDiagnosisSuccess}
-                        />
-                      )}
-                    </AccordionPanel>
-                  );
-                })}
-              </div>
-            ))}
+                  {section.id === 'diagnosis' && (
+                    <ConsultationNotesPlan
+                      patient={patient}
+                      currentUser={currentUser}
+                      activeDiagnoses={activeDiagnoses}
+                      onSuccess={handleDiagnosisSuccess}
+                    />
+                  )}
+                </AccordionPanel>
+              );
+            })}
           </div>
 
           {/* Tools — full width, between the grid and Prescriptions.
@@ -950,6 +814,7 @@ const Consultation = () => {
                   addPrescription={addPrescription}
                   currentUser={currentUser}
                   onSuccess={handlePrescriptionSuccess}
+                  hideCurrentStrip
                 />
               </AccordionPanel>
             );
@@ -960,35 +825,26 @@ const Consultation = () => {
       {/* ── Visit History ── */}
       {activeTab === "history" && <VisitHistoryPanel patient={patient} excludeToday />}
 
-      {/* ── Documents ── */}
-      {activeTab === "documents" && (
-        <div className="space-y-4">
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
-            <p className="text-sm text-gray-700">
-              <strong>ℹ️ Optional:</strong> Upload external medical documents, lab reports, or imaging results
-              during consultation. This step is not required to complete the consultation.
-            </p>
-          </div>
-          <MedicalDocumentsTab patient={patient} />
-        </div>
-      )}
+      {/* ── Diagnostics ── */}
+      {activeTab === "documents" && <MedicalDocumentsTab patient={patient} />}
 
       {/* ── Charts ── */}
       {activeTab === "charts" && (
         <GlycemicChartPanel patient={patient} />
       )}
 
-
-      {/* ===== Floating Action Buttons ===== */}
-      <div className="fixed bottom-3 right-4 z-20 flex items-center gap-2">
-        {/* Order Lab button hidden — not in use yet */}
-        {/* <button
-          onClick={() => setShowOrderLabModal(true)}
+      {/* ===== Action Buttons — Today's Consultation only, in flow at the very
+             end of the content column: visible after scrolling past the last
+             section (never obscure the summary panel or page content) ===== */}
+      {activeTab === "consultation" && (
+      <div className="mt-6 flex items-center justify-end gap-2">
+        <button
+          onClick={() => setShowRecordUse(true)}
           className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
         >
-          <FlaskConical className="w-3.5 h-3.5" />
-          Order Lab
-        </button> */}
+          <Package className="w-3.5 h-3.5" />
+          Record Use
+        </button>
 
         <button
           onClick={() => setShowRecordUse(true)}
@@ -1000,7 +856,7 @@ const Consultation = () => {
 
         <button
           onClick={() => setShowReferModal(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
+          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
         >
           <UserCircle className="w-3.5 h-3.5" />
           Refer Patient
@@ -1015,12 +871,71 @@ const Consultation = () => {
 
         <button
           onClick={handleCompleteConsultation}
-          disabled={!tabsCompleted.diagnosis}
-          className="flex items-center gap-1.5 bg-primary hover:opacity-90 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!tabsCompleted.diagnosis && !hasActiveDx}
+          className="flex items-center gap-1.5 bg-primary hover:opacity-90 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Check className="w-3.5 h-3.5" />
           Complete Consultation
         </button>
+      </div>
+      )}
+
+      </div>
+
+      {/* ── Right summary panel ──
+          ≥ xl: always-visible, FIXED to the viewport — main scrolling can never
+          move it (sticky still travels once its flex parent runs out; fixed
+          cannot). The spacer below reserves its column in the layout.
+          < xl: right-side floating drawer opened by the "Patient Summary" button. */}
+
+      {/* Summary panel — Today's Consultation tab only (not a global feature) */}
+      {activeTab === "consultation" && (
+      <>
+      {/* Drawer backdrop — mobile/tablet only (toggle lives in the patient info bar) */}
+      {summaryOpen && (
+        <div className="fixed inset-0 bg-black/40 z-40 xl:hidden" onClick={() => setSummaryOpen(false)} />
+      )}
+
+      <aside
+        className={`
+          fixed inset-y-4 right-4 z-40 w-[320px] max-w-[88vw] md:w-[50vw] overflow-y-auto no-scrollbar overscroll-contain rounded-[20px] bg-gray-50 shadow-2xl p-3
+          transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+          ${summaryOpen ? "translate-x-0" : "translate-x-[calc(100%+1.5rem)]"}
+          xl:inset-auto xl:top-[7.5rem] xl:right-8 xl:z-[5] xl:w-[340px] xl:max-w-none xl:translate-x-0
+          xl:max-h-[calc(100dvh-8.5rem)] xl:rounded-none xl:bg-transparent xl:shadow-none xl:p-0
+        `}
+      >
+        {/* Drawer header — mobile/tablet only */}
+        <div className="xl:hidden flex items-center justify-between mb-2 px-1">
+          <span className="text-sm font-bold text-gray-700">Patient Summary</span>
+          <button onClick={() => setSummaryOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-600" aria-label="Close">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <ConsultationSummaryContainer
+          patient={patient}
+          medications={patientPrescriptions.flatMap((p) =>
+            (p.medications || []).map((m, i) => ({
+              id: `${p.id}-${i}`,
+              name: m.name,
+              dose: [m.dosage, m.frequency].filter(Boolean).join(' · '),
+              since: p.date || p.createdAt,
+            }))
+          )}
+          onOpenMeds={() => {
+            setActiveTab("consultation");
+            setOpenSections("prescriptions");
+            setSummaryOpen(false);
+          }}
+          onEditVitals={() => setShowVitalsModal(true)}
+          onDiagnosesChange={setTrackedDiagnoses}
+        />
+      </aside>
+
+      {/* Spacer — reserves the fixed panel's column in the xl layout */}
+      <div className="hidden xl:block w-[340px] flex-shrink-0" aria-hidden="true" />
+      </>
+      )}
       </div>
 
 
@@ -1273,14 +1188,6 @@ const Consultation = () => {
         </div>
       )}
 
-      {/* ===== Order Lab Test Modal — hidden, not in use yet ===== */}
-      {/* {showOrderLabModal && (
-        <OrderLabTestModal
-          patient={patient}
-          onClose={() => setShowOrderLabModal(false)}
-          onSuccess={() => {}}
-        />
-      )} */}
 
       {/* ===== Edit Vitals Modal ===== */}
       {showVitalsModal && (

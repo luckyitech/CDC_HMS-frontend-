@@ -99,8 +99,24 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  // ── Local-only bulk actions ────────────────────────────────────────────────
+  // These affect ONLY this user's current panel view — they make no server call,
+  // so the shared notification rows (and other members' panels) are untouched.
+  // Note: because there is no per-user notification state in the backend, these
+  // reset on a full page reload / next fetch. A persistent per-user clear would
+  // need a new backend table + endpoint.
+  const markAllReadLocal = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+  };
+
+  const clearAll = () => {
+    setNotifications([]);
+    setUnreadCount(0);
+  };
+
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, fetchNotifications }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, markAllReadLocal, clearAll, fetchNotifications }}>
       {children}
     </NotificationContext.Provider>
   );

@@ -96,18 +96,16 @@ const Glp1StartTherapyForm = ({ medication, patient, vitals, onStart, onCancel }
 
   // Preview of the ladder the rungs will produce — mirrors buildCustomSchedule
   // on the server, so the doctor sees the weeks before committing
-  const rungPreview = (() => {
-    let cursor = Number(startWeek) || 0;
-    return rungs.map((r, i) => {
-      const isLast  = i === rungs.length - 1;
-      const weeks   = Number(r.weeks);
-      const hasSpan = Number.isInteger(weeks) && weeks > 0;
-      const from    = cursor;
-      const to      = isLast && !hasSpan ? null : from + (hasSpan ? weeks : 4);
-      if (to !== null) cursor = to;
-      return { from, to, dose: r.dose };
-    });
-  })();
+  const rungPreview = rungs.reduce((acc, r, i) => {
+    const isLast  = i === rungs.length - 1;
+    const weeks   = Number(r.weeks);
+    const hasSpan = Number.isInteger(weeks) && weeks > 0;
+    const from    = acc.length === 0
+      ? (Number(startWeek) || 0)
+      : (acc[acc.length - 1].to ?? acc[acc.length - 1].from);
+    const to      = isLast && !hasSpan ? null : from + (hasSpan ? weeks : 4);
+    return [...acc, { from, to, dose: r.dose }];
+  }, []);
 
   const scheduleIncomplete = rungs.some(r => r.dose === '' || Number(r.dose) <= 0);
 

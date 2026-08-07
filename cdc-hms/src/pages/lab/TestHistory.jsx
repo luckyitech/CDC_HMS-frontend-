@@ -1,5 +1,7 @@
 import { useState } from "react";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
+import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import StatusBadge from "../../components/shared/StatusBadge";
 import { LAB_RESULT_TONES } from "../../utils/statusStyles";
@@ -62,44 +64,21 @@ const TestHistory = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          Test History
-        </h2>
-        <Button variant="outline" onClick={() => navigate("/lab/dashboard")}>
-          ← Back to Dashboard
-        </Button>
-      </div>
+      <PageHeader
+        title="Test History"
+        actions={
+          <Button variant="outline" onClick={() => navigate("/lab/dashboard")}>
+            ← Back to Dashboard
+          </Button>
+        }
+      />
 
       {/* Statistics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Total Tests</p>
-          <p className="text-2xl sm:text-4xl font-bold mt-2">
-            {testHistory.length}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Normal</p>
-          <p className="text-2xl sm:text-4xl font-bold mt-2">
-            {testHistory.filter((t) => t.interpretation === "Normal").length}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Abnormal</p>
-          <p className="text-2xl sm:text-4xl font-bold mt-2">
-            {testHistory.filter((t) => t.interpretation === "Abnormal").length}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Critical</p>
-          <p className="text-2xl sm:text-4xl font-bold mt-2">
-            {testHistory.filter((t) => t.interpretation === "Critical").length}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <StatCard title="Total Tests" value={testHistory.length} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Normal" value={testHistory.filter((t) => t.interpretation === "Normal").length} gradient="from-green-500 to-green-600" />
+        <StatCard title="Abnormal" value={testHistory.filter((t) => t.interpretation === "Abnormal").length} gradient="from-yellow-500 to-yellow-600" />
+        <StatCard title="Critical" value={testHistory.filter((t) => t.interpretation === "Critical").length} gradient="from-red-500 to-red-600" />
       </div>
 
       {/* Search and Filters */}

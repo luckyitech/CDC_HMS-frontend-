@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import toast from "react-hot-toast";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
 import PatientSearchInput from "../../components/shared/PatientSearchInput";
@@ -15,12 +15,11 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
   const navigate = useNavigate();
   const { uhid: urlUHID } = useParams();
   const { fetchPatientByUHID } = usePatientContext();
-  const { saveExamination, getLatestExamination, getExaminationById } =
+  const { getLatestExamination, getExaminationById } =
     usePhysicalExamContext();
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [mode, setMode] = useState("entry");
-  const [currentExamination, setCurrentExamination] = useState(null);
 
   // Get patient from URL params OR navigation state (flexible!)
   const patientUHID = propUHID || urlUHID || location.state?.patientUHID;
@@ -39,18 +38,17 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
       if (viewExamId) {
         const specificExam = getExaminationById(viewExamId);
         if (specificExam) {
-          setCurrentExamination(specificExam);
           setMode(viewMode || "findings");
         }
       } else {
         // Otherwise load latest exam
         const latestExam = getLatestExamination(patientUHID);
         if (latestExam) {
-          setCurrentExamination(latestExam);
           setMode("findings");
         }
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     patientUHID,
     viewExamId,
@@ -62,78 +60,32 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
   const handleSelectPatient = (patient) => {
     setSelectedPatient(patient);
     setMode("entry");
-    setCurrentExamination(null);
-  };
-
-  const handleSaveExamination = async (examData, generateFindings) => {
-    const savedExam = await saveExamination(examData);
-
-    if (!savedExam) {
-      toast.error("Failed to save examination. Please try again.", {
-        duration: 4000,
-        position: "top-right",
-        style: { background: "#EF4444", color: "#fff", fontWeight: "bold", padding: "16px" },
-      });
-      return;
-    }
-
-    setCurrentExamination(savedExam);
-
-    if (generateFindings) {
-      setMode("findings");
-    } else {
-      toast.success("Examination Draft Saved Successfully", {
-        duration: 3000,
-        position: "top-right",
-        icon: "✅",
-        style: { background: "#10B981", color: "#FFFFFF", fontWeight: "bold", padding: "16px" },
-      });
-    }
-  };
-
-  const handleEdit = () => {
-    setMode("entry");
-  };
-
-  const handleCancel = () => {
-    if (fromConsultation && embedded) {
-      // Stay in embedded tab - do nothing
-      return;
-    } else if (fromConsultation) {
-      // Navigate back to consultation page with tabs
-      navigate(`/doctor/consultation/${selectedPatient.uhid}`);
-    } else {
-      setSelectedPatient(null);
-      setCurrentExamination(null);
-      setMode("entry");
-    }
   };
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          Physical Examination
-        </h2>
-        <div className="flex gap-2">
-          {fromConsultation && !embedded && (
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate(`/doctor/consultation/${selectedPatient?.uhid}`)
-              }
-            >
-              Back to Consultation
-            </Button>
-          )}
-          {selectedPatient && mode === "findings" && (
-            <Button variant="outline" onClick={() => setMode("entry")}>
-              New Examination
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Physical Examination"
+        actions={
+          <>
+            {fromConsultation && !embedded && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(`/doctor/consultation/${selectedPatient?.uhid}`)
+                }
+              >
+                Back to Consultation
+              </Button>
+            )}
+            {selectedPatient && mode === "findings" && (
+              <Button variant="outline" onClick={() => setMode("entry")}>
+                New Examination
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Patient Selection (only show if NOT from consultation or profile) */}
@@ -143,7 +95,7 @@ const PhysicalExamination = ({ uhid: propUHID = null, embedded = false }) => {
               <PatientSearchInput
                 onSelect={handleSelectPatient}
                 selectedPatient={selectedPatient}
-                onClear={() => { setSelectedPatient(null); setCurrentExamination(null); setMode("entry"); }}
+                onClear={() => { setSelectedPatient(null); setMode("entry"); }}
                 placeholder="Search by name or UHID..."
               />
             </Card>

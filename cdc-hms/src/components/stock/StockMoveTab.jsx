@@ -15,7 +15,7 @@ import { Field, inputCls, BatchScanBox, FefoOverrideModal, PatientAttach } from 
 
 const StockMoveTab = ({ mode }) => {
   const isTransfer = mode === "transfer";
-  const { locations, items } = useStockContext();
+  const { locations } = useStockContext();
   const [resolved, setResolved] = useState(null);      // { batch, item, levels } from a scan
   const [form, setForm] = useState({ fromLocationId: "", toLocationId: "", quantity: "" });
   const [fefo, setFefo] = useState(null);              // 409 suggestion payload

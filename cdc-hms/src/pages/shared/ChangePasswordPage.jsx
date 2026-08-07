@@ -2,6 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import authService from '../../services/authService';
@@ -70,12 +71,14 @@ const ChangePasswordPage = () => {
 
   return (
     <div className="max-w-lg mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Change Password</h2>
-        <Button variant="outline" onClick={() => navigate(-1)}>
-          ← Back
-        </Button>
-      </div>
+      <PageHeader
+        title="Change Password"
+        actions={
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            ← Back
+          </Button>
+        }
+      />
 
       <Card title="🔐 Update Your Password">
         <form onSubmit={handleSubmit} className="space-y-4">

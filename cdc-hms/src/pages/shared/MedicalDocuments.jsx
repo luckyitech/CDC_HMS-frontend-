@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, Filter, FileText, SortAsc, SortDesc } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import DocumentCard from '../../components/shared/DocumentCard';
 import DocumentActionModal from '../../components/shared/DocumentActionModal';
 import Pagination from '../../components/shared/Pagination';
@@ -208,13 +209,10 @@ const MedicalDocuments = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Medical Documents</h2>
-          <p className="text-gray-600 mt-1">All patient documents across the hospital</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Medical Documents"
+        subtitle="All patient documents across the hospital"
+      />
 
       {/* Archived files banner */}
       {showingArchived && (

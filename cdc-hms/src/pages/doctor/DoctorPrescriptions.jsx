@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
 import Button from "../../components/shared/Button";
 import Modal from "../../components/shared/Modal";
 import { useUserContext } from "../../contexts/UserContext";
@@ -60,32 +61,27 @@ const DoctorPrescriptions = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            Prescriptions
-          </h2>
-          {selectedPatient && fromConsultation && (
-            <p className="text-gray-600 mt-1">
-              For: {selectedPatient.name} ({selectedPatient.uhid})
-            </p>
-          )}
-        </div>
-        <div className="flex gap-3">
-          {fromConsultation && (
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/doctor/consultation/${patientUHID}`)}
-            >
-              ← Back to Consultation
+      <PageHeader
+        title="Prescriptions"
+        subtitle={selectedPatient && fromConsultation
+          ? `For: ${selectedPatient.name} (${selectedPatient.uhid})`
+          : undefined}
+        actions={
+          <>
+            {fromConsultation && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/doctor/consultation/${patientUHID}`)}
+              >
+                ← Back to Consultation
+              </Button>
+            )}
+            <Button onClick={() => setShowNewPrescription(true)}>
+              + New Prescription
             </Button>
-          )}
-          <Button onClick={() => setShowNewPrescription(true)}>
-            + New Prescription
-          </Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       
 

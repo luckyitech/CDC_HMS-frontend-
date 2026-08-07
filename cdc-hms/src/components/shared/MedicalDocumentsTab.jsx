@@ -133,7 +133,7 @@ const MedicalDocumentsTab = ({ patient }) => {
       link.download = doc.fileName;
       link.click();
       URL.revokeObjectURL(blobUrl);
-    } catch (err) {
+    } catch {
       showNotification('Failed to download file');
     }
   };
@@ -147,7 +147,7 @@ const MedicalDocumentsTab = ({ patient }) => {
       window.open(blobUrl, '_blank');
       // Mark this document as viewed so the doctor can now confirm it
       setViewedDocIds(prev => new Set([...prev, doc.id]));
-    } catch (err) {
+    } catch {
       showNotification('Failed to open file');
     }
   };
@@ -184,37 +184,6 @@ const MedicalDocumentsTab = ({ patient }) => {
           <Upload className="w-4 h-4" />
           Upload Document
         </Button>
-      </div>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg text-center">
-          <p className="text-xs text-gray-600 uppercase font-semibold">Total</p>
-          <p className="text-3xl font-bold text-blue-700 mt-1">{allDocuments.length}</p>
-        </div>
-        <div className="bg-green-50 p-4 rounded-lg text-center">
-          <p className="text-xs text-gray-600 uppercase font-semibold">Reviewed</p>
-          <p className="text-3xl font-bold text-green-700 mt-1">
-            {allDocuments.filter(d => d.status === 'Reviewed').length}
-          </p>
-        </div>
-        <div className="bg-yellow-50 p-4 rounded-lg text-center">
-          <p className="text-xs text-gray-600 uppercase font-semibold">Pending</p>
-          <p className="text-3xl font-bold text-yellow-700 mt-1">
-            {allDocuments.filter(d => d.status === 'Pending Review').length}
-          </p>
-        </div>
-        <div className="bg-purple-50 p-4 rounded-lg text-center">
-          <p className="text-xs text-gray-600 uppercase font-semibold">This Month</p>
-          <p className="text-3xl font-bold text-purple-700 mt-1">
-            {allDocuments.filter(d => {
-              const docDate = new Date(d.uploadedAt);
-              const now = new Date();
-              return docDate.getMonth() === now.getMonth() && 
-                     docDate.getFullYear() === now.getFullYear();
-            }).length}
-          </p>
-        </div>
       </div>
 
       {/* Filters and Search */}

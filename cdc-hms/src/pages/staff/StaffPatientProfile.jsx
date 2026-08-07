@@ -3,6 +3,7 @@ import { formatDOB } from "../../utils/dateUtils";
 import VitalsGrid from '../../components/shared/VitalsGrid';
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
@@ -119,30 +120,26 @@ const StaffPatientProfile = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            Patient Profile
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {patient.name} ({patient.uhid})
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <BarcodeActions patient={patient} />
-          <Button variant="outline" onClick={() => navigate("/staff/patients")}>
-            ← Back to Patient Search
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowEditModal(true)}
-            className="flex items-center gap-2"
-          >
-            <Pencil className="w-4 h-4" />
-            Edit Profile
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Patient Profile"
+        subtitle={`${patient.name} (${patient.uhid})`}
+        actions={
+          <div className="flex gap-2">
+            <BarcodeActions patient={patient} />
+            <Button variant="outline" onClick={() => navigate("/staff/patients")}>
+              ← Back to Patient Search
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditModal(true)}
+              className="flex items-center gap-2"
+            >
+              <Pencil className="w-4 h-4" />
+              Edit Profile
+            </Button>
+          </div>
+        }
+      />
 
       {/* Inactive / merged patient banner */}
       <InactivePatientBanner

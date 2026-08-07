@@ -13,7 +13,7 @@ const fmtDateTime = (iso) => {
   });
 };
 
-const PatientSummaryCard = ({ patient }) => {
+const PatientSummaryCard = ({ patient, shadow = true }) => {
   const [summary, setSummary]     = useState(patient.patientSummary   || '');
   const [updatedBy, setUpdatedBy] = useState(patient.summaryUpdatedBy || null);
   const [updatedAt, setUpdatedAt] = useState(patient.summaryUpdatedAt || null);
@@ -48,7 +48,7 @@ const PatientSummaryCard = ({ patient }) => {
       setUpdatedAt(res.data?.data?.summaryUpdatedAt ?? null);
       setIsEditing(false);
       toast.success('Patient summary saved');
-    } catch (err) {
+    } catch {
       toast.error('Failed to save summary');
     } finally {
       setSaving(false);
@@ -56,39 +56,43 @@ const PatientSummaryCard = ({ patient }) => {
   };
 
   return (
-    <Card className="overflow-hidden">
-      {/* Header — always visible, clicking toggles the dropdown */}
-      <button
-        type="button"
-        onClick={toggleOpen}
-        className="w-full flex items-center justify-between text-left"
-      >
-        <div className="flex items-center gap-2">
+    <Card className="overflow-hidden" shadow={shadow}>
+      {/* Header — always visible, clicking toggles the dropdown.
+          Edit is a SIBLING of the toggle, not a child — <button> cannot
+          nest a <button> (invalid HTML; React warns, browsers may eject it). */}
+      <div className="w-full flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleOpen}
+          className="flex-1 flex items-center gap-2 text-left min-w-0"
+        >
           <NotebookPen className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="font-semibold text-gray-800">Patient Summary</span>
           {summary && !isOpen && (
-            <span className="text-xs text-primary bg-blue-50 px-2 py-0.5 rounded-full">
+            <span className="text-xs text-primary bg-blue-50 px-2 py-0.5 rounded-full truncate">
               {summary.length > 40 ? summary.slice(0, 40) + '…' : summary}
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-3">
-          {!isEditing && (
-            <button
-              type="button"
-              onClick={startEdit}
-              className="flex items-center gap-1 text-xs text-primary hover:text-blue-800 font-medium"
-            >
-              <Pencil className="w-3 h-3" />
-              {summary ? 'Edit' : 'Add Summary'}
-            </button>
-          )}
-          {isOpen
-            ? <ChevronUp className="w-4 h-4 text-gray-400" />
-            : <ChevronDown className="w-4 h-4 text-gray-400" />
-          }
-        </div>
-      </button>
+        </button>
+        {!isEditing && (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="flex items-center gap-1 text-xs text-primary hover:text-blue-800 font-medium flex-shrink-0"
+          >
+            <Pencil className="w-3 h-3" />
+            {summary ? 'Edit' : 'Add Summary'}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-label="Toggle patient summary"
+          className="flex-shrink-0 text-gray-400 hover:text-gray-600"
+        >
+          {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+      </div>
 
       {/* Dropdown body */}
       {isOpen && (

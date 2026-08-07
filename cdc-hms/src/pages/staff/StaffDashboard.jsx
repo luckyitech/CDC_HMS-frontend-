@@ -14,6 +14,8 @@ import {
   Package
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
+import StatCard from '../../components/shared/StatCard';
 import Button from '../../components/shared/Button';
 import RecordUseModal from '../../components/stock/RecordUseModal';
 import { useUserContext } from '../../contexts/UserContext';
@@ -38,6 +40,7 @@ const StaffDashboard = () => {
     getPatientStats().then(data => {
       if (data) setPatientStats(data);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // getPatientStats is a stable context function — safe to omit
 
   // Queue stats computed from local state — always in sync, no extra API call
@@ -56,52 +59,23 @@ const StaffDashboard = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Staff Dashboard</h2>
-          <p className="text-gray-600 mt-1">Welcome back, {currentUser?.name || 'Staff'}!</p>
-        </div>
-        <div className="flex gap-3">
+      <PageHeader
+        title="Staff Dashboard"
+        subtitle={`Welcome back, ${currentUser?.name || 'Staff'}!`}
+        actions={
           <Button onClick={() => navigate('/staff/create-patient')}>
             <UserPlus className="w-4 h-4 mr-2" />
             Register Patient
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-xl p-4 lg:p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm lg:text-lg font-semibold opacity-90">Total Patients</h3>
-            <Users className="w-6 h-6 lg:w-8 lg:h-8" />
-          </div>
-          <p className="text-4xl lg:text-5xl font-bold">{patientStats.total ?? 0}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-xl p-4 lg:p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm lg:text-lg font-semibold opacity-90">Waiting Queue</h3>
-            <Clock className="w-6 h-6 lg:w-8 lg:h-8" />
-          </div>
-          <p className="text-4xl lg:text-5xl font-bold">{queueStats.waiting}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-xl p-4 lg:p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm lg:text-lg font-semibold opacity-90">Active Patients</h3>
-            <CheckCircle className="w-6 h-6 lg:w-8 lg:h-8" />
-          </div>
-          <p className="text-4xl lg:text-5xl font-bold">{patientStats.active ?? 0}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-xl p-4 lg:p-6 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm lg:text-lg font-semibold opacity-90">High Risk</h3>
-            <AlertTriangle className="w-6 h-6 lg:w-8 lg:h-8" />
-          </div>
-          <p className="text-4xl lg:text-5xl font-bold">{patientStats.highRisk ?? 0}</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <StatCard title="Total Patients" value={patientStats.total ?? 0} icon={Users} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Waiting Queue" value={queueStats.waiting} icon={Clock} gradient="from-green-500 to-green-600" />
+        <StatCard title="Active Patients" value={patientStats.active ?? 0} icon={CheckCircle} gradient="from-purple-500 to-purple-600" />
+        <StatCard title="High Risk" value={patientStats.highRisk ?? 0} icon={AlertTriangle} gradient="from-red-500 to-red-600" />
       </div>
 
       {/* Waiting Patients */}

@@ -66,6 +66,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const [portalSwitcherOpen, setPortalSwitcherOpen] = useState(false);
 
   const toggleCollapsed = () => {
+    // Any collapse/expand of the rail closes the portal dropdown — the narrow icon
+    // rail can't show it, and it would otherwise render clipped.
+    setPortalSwitcherOpen(false);
     setCollapsed((prev) => {
       localStorage.setItem("sidebarCollapsed", String(!prev));
       return !prev;
@@ -80,15 +83,30 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
   const { showWarning, countdown, resetTimer } = useSessionTimeout(sessionTimeoutEnabled);
 
-  // Where an admin-capable user can jump to. The admin portal is included for
-  // granted users too — otherwise a nurse given admin access would have no way
-  // to reach it, since their own portal is where they land at login.
+  // Portals reachable from the logo switcher. Every portal is listed; the one the
+  // user is currently in is filtered out at render time.
   const portalOptions = [
-    { label: 'Admin Portal', path: '/admin/dashboard' },
-    { label: 'Doctor Portal', path: '/doctor/dashboard' },
-    { label: 'Staff Portal', path: '/staff/dashboard' },
-    { label: 'Lab Portal', path: '/lab/dashboard' },
-  ].filter(({ path }) => !path.startsWith(`/${userRole.toLowerCase()}/`));
+    { label: 'Admin Portal', path: '/admin/dashboard', icon: ShieldCheck },
+    { label: 'Doctor Portal', path: '/doctor/dashboard', icon: Stethoscope },
+    { label: 'Staff Portal', path: '/staff/dashboard', icon: Users },
+    { label: 'Lab Portal', path: '/lab/dashboard', icon: TestTube },
+  ];
+
+  // Capability gate for switching portals — backed by the real permission system:
+  // anyone with admin capability (role admin, or a granted user) can switch.
+  const canSwitchPortal = canAccessAdmin(currentUser);
+
+  // Logo click: opens the portal dropdown for those who may switch; otherwise it
+  // is a shortcut back to the current portal's dashboard.
+  const handleLogoClick = () => {
+    if (canSwitchPortal) {
+      setPortalSwitcherOpen((open) => !open);
+      setOpenGroups({}); // single-open: opening the switcher closes any open nav group
+    } else {
+      navigate(`/${userRole.toLowerCase()}/dashboard`);
+      setSidebarOpen(false);
+    }
+  };
   // const [notificationsOpen, setNotificationsOpen] = useState(false); // TODO: notifications
   // const [doctorApptCount, setDoctorApptCount] = useState(0); // TODO: notifications
 
@@ -121,6 +139,14 @@ const MainLayout = ({ userRole = "Staff" }) => {
     await logout();
     navigate("/");
   };
+
+  // Display name + initials for the sidebar user footer (moved out of the old topbar)
+  const displayName = currentUser?.name || `${userRole} User`;
+  const initials = (
+    currentUser?.name
+      ? currentUser.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("")
+      : userRole[0]
+  ).toUpperCase();
 
   // TODO: implement real notifications — mock data preserved below for reference
   // const getNotifications = () => { ... };
@@ -266,8 +292,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
     )
   );
 
-  const toggleGroup = (name) =>
-    setOpenGroups((prev) => ({ ...prev, [name]: !prev[name] }));
+  // Single-open accordion: opening one nav dropdown closes the others (and the
+  // portal switcher, which is itself a nav dropdown). See DRY-GUIDELINES §4f.
+  const toggleGroup = (name) => {
+    setPortalSwitcherOpen(false);
+    setOpenGroups((prev) => (prev[name] ? {} : { [name]: true }));
+  };
 
   // A single navigable menu entry. `nested` indents it under a group header.
   const renderLeaf = (item, nested = false) => {
@@ -282,12 +312,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
         onClick={() => {
           navigate(item.path);
           setSidebarOpen(false);
+          setPortalSwitcherOpen(false);
         }}
         title={item.name}
         className={`
-          w-full flex items-center px-6 py-4 ${indentCls}
-          ${isCollapsed ? "lg:px-0 lg:justify-center" : ""}
-          transition-all duration-200
+          w-full flex items-center overflow-hidden px-6 py-4 ${indentCls}
+          ${isCollapsed ? "md:px-0 md:justify-center" : ""}
+          transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
           border-l-4 group
           ${
             isActive
@@ -310,8 +341,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
         />
         <span
           className={`
-          ml-4 font-medium ${nested ? "text-base" : "text-lg"}
-          ${isCollapsed ? "lg:hidden" : ""}
+          ml-4 font-medium whitespace-nowrap ${nested ? "text-base" : "text-lg"}
+          ${isCollapsed ? "md:hidden" : ""}
           ${isActive ? "font-bold" : ""}
         `}
         >
@@ -335,9 +366,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
           onClick={() => toggleGroup(groupItem.name)}
           title={groupItem.name}
           className={`
-            w-full flex items-center px-6 py-4
-            ${isCollapsed ? "lg:hidden" : ""}
-            transition-all duration-200
+            w-full flex items-center overflow-hidden px-6 py-4
+            ${isCollapsed ? "md:hidden" : ""}
+            transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
             border-l-4 border-transparent hover:bg-blue-700 group
           `}
         >
@@ -349,7 +380,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
             }`}
           />
           <span
-            className={`ml-4 flex-1 text-left font-medium text-lg ${
+            className={`ml-4 flex-1 text-left font-medium text-lg whitespace-nowrap ${
               hasActiveChild ? "font-bold" : ""
             }`}
           >
@@ -375,28 +406,39 @@ const MainLayout = ({ userRole = "Staff" }) => {
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar — fixed overlay on desktop so hover-expand floats over content */}
+      {/* Sidebar — fixed overlay on desktop so hover-expand floats over content.
+          Now a full-height flex column: header · nav · user/actions footer. */}
       <aside
         onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseLeave={() => {
+          setHovered(false);
+          // Leaving a pinned-collapsed rail shrinks it back to icons — close the
+          // portal dropdown so it doesn't linger clipped in the narrow rail.
+          if (collapsed) setPortalSwitcherOpen(false);
+        }}
         className={`
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        fixed inset-y-0 left-0 z-30
-        w-72 ${isCollapsed ? "lg:w-20" : "lg:w-72"}
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-[calc(100%+1.5rem)] md:translate-x-0"}
+        fixed inset-y-4 left-4 z-30 flex flex-col overflow-hidden rounded-[20px]
+        w-72 ${isCollapsed ? "md:w-20" : "md:w-72"}
         bg-gradient-to-b from-blue-600 to-blue-800 text-white
-        transition-all duration-300 shadow-2xl
+        transition-[width,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-2xl
       `}
       >
-        <div className={`p-6 ${isCollapsed ? "lg:p-3" : ""} flex items-center justify-between ${isCollapsed ? "lg:justify-center" : ""} border-b border-blue-500`}>
-          {/* LEFT SIDE - Logo and Text */}
-          <div
-            className="flex items-center gap-3 cursor-pointer"
-            onClick={() => navigate(`/${userRole.toLowerCase()}/dashboard`)}
+        <div className={`relative px-6 pt-6 transition-[padding] duration-200 ${portalSwitcherOpen ? "pb-1" : "pb-6"} ${isCollapsed ? "md:p-3" : ""} flex items-center justify-between ${isCollapsed ? "md:justify-center" : ""}`}>
+          {/* LEFT SIDE — Logo + text, spanning the full rail width. Acts as the portal
+              switcher when the user may switch (canSwitchPortal); else a dashboard shortcut. */}
+          <button
+            type="button"
+            onClick={handleLogoClick}
+            title={canSwitchPortal ? "Switch portal" : "Go to dashboard"}
+            aria-haspopup={canSwitchPortal ? "menu" : undefined}
+            aria-expanded={canSwitchPortal ? portalSwitcherOpen : undefined}
+            className={`flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl px-3 py-2 transition hover:bg-blue-700/40 ${isCollapsed ? "md:flex-none md:justify-center md:px-0" : ""}`}
           >
             {/* Logo */}
             <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg p-2 flex-shrink-0">
@@ -407,138 +449,129 @@ const MainLayout = ({ userRole = "Staff" }) => {
               />
             </div>
             {/* Text */}
-            <div className={isCollapsed ? "lg:hidden" : ""}>
-              <h2 className="text-xl font-bold">CDC HMS</h2>
-              <p className="text-xs text-blue-200 mt-0.5">{userRole} Portal</p>
+            <div className={`min-w-0 ${isCollapsed ? "md:hidden" : ""}`}>
+              <h2 className="text-xl font-bold truncate">CDC HMS</h2>
+              <p className="text-xs text-blue-200 mt-0.5 truncate">{userRole} Portal</p>
             </div>
-          </div>
+            {/* Switcher affordance — pushed to the far right of the full-width button */}
+            {canSwitchPortal && (
+              <ChevronDown
+                size={18}
+                className={`ml-auto flex-shrink-0 text-blue-200 transition-transform duration-200 ${isCollapsed ? "md:hidden" : ""} ${portalSwitcherOpen ? "rotate-180" : ""}`}
+              />
+            )}
+          </button>
 
           {/* RIGHT SIDE - Close Button (Mobile) */}
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white hover:bg-blue-700 p-2 rounded-lg"
+            className="md:hidden ml-2 text-white hover:bg-blue-700 p-2 rounded-lg flex-shrink-0"
           >
             <X size={20} />
           </button>
+
         </div>
 
-        <nav className="mt-6 overflow-y-auto max-h-[calc(100vh-10.5rem)]">
-          {currentMenu.map((item) => (item.children ? renderGroup(item) : renderLeaf(item)))}
+        <nav className="flex-1 overflow-y-auto py-4">
+          {/* Portal switcher — opened from the logo. Renders inline and pushes the menu
+              down, exactly like the nav group dropdowns (reuses renderLeaf). Negative
+              top margin cancels the nav's top padding so it sits right under the logo. */}
+          {canSwitchPortal && portalSwitcherOpen && (
+            <div className="-mt-4">
+              {portalOptions
+                .filter(({ path }) => !path.startsWith(`/${userRole.toLowerCase()}/`))
+                .map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
+            </div>
+          )}
+          {currentMenu
+            .filter((item) => !item.path?.includes("change-password"))
+            .map((item) => (item.children ? renderGroup(item) : renderLeaf(item)))}
         </nav>
 
-        {/* Collapse toggle — desktop only */}
-        <div className="hidden lg:block absolute bottom-0 left-0 right-0 border-t border-blue-500">
-          <button
-            onClick={toggleCollapsed}
-            title={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
-            className={`w-full flex items-center px-6 py-4 ${isCollapsed ? "justify-center px-0" : ""} text-blue-200 hover:text-white hover:bg-blue-700 transition-all duration-200`}
-          >
-            {collapsed ? <ChevronsRight size={24} /> : <ChevronsLeft size={24} />}
-            <span className={`ml-4 font-medium ${isCollapsed ? "hidden" : ""}`}>
-              {collapsed ? "Pin open" : "Collapse"}
-            </span>
-          </button>
-        </div>
+        {/* ── Footer: everything that used to live in the topbar ──────────── */}
+        <div>
+          {/* User identity */}
+          <div className={`flex items-center gap-3 px-4 pt-3 pb-2 ${isCollapsed ? "md:justify-center md:px-0" : ""}`}>
+            <div className="w-10 h-10 flex-shrink-0 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+              {initials}
+            </div>
+            <div className={`min-w-0 flex-1 ${isCollapsed ? "md:hidden" : ""}`}>
+              <p className="font-semibold text-sm text-white truncate">{displayName}</p>
+              <p className="text-xs text-blue-200">{userRole} Portal</p>
+            </div>
+          </div>
 
-        {/* Logout — mobile sidebar only */}
-        <div className="lg:hidden absolute bottom-0 left-0 right-0 p-4 border-t border-blue-500">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-semibold transition"
-          >
-            <LogOut size={20} />
-            Logout
-          </button>
+          {/* Action icons — notifications + logout (or home for patients), lined up
+              horizontally below the avatar; stack as icons in the collapsed rail */}
+          <div className={`flex items-center gap-2 px-4 pb-3 ${isCollapsed ? "md:flex-col md:px-0" : ""}`}>
+            <NotificationBell userRole={userRole} />
+            {userRole.toLowerCase() === "patient" ? (
+              <button
+                onClick={() => navigate("/patient/dashboard")}
+                title="Home"
+                aria-label="Home"
+                className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <Home className="w-6 h-6" />
+              </button>
+            ) : (
+              <button
+                onClick={handleLogout}
+                title="Logout"
+                aria-label="Logout"
+                className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <LogOut className="w-6 h-6" />
+              </button>
+            )}
+          </div>
+
+          {/* Collapse toggle — desktop only */}
+          <div className="hidden md:block">
+            <button
+              onClick={toggleCollapsed}
+              title={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
+              className={`w-full flex items-center px-6 py-3 ${isCollapsed ? "justify-center px-0" : ""} text-blue-200 hover:text-white hover:bg-blue-700 transition-all duration-200`}
+            >
+              {collapsed ? <ChevronsRight size={22} /> : <ChevronsLeft size={22} />}
+              <span className={`ml-4 font-medium ${isCollapsed ? "hidden" : ""}`}>
+                {collapsed ? "Pin open" : "Collapse"}
+              </span>
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Desktop spacer — reserves the rail's resting width so the fixed
-          sidebar's hover-expand overlays content instead of shifting it */}
+      {/* Desktop spacer — reserves the floating rail's resting footprint
+          (left gap + rail width + a right gap) so the hover-expand overlays
+          content instead of shifting it */}
       <div
-        className={`hidden lg:block flex-shrink-0 transition-all duration-300 ${
-          collapsed ? "w-20" : "w-72"
+        className={`hidden md:block flex-shrink-0 transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          collapsed ? "w-[6.75rem]" : "w-[19.75rem]"
         }`}
       />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
-        <header className="fixed top-0 left-0 right-0 z-30 lg:static bg-white shadow-lg px-4 lg:px-8 py-4 flex items-center justify-between">
-          {/* Mobile Menu Button */}
+        {/* Slim mobile bar — desktop has no top bar at all now.
+            Exists only to open the sidebar drawer on small screens. */}
+        <header className="md:hidden fixed top-3 left-4 right-4 z-20 h-14 bg-white shadow-lg border border-gray-200 rounded-2xl px-3 flex items-center justify-between">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="lg:hidden text-gray-700 hover:text-primary hover:bg-gray-100 p-2 rounded-lg transition"
+            className="text-gray-700 hover:text-primary hover:bg-gray-100 p-2 rounded-lg transition"
           >
-            <Menu size={30} />
+            <Menu size={26} />
           </button>
-
-          <h1 className="text-xl lg:text-3xl font-bold text-gray-800">
-            Welcome, <span className="text-primary">{userRole}</span>
-          </h1>
-
-          <div className="flex items-center gap-3 lg:gap-6">
-            {/* Admin Portal Switcher */}
-            {canAccessAdmin(currentUser) && (
-              <div className="relative">
-                <button
-                  onClick={() => setPortalSwitcherOpen(!portalSwitcherOpen)}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-50 border-2 border-blue-200 rounded-lg hover:border-primary transition text-sm font-semibold text-gray-700"
-                >
-                  <ShieldCheck className="w-4 h-4 text-primary" />
-                  <span className="hidden sm:inline">Switch Portal</span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-                {portalSwitcherOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setPortalSwitcherOpen(false)} />
-                    <div className="absolute right-0 mt-2 w-48 bg-white border-2 border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
-                      {portalOptions.map(({ label, path }) => (
-                        <button
-                          key={path}
-                          onClick={() => { navigate(path); setPortalSwitcherOpen(false); }}
-                          className="w-full text-left px-4 py-3 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-primary transition border-b border-gray-100 last:border-0"
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* In-app notifications — doctors only */}
-            {userRole.toLowerCase() === 'doctor' && <NotificationBell />}
-
-            <div className="hidden md:flex items-center gap-3 bg-gray-100 px-3 lg:px-4 py-2 rounded-lg">
-              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg lg:text-xl shadow-lg">
-                {userRole[0]}
-              </div>
-              <span className="font-semibold text-gray-700 text-sm lg:text-base">
-                {userRole} User
-              </span>
-            </div>
-
-            {userRole.toLowerCase() === 'patient' ? (
-              <button
-                onClick={() => navigate('/patient/dashboard')}
-                className="flex items-center justify-center w-11 h-11 bg-white rounded-full shadow-md p-1 hover:shadow-lg transition"
-              >
-                <img src={logo} alt="CDC" className="w-full h-full object-contain" />
-              </button>
-            ) : (
-              <button
-                onClick={handleLogout}
-                className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 lg:px-6 py-2 lg:py-3 rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 text-sm lg:text-base" 
-              >
-                Logout
-              </button>
-            )}
+          <div className="flex items-center gap-2">
+            <img src={logo} alt="CDC" className="w-7 h-7 object-contain" />
+            <span className="font-bold text-gray-800">CDC HMS</span>
           </div>
+          {/* Spacer keeps the title centred (bell/actions live in the drawer) */}
+          <span className="w-10" />
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-gray-50 mt-[72px] lg:mt-0">
+        <main className="flex-1 overflow-y-auto no-scrollbar overscroll-contain px-4 pb-4 pt-3 lg:px-8 lg:pb-8 lg:pt-4 bg-gray-50 mt-[4.75rem] md:mt-0">
           {isAdminViewing && (
             <div className="mb-6 flex items-center justify-between bg-orange-50 border-2 border-orange-300 rounded-lg px-4 py-3">
               <div className="flex items-center gap-2">

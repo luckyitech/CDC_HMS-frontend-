@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
+import StatCard from '../../components/shared/StatCard';
 import Button from '../../components/shared/Button';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { PRIORITY_TONES, LAB_STATUS_TONES } from '../../utils/statusStyles';
@@ -153,40 +155,21 @@ const PendingTests = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Pending Tests Queue</h2>
-        <Button onClick={() => navigate('/lab/dashboard')}>
-          ← Back to Dashboard
-        </Button>
-      </div>
+      <PageHeader
+        title="Pending Tests Queue"
+        actions={
+          <Button onClick={() => navigate('/lab/dashboard')}>
+            ← Back to Dashboard
+          </Button>
+        }
+      />
 
       {/* Statistics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Total Pending</p>
-          <p className="text-2xl sm:text-4xl font-bold mt-2">{pendingTests.length}</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Urgent</p>
-          <p className="text-2xl sm:text-4xl font-bold mt-2">
-            {pendingTests.filter(t => t.priority === 'Urgent').length}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Sample Collected</p>
-          <p className="text-2xl sm:text-4xl font-bold mt-2">
-            {pendingTests.filter(t => t.status === 'Sample Collected').length}
-          </p>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
-          <p className="text-xs sm:text-sm opacity-90">Awaiting Sample</p>
-          <p className="text-2xl sm:text-4xl font-bold mt-2">
-            {pendingTests.filter(t => t.status === 'Pending Sample').length}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <StatCard title="Total Pending" value={pendingTests.length} gradient="from-yellow-500 to-yellow-600" />
+        <StatCard title="Urgent" value={pendingTests.filter(t => t.priority === 'Urgent').length} gradient="from-red-500 to-red-600" />
+        <StatCard title="Sample Collected" value={pendingTests.filter(t => t.status === 'Sample Collected').length} gradient="from-green-500 to-green-600" />
+        <StatCard title="Awaiting Sample" value={pendingTests.filter(t => t.status === 'Pending Sample').length} gradient="from-blue-500 to-blue-600" />
       </div>
 
       {/* Search and Filters */}

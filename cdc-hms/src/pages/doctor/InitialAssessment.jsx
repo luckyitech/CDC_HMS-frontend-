@@ -4,6 +4,8 @@ import { Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
+import PrintLetterhead from "../../components/shared/PrintLetterhead";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
 import { usePatientContext } from "../../contexts/PatientContext";
@@ -205,11 +207,9 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          Initial Assessment
-        </h2>
-        {fromConsultation && !embedded && (
+      <PageHeader
+        title="Initial Assessment"
+        actions={fromConsultation && !embedded && (
           <Button
             variant="outline"
             onClick={() => navigate(`/doctor/consultation/${patientUHID}`)}
@@ -217,7 +217,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
             Back to Consultation
           </Button>
         )}
-      </div>
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Patient Selection (only show if NOT from consultation or profile) */}
@@ -612,6 +612,8 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
               {viewMode && (
                 <div className="overflow-hidden h-0" aria-hidden="true">
                 <div ref={printRef} id="ia-print-content">
+                  {/* Clinic letterhead — print only (DRY §4e) */}
+                  <PrintLetterhead />
                   {/* Hospital Header */}
                   <div className="flex justify-between items-center mb-8 border-b-2 border-primary pb-4">
                     <div>

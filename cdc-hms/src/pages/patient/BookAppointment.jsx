@@ -7,6 +7,7 @@ import {
   CheckCircle2, ChevronRight, ChevronLeft, Loader2,
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
 import api from '../../services/api';
@@ -166,7 +167,7 @@ const BookAppointment = () => {
 
   return (
     <div>
-      <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">Book Appointment</h2>
+      <PageHeader title="Book Appointment" />
 
       {/* Progress Steps */}
       <div className="mb-8">

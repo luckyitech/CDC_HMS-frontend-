@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
+import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import patientService from "../../services/patientService";
 
@@ -72,29 +74,17 @@ const MyPatients = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">My Patients</h2>
-        <Button onClick={() => navigate("/doctor/dashboard")}>Back to Dashboard</Button>
-      </div>
+      <PageHeader
+        title="My Patients"
+        actions={<Button onClick={() => navigate("/doctor/dashboard")}>Back to Dashboard</Button>}
+      />
 
       {/* Statistics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <p className="text-xs lg:text-sm opacity-90">Total Patients</p>
-          <p className="text-3xl lg:text-4xl font-bold mt-1 lg:mt-2">{stats.total}</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <p className="text-xs lg:text-sm opacity-90">Low Risk</p>
-          <p className="text-3xl lg:text-4xl font-bold mt-1 lg:mt-2">{stats.lowRisk}</p>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <p className="text-xs lg:text-sm opacity-90">Medium Risk</p>
-          <p className="text-3xl lg:text-4xl font-bold mt-1 lg:mt-2">{stats.mediumRisk}</p>
-        </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 lg:p-6 text-white">
-          <p className="text-xs lg:text-sm opacity-90">High Risk</p>
-          <p className="text-3xl lg:text-4xl font-bold mt-1 lg:mt-2">{stats.highRisk}</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <StatCard title="Total Patients" value={stats.total} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Low Risk" value={stats.lowRisk} gradient="from-green-500 to-green-600" />
+        <StatCard title="Medium Risk" value={stats.mediumRisk} gradient="from-yellow-500 to-yellow-600" />
+        <StatCard title="High Risk" value={stats.highRisk} gradient="from-red-500 to-red-600" />
       </div>
 
       {/* Search and Filter */}

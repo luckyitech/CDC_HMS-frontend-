@@ -104,6 +104,7 @@ const AddEquipmentModal = ({
     });
     setErrors({});
     setShowCareLink(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const handleChange = (e) => {

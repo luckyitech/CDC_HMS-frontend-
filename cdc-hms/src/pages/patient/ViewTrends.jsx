@@ -3,6 +3,8 @@ import { BarChart2, Lightbulb, Target, ArrowLeftRight } from 'lucide-react';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
+import StatCard from '../../components/shared/StatCard';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { useBloodSugarUnit, toDisplay } from '../../hooks/useBloodSugarUnit';
@@ -129,9 +131,7 @@ const ViewTrends = () => {
 
   return (
     <div>
-      <div className="mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">My Blood Sugar Trends</h2>
-      </div>
+      <PageHeader title="My Blood Sugar Trends" />
 
       {/* Loading State */}
       {dataLoading && (
@@ -155,34 +155,18 @@ const ViewTrends = () => {
       
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-5 mb-4 sm:mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-xs sm:text-sm font-semibold opacity-90">Average</p>
-          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{toDisplay(stats.avg, unit)}</p>
-          <p className="text-xs sm:text-sm opacity-75 mt-0.5">{unit}</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-xs sm:text-sm font-semibold opacity-90">Lowest</p>
-          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{toDisplay(stats.min, unit)}</p>
-          <p className="text-xs sm:text-sm opacity-75 mt-0.5">{unit}</p>
-        </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-xs sm:text-sm font-semibold opacity-90">Highest</p>
-          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{toDisplay(stats.max, unit)}</p>
-          <p className="text-xs sm:text-sm opacity-75 mt-0.5">{unit}</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-xs sm:text-sm font-semibold opacity-90">Normal Days</p>
-          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">{stats.normalDays}/{stats.totalDays}</p>
-          <p className="text-xs sm:text-sm opacity-75 mt-0.5">Days</p>
-        </div>
-        <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-3 sm:p-5 text-white">
-          <p className="text-xs sm:text-sm font-semibold opacity-90">Control Rate</p>
-          <p className="text-xl sm:text-3xl lg:text-4xl font-bold mt-1 sm:mt-2">
-            {stats.totalDays > 0 ? Math.round((stats.normalDays / stats.totalDays) * 100) : 0}%
-          </p>
-          <p className="text-xs sm:text-sm opacity-75 mt-0.5">Success</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6">
+        <StatCard title="Average" value={toDisplay(stats.avg, unit)} gradient="from-blue-500 to-blue-600" sub={unit} />
+        <StatCard title="Lowest" value={toDisplay(stats.min, unit)} gradient="from-green-500 to-green-600" sub={unit} />
+        <StatCard title="Highest" value={toDisplay(stats.max, unit)} gradient="from-red-500 to-red-600" sub={unit} />
+        <StatCard title="Normal Days" value={`${stats.normalDays}/${stats.totalDays}`} gradient="from-purple-500 to-purple-600" sub="Days" />
+        <StatCard
+          title="Control Rate"
+          value={`${stats.totalDays > 0 ? Math.round((stats.normalDays / stats.totalDays) * 100) : 0}%`}
+          gradient="from-cyan-500 to-cyan-600"
+          sub="Success"
+          className="col-span-2 lg:col-span-1"
+        />
       </div>
 
       {/* Period Filter + Unit Toggle */}

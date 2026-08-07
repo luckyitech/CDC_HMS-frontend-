@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, FileText, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationContext } from '../../contexts/NotificationContext';
@@ -11,55 +12,83 @@ const timeAgo = (dateStr) => {
   return `${Math.floor(diff / 86400)}d ago`;
 };
 
-const NotificationBell = () => {
+// Only these roles have a patient-profile route to open. Others just mark-as-read.
+const PROFILE_BASE = { doctor: '/doctor', staff: '/staff' };
+
+const NotificationBell = ({ userRole = 'doctor' }) => {
   const navigate = useNavigate();
-  const { notifications, unreadCount, markAsRead } = useNotificationContext();
+  const { notifications, unreadCount, markAsRead, markAllReadLocal, clearAll } = useNotificationContext();
   const [open, setOpen] = useState(false);
 
   const handleNotificationClick = (n) => {
     if (!n.isRead) markAsRead(n.id);
     setOpen(false);
-    navigate(`/doctor/patient-profile/${n.patientUhid}`, { state: { activeTab: 'medical-documents' } });
+    const base = PROFILE_BASE[String(userRole).toLowerCase()];
+    if (base && n.patientUhid) {
+      navigate(`${base}/patient-profile/${n.patientUhid}`, { state: { activeTab: 'medical-documents' } });
+    }
   };
 
   return (
     <div className="relative">
+      {/* Bell trigger — light so it reads clearly against the blue sidebar */}
       <button
-        onClick={() => setOpen(prev => !prev)}
-        className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        onClick={() => setOpen((prev) => !prev)}
+        className="relative p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
         aria-label="Notifications"
       >
-        <Bell className="w-6 h-6 text-gray-700" />
+        <Bell className="w-6 h-6" />
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] leading-none font-bold rounded-full shadow ring-2 ring-blue-700">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
 
-      {open && (
+      {open && createPortal(
         <>
           {/* Backdrop */}
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
 
-          {/* Dropdown */}
-          <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 flex flex-col max-h-[80vh]">
+          {/* Panel — floats to the right of the sidebar as an extension of it.
+              Fixed so it escapes the sidebar's overflow-hidden clipping.
+              Mobile: a bottom sheet. Desktop: beside the expanded rail. */}
+          <div className="fixed z-50 left-4 right-4 bottom-4 lg:left-[19.5rem] lg:right-auto lg:w-96 flex flex-col max-h-[75vh] bg-white rounded-[20px] shadow-2xl ring-1 ring-black/5 overflow-hidden">
 
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b">
+            {/* Header — blue, echoes the sidebar */}
+            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
               <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-primary" />
-                <span className="font-bold text-gray-800 text-sm">Notifications</span>
+                <Bell className="w-4 h-4" />
+                <span className="font-bold text-sm">Notifications</span>
                 {unreadCount > 0 && (
-                  <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                     {unreadCount} new
                   </span>
                 )}
               </div>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 p-1">
+              <button onClick={() => setOpen(false)} className="text-blue-100 hover:text-white p-1" aria-label="Close">
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Actions — local to this user only; never touch other members' notifications */}
+            {notifications.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 bg-gray-50">
+                <button
+                  onClick={markAllReadLocal}
+                  disabled={unreadCount === 0}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 disabled:text-gray-300 disabled:cursor-not-allowed"
+                >
+                  Mark all as read
+                </button>
+                <button
+                  onClick={clearAll}
+                  className="text-xs font-semibold text-gray-500 hover:text-red-600 transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
 
             {/* List */}
             <div className="overflow-y-auto flex-1">
@@ -95,7 +124,8 @@ const NotificationBell = () => {
             </div>
 
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

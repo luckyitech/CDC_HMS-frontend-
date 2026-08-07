@@ -1,14 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
 import { usePhysicalExamContext } from "../../contexts/PhysicalExamContext";
 import { usePatientContext } from "../../contexts/PatientContext";
-import PhysicalExamEntry from "../../pages/doctor/PhysicalExamEntry";
+import PhysicalExamEntry, { examDraftKey } from "../../pages/doctor/PhysicalExamEntry";
 import PhysicalExamFindings from "../../pages/doctor/PhysicalExamFindings";
-import { FileText, Stethoscope, ClipboardList, Eye, PenLine, PlusCircle } from "lucide-react";
+import { FileText, Stethoscope, ClipboardList, Eye, PenLine } from "lucide-react";
 
-const PhysicalExamList = ({ patient }) => {
+// autoStart: open the new-exam entry form immediately (used when the doctor
+// clicks "Add Physical Exam" in the consultation — no intermediate buttons).
+// onSaved: consultation context — called after a new exam saves, instead of
+// switching to the findings/report view (the parent closes the block).
+const PhysicalExamList = ({ patient, autoStart = false, onSaved = null }) => {
   const {
     getExaminationsByPatient,
     getLatestExamination,
@@ -82,18 +86,18 @@ const PhysicalExamList = ({ patient }) => {
   };
 
   // Handle save (update existing exam or create new)
-  const handleSave = async (examData, generateFindings) => {
+  const handleSave = async (examData) => {
     if (showNewExamForm) {
       // Save new exam (async)
       const newExam = await saveExamination(examData);
       if (newExam) {
+        // Saved for real — the localStorage draft is no longer needed
+        try { localStorage.removeItem(examDraftKey(patient.uhid)); } catch { /* noop */ }
         setShowNewExamForm(false);
         setSelectedExamId(newExam.id);
         setCurrentExamination(newExam);
         setLatestExam(newExam);
         setAllExams((prev) => [newExam, ...prev]);
-
-        setViewMode("findings");
 
         toast.success("Physical Examination Saved Successfully", {
           duration: 3000,
@@ -106,6 +110,14 @@ const PhysicalExamList = ({ patient }) => {
             padding: "16px",
           },
         });
+
+        // Consultation context: hand control back — no findings/report view here
+        if (onSaved) {
+          onSaved(newExam);
+          return;
+        }
+
+        setViewMode("findings");
       } else {
         toast.error("Failed to save physical examination. Please try again.", {
           duration: 3000,
@@ -196,6 +208,16 @@ const PhysicalExamList = ({ patient }) => {
   const isLatestExam =
     currentExamination && latestExam && currentExamination.id === latestExam.id;
   const isReadOnly = !isLatestExam && !showNewExamForm;
+
+  // autoStart: jump straight into the new-exam entry form once loading settles
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStart && !isLoading && !autoStarted.current) {
+      autoStarted.current = true;
+      handleNewExam();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, isLoading]);
 
   // Show loading state
   if (isLoading) {
@@ -313,25 +335,6 @@ const PhysicalExamList = ({ patient }) => {
         </Card>
       )}
 
-      {/* New Exam Banner */}
-      {showNewExamForm && (
-        <Card className="print:hidden">
-          <div className="p-4 bg-purple-50 border-l-4 border-purple-500 rounded-lg">
-            <div className="flex items-center gap-3">
-              <div><PlusCircle className="w-7 h-7 text-teal-600" /></div>
-              <div>
-                <p className="text-sm font-bold text-purple-900">
-                  Creating New Physical Examination
-                </p>
-                <p className="text-xs text-purple-700 mt-1">
-                  Complete the examination form below
-                </p>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
       {/* Physical Exam Entry Form (for editing or new) */}
       {(viewMode === "entry" || showNewExamForm) && (
         showNewExamForm && !freshPatient ? (
@@ -348,6 +351,7 @@ const PhysicalExamList = ({ patient }) => {
             onSave={handleSave}
             onCancel={handleCancel}
             readOnly={isReadOnly}
+            hidePatientHeader={autoStart}
           />
         )
       )}

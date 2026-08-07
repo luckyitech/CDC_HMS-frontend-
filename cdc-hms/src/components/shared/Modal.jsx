@@ -1,9 +1,13 @@
+import { createPortal } from 'react-dom';
+
+// Portaled to document.body so modals are never clipped by transformed/overflow-hidden
+// ancestors (floating sidebar, summary drawer) — see docs/DRY-GUIDELINES.md §4c.
 const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
 
   const sizeClass = size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-md';
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className={`bg-white rounded-lg shadow-xl ${sizeClass} w-full max-h-[90vh] flex flex-col`}>
         <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
@@ -14,7 +18,8 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
         </div>
         <div className="p-4 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
