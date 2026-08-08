@@ -67,6 +67,38 @@ const ACCORDION_SECTIONS = [
 // AccordionPanel, HistoryField, VisitSectionHeader — moved to shared components
 
 // ---------------------------------------------------------------------------
+// No open visit
+// ---------------------------------------------------------------------------
+// Refer, Admit and Complete all write to the patient's queue row, so all three
+// need a visit that is still open (findQueueItem only matches OPEN_QUEUE_STATUSES).
+// Once billing has taken over, the visit is 'Pending Billing' or 'Completed'
+// and none of them can proceed.
+//
+// The copy used to read "Unable to load queue data — please refresh the page
+// and try again", which described a loading failure that wasn't happening and
+// sent people round a refresh loop that could never clear it. One message, one
+// notice, stated as the rule it actually is.
+const NO_OPEN_VISIT_MESSAGE =
+  'This visit is already closed. Referral and admission can only be recorded during an open consultation.';
+
+const NoOpenVisitNotice = ({ onClose }) => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center space-y-4">
+      <p className="text-gray-700 font-medium">This visit is already closed.</p>
+      <p className="text-sm text-gray-500">
+        Referral and admission can only be recorded during an open consultation.
+      </p>
+      <button
+        onClick={onClose}
+        className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+);
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 const Consultation = () => {
@@ -274,7 +306,7 @@ const Consultation = () => {
     // Capture the queue item now so SSE updates during the modal don't lose it
     const queueItem = findQueueItem();
     if (!queueItem) {
-      toast.error('Could not find an active queue entry for this patient. Please refresh and try again.', {
+      toast.error(NO_OPEN_VISIT_MESSAGE, {
         duration: 5000, position: 'top-right',
       });
       return;
@@ -1214,20 +1246,7 @@ const Consultation = () => {
       {showReferModal && (() => {
         const activeQueueItem = findQueueItem();
         if (!activeQueueItem) {
-          return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center space-y-4">
-                <p className="text-gray-700 font-medium">Unable to load queue data.</p>
-                <p className="text-sm text-gray-500">Please refresh the page and try again.</p>
-                <button
-                  onClick={() => setShowReferModal(false)}
-                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          );
+          return <NoOpenVisitNotice onClose={() => setShowReferModal(false)} />;
         }
         return (
           <ReferPatientModal
@@ -1247,20 +1266,7 @@ const Consultation = () => {
       {showAdmitModal && (() => {
         const activeQueueItem = findQueueItem();
         if (!activeQueueItem) {
-          return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center space-y-4">
-                <p className="text-gray-700 font-medium">Unable to load queue data.</p>
-                <p className="text-sm text-gray-500">Please refresh the page and try again.</p>
-                <button
-                  onClick={() => setShowAdmitModal(false)}
-                  className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          );
+          return <NoOpenVisitNotice onClose={() => setShowAdmitModal(false)} />;
         }
         return (
           <AdmitPatientModal

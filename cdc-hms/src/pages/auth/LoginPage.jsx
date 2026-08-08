@@ -12,6 +12,7 @@ const ROLE_DASHBOARDS = {
   lab:     '/lab/dashboard',
   patient: '/patient/dashboard',
   admin:   '/admin/dashboard',
+  nurse:   '/nurse/dashboard',
 };
 
 const LoginPage = () => {

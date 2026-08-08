@@ -35,7 +35,7 @@ export default function InpatientAdmissions() {
         {items.map((q) => (
           <div key={q.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3">
             <div>
-              <p className="font-medium">{q.patientName} <span className="text-gray-400 text-sm">· {q.uhid}</span></p>
+              <p className="font-medium">{q.name} <span className="text-gray-400 text-sm">· {q.uhid}</span></p>
               <p className="text-xs text-gray-500">
                 {q.admissionType || "—"} · advised by {q.admissionRequestedByDoctorName || "—"}
                 {q.admissionWardPreference ? ` · pref: ${q.admissionWardPreference}` : ""}
@@ -51,7 +51,7 @@ export default function InpatientAdmissions() {
 
       {selected && (
         <ConvertToInpatientModal
-          queueItem={{ id: selected.id, patientName: selected.patientName, uhid: selected.uhid }}
+          queueItem={selected}
           onClose={() => setSelected(null)}
           onSuccess={() => { setSelected(null); load(); }}
         />

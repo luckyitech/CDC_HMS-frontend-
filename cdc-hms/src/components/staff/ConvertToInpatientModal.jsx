@@ -9,7 +9,9 @@ import inpatientService from "../../services/inpatientService";
  * bill (clear now / merge into inpatient), and creates the Admission.
  * Stays in the Outpatient workspace.
  *
- * Props: queueItem { id, patientName, uhid }, onClose, onSuccess
+ * Props: queueItem — a queue row as returned by GET /api/queue ({ id, name,
+ * uhid, ... }). Passed through whole rather than rebuilt field-by-field, so
+ * this stays in step with the row shape every other queue screen already reads.
  */
 export default function ConvertToInpatientModal({ queueItem, onClose, onSuccess }) {
   const [board, setBoard] = useState([]);
@@ -48,7 +50,7 @@ export default function ConvertToInpatientModal({ queueItem, onClose, onSuccess 
           <h2 className="text-lg font-bold">Convert to Inpatient</h2>
           <button onClick={onClose}><X size={20} className="text-gray-400" /></button>
         </div>
-        <p className="text-sm text-gray-500 mb-3">{queueItem?.patientName} · {queueItem?.uhid}</p>
+        <p className="text-sm text-gray-500 mb-3">{queueItem?.name} · {queueItem?.uhid}</p>
 
         <label className="text-xs text-gray-500">Assign bed</label>
         <select className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm mb-3" value={bedId} onChange={(e) => setBedId(e.target.value)}>
