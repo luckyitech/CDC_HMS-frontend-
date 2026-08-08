@@ -242,11 +242,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
           { name: "Patient Visits", path: "/admin/patient-visits", icon: ClipboardList },
         ],
       },
-      // "System Settings" used to sit here pointing at /admin/settings, which
-      // has no route and no page — it 404'd every time. Replaced with the one
-      // setting that does exist and that every account needs, especially the
-      // admin, whose mailbox does not exist so the emailed-reset flow is no
-      // help. Restore a settings section here when there is a page behind it.
+      // System Settings is back, and this time there is a page behind it:
+      // /admin/settings holds the weekly staff password rotation switch.
+      { name: "System Settings", path: "/admin/settings", icon: Settings },
       { name: "Change Password", path: "/admin/change-password", icon: KeyRound },
     ],
   };

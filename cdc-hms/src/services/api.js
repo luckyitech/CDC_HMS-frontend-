@@ -69,6 +69,26 @@ api.interceptors.response.use(
       }
     }
 
+    // Weekly password rotation: the password expired mid-session (a Monday
+    // rollover while the tab was left open). The token is still valid, so this
+    // is not a 401 — flag the stored user and send them to set a new password
+    // rather than letting every screen fill with error toasts.
+    if (status === 403 && error.response?.data?.code === 'PASSWORD_ROTATION_REQUIRED') {
+      try {
+        const stored = JSON.parse(sessionStorage.getItem('currentUser') || 'null');
+        if (stored) {
+          const path = `/${stored.role}/change-password`;
+          sessionStorage.setItem(
+            'currentUser',
+            JSON.stringify({ ...stored, mustChangePassword: true })
+          );
+          if (window.location.pathname !== path) window.location.href = path;
+        }
+      } catch {
+        // Unparseable session — the 401 path below/next request will clear it.
+      }
+    }
+
     // Reject with a clean error object. `data` carries the backend's full
     // response body for callers that need structured payloads on error
     // (e.g. the stock FEFO gate's 409 with its fefoSuggestion).

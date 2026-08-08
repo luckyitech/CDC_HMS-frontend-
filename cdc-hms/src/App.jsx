@@ -82,6 +82,7 @@ const ClinicalCatalog = lazy(() => import("./pages/admin/ClinicalCatalog"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 const DuplicatePatients = lazy(() => import("./pages/admin/DuplicatePatients"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
+const SystemSettings = lazy(() => import("./pages/admin/SystemSettings"));
 const AnalyticsOverview      = lazy(() => import("./pages/admin/analytics/AnalyticsOverview"));
 const DoctorAnalytics        = lazy(() => import("./pages/admin/analytics/DoctorAnalytics"));
 const StaffAnalytics         = lazy(() => import("./pages/admin/analytics/StaffAnalytics"));
@@ -235,6 +236,7 @@ function App() {
                   <Route path="analytics/staff" element={<StaffAnalytics />} />
                   <Route path="analytics/consultations" element={<ConsultationAnalytics />} />
                   <Route path="reports" element={<Reports />} />
+                  <Route path="settings" element={<SystemSettings />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

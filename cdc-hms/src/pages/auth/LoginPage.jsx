@@ -30,6 +30,14 @@ const LoginPage = () => {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
+        // An expired password (weekly rotation) goes straight to the change
+        // screen. ProtectedRoute would bounce them there anyway; going direct
+        // avoids a flash of the dashboard they cannot use.
+        if (result.user.mustChangePassword) {
+          navigate(`/${result.user.role}/change-password`);
+          return;
+        }
+
         const destination = ROLE_DASHBOARDS[result.user.role];
         if (destination) {
           navigate(destination);

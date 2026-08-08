@@ -36,13 +36,28 @@ export const UserProvider = ({ children }) => {
   const [admins] = useState(mockUsers.admins);
 
 
-  // Fetch doctors whenever a user logs in (requires valid token)
+  // Fetch doctors whenever a user logs in (requires valid token).
+  // Skipped while a password change is being forced — every API call except
+  // change-password is rejected with 403 until then, so this would only make
+  // noise.
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || currentUser.mustChangePassword) return;
     api.get('/users/doctors')
       .then(res => { if (res.success) setDoctors(Array.isArray(res.data) ? res.data : []); })
       .catch(() => {});
   }, [currentUser]);
+
+  // Merge fields into the signed-in user, keeping sessionStorage in step so a
+  // refresh does not resurrect the old value. Used to drop mustChangePassword
+  // the moment a new password is accepted.
+  const patchCurrentUser = (fields) => {
+    setCurrentUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...fields };
+      sessionStorage.setItem('currentUser', JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Get all users combined
   const getAllUsers = () => {
@@ -192,6 +207,7 @@ export const UserProvider = ({ children }) => {
     logout,
     isAuthenticated,
     hasRole,
+    patchCurrentUser,
     
     // User Query Functions
     getAllUsers,
