@@ -102,22 +102,34 @@ const MainLayout = ({ userRole = "Staff" }) => {
       ? [{ label: 'Patient Visits', path: `/${homeRole}/patient-visits`, Icon: TrendingUp }]
       : []),
   ];
-  const onDashboardGroup =
-    homeRole !== 'admin' && dashboardTabs.some((t) => t.path === location.pathname);
-
   // Grouped pages that share one top-of-page switcher instead of separate sidebar
-  // entries (decongests the side nav). Only the group matching the current route
-  // renders; a switcher needs at least two tabs to be worth showing.
+  // entries (decongests the side nav). Each group lists the routes it covers; the
+  // first group containing the current route renders. Add a group here to collapse
+  // more sidebar items into tabs.
+  const switcherGroups = [
+    {
+      // Doctor/staff dashboard: Dashboard (+ Inpatient if permitted) + Patient Visits.
+      show: homeRole !== 'admin' && dashboardTabs.length >= 2,
+      tabs: dashboardTabs,
+    },
+    {
+      show: homeRole === 'doctor',
+      tabs: [
+        { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
+        { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
+      ],
+    },
+    {
+      show: homeRole === 'admin',
+      tabs: [
+        { label: 'Create Users', path: '/admin/create-users', Icon: UserPlus },
+        { label: 'Manage Users', path: '/admin/manage-users', Icon: UserCog },
+        { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy },
+      ],
+    },
+  ];
   const pageTabs =
-    onDashboardGroup && dashboardTabs.length >= 2
-      ? dashboardTabs
-      : homeRole === 'doctor' &&
-        ['/doctor/appointments', '/doctor/my-schedule'].includes(location.pathname)
-      ? [
-          { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
-          { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
-        ]
-      : null;
+    switcherGroups.find((g) => g.show && g.tabs.some((t) => t.path === location.pathname))?.tabs ?? null;
 
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
@@ -301,15 +313,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     // ({ name, icon, children: [...leaves] }) rendered as an expandable section.
     admin: [
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-      {
-        name: "Users",
-        icon: Users,
-        children: [
-          { name: "Create Users", path: "/admin/create-users", icon: UserPlus },
-          { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
-          { name: "Duplicate Patients", path: "/admin/duplicate-patients", icon: Copy },
-        ],
-      },
+      { name: "Users", path: "/admin/manage-users", icon: Users },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble },
