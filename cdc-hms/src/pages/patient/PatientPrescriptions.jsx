@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Pill } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { PRESCRIPTION_TONES } from '../../utils/statusStyles';
 import cdcLogo from '../../assets/cdc_web_logo1.svg';
@@ -70,23 +71,24 @@ const PatientPrescriptions = () => {
 
   return (
     <div>
-      {/* Header + Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">My Prescriptions</h2>
-        <div className="flex gap-2">
-          {['active', 'past', 'all'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg font-semibold transition text-sm capitalize ${
-                filter === f ? 'bg-primary text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="My Prescriptions"
+        actions={
+          <div className="flex gap-2">
+            {['active', 'past', 'all'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-lg font-semibold transition text-sm capitalize ${
+                  filter === f ? 'bg-primary text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {/* Info Banner */}
       <div className="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">

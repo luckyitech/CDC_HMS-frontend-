@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart2, Stethoscope, Users, Clock, ChevronRight } from 'lucide-react';
 import analyticsService from '../../../services/analyticsService';
+import StatCard from '../../../components/shared/StatCard';
 
 const SECTIONS = [
   {
@@ -69,29 +70,11 @@ export default function AnalyticsOverview() {
       </div>
 
       {/* Summary stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Total Consultations</p>
-          <p className="text-4xl font-bold mt-2">{loading ? '…' : summary?.totalConsultations}</p>
-          <p className="text-sm mt-3 opacity-75">Current year</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Avg Consultation</p>
-          <p className="text-4xl font-bold mt-2">
-            {loading ? '…' : summary?.avgConsultationMinutes != null ? `${summary.avgConsultationMinutes} min` : '—'}
-          </p>
-          <p className="text-sm mt-3 opacity-75">Per patient</p>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Total Triages</p>
-          <p className="text-4xl font-bold mt-2">{loading ? '…' : summary?.totalTriages}</p>
-          <p className="text-sm mt-3 opacity-75">Current year</p>
-        </div>
-        <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Active Doctors</p>
-          <p className="text-4xl font-bold mt-2">{loading ? '…' : summary?.activeDoctors}</p>
-          <p className="text-sm mt-3 opacity-75">With consultations</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        <StatCard title="Total Consultations" value={loading ? '…' : summary?.totalConsultations} gradient="from-blue-500 to-blue-600" sub="Current year" />
+        <StatCard title="Avg Consultation" value={loading ? '…' : summary?.avgConsultationMinutes != null ? `${summary.avgConsultationMinutes} min` : '—'} gradient="from-green-500 to-green-600" sub="Per patient" />
+        <StatCard title="Total Triages" value={loading ? '…' : summary?.totalTriages} gradient="from-purple-500 to-purple-600" sub="Current year" />
+        <StatCard title="Active Doctors" value={loading ? '…' : summary?.activeDoctors} gradient="from-cyan-500 to-cyan-600" sub="With consultations" />
       </div>
 
       {/* Section navigation cards */}

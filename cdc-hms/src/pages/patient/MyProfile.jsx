@@ -5,6 +5,7 @@ import {
   Phone, Mail,
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
 import { useUserContext } from '../../contexts/UserContext';
@@ -160,7 +161,7 @@ const MyProfile = () => {
 
   return (
     <div>
-      <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">My Profile</h2>
+      <PageHeader title="My Profile" />
 
       {/* Tabs */}
       <div className="mb-6 overflow-x-auto">

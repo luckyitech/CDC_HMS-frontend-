@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import { useNavigate } from 'react-router-dom';
@@ -139,13 +140,6 @@ const CreateDoctor = ({ embedded = false }) => {
     }
   };
 
-  const generateUsername = () => {
-    if (doctorData.firstName && doctorData.lastName) {
-      const username = `dr.${doctorData.firstName.toLowerCase()}.${doctorData.lastName.toLowerCase()}`;
-      setDoctorData({ ...doctorData, username });
-    }
-  };
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const generatePassword = () => {
@@ -161,12 +155,14 @@ const CreateDoctor = ({ embedded = false }) => {
     <div>
       {/* Page header — hidden when hosted inside Create Users */}
       {!embedded && (
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Doctor Account</h2>
-          <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-            ← Back to Dashboard
-          </Button>
-        </div>
+        <PageHeader
+          title="Create Doctor Account"
+          actions={
+            <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
+              ← Back to Dashboard
+            </Button>
+          }
+        />
       )}
 
       <form onSubmit={handleSubmit}>

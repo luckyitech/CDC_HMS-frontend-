@@ -2,6 +2,7 @@ import { useState, useEffect, useReducer } from "react";
 import { Sunrise, Coffee, Clock3, Utensils, Clock6, Moon, BedDouble, Calendar, CheckCircle, AlertCircle, ClipboardList, Lightbulb, ArrowLeftRight, ChevronDown, ChevronUp, Pencil, Edit2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { useBloodSugarUnit, toMgDL, toDisplay } from '../../hooks/useBloodSugarUnit';
@@ -273,10 +274,7 @@ const LogBloodSugar = () => {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-4 sm:mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Log Blood Sugar</h2>
-      </div>
+      <PageHeader title="Log Blood Sugar" />
 
       {/* Mobile: compact date bar */}
       <div className="lg:hidden mb-4">

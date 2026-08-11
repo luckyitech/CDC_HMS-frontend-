@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-  Calendar, ChevronDown, ChevronRight,
+  Calendar, ChevronDown, ChevronRight, Printer,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
 } from 'lucide-react';
-import VitalsGrid from './VitalsGrid';
+import usePrint from '../../hooks/usePrint';
+import PrintLetterhead from './PrintLetterhead';
 import patientService from '../../services/patientService';
 import glp1Service from '../../services/glp1Service';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
@@ -11,13 +12,12 @@ import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
 import { usePrescriptionContext } from '../../contexts/PrescriptionContext';
 import { useConsultationNotesContext } from '../../contexts/ConsultationNotesContext';
-import PhysicalExamFindings from '../../pages/doctor/PhysicalExamFindings';
-import PrescriptionManagement from '../doctor/PrescriptionManagement';
+import { physicalExamSections, generateFindingsProse } from '../../pages/doctor/physicalExamData';
 import { parseDiagnoses } from './DiagnosisInput';
 
 // ── Config: maps each history record type to its date field ──────────────────
 // To add a new section (e.g. lab results): add one entry here + one fetch call
-// + one render block below. No changes to the core filtering/pagination logic.
+// + one render block in VisitDocument. No changes to the core filtering logic.
 const DATE_FIELD_MAP = {
   vitals:          'recordedAt',
   plans:           'date',
@@ -35,16 +35,6 @@ const DATE_FIELD_MAP = {
 const HISTORY_PAGE_SIZE = 10;
 
 // ── Small read-only helpers ───────────────────────────────────────────────────
-const HistoryField = ({ label, value }) => {
-  if (!value) return null;
-  return (
-    <div className="p-2 bg-white rounded border border-gray-100">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
-      <p className="text-sm text-gray-700 whitespace-pre-wrap">{value}</p>
-    </div>
-  );
-};
-
 const SectionHeader = ({ icon, label }) => (
   <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-2">
     {icon}
@@ -52,14 +42,376 @@ const SectionHeader = ({ icon, label }) => (
   </h4>
 );
 
+const DocBox = ({ children }) => (
+  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mb-2 last:mb-0 text-sm text-gray-700">
+    {children}
+  </div>
+);
+
+// ── Encounter timing helpers ──────────────────────────────────────────────────
+// A day can hold several visits (e.g. morning consultation + evening review).
+// Encounters are split on triage-vitals times; every other record joins the
+// encounter whose time window contains it.
+const parseTimeString = (t) => {
+  const m = String(t || '').match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (!m) return 12 * 60; // unknown time — assume midday
+  let h = +m[1];
+  const min = +m[2];
+  const ap = m[3]?.toUpperCase();
+  if (ap === 'PM' && h < 12) h += 12;
+  if (ap === 'AM' && h === 12) h = 0;
+  return h * 60 + min;
+};
+
+const recordTs = (r, field) => {
+  const full = r.recordedAt || r.createdAt;
+  if (full) return new Date(full).getTime();
+  const day = (r[field] || '').slice(0, 10);
+  return new Date(`${day}T00:00:00`).getTime() + parseTimeString(r.time) * 60000;
+};
+
+const splitEncounters = (records) => {
+  const vitals = [...records.vitals].sort(
+    (a, b) => new Date(a.recordedAt || 0) - new Date(b.recordedAt || 0)
+  );
+  if (vitals.length <= 1) return [{ start: vitals[0]?.recordedAt || null, records }];
+
+  const starts = vitals.map((v) => new Date(v.recordedAt).getTime());
+  const encounters = vitals.map((v) => ({
+    start: v.recordedAt,
+    records: Object.fromEntries(Object.keys(DATE_FIELD_MAP).map((k) => [k, []])),
+  }));
+  encounters.forEach((enc, i) => { enc.records.vitals = [vitals[i]]; });
+
+  // Assign every non-vitals record to the last encounter that started before it
+  Object.entries(DATE_FIELD_MAP).forEach(([key, field]) => {
+    if (key === 'vitals') return;
+    records[key].forEach((r) => {
+      const ts = recordTs(r, field);
+      let idx = 0;
+      for (let i = 0; i < starts.length; i += 1) if (ts >= starts[i]) idx = i;
+      encounters[idx].records[key].push(r);
+    });
+  });
+  return encounters;
+};
+
+const fmtTime = (d) =>
+  d ? new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : null;
+
+// ── EncounterBlock ────────────────────────────────────────────────────────────
+// One encounter rendered as a continuous copy-paste-friendly document: every
+// section is the same structure (uppercase subtitle + plain light box).
+// Section order (clinical flow): Vitals → Reason for Visit → Consultation
+// Notes → Assessment → Physical Exam → Diagnosis & Treatment Plan → GLP-1
+// tools → Prescriptions.
+const EncounterBlock = ({ records, fullExamCache }) => (
+  <div className="space-y-5 select-text">
+
+    {/* Triage Vitals — plain label: value lines */}
+    {records.vitals.length > 0 && (
+      <div>
+        <SectionHeader icon={<Activity className="w-3.5 h-3.5" />} label="Triage Vitals" />
+        {records.vitals.map((v, idx) => (
+          <DocBox key={idx}>
+            {v.recordedAt && (
+              <p className="text-xs text-gray-500 mb-1">Recorded {fmtTime(v.recordedAt)}</p>
+            )}
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
+              {[
+                ['Blood Pressure', v.bp], ['Heart Rate', v.heartRate],
+                ['Temperature', v.temperature], ['O₂ Saturation', v.oxygenSaturation],
+                ['Weight', v.weight], ['Height', v.height], ['BMI', v.bmi],
+                ['Waist Circumference', v.waistCircumference],
+                ['Waist/Height Ratio', v.waistHeightRatio],
+                ['RBS', v.rbs], ['HbA1c', v.hba1c], ['Ketones', v.ketones],
+              ].filter(([, val]) => val).map(([label, val]) => (
+                <p key={label}><span className="text-gray-500">{label}:</span> <b className="font-semibold">{val}</b></p>
+              ))}
+            </div>
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+    {/* Reason for Visit */}
+    {records.vitals.some(v => v.chiefComplaint) && (
+      <div>
+        <SectionHeader icon={<MessageSquare className="w-3.5 h-3.5" />} label="Reason for Visit" />
+        <DocBox>
+          <p className="whitespace-pre-wrap">
+            {records.vitals.map(v => v.chiefComplaint).filter(Boolean).join('\n')}
+          </p>
+        </DocBox>
+      </div>
+    )}
+
+    {/* Consultation Notes */}
+    {records.notes.length > 0 && (
+      <div>
+        <SectionHeader icon={<MessageSquare className="w-3.5 h-3.5" />} label="Consultation Notes" />
+        {records.notes.map(note => (
+          <DocBox key={note.id}>
+            <p className="whitespace-pre-wrap">{note.notes}</p>
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+    {/* Assessment */}
+    {records.assessments.length > 0 && (
+      <div>
+        <SectionHeader icon={<FileEdit className="w-3.5 h-3.5" />} label="Assessment" />
+        {records.assessments.map(a => (
+          <DocBox key={a.id}>
+            <div className="space-y-2">
+              {[
+                ['History of Present Illness', a.historyOfPresentIllness],
+                ['Past Medical History', a.pastMedicalHistory],
+                ['Family History', a.familyHistory],
+                ['Social History', a.socialHistory],
+                ['Review of Systems', a.reviewOfSystems],
+              ].filter(([, val]) => val).map(([label, val]) => (
+                <div key={label}>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
+                  <p className="whitespace-pre-wrap">{val}</p>
+                </div>
+              ))}
+            </div>
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+    {/* Physical Exam — same plain document format as every other section.
+        Findings prose comes from the shared generateFindingsProse (identical
+        wording to the Physical Examination Summary view). */}
+    {records.exams.length > 0 && (
+      <div>
+        <SectionHeader icon={<Stethoscope className="w-3.5 h-3.5" />} label="Physical Exam" />
+        {records.exams.map(e => {
+          const full = fullExamCache[e.id];
+          if (full === 'error') return (
+            <DocBox key={e.id}>
+              <p className="text-red-600">Failed to load exam details. Try closing and reopening this date.</p>
+            </DocBox>
+          );
+          if (!full) return (
+            <DocBox key={e.id}>
+              <p className="text-gray-400">Loading exam details…</p>
+            </DocBox>
+          );
+          const data = full.data || {};
+          const findings = physicalExamSections
+            .filter(s => s.id !== 'clinicalImages' && data[s.id])
+            .map(s => ({
+              title: s.title,
+              prose: generateFindingsProse(s.id, data[s.id]),
+              notes: data[s.id]?.notes || null,
+            }))
+            .filter(f => f.prose || f.notes);
+          return (
+            <DocBox key={e.id}>
+              {findings.length === 0 ? (
+                <p>No findings recorded.</p>
+              ) : (
+                findings.map(f => (
+                  <p key={f.title}>
+                    <b className="font-semibold text-gray-800">{f.title}:</b> {f.prose}
+                    {f.notes ? ` — ${f.notes}` : ''}
+                  </p>
+                ))
+              )}
+            </DocBox>
+          );
+        })}
+      </div>
+    )}
+
+    {/* Diagnosis & Treatment Plan */}
+    {records.plans.length > 0 && (
+      <div>
+        <SectionHeader icon={<Target className="w-3.5 h-3.5" />} label="Diagnosis & Treatment Plan" />
+        {records.plans.map(plan => (
+          <DocBox key={plan.id}>
+            {parseDiagnoses(plan.diagnosis).map((d, i) => (
+              <p key={i} className="font-semibold text-gray-800">
+                {d.code ? `${d.code} — ` : ''}{d.description}
+                {i === 0 ? ` (${plan.status})` : ''}
+              </p>
+            ))}
+            {plan.plan && (
+              <p className="whitespace-pre-wrap">{plan.plan}</p>
+            )}
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+    {/* GLP-1 tools — injections recorded in triage */}
+    {records.glp1Injections?.length > 0 && (
+      <div>
+        <SectionHeader icon={<Syringe className="w-3.5 h-3.5" />} label="GLP-1 Injection" />
+        {records.glp1Injections.map(inj => (
+          <DocBox key={inj.id}>
+            <p className="font-semibold text-gray-800 capitalize">
+              Week {inj.weekNumber} — {inj.status}{inj.dose ? ` · ${inj.dose} mg` : ''}
+            </p>
+            {/* Injections are usually given by a nurse — a different person
+                than the encounter's doctor, so this attribution stays. */}
+            {inj.clinicianName && inj.clinicianRole === 'staff' && (
+              <p className="text-xs text-gray-500">By {inj.clinicianName} (Nurse)</p>
+            )}
+            {inj.site && <p>Site: {inj.site}</p>}
+            {inj.note && <p className="whitespace-pre-wrap">{inj.note}</p>}
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+    {/* GLP-1 tools — monitoring reviews (doctor or nurse) */}
+    {records.glp1Reviews?.length > 0 && (
+      <div>
+        <SectionHeader icon={<ClipboardList className="w-3.5 h-3.5" />} label="GLP-1 Monitoring Review" />
+        {records.glp1Reviews.map(rev => (
+          <DocBox key={rev.id}>
+            <p className="font-semibold text-gray-800">
+              Week {rev.weekNumber} review{rev.doseAtReview ? ` · ${rev.doseAtReview} mg` : ''}
+            </p>
+            {/* Nurse-run monitoring visits keep their attribution — a
+                different person than the encounter's doctor. */}
+            {rev.clinicianName && rev.clinicianRole === 'staff' && (
+              <p className="text-xs text-gray-500 mb-1">By {rev.clinicianName} (Nurse)</p>
+            )}
+            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
+              {[
+                ['Weight', rev.weight && `${rev.weight} kg`], ['BMI', rev.bmi],
+                ['BP', rev.bp], ['HbA1c', rev.hba1c && `${rev.hba1c}%`],
+                ['FBS', rev.fpg], ['Adherence', rev.adherence],
+              ].filter(([, val]) => val).map(([label, val]) => (
+                <p key={label}><span className="text-gray-500">{label}:</span> <b className="font-semibold capitalize">{val}</b></p>
+              ))}
+            </div>
+            {rev.actionPlan && <p className="whitespace-pre-wrap mt-1">{rev.actionPlan}</p>}
+            {/* Side-effect summary for this review's week — same label:value
+                visuals as the rest of the visit document. 'none' gradings are
+                settled symptoms, not current complaints — skip them here. */}
+            {rev.sideEffects?.filter(s => s.severity && s.severity !== 'none').length > 0 && (
+              <p className="mt-1">
+                <span className="text-gray-500">Side effects:</span>{' '}
+                <b className="font-semibold">
+                  {rev.sideEffects
+                    .filter(s => s.severity && s.severity !== 'none')
+                    .map(s => `${(s.symptom || s.symptomName || s.name || '').toLowerCase()} ${s.severity}`)
+                    .join(', ')}
+                </b>
+              </p>
+            )}
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+    {/* Prescriptions — plain text lines */}
+    {records.prescriptions.length > 0 && (
+      <div>
+        <SectionHeader icon={<Pill className="w-3.5 h-3.5" />} label="Prescriptions" />
+        {records.prescriptions.map((p) => (
+          <DocBox key={p.id}>
+            {(p.medications || []).map((m, i) => (
+              <p key={i}>
+                <b className="font-semibold text-gray-800">{m.name}</b>
+                {[m.dosage, m.frequency, m.quantity && `Qty: ${m.quantity}`].filter(Boolean).length > 0 &&
+                  ` — ${[m.dosage, m.frequency, m.quantity && `Qty: ${m.quantity}`].filter(Boolean).join(' · ')}`}
+              </p>
+            ))}
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+  </div>
+);
+
+// ── VisitDocument ─────────────────────────────────────────────────────────────
+// The full day: one EncounterBlock per visit. When the patient was seen more
+// than once, later encounters sit BELOW the earlier ones behind a dated
+// "Review" stamp instead of having their records mixed together. One signature
+// closes the whole document. Used by the tab, the slide-over AND print.
+// Doctor for ONE encounter — first attributed record within it. GLP-1 review
+// clinician counts only when it's a doctor (nurses run some monitoring visits).
+const encounterDoctor = (r) =>
+  r.notes[0]?.doctorName ||
+  r.plans[0]?.doctorName ||
+  r.exams[0]?.doctorName ||
+  r.prescriptions[0]?.doctorName ||
+  r.prescriptions[0]?.doctor?.name ||
+  (r.glp1Reviews?.[0]?.clinicianRole === 'doctor' ? r.glp1Reviews[0].clinicianName : null) ||
+  null;
+
+const VisitDocument = ({ records, fullExamCache }) => {
+  const encounters = splitEncounters(records);
+
+  // Day-level fallback when a single encounter carries no attribution.
+  const dayDoctor = encounterDoctor(records);
+
+  return (
+    <div className="space-y-5 select-text">
+      {encounters.map((enc, i) => {
+        const doctor = encounterDoctor(enc.records) || dayDoctor;
+        return (
+          <div key={enc.start || i} className="space-y-5">
+            {/* Encounter stamp — dated, timed and attributed. The per-record
+                "By Dr. X" lines were removed in favour of this one stamp. */}
+            <div className={`flex items-center gap-3 ${i > 0 ? 'pt-2' : ''}`}>
+              <div className="flex-1 border-t-2 border-blue-200" />
+              <span className="flex-shrink-0 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-bold text-blue-700 uppercase tracking-wide">
+                {i === 0 ? 'Visit' : 'Review'}
+                {enc.start
+                  ? ` · ${new Date(enc.start).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })} · ${fmtTime(enc.start)}`
+                  : i > 0 ? ` ${i + 1}` : ''}
+                {doctor ? ` · By ${doctor}` : ''}
+              </span>
+              <div className="flex-1 border-t-2 border-blue-200" />
+            </div>
+            <EncounterBlock records={enc.records} fullExamCache={fullExamCache} />
+
+            {/* Signature — closes EACH encounter with its own doctor. */}
+            {doctor && (
+              <div className="pt-3 border-t border-gray-300">
+                <p className="text-sm text-gray-700">Examined by:</p>
+                <div className="w-64 border-b border-gray-400 mt-10 mb-1.5" />
+                <p className="text-sm font-bold text-gray-900">{doctor}</p>
+                <p className="text-xs text-gray-600">Diabetes Specialist</p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Document footer — once per day document */}
+      <div>
+        <p className="text-xs text-gray-500">This is a computer-generated report</p>
+        <p className="text-xs text-gray-500">CDC Diabetes Clinic · Nairobi, Kenya</p>
+      </div>
+    </div>
+  );
+};
+
 // ── VisitHistoryPanel ─────────────────────────────────────────────────────────
 /**
  * Props:
  *   patient      — patient object (must include .uhid)
  *   excludeToday — set true in Consultation.jsx so today's work doesn't appear
  *                  in history (it already lives in the "Today's Consultation" tab)
+ *   singleDate   — 'YYYY-MM-DD': show only that visit day as an always-open
+ *                  document (no accordion, no filters) — used by the summary
+ *                  panel's visit-day slide-over
+ *
+ * Printing: the Print button prints the current scope — the single visit in
+ * singleDate mode, or every visit matching the date-range filter in tab mode.
  */
-const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
+const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null }) => {
   const { uhid } = patient;
 
   const { getAssessmentsByPatient }                      = useInitialAssessmentContext();
@@ -75,6 +427,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
   const [historyToDate, setHistoryToDate]       = useState('');
   const [historyPage, setHistoryPage]           = useState(1);
   const [fullExamCache, setFullExamCache]       = useState({});
+  const [printing, setPrinting]                 = useState(false);
+
+  const { printRef, handlePrint } = usePrint();
 
   // Refs so callbacks can read latest state without stale closures
   const historyDataRef   = useRef(historyData);
@@ -144,8 +499,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
     });
     return [...dateSet]
       .sort((a, b) => b.localeCompare(a))
+      .filter(d => (!singleDate || d === singleDate))
       .filter(d => (!historyFromDate || d >= historyFromDate) && (!historyToDate || d <= historyToDate));
-  }, [historyData, historyFromDate, historyToDate, excludeToday]);
+  }, [historyData, historyFromDate, historyToDate, excludeToday, singleDate]);
 
   // Get all records belonging to a specific date — also config-driven
   const getRecordsForDate = useCallback((date) =>
@@ -159,24 +515,56 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
     ),
   [historyData]);
 
-  // Open/close a date accordion — only one open at a time; lazily fetches full exam data on first open
+  // Lazily fetch full exam data for a date's exams (used on expand and print)
+  const fetchExamsForDate = useCallback((date) => {
+    if (!historyDataRef.current) return [];
+    return (historyDataRef.current.exams || [])
+      .filter(e => (e.date || e.createdAt || '').slice(0, 10) === date)
+      .filter(exam => !fullExamCacheRef.current[exam.id])
+      .map(exam =>
+        getExaminationById(exam.id)
+          .then(full => setFullExamCache(c => ({ ...c, [exam.id]: full || 'error' })))
+          .catch(() => setFullExamCache(c => ({ ...c, [exam.id]: 'error' })))
+      );
+  }, [getExaminationById]);
+
+  // Open/close a date accordion — only one open at a time
   const toggleHistoryDate = useCallback((date) => {
     setOpenHistoryDate(prev => {
       const isOpening = prev !== date;
-      if (isOpening && historyDataRef.current) {
-        (historyDataRef.current.exams || [])
-          .filter(e => (e.date || e.createdAt || '').slice(0, 10) === date)
-          .forEach(exam => {
-            if (!fullExamCacheRef.current[exam.id]) {
-              getExaminationById(exam.id)
-                .then(full => setFullExamCache(c => ({ ...c, [exam.id]: full || 'error' })))
-                .catch(() => setFullExamCache(c => ({ ...c, [exam.id]: 'error' })));
-            }
-          });
-      }
+      if (isOpening) fetchExamsForDate(date);
       return isOpening ? date : null;
     });
-  }, [getExaminationById]);
+  }, [fetchExamsForDate]);
+
+  // Single-date mode: prefetch that day's exams once data arrives
+  const didAutoOpen = useRef(false);
+  useEffect(() => {
+    if (singleDate && historyData && !didAutoOpen.current) {
+      didAutoOpen.current = true;
+      fetchExamsForDate(singleDate);
+    }
+  }, [singleDate, historyData, fetchExamsForDate]);
+
+  // Print the current scope: the single visit, or all filtered visits.
+  // Exam details are fetched for every printed date first so nothing prints
+  // as "Loading…".
+  const printVisits = useCallback(async () => {
+    setPrinting(true);
+    try {
+      await Promise.all(visitDates.flatMap(d => fetchExamsForDate(d)));
+      // Let the cache state flush into the print DOM before printing
+      await new Promise(r => setTimeout(r, 150));
+      handlePrint();
+    } finally {
+      setPrinting(false);
+    }
+  }, [visitDates, fetchExamsForDate, handlePrint]);
+
+  const formatDateLong = (date) =>
+    new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
 
   const totalPages     = Math.ceil(visitDates.length / HISTORY_PAGE_SIZE);
   const paginatedDates = visitDates.slice(
@@ -187,8 +575,8 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
   return (
     <div className="space-y-4">
 
-      {/* Date range filters */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+      {/* Date range filters + print scope — hidden in single-date mode */}
+      <div className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${singleDate ? 'hidden' : ''}`}>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">From</label>
@@ -216,6 +604,17 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
               Clear
             </button>
           )}
+          {/* Print — whole history, or just the visits matching the date filter */}
+          {visitDates.length > 0 && (
+            <button
+              onClick={printVisits}
+              disabled={printing}
+              className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              <Printer className="w-4 h-4" />
+              {printing ? 'Preparing…' : `Print ${visitDates.length} visit${visitDates.length !== 1 ? 's' : ''}`}
+            </button>
+          )}
           {historyData && (
             <p className="text-xs text-gray-400 ml-auto self-center">
               {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''} found
@@ -223,6 +622,20 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
           )}
         </div>
       </div>
+
+      {/* Single-date mode: print action for this visit */}
+      {singleDate && !historyLoading && historyData && visitDates.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            onClick={printVisits}
+            disabled={printing}
+            className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+          >
+            <Printer className="w-4 h-4" />
+            {printing ? 'Preparing…' : 'Print visit'}
+          </button>
+        </div>
+      )}
 
       {/* Loading */}
       {historyLoading && (
@@ -253,14 +666,18 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
         </div>
       )}
 
-      {/* Visit date accordions */}
-      {!historyLoading && paginatedDates.map(date => {
-        const records   = getRecordsForDate(date);
-        const isOpen    = openHistoryDate === date;
-        const total     = Object.values(records).reduce((sum, arr) => sum + arr.length, 0);
-        const formatted = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        });
+      {/* Single-date mode: the visit document, open — no accordion chrome */}
+      {singleDate && !historyLoading && historyData && visitDates.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+          <VisitDocument records={getRecordsForDate(singleDate)} fullExamCache={fullExamCache} />
+        </div>
+      )}
+
+      {/* Tab mode: visit date accordions */}
+      {!singleDate && !historyLoading && paginatedDates.map(date => {
+        const records = getRecordsForDate(date);
+        const isOpen  = openHistoryDate === date;
+        const total   = Object.values(records).reduce((sum, arr) => sum + arr.length, 0);
 
         return (
           <div key={date} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -273,7 +690,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
               <div className="flex items-center gap-3">
                 <Calendar className={`w-5 h-5 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
                 <span className={`font-semibold ${isOpen ? 'text-primary' : 'text-gray-800'}`}>
-                  {formatted}
+                  {formatDateLong(date)}
                 </span>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                   {total} record{total !== 1 ? 's' : ''}
@@ -285,211 +702,10 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
               }
             </button>
 
-            {/* Expanded records */}
+            {/* Expanded visit document */}
             {isOpen && (
-              <div className="border-t border-gray-100 divide-y divide-gray-50">
-
-                {/* Triage Vitals */}
-                {records.vitals.length > 0 && (
-                  <div className="p-5 space-y-4">
-                    <SectionHeader icon={<Activity className="w-3.5 h-3.5" />} label="Triage Vitals" />
-                    {records.vitals.map((v, idx) => (
-                      <div key={idx} className="space-y-3">
-                        {v.chiefComplaint && (
-                          <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-lg">
-                            <p className="text-xs font-semibold text-gray-600 mb-0.5">Reason for Visit</p>
-                            <p className="text-sm text-gray-800">{v.chiefComplaint}</p>
-                          </div>
-                        )}
-                        <VitalsGrid vitals={v} patient={patient} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* GLP-1 Injections — recorded by nurses in triage */}
-                {records.glp1Injections?.length > 0 && (
-                  <div className="p-5 space-y-3">
-                    <SectionHeader icon={<Syringe className="w-3.5 h-3.5" />} label="GLP-1 Injection" />
-                    {records.glp1Injections.map(inj => (
-                      <div key={inj.id} className={`p-3 rounded-lg border-l-4 ${
-                        inj.status === 'given'    ? 'bg-green-50 border-green-400' :
-                        inj.status === 'missed'   ? 'bg-red-50   border-red-400'   :
-                                                    'bg-amber-50  border-amber-400'
-                      }`}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-semibold text-gray-800 capitalize">
-                            Week {inj.weekNumber} — {inj.status}
-                          </span>
-                          {inj.dose && (
-                            <span className="text-xs text-gray-500">{inj.dose} mg</span>
-                          )}
-                        </div>
-                        {inj.clinicianName && (
-                          <p className="text-xs text-gray-500 mb-1">
-                            By {inj.clinicianName}
-                            {inj.clinicianRole === 'staff' ? ' (Nurse)' : ''}
-                          </p>
-                        )}
-                        {inj.site && (
-                          <p className="text-xs text-gray-600">Site: {inj.site}</p>
-                        )}
-                        {inj.note && (
-                          <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{inj.note}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Diagnosis & Treatment Plan */}
-                {records.plans.length > 0 && (
-                  <div className="p-5 space-y-3">
-                    <SectionHeader icon={<Target className="w-3.5 h-3.5" />} label="Diagnosis & Treatment Plan" />
-                    {records.plans.map(plan => (
-                      <div key={plan.id} className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                        <div className="flex justify-between items-start mb-1">
-                          <div className="space-y-0.5">
-                            {parseDiagnoses(plan.diagnosis).map((d, i) => (
-                              <div key={i} className="flex items-center gap-1.5">
-                                {d.code && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 font-mono text-xs font-bold rounded">{d.code}</span>}
-                                <span className="text-sm font-semibold text-gray-800">{d.description}</span>
-                              </div>
-                            ))}
-                          </div>
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            plan.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                          }`}>{plan.status}</span>
-                        </div>
-                        {plan.doctorName && (
-                          <p className="text-xs text-gray-500 mb-2">By {plan.doctorName}</p>
-                        )}
-                        {plan.plan && (
-                          <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans bg-white rounded p-2 border border-blue-100">
-                            {plan.plan}
-                          </pre>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Assessment */}
-                {records.assessments.length > 0 && (
-                  <div className="p-5 space-y-3">
-                    <SectionHeader icon={<FileEdit className="w-3.5 h-3.5" />} label="Assessment" />
-                    {records.assessments.map(a => (
-                      <div key={a.id} className="space-y-2">
-                        <HistoryField label="History of Present Illness" value={a.historyOfPresentIllness} />
-                        <HistoryField label="Past Medical History"       value={a.pastMedicalHistory} />
-                        <HistoryField label="Family History"             value={a.familyHistory} />
-                        <HistoryField label="Social History"             value={a.socialHistory} />
-                        <HistoryField label="Review of Systems"          value={a.reviewOfSystems} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Physical Exam — full findings rendered via shared component */}
-                {records.exams.length > 0 && (
-                  <div className="p-5 space-y-4">
-                    <SectionHeader icon={<Stethoscope className="w-3.5 h-3.5" />} label="Physical Exam" />
-                    {records.exams.map(e => {
-                      const full = fullExamCache[e.id];
-                      if (full === 'error') return (
-                        <div key={e.id} className="py-3 px-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
-                          Failed to load exam details. Try closing and reopening this date.
-                        </div>
-                      );
-                      if (!full) return (
-                        <div key={e.id} className="flex items-center gap-2 py-4 text-sm text-gray-400">
-                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                          </svg>
-                          Loading exam details…
-                        </div>
-                      );
-                      return (
-                        <PhysicalExamFindings
-                          key={e.id}
-                          examinationData={full}
-                          onEdit={null}
-                          onClose={null}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Consultation Notes */}
-                {records.notes.length > 0 && (
-                  <div className="p-5 space-y-3">
-                    <SectionHeader icon={<MessageSquare className="w-3.5 h-3.5" />} label="Consultation Notes" />
-                    {records.notes.map(note => (
-                      <div key={note.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        {note.doctorName && (
-                          <p className="text-xs text-gray-500 mb-1">By {note.doctorName}</p>
-                        )}
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.notes}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* GLP-1 Monitoring Reviews — written by doctor or nurse */}
-                {records.glp1Reviews?.length > 0 && (
-                  <div className="p-5 space-y-3">
-                    <SectionHeader icon={<ClipboardList className="w-3.5 h-3.5" />} label="GLP-1 Monitoring Review" />
-                    {records.glp1Reviews.map(rev => (
-                      <div key={rev.id} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-semibold text-gray-800">
-                            Week {rev.weekNumber} review
-                          </span>
-                          {rev.doseAtReview && (
-                            <span className="text-xs text-gray-500">{rev.doseAtReview} mg</span>
-                          )}
-                        </div>
-                        {rev.clinicianName && (
-                          <p className="text-xs text-gray-500 mb-2">By {rev.clinicianName}</p>
-                        )}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-2">
-                          {rev.weight       && <span className="text-gray-600">Weight: <b>{rev.weight} kg</b></span>}
-                          {rev.bmi          && <span className="text-gray-600">BMI: <b>{rev.bmi}</b></span>}
-                          {rev.bp           && <span className="text-gray-600">BP: <b>{rev.bp}</b></span>}
-                          {rev.hba1c        && <span className="text-gray-600">HbA1c: <b>{rev.hba1c}%</b></span>}
-                          {rev.fpg          && <span className="text-gray-600">FBS: <b>{rev.fpg}</b></span>}
-                          {rev.adherence    && <span className="text-gray-600 capitalize">Adherence: <b>{rev.adherence}</b></span>}
-                        </div>
-                        {rev.actionPlan && (
-                          <p className="text-xs text-gray-700 whitespace-pre-wrap bg-white rounded p-2 border border-blue-100">
-                            {rev.actionPlan}
-                          </p>
-                        )}
-                        {rev.sideEffects?.length > 0 && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Side effects: {rev.sideEffects.map(s => s.symptomName || s.name).join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Prescriptions */}
-                {records.prescriptions.length > 0 && (
-                  <div className="p-5">
-                    <SectionHeader icon={<Pill className="w-3.5 h-3.5" />} label="Prescriptions" />
-                    <PrescriptionManagement
-                      patient={patient}
-                      patientPrescriptions={records.prescriptions}
-                      readOnly
-                      hidePast
-                    />
-                  </div>
-                )}
-
+              <div className="border-t border-gray-100 p-5">
+                <VisitDocument records={records} fullExamCache={fullExamCache} />
               </div>
             )}
           </div>
@@ -497,7 +713,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
       })}
 
       {/* Pagination */}
-      {!historyLoading && totalPages > 1 && (
+      {!singleDate && !historyLoading && totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-sm text-gray-500">
             Page {historyPage} of {totalPages} · {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
@@ -520,6 +736,35 @@ const VisitHistoryPanel = ({ patient, excludeToday = false }) => {
           </div>
         </div>
       )}
+
+      {/* ── Hidden print layout — letterhead + patient meta + visits in scope.
+             Positioned off-screen (NOT zero-height: a 0-height ancestor makes
+             Chrome emit a blank first page via react-to-print). ────────────── */}
+      <div className="fixed top-0 -left-[10000px] w-[210mm] bg-white" aria-hidden="true">
+        <div ref={printRef} className="p-8 bg-white">
+          <PrintLetterhead show />
+          <div className="border-b border-gray-300 pb-3 mb-5">
+            <p className="text-sm text-gray-700">
+              Visit history — <b>{patient?.name}</b>
+              {patient?.uhid ? ` · ${patient.uhid}` : ''}
+              {patient?.dateOfBirth ? ` · DOB: ${new Date(patient.dateOfBirth).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+            </p>
+            <p className="text-xs text-gray-500">
+              Printed {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {' · '}{visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
+              {(historyFromDate || historyToDate) && ` · ${historyFromDate || '…'} → ${historyToDate || '…'}`}
+            </p>
+          </div>
+          {visitDates.map(date => (
+            <div key={date} className="mb-6" style={{ breakInside: 'avoid' }}>
+              <h2 className="text-base font-bold text-gray-800 border-b border-gray-300 pb-1 mb-3">
+                {formatDateLong(date)}
+              </h2>
+              <VisitDocument records={getRecordsForDate(date)} fullExamCache={fullExamCache} />
+            </div>
+          ))}
+        </div>
+      </div>
 
     </div>
   );

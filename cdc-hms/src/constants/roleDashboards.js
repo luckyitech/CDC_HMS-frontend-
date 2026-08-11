@@ -12,6 +12,7 @@ export const ROLE_DASHBOARDS = {
   doctor:  '/doctor/dashboard',
   staff:   '/staff/dashboard',
   lab:     '/lab/dashboard',
+  nurse:   '/nurse/dashboard',
   patient: '/patient/dashboard',
   admin:   '/admin/dashboard',
 };

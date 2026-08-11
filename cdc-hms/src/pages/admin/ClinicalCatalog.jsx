@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Pill, Stethoscope, Pencil, Trash2, Search, ListPlus, Plus } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import Modal from '../../components/shared/Modal';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
@@ -435,12 +436,10 @@ const ClinicalCatalog = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Clinical Catalog</h2>
-        <p className="text-gray-600 mt-1">
-          Manage the medication and diagnosis lists doctors see when writing prescriptions and treatment plans
-        </p>
-      </div>
+      <PageHeader
+        title="Clinical Catalog"
+        subtitle="Manage the medication and diagnosis lists doctors see when writing prescriptions and treatment plans"
+      />
 
       {/* Catalog switcher — same pattern as the Create Users tabs */}
       <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">

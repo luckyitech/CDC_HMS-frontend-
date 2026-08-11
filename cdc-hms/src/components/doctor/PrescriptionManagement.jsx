@@ -16,6 +16,10 @@ const PrescriptionManagement = ({
   onSuccess,
   readOnly = false,
   hidePast = false,
+  // Consultation passes true — the summary panel's Current Medications card
+  // already shows this, so the pills strip is redundant there. Staff profile
+  // has no summary panel and keeps it.
+  hideCurrentStrip = false,
 }) => {
   const [selectedMedications, setSelectedMedications] = useState([]);
   const [loadKey, setLoadKey] = useState(0);
@@ -136,7 +140,7 @@ const PrescriptionManagement = ({
           />
         )}
 
-        {currentMeds.length > 0 && (
+        {!hideCurrentStrip && currentMeds.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 text-sm">
             <span className="text-gray-500 font-semibold">Currently taking:</span>
             {currentMeds.slice(0, 4).map((m) => (
@@ -250,12 +254,15 @@ const HistoryTrigger = ({ icon, label, count, onClick }) => (
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
-const EmptyState = ({ icon: Icon, message }) => (
-  <div className="text-center py-8 text-gray-500">
-    <Icon className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-    <p className="text-sm">{message}</p>
-  </div>
-);
+const EmptyState = ({ icon, message }) => {
+  const Icon = icon; // body-const — eslint false-positives on destructured JSX components
+  return (
+    <div className="text-center py-8 text-gray-500">
+      <Icon className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+};
 
 const Modals = ({ showViewModal, showPrintModal, selectedPrescription, onCloseView, onClosePrint, onSwitchToPrint }) => (
   <>

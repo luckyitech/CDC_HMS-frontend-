@@ -1,10 +1,12 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
-import { HeartPulse, Users, TestTube, UserPlus } from 'lucide-react';
+import { HeartPulse, Users, TestTube, UserPlus, BedDouble } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import CreateDoctor from './CreateDoctor';
 import CreateStaff from './CreateStaff';
+import CreateNurse from './CreateNurse';
 import CreateLabTech from './CreateLabTech';
 import CreatePatient from './CreatePatient';
 
@@ -13,6 +15,7 @@ import CreatePatient from './CreatePatient';
 const ROLES = [
   { key: 'doctor',  label: 'Doctor',   icon: <HeartPulse className="w-4 h-4" />, Form: CreateDoctor },
   { key: 'staff',   label: 'Staff',    icon: <Users className="w-4 h-4" />,      Form: CreateStaff },
+  { key: 'nurse',   label: 'Nurse',    icon: <BedDouble className="w-4 h-4" />,  Form: CreateNurse },
   { key: 'lab',     label: 'Lab Tech', icon: <TestTube className="w-4 h-4" />,   Form: CreateLabTech },
   { key: 'patient', label: 'Patient',  icon: <UserPlus className="w-4 h-4" />,   Form: CreatePatient },
 ];
@@ -41,12 +44,14 @@ const CreateUsers = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Users</h2>
-        <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-          ← Back to Dashboard
-        </Button>
-      </div>
+      <PageHeader
+        title="Create Users"
+        actions={
+          <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
+            ← Back to Dashboard
+          </Button>
+        }
+      />
 
       {/* Role switcher — same pattern as the doctor dashboard queue tabs */}
       <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">

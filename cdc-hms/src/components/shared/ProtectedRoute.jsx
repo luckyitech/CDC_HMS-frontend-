@@ -23,7 +23,7 @@ import { canAccessAdmin } from '../../utils/permissions';
  * This is UX. Every endpoint behind these screens is guarded server-side, so a
  * user who slipped past this would still be refused by the API.
  */
-const ProtectedRoute = ({ requiredRole, children }) => {
+const ProtectedRoute = ({ requiredRole, requiredRoles, children }) => {
   const { currentUser } = useUserContext();
   const location = useLocation();
 
@@ -41,7 +41,13 @@ const ProtectedRoute = ({ requiredRole, children }) => {
   }
 
   if (canAccessAdmin(currentUser)) return children;
-  if (currentUser.role !== requiredRole) return <Navigate to="/" replace />;
+
+  // Multi-role support (HMIS V3): a route may allow several roles (e.g. the
+  // inpatient workspace is entered by both doctors and nurses). Falls back to
+  // the single requiredRole prop for existing routes. Admin access is handled
+  // above via the permissions-aware canAccessAdmin (V2), not a raw role check.
+  const allowed = requiredRoles ?? [requiredRole];
+  if (!allowed.includes(currentUser.role)) return <Navigate to="/" replace />;
 
   return children;
 };

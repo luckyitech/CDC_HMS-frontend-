@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Droplets, CalendarCheck, TrendingUp, Activity, ChevronRight, Droplet, Pill } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { READING_TONES } from '../../utils/statusStyles';
@@ -123,13 +124,11 @@ const PatientDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
-      <div>
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">
-          Welcome back, {patientName.split(' ')[0]}!
-        </h2>
-        <p className="text-sm text-gray-500 mt-0.5">UHID: {uhid || '—'}</p>
-      </div>
+      <PageHeader
+        title={`Welcome back, ${patientName.split(' ')[0]}!`}
+        subtitle={`UHID: ${uhid || '—'}`}
+        className="mb-0"
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

@@ -89,6 +89,7 @@ const AnalyticsDateFilter = ({ onChange }) => {
         }
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fire = (y, m, w, d) => {

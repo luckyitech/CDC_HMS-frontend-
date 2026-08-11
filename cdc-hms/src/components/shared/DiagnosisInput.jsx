@@ -8,7 +8,7 @@ export const parseDiagnoses = (diagnosis) => {
   try {
     const parsed = JSON.parse(diagnosis);
     if (Array.isArray(parsed)) return parsed;
-  } catch {}
+  } catch { /* not JSON — fall through to plain-string handling */ }
   return [{ code: '', description: diagnosis }];
 };
 

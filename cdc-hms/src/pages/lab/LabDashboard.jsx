@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
+import StatCard from '../../components/shared/StatCard';
 import Button from '../../components/shared/Button';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { LAB_STATUS_TONES, PRIORITY_TONES, SEVERITY_SOLID_TONES } from '../../utils/statusStyles';
@@ -32,46 +34,23 @@ const LabDashboard = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Lab Dashboard</h2>
-          <p className="text-gray-600 mt-1">Welcome back, Lab Technician</p>
-        </div>
-        <div className="flex gap-3">
-          <Button onClick={() => navigate('/lab/enter-results')}>
-            ➕ Enter Results
-          </Button>
-          <Button variant="outline" onClick={() => navigate('/lab/pending-tests')}>
-            📋 View Queue
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Lab Dashboard"
+        subtitle="Welcome back, Lab Technician"
+        actions={
+          <>
+            <Button onClick={() => navigate('/lab/enter-results')}>➕ Enter Results</Button>
+            <Button variant="outline" onClick={() => navigate('/lab/pending-tests')}>📋 View Queue</Button>
+          </>
+        }
+      />
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Pending Tests</p>
-          <p className="text-4xl font-bold mt-2">{dashboardData.stats.pendingTests}</p>
-          <p className="text-xs opacity-75 mt-1">Awaiting processing</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Completed Today</p>
-          <p className="text-4xl font-bold mt-2">{dashboardData.stats.completedToday}</p>
-          <p className="text-xs opacity-75 mt-1">Tests processed</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">Critical Results</p>
-          <p className="text-4xl font-bold mt-2">{dashboardData.stats.criticalResults}</p>
-          <p className="text-xs opacity-75 mt-1">Need attention</p>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-          <p className="text-sm opacity-90">This Week</p>
-          <p className="text-4xl font-bold mt-2">{dashboardData.stats.totalThisWeek}</p>
-          <p className="text-xs opacity-75 mt-1">Total tests</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
+        <StatCard title="Pending Tests" value={dashboardData.stats.pendingTests} gradient="from-yellow-500 to-yellow-600" sub="Awaiting processing" />
+        <StatCard title="Completed Today" value={dashboardData.stats.completedToday} gradient="from-green-500 to-green-600" sub="Tests processed" />
+        <StatCard title="Critical Results" value={dashboardData.stats.criticalResults} gradient="from-red-500 to-red-600" sub="Need attention" />
+        <StatCard title="This Week" value={dashboardData.stats.totalThisWeek} gradient="from-blue-500 to-blue-600" sub="Total tests" />
       </div>
 
       {/* Critical Alerts */}

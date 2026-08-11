@@ -154,7 +154,6 @@ const ActivityLog = () => {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, staffSearch, actionType]);
 
   const handleRoleChange = (newRole) => {

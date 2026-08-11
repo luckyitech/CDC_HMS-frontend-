@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
@@ -28,11 +29,9 @@ const GlycemicCharts = () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          Glycemic Charts
-        </h2>
-        {fromConsultation && (
+      <PageHeader
+        title="Glycemic Charts"
+        actions={fromConsultation && (
           <Button
             variant="outline"
             onClick={() => navigate(`/doctor/consultation/${patientUHID}`)}
@@ -40,7 +39,7 @@ const GlycemicCharts = () => {
             ← Back to Consultation
           </Button>
         )}
-      </div>
+      />
 
       {!selectedPatient && !fromConsultation ? (
         <Card title="Select Patient to View Charts">

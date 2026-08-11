@@ -20,3 +20,13 @@ body {
   print-color-adjust: exact !important;
   color-adjust: exact !important;
 }
+/* Hidden-but-working scrollbar — the floating design signals overflow by
+   content peeking below; a visible bar is noise. Pair with overscroll-contain
+   so independent scroll areas don't chain into each other. (DRY §4c) */
+.no-scrollbar {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* legacy Edge */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari */
+}

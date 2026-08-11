@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Upload, FileText, Eye, Download, Search, Filter, Clock, CheckCircle, FlaskConical, ScanLine, Stethoscope, Heart, Droplets, Brain, ClipboardList, FolderOpen } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import UploadDocumentModal from '../../components/shared/UploadDocumentModal';
 import { usePatientContext } from '../../contexts/PatientContext';
@@ -138,21 +139,20 @@ const UploadResults = () => {
   return (
     <div className="pb-6">
       {/* Header — sticky so Upload button stays visible while scrolling */}
-      <div className="sticky top-0 z-10 bg-gray-50 pt-1 pb-4 -mx-4 px-4 sm:-mx-8 sm:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-        <div>
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">My Documents</h2>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            {documents.length} document{documents.length !== 1 ? 's' : ''} uploaded
-          </p>
-        </div>
-        <Button
-          onClick={() => setShowUploadModal(true)}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 sm:py-2 text-base sm:text-sm"
-        >
-          <Upload className="w-5 h-5 sm:w-4 sm:h-4" />
-          Upload Document
-        </Button>
-      </div>
+      <PageHeader
+        title="My Documents"
+        subtitle={`${documents.length} document${documents.length !== 1 ? 's' : ''} uploaded`}
+        className="sticky top-0 z-10 bg-gray-50 pt-1 pb-4 -mx-4 px-4 sm:-mx-8 sm:px-8 mb-5"
+        actions={
+          <Button
+            onClick={() => setShowUploadModal(true)}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 py-3 sm:py-2 text-base sm:text-sm"
+          >
+            <Upload className="w-5 h-5 sm:w-4 sm:h-4" />
+            Upload Document
+          </Button>
+        }
+      />
 
       {/* Stats - Compact on mobile */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-5">

@@ -12,6 +12,8 @@ import {
   AlertCircle, CheckCircle, Radio, Printer,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
+import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import StatusBadge from "../../components/shared/StatusBadge";
 import { LAB_RESULT_TONES } from "../../utils/statusStyles";
@@ -109,50 +111,35 @@ const PatientProfile = () => {
 
   return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-            Patient Profile
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {patient.name} ({patient.uhid})
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          {/* Order Lab Test Button */}
-          {/* <Button
-            onClick={() => setShowOrderLabModal(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
-          >
-            <Microscope className="w-5 h-5" />
-            <span>Order Lab Test</span>
-          </Button> */}
+      <PageHeader
+        title="Patient Profile"
+        subtitle={`${patient.name} (${patient.uhid})`}
+        actions={
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            {fromConsultation && (
+              <Button
+                variant="primary"
+                onClick={() => navigate(`/doctor/consultation/${uhid}`)}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back to Consultation</span>
+              </Button>
+            )}
 
-          {/* Back to Consultation Button */}
-          {fromConsultation && (
+            <BarcodeActions patient={patient} />
+
             <Button
-              variant="primary"
-              onClick={() => navigate(`/doctor/consultation/${uhid}`)}
+              variant="outline"
+              onClick={() => navigate("/doctor/patients")}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span>Back to Consultation</span>
+              <span>Back to Patients</span>
             </Button>
-          )}
-
-          <BarcodeActions patient={patient} />
-
-          {/* Back to My Patients Button */}
-          <Button
-            variant="outline"
-            onClick={() => navigate("/doctor/patients")}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Patients</span>
-          </Button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* Inactive / merged patient banner */}
       <InactivePatientBanner
@@ -269,7 +256,7 @@ const PatientProfile = () => {
       </div>
 
       <div>
-        {activeTab === "overview"          && <OverviewTab patient={patient} />}
+        {activeTab === "overview"          && <OverviewTab patient={patient} setActiveTab={setActiveTab} />}
         {activeTab === "equipment"         && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "visit-history"     && <><VisitHistoryPanel patient={patient} /><StockDispenseHistory uhid={uhid} /></>}
         {activeTab === "glycemic-charts"   && <GlycemicCharts />}
@@ -306,7 +293,7 @@ const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
   </div>
 );
 
-const OverviewTab = ({ patient }) => {
+const OverviewTab = ({ patient, setActiveTab }) => {
   return (
     <div className="space-y-6">
       <PatientSummaryCard patient={patient} />
@@ -571,29 +558,11 @@ const ReportsTab = ({ patient }) => {
   return (
     <div className="space-y-6">
       {/* Summary Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 text-white">
-          <p className="text-xs opacity-90">Total Tests</p>
-          <p className="text-3xl font-bold mt-1">{labTests.length}</p>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 text-white">
-          <p className="text-xs opacity-90">Normal</p>
-          <p className="text-3xl font-bold mt-1">
-            {labTests.filter((t) => t.interpretation === "Normal").length}
-          </p>
-        </div>
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-4 text-white">
-          <p className="text-xs opacity-90">Abnormal</p>
-          <p className="text-3xl font-bold mt-1">
-            {labTests.filter((t) => t.interpretation === "Abnormal").length}
-          </p>
-        </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-4 text-white">
-          <p className="text-xs opacity-90">Critical</p>
-          <p className="text-3xl font-bold mt-1">
-            {labTests.filter((t) => t.interpretation === "Critical").length}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
+        <StatCard title="Total Tests" value={labTests.length} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Normal" value={labTests.filter((t) => t.interpretation === "Normal").length} gradient="from-green-500 to-green-600" />
+        <StatCard title="Abnormal" value={labTests.filter((t) => t.interpretation === "Abnormal").length} gradient="from-yellow-500 to-yellow-600" />
+        <StatCard title="Critical" value={labTests.filter((t) => t.interpretation === "Critical").length} gradient="from-red-500 to-red-600" />
       </div>
 
       {/* Critical Alerts */}

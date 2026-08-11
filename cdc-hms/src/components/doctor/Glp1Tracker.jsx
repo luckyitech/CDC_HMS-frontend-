@@ -104,6 +104,7 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
     });
 
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTherapy?.id, getFullTherapy]);
 
   const refresh = async () => {

@@ -10,6 +10,7 @@ import {
   Check,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
+import PageHeader from "../../components/shared/PageHeader";
 import VitalsGrid from "../../components/shared/VitalsGrid";
 import Glp1InjectionCard from "../../components/shared/Glp1InjectionCard";
 import Glp1ReviewDueBanner from "../../components/shared/Glp1ReviewDueBanner";
@@ -576,9 +577,7 @@ const Triage = () => {
 
   return (
     <div>
-      <h2 className="text-2xl lg:text-3xl font-bold text-gray-800 mb-6">
-        Triage
-      </h2>
+      <PageHeader title="Triage" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Waiting Patients List */}

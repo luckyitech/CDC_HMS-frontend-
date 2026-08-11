@@ -1,10 +1,11 @@
 // LabTestPrint.jsx - Print component for lab reports
 import usePrint from "../../hooks/usePrint";
+import PrintLetterhead from "../shared/PrintLetterhead";
 
 const LabTestPrint = ({ test, onClose }) => {
-  if (!test) return null;
-
   const { printRef, handlePrint } = usePrint();
+
+  if (!test) return null;
 
   const formatTestResults = (results) => {
     return Object.entries(results).map(([key, value]) => ({
@@ -36,20 +37,11 @@ const LabTestPrint = ({ test, onClose }) => {
 
       {/* Print Content */}
       <div ref={printRef} id="print-content" className="max-w-4xl mx-auto p-8 bg-white">
-        {/* Hospital Header */}
-        <div className="border-b-4 border-primary pb-6 mb-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-primary">COMPREHENSIVE DIABETES CENTRE</h1>
-              <p className="text-sm text-gray-600 mt-1">Comprehensive Diabetes Care</p>
-              <p className="text-xs text-gray-500 mt-1">Nairobi, Kenya</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-800">Laboratory Report</p>
-              <p className="text-xs text-gray-600">Report ID: LAB-{test.id}</p>
-              <p className="text-xs text-gray-600">Date: {new Date().toLocaleDateString()}</p>
-            </div>
-          </div>
+        {/* Hospital letterhead — shared component (DRY §4e) */}
+        <PrintLetterhead show />
+        <div className="text-right -mt-2 mb-6">
+          <p className="text-sm font-semibold text-gray-800">Laboratory Report</p>
+          <p className="text-xs text-gray-600">Report ID: LAB-{test.id} · {new Date().toLocaleDateString()}</p>
         </div>
 
         {/* Patient Information */}

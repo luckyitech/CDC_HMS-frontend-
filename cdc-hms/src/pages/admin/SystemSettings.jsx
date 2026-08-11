@@ -7,7 +7,7 @@ import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
 import settingsService from '../../services/settingsService';
 import { notify } from '../../utils/notify';
 
-const ROLE_LABELS = { doctor: 'Doctors', staff: 'Staff', lab: 'Lab technicians' };
+const ROLE_LABELS = { doctor: 'Doctors', staff: 'Staff', lab: 'Lab technicians', nurse: 'Nurses' };
 
 const SystemSettings = () => {
   const [rotation, setRotation] = useState(null);  // null = loading

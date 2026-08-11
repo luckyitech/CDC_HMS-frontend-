@@ -6,6 +6,8 @@ import Input from "../shared/Input";
 import VoiceInput from "../shared/VoiceInput";
 import MedicationSearchInput from "../shared/MedicationSearchInput";
 import prescriptionService from "../../services/prescriptionService";
+// DRY (HMIS V3): shared drug-schedule source, reused by the inpatient MAR.
+import { FREQUENCY_LABELS } from "../../constants/drugSchedules";
 
 // Stable id per medication row so collapse state survives removals/reorders
 let medIdCounter = 1;
@@ -15,10 +17,7 @@ const emptyMedication = () => ({
   name: "", dosage: "", quantity: "30", frequency: "", customFrequency: "", duration: "", instructions: "",
 });
 
-const KNOWN_FREQUENCIES = [
-  "Once daily", "Twice daily", "Three times daily",
-  "Four times daily", "Every 8 hours", "Every 12 hours",
-];
+const KNOWN_FREQUENCIES = FREQUENCY_LABELS;
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary";
 

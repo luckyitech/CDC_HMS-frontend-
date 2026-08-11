@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock } from 'lucide-react';
 import AnalyticsBarChart from '../../../components/shared/AnalyticsBarChart';
 import AnalyticsDateFilter, { DEFAULT_DATE_RANGE } from '../../../components/shared/AnalyticsDateFilter';
+import StatCard from '../../../components/shared/StatCard';
 import analyticsService from '../../../services/analyticsService';
 
 const formatHour = (h) => {
@@ -63,28 +64,17 @@ export default function ConsultationAnalytics() {
       ) : (
         <>
           {/* Summary stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90">Total Consultations</p>
-              <p className="text-4xl font-bold mt-2">{data?.totalConsultations ?? '—'}</p>
-              <p className="text-sm mt-3 opacity-75">{dateRange.label}</p>
-            </div>
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90">Avg Duration</p>
-              <p className="text-4xl font-bold mt-2">
-                {data?.avgConsultationMinutes != null ? `${data.avgConsultationMinutes} min` : '—'}
-              </p>
-              <p className="text-sm mt-3 opacity-75">Per consultation</p>
-            </div>
-            <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90">Busiest Hour</p>
-              <p className="text-4xl font-bold mt-2">
-                {data?.hourlyDistribution?.length
-                  ? formatHour(data.hourlyDistribution.reduce((a, b) => a.count > b.count ? a : b).hour)
-                  : '—'}
-              </p>
-              <p className="text-sm mt-3 opacity-75">Most consultations</p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+            <StatCard title="Total Consultations" value={data?.totalConsultations ?? '—'} gradient="from-green-500 to-green-600" sub={dateRange.label} />
+            <StatCard title="Avg Duration" value={data?.avgConsultationMinutes != null ? `${data.avgConsultationMinutes} min` : '—'} gradient="from-blue-500 to-blue-600" sub="Per consultation" />
+            <StatCard
+              title="Busiest Hour"
+              value={data?.hourlyDistribution?.length
+                ? formatHour(data.hourlyDistribution.reduce((a, b) => a.count > b.count ? a : b).hour)
+                : '—'}
+              gradient="from-cyan-500 to-cyan-600"
+              sub="Most consultations"
+            />
           </div>
 
           {/* Charts */}

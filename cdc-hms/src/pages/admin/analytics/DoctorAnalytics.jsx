@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArrowLeft, Stethoscope } from 'lucide-react';
 import Card from '../../../components/shared/Card';
+import StatCard from '../../../components/shared/StatCard';
 import AnalyticsBarChart from '../../../components/shared/AnalyticsBarChart';
 import AnalyticsDateFilter, { DEFAULT_DATE_RANGE } from '../../../components/shared/AnalyticsDateFilter';
 import analyticsService from '../../../services/analyticsService';
@@ -80,24 +81,10 @@ export default function DoctorAnalytics() {
       ) : (
         <>
           {/* Summary stat cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90">Total Doctors</p>
-              <p className="text-4xl font-bold mt-2">{doctors.length}</p>
-              <p className="text-sm mt-3 opacity-75">{dateRange.label}</p>
-            </div>
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90">Total Consultations</p>
-              <p className="text-4xl font-bold mt-2">{total}</p>
-              <p className="text-sm mt-3 opacity-75">Completed visits</p>
-            </div>
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-              <p className="text-sm opacity-90">Avg per Doctor</p>
-              <p className="text-4xl font-bold mt-2">
-                {doctors.length ? Math.round(total / doctors.length) : '—'}
-              </p>
-              <p className="text-sm mt-3 opacity-75">Patients per doctor</p>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+            <StatCard title="Total Doctors" value={doctors.length} gradient="from-blue-500 to-blue-600" sub={dateRange.label} />
+            <StatCard title="Total Consultations" value={total} gradient="from-green-500 to-green-600" sub="Completed visits" />
+            <StatCard title="Avg per Doctor" value={doctors.length ? Math.round(total / doctors.length) : '—'} gradient="from-purple-500 to-purple-600" sub="Patients per doctor" />
           </div>
 
           {/* Bar charts */}

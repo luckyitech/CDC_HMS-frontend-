@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { KeyRound, Check } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import CardTitle from '../../components/shared/CardTitle';
+import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import authService from '../../services/authService';
@@ -103,25 +104,21 @@ const ChangePasswordPage = () => {
 
   return (
     <div className="max-w-lg mx-auto">
-      <div className="flex items-start justify-between gap-4 mb-2">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
-          {isForced ? 'Set a New Password' : 'Change Password'}
-        </h2>
-        {/* No way back while forced — every other page is locked anyway */}
-        {!isForced && (
+      {/* Both the title and the supporting line change when rotation has
+          expired the password: there is nowhere to go "back" to, and the
+          state is the page's subject rather than a tinted callout shouting at
+          someone already held here. */}
+      <PageHeader
+        title={isForced ? 'Set a New Password' : 'Change Password'}
+        subtitle={isForced
+          ? `Your password has reached the end of its ${policyLabel ? policyLabel.replace(/^every /, '') : 'current'} period. Choose a new one to carry on — the rest of the system stays locked until you do.`
+          : 'Choose a new password for your account.'}
+        actions={isForced ? undefined : (
           <Button variant="outline" onClick={() => navigate(-1)}>
             ← Back
           </Button>
         )}
-      </div>
-
-      {/* The state is the page's subject, so it reads as the subtitle rather
-          than a tinted callout shouting at someone already held here. */}
-      <p className="mb-6 text-sm text-gray-600 leading-relaxed">
-        {isForced
-          ? `Your password has reached the end of its ${policyLabel ? policyLabel.replace(/^every /, '') : 'current'} period. Choose a new one to carry on — the rest of the system stays locked until you do.`
-          : 'Choose a new password for your account.'}
-      </p>
+      />
 
       <Card title={<CardTitle icon={KeyRound}>Update Your Password</CardTitle>}>
         <form onSubmit={handleSubmit} className="space-y-4">
