@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, FolderOpen, KeyRound, Activity } from 'lucide-react';
+import { ArrowLeft, ChevronDown, FolderOpen, UserCog, Activity } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import ProfileTabBar from '../../components/shared/ProfileTabBar';
@@ -8,11 +8,10 @@ import staffFileService from '../../services/staffFileService';
 import activityService from '../../services/activityService';
 import StaffOverviewTab from '../../components/admin/staffFile/StaffOverviewTab';
 import StaffDocumentsTab from '../../components/admin/staffFile/StaffDocumentsTab';
-import StaffPermissionsTab from '../../components/admin/staffFile/StaffPermissionsTab';
+import StaffUserManagementTab from '../../components/admin/staffFile/StaffUserManagementTab';
 import StaffActivityTab from '../../components/admin/staffFile/StaffActivityTab';
 
 const STAFF_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
-const PERMISSIBLE_ROLES = ['doctor', 'staff', 'lab', 'nurse'];
 
 const cap = (s = '') => s.charAt(0).toUpperCase() + s.slice(1);
 const initial = (name = '') => (name.trim()[0] || '?').toUpperCase();
@@ -72,7 +71,7 @@ const StaffFile = () => {
 
   const tabs = [
     { id: 'documents', name: 'Staff Documents', Icon: FolderOpen },
-    ...(PERMISSIBLE_ROLES.includes(staff.role) ? [{ id: 'permissions', name: 'Permissions', Icon: KeyRound }] : []),
+    { id: 'user-management', name: 'User Management', Icon: UserCog },
     { id: 'activity', name: 'Activity', Icon: Activity },
   ];
 
@@ -128,7 +127,7 @@ const StaffFile = () => {
       >
         <div className="overflow-hidden min-h-0">
           <div className="py-4">
-            <StaffOverviewTab staff={staff} lastLogin={lastLogin} onSaved={loadStaff} />
+            <StaffOverviewTab staff={staff} lastLogin={lastLogin} />
           </div>
         </div>
       </div>
@@ -137,9 +136,7 @@ const StaffFile = () => {
 
       <div>
         {activeTab === 'documents' && <StaffDocumentsTab staff={staff} />}
-        {activeTab === 'permissions' && PERMISSIBLE_ROLES.includes(staff.role) && (
-          <StaffPermissionsTab staff={staff} onSaved={loadStaff} />
-        )}
+        {activeTab === 'user-management' && <StaffUserManagementTab staff={staff} onSaved={loadStaff} />}
         {activeTab === 'activity' && <StaffActivityTab staff={staff} />}
       </div>
     </div>
