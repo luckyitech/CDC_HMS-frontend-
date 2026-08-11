@@ -79,37 +79,45 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
   // Someone with admin capabilities looking at another portal. Capability, not
   // role: a granted staff member gets the same banner as the admin does.
-  // Outpatient / Inpatient dashboard tabs: shown on every non-admin dashboard
-  // (and the ward board) for users with inpatient access — doctors by role,
-  // staff/others by the admin-granted inpatient.access capability (admins hold
-  // it implicitly). Nurses keep their own ward-board home and are not tabbed.
+  // The doctor/staff dashboard switcher. Always carries Dashboard + Patient Visits;
+  // the Inpatient Dashboard tab is inserted (as the middle tab) only for users
+  // with inpatient access — doctors by role, others by the admin-granted
+  // inpatient.access capability (admins hold it implicitly). Every tab stays
+  // INSIDE the current portal (the board renders at /{portal}/inpatient-board),
+  // so the sidebar never changes. Nurses keep their own ward-board home.
+  const homeRole = userRole.toLowerCase();
   const canSeeInpatientTab =
     currentUser?.role === 'doctor' || hasPermission(currentUser, PERMISSIONS.INPATIENT_ACCESS);
-  const onDashboardOrBoard =
-    location.pathname.endsWith('/dashboard') || location.pathname.endsWith('/inpatient-board');
-  const showWorkspaceTabs =
-    canSeeInpatientTab && onDashboardOrBoard && userRole.toLowerCase() !== 'admin';
-  // Both tabs stay INSIDE the current portal so the sidebar never changes — the
-  // inpatient board renders at /{portal}/inpatient-board, not the separate
-  // /inpatient portal layout.
-  const outpatientPath = `/${userRole.toLowerCase()}/dashboard`;
-  const inpatientBoardPath = `/${userRole.toLowerCase()}/inpatient-board`;
+
+  const dashboardTabs = [
+    {
+      label: canSeeInpatientTab ? 'Outpatient Dashboard' : 'Dashboard',
+      path: `/${homeRole}/dashboard`,
+      Icon: canSeeInpatientTab ? Stethoscope : LayoutDashboard,
+    },
+    ...(canSeeInpatientTab
+      ? [{ label: 'Inpatient Dashboard', path: `/${homeRole}/inpatient-board`, Icon: BedDouble }]
+      : []),
+    ...(['doctor', 'staff'].includes(homeRole)
+      ? [{ label: 'Patient Visits', path: `/${homeRole}/patient-visits`, Icon: TrendingUp }]
+      : []),
+  ];
+  const onDashboardGroup =
+    homeRole !== 'admin' && dashboardTabs.some((t) => t.path === location.pathname);
 
   // Grouped pages that share one top-of-page switcher instead of separate sidebar
-  // entries. Only the group matching the current route renders (decongests the
-  // side nav). Add a group here to collapse more items later.
-  const pageTabs = showWorkspaceTabs
-    ? [
-        { label: 'Outpatient Dashboard', path: outpatientPath, Icon: Stethoscope },
-        { label: 'Inpatient Dashboard', path: inpatientBoardPath, Icon: BedDouble },
-      ]
-    : userRole.toLowerCase() === 'doctor' &&
-      ['/doctor/appointments', '/doctor/my-schedule'].includes(location.pathname)
-    ? [
-        { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
-        { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
-      ]
-    : null;
+  // entries (decongests the side nav). Only the group matching the current route
+  // renders; a switcher needs at least two tabs to be worth showing.
+  const pageTabs =
+    onDashboardGroup && dashboardTabs.length >= 2
+      ? dashboardTabs
+      : homeRole === 'doctor' &&
+        ['/doctor/appointments', '/doctor/my-schedule'].includes(location.pathname)
+      ? [
+          { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
+          { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
+        ]
+      : null;
 
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
@@ -216,7 +224,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Appointments", path: "/staff/appointments", icon: Calendar },
       { name: "Book Appointment", path: "/staff/book-appointment", icon: CalendarCheck },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
-      { name: "Patient Visits", path: "/staff/patient-visits", icon: TrendingUp },
       { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
@@ -240,7 +247,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       //   icon: Stethoscope,
       // },
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
-      { name: "Patient Visits", path: "/doctor/patient-visits", icon: TrendingUp },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
