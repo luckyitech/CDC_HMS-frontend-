@@ -1287,13 +1287,28 @@ const Consultation = () => {
         if (!activeQueueItem) {
           return <NoOpenVisitNotice onClose={() => setShowAdmitModal(false)} />;
         }
-        // Pre-fill the admission note from the active diagnoses + the live
-        // consultation note text (handed up via notesTextRef).
-        const dxLines = activeDiagnoses.map((d) => `• ${d.diagnosis}${d.code ? ` (${d.code})` : ''}`).join('\n');
+        // Pre-fill the admission note in the same shape as the Visit History
+        // document: Triage Vitals → Reason for Visit → Consultation Notes →
+        // Diagnosis & Treatment Plan. Sourced from this visit's triage vitals,
+        // the live consultation note (handed up via notesTextRef) and the active
+        // diagnoses. The doctor edits from there.
+        const v = patient.vitals || {};
+        const vitalsLine = [
+          v.bp && `BP ${v.bp}`,
+          v.heartRate && `HR ${v.heartRate}`,
+          v.temperature && `Temp ${v.temperature}`,
+          v.weight && `Weight ${v.weight}`,
+          v.rbs && `RBS ${v.rbs}`,
+          v.hba1c && `HbA1c ${v.hba1c}`,
+        ].filter(Boolean).join(' · ');
+        const reason = v.chiefComplaint;
         const noteText = (notesTextRef.current || '').trim();
+        const dxLines = activeDiagnoses.map((d) => `• ${d.diagnosis}${d.code ? ` (${d.code})` : ''}`).join('\n');
         const defaultNote = [
-          dxLines && `Working diagnosis:\n${dxLines}`,
-          noteText && `Clinical notes:\n${noteText}`,
+          vitalsLine && `TRIAGE VITALS\n${vitalsLine}`,
+          reason && `REASON FOR VISIT\n${reason}`,
+          noteText && `CONSULTATION NOTES\n${noteText}`,
+          dxLines && `DIAGNOSIS & TREATMENT PLAN\n${dxLines}`,
         ].filter(Boolean).join('\n\n');
         return (
           <AdmitPatientModal

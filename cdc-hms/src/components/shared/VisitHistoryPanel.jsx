@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
+import PrintRoot from './PrintRoot';
 import patientService from '../../services/patientService';
 import inpatientService from '../../services/inpatientService';
 import glp1Service from '../../services/glp1Service';
@@ -407,28 +408,12 @@ const VisitDocument = ({ records, fullExamCache }) => {
 };
 
 // ── Actions tab ───────────────────────────────────────────────────────────────
-const escHtml = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-
 const dayTabCls = (active) =>
   `flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
     active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-50'
   }`;
 
-// Print an artifact on a letterhead in a new window (same approach as the Admit
-// modal's print, so admission notes print identically from either place).
-const printArtifact = (title, innerHtml) => {
-  const w = window.open('', '_blank', 'width=800,height=900');
-  if (!w) return;
-  w.document.write(`<!DOCTYPE html><html><head><title>${escHtml(title)}</title>
-    <style>body{font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:40px;color:#111}
-    h1{font-size:20px;margin:0 0 2px}.sub{color:#555;font-size:13px}hr{border:none;border-top:1px solid #ccc;margin:16px 0}
-    .label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-top:16px}
-    .val{font-size:14px;margin-top:3px}.note{white-space:pre-wrap;font-size:14px;line-height:1.55}</style>
-    </head><body><h1>Comprehensive Diabetes Centre</h1>${innerHtml}</body></html>`);
-  w.document.close();
-  w.focus();
-  w.print();
-};
+const rxLine = (m) => [m.dosage, m.frequency, m.quantity && `Qty: ${m.quantity}`].filter(Boolean).join(' · ');
 
 const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
   <button onClick={onClick}
@@ -463,49 +448,36 @@ const ActionsList = ({ records, onView }) => (
   </div>
 );
 
+const ArtifactMeta = ({ patient, sub }) => (
+  <div className="border-b border-gray-300 pb-3 mb-4">
+    <p className="text-sm text-gray-700"><b>{patient?.name}</b>{patient?.uhid ? ` · ${patient.uhid}` : ''}</p>
+    {sub && <p className="text-xs text-gray-500">{sub}</p>}
+  </div>
+);
+
 const ArtifactModal = ({ artifact, patient, onClose }) => {
+  const { printRef, handlePrint } = usePrint();
   if (!artifact) return null;
   const { type, data } = artifact;
-  const meta = `${escHtml(patient?.name)} &middot; ${escHtml(patient?.uhid)}`;
+  const isAdm = type === 'admission';
+  const title = isAdm ? 'Admission Note' : 'Prescription';
+  const meds = data.medications || [];
+  const sub = isAdm
+    ? [data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ') + (data.cancelledAt ? ' · cancelled' : '')
+    : fmtDay(data.createdAt);
 
-  let title, body, printInner;
-  if (type === 'admission') {
-    title = 'Admission Note';
-    printInner =
-      `<div class="sub">Admission Note</div><hr/>
-       <div class="val"><strong>${meta}</strong></div>
-       <div class="sub">${escHtml(fmtDay(data.requestedAt))}${data.doctorName ? ' &middot; ' + escHtml(data.doctorName) : ''}</div>
-       <div class="label">Admission type</div><div class="val">${escHtml(data.admissionType)}</div>
-       <div class="label">Admission note</div><div class="note">${escHtml(data.note)}</div>`;
-    body = (
-      <>
-        <p className="text-sm text-gray-500">
-          {[data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ')}
-          {data.cancelledAt ? ' · cancelled' : ''}
-        </p>
-        <div className="whitespace-pre-wrap text-sm text-gray-700 mt-2 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
-      </>
-    );
-  } else {
-    title = 'Prescription';
-    const meds = data.medications || [];
-    const line = (m) => [m.dosage, m.frequency, m.quantity && `Qty: ${m.quantity}`].filter(Boolean).join(' · ');
-    printInner =
-      `<div class="sub">Prescription</div><hr/>
-       <div class="val"><strong>${meta}</strong></div>
-       <div class="sub">${escHtml(fmtDay(data.createdAt))}</div>
-       <div class="label">Medications</div>` +
-      meds.map((m) => `<div class="val">&bull; <strong>${escHtml(m.name)}</strong>${line(m) ? ' — ' + escHtml(line(m)) : ''}</div>`).join('');
-    body = (
-      <div className="space-y-1.5 mt-2">
-        {meds.map((m, i) => (
-          <div key={i} className="text-sm text-gray-700">
-            <b className="font-semibold text-gray-800">{m.name}</b>{line(m) ? ` — ${line(m)}` : ''}
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const body = isAdm ? (
+    <>
+      <p className="text-sm text-gray-500">{sub}</p>
+      <div className="whitespace-pre-wrap text-sm text-gray-700 mt-2 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
+    </>
+  ) : (
+    <div className="space-y-1.5 mt-2">
+      {meds.map((m, i) => (
+        <div key={i} className="text-sm text-gray-700"><b className="font-semibold text-gray-800">{m.name}</b>{rxLine(m) ? ` — ${rxLine(m)}` : ''}</div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -517,9 +489,21 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
         {body}
         <div className="flex justify-end gap-2 pt-4">
           <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Close</button>
-          <button onClick={() => printArtifact(title, printInner)} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
+          <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
         </div>
       </div>
+
+      {/* Print target — shared clinic letterhead */}
+      <PrintRoot printRef={printRef}>
+        <ArtifactMeta patient={patient} sub={`${title} · ${sub}`} />
+        {isAdm ? (
+          <p className="text-sm whitespace-pre-wrap">{data.note || '—'}</p>
+        ) : (
+          meds.map((m, i) => (
+            <p key={i} className="text-sm"><b className="font-semibold text-gray-800">{m.name}</b>{rxLine(m) ? ` — ${rxLine(m)}` : ''}</p>
+          ))
+        )}
+      </PrintRoot>
     </div>
   );
 };

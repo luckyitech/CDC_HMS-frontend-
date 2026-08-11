@@ -2,21 +2,24 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { X, BedDouble, Printer } from "lucide-react";
 import inpatientService from "../../services/inpatientService";
+import usePrint from "../../hooks/usePrint";
+import PrintRoot from "../shared/PrintRoot";
 
 /**
  * AdmitPatientModal — doctor ADVISES admission from the OPD consultation.
  *
  * The body is an editable ADMISSION NOTE, pre-filled from the consultation
- * (active diagnoses + clinical notes) via `defaultNote`. The doctor edits and can
- * print it. Ward preference is deliberately omitted — that's the admission
- * clerk's job. On submit the note is stored on the admission request (which the
- * front desk converts) and the patient is sent to Pending Billing.
+ * (structured like the visit-history document) via `defaultNote`. The doctor
+ * edits and can print it — on the shared clinic letterhead (PrintRoot). Ward
+ * preference is omitted (the admission clerk's job). On submit the note is stored
+ * on the admission request and the patient is sent to Pending Billing.
  *
  * Props: patient { name, uhid }, queueItem { id }, defaultNote, onClose, onSuccess
  */
 export default function AdmitPatientModal({ patient, queueItem, defaultNote = "", onClose, onSuccess }) {
   const [form, setForm] = useState({ admissionType: "Elective", admissionNote: defaultNote });
   const [submitting, setSubmitting] = useState(false);
+  const { printRef, handlePrint } = usePrint();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -38,32 +41,6 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
     }
   };
 
-  const printNote = () => {
-    const w = window.open("", "_blank", "width=800,height=900");
-    if (!w) return toast.error("Allow pop-ups to print.");
-    const esc = (s) => String(s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-    w.document.write(`<!DOCTYPE html><html><head><title>Admission Note — ${esc(patient?.uhid)}</title>
-      <style>
-        body{font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:40px;color:#111}
-        h1{font-size:20px;margin:0 0 2px} .sub{color:#555;font-size:13px}
-        hr{border:none;border-top:1px solid #ccc;margin:16px 0}
-        .label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-top:16px}
-        .val{font-size:14px;margin-top:3px} .note{white-space:pre-wrap;font-size:14px;line-height:1.55;margin-top:4px}
-      </style></head><body>
-        <h1>Comprehensive Diabetes Centre</h1>
-        <div class="sub">Admission Note</div>
-        <hr/>
-        <div class="val"><strong>${esc(patient?.name)}</strong> &middot; ${esc(patient?.uhid)}</div>
-        <div class="sub">${esc(new Date().toLocaleString())}</div>
-        <div class="label">Admission type</div><div class="val">${esc(form.admissionType)}</div>
-        <div class="label">Admission note</div>
-        <div class="note">${esc(form.admissionNote)}</div>
-      </body></html>`);
-    w.document.close();
-    w.focus();
-    w.print();
-  };
-
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-md p-5">
@@ -82,13 +59,13 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
           </div>
           <div>
             <label className="text-xs text-gray-500">Admission note</label>
-            <textarea className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" rows={7}
+            <textarea className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" rows={8}
               value={form.admissionNote} onChange={(e) => setForm({ ...form, admissionNote: e.target.value })}
               placeholder="Pre-filled from the consultation — edit as needed." />
-            <p className="text-[11px] text-gray-400 mt-1">Pre-filled from the active diagnoses and consultation notes. The admission clerk assigns the ward.</p>
+            <p className="text-[11px] text-gray-400 mt-1">Pre-filled from this visit's vitals, notes and diagnosis. The admission clerk assigns the ward.</p>
           </div>
           <div className="flex justify-between items-center gap-2 pt-2">
-            <button type="button" onClick={printNote}
+            <button type="button" onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">
               <Printer size={15} /> Print
             </button>
@@ -101,6 +78,18 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
           </div>
         </form>
       </div>
+
+      {/* Print target — shared clinic letterhead */}
+      <PrintRoot printRef={printRef}>
+        <div className="border-b border-gray-300 pb-3 mb-4">
+          <p className="text-sm text-gray-700"><b>{patient?.name}</b>{patient?.uhid ? ` · ${patient.uhid}` : ""}</p>
+          <p className="text-xs text-gray-500">Admission Note · {new Date().toLocaleString()}</p>
+        </div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Admission type</p>
+        <p className="text-sm mb-3">{form.admissionType}</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Admission note</p>
+        <p className="text-sm whitespace-pre-wrap">{form.admissionNote}</p>
+      </PrintRoot>
     </div>
   );
 }
