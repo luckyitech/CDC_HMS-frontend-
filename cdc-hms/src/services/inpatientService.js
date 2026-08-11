@@ -20,6 +20,8 @@ export const inpatientService = {
   convert:          (data) => api.post('/admissions/convert', data),
   directAdmit:      (data) => api.post('/admissions/direct', data),
   listAdmissions:   (params) => api.get('/admissions', { params }),
+  // Save & Print — persist the admission note (visit history) without billing.
+  saveAdmissionNote:(data) => api.post('/admissions/note', data),
   // Advised admissions for one patient (the admission notes) — Visit History Actions.
   advisedAdmissions:(uhid) => api.get('/admissions/advised', { params: { uhid } }),
   getAdmission:     (id) => api.get(`/admissions/${id}`),

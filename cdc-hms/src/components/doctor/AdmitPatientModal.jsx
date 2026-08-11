@@ -19,7 +19,29 @@ import PrintRoot from "../shared/PrintRoot";
 export default function AdmitPatientModal({ patient, queueItem, defaultNote = "", onClose, onSuccess }) {
   const [form, setForm] = useState({ admissionType: "Elective", admissionNote: defaultNote });
   const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const { printRef, handlePrint } = usePrint();
+
+  // Save & Print — documents the admission note to the visit history per protocol,
+  // WITHOUT sending for admission. The doctor then sends for admission or cancels.
+  const saveAndPrint = async () => {
+    if (!form.admissionNote.trim()) return toast.error("The admission note is empty.");
+    if (!queueItem?.id) return toast.error("No active queue visit for this patient.");
+    setSaving(true);
+    try {
+      await inpatientService.saveAdmissionNote({
+        queueId: queueItem.id,
+        admissionType: form.admissionType,
+        admissionReason: form.admissionNote,
+      });
+      toast.success("Admission note saved to visit history.");
+      handlePrint();
+    } catch (err) {
+      toast.error(err.message || "Failed to save admission note");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -64,15 +86,15 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
               placeholder="Pre-filled from the consultation — edit as needed." />
             <p className="text-[11px] text-gray-400 mt-1">Pre-filled from this visit's vitals, notes and diagnosis. The admission clerk assigns the ward.</p>
           </div>
-          <div className="flex justify-between items-center gap-2 pt-2">
-            <button type="button" onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">
-              <Printer size={15} /> Print
+          <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
+            <button type="button" onClick={saveAndPrint} disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border border-primary text-primary font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50">
+              <Printer size={15} /> {saving ? "Saving…" : "Save & Print"}
             </button>
             <div className="flex gap-2">
               <button type="button" onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Cancel</button>
               <button type="submit" disabled={submitting} className="px-3 py-1.5 rounded text-sm bg-primary text-white disabled:opacity-50">
-                {submitting ? "Sending…" : "Advise admission → billing"}
+                {submitting ? "Sending…" : "Send for admission"}
               </button>
             </div>
           </div>
