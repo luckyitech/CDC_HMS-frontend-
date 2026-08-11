@@ -2,13 +2,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
-  ClipboardList, Award, History, Phone, Mail, Pencil, KeyRound,
-  MoreVertical, ArrowLeft, Loader, AlertTriangle, ArchiveRestore,
+  ClipboardList, Award, Lock, Calendar, FileText, History,
+  Phone, Mail, KeyRound, MoreVertical, ArrowLeft, Loader,
+  AlertTriangle, ArchiveRestore,
 } from 'lucide-react';
 import staffService from '../../services/staffService';
 import api from '../../services/api';
 import StatusBadge from '../../components/shared/StatusBadge';
-import EditUserModal from '../../components/admin/EditUserModal';
+import EditableSection from '../../components/admin/staff/EditableSection';
+import AccessTab from '../../components/admin/staff/AccessTab';
+import LeaveTab from '../../components/admin/staff/LeaveTab';
+import DocumentsTab from '../../components/admin/staff/DocumentsTab';
+import { formatDate, formatDateTime } from '../../components/admin/staff/staffFormat';
 
 // Deliberately NOT the patient profile's PageHeader + avatar Card stack: that
 // costs ~260px of chrome before any content, which is the wrong trade on a page
@@ -19,122 +24,55 @@ const ROLE_LABEL = {
 };
 
 const EMPLOYMENT_STATUSES = ['Active', 'On Leave', 'Suspended', 'Resigned', 'Terminated'];
+const EMPLOYMENT_TYPES    = ['Full-time', 'Part-time', 'Contract', 'Consultant', 'Locum', 'Temporary'];
+const SHIFTS              = ['Morning', 'Afternoon', 'Night', 'Rotating'];
 
 const EMPLOYMENT_STATUS_TONES = {
-  'Active':     'success',
-  'On Leave':   'warning',
-  'Suspended':  'danger',
-  'Resigned':   'neutral',
-  'Terminated': 'neutral',
+  'Active': 'success', 'On Leave': 'warning', 'Suspended': 'danger',
+  'Resigned': 'neutral', 'Terminated': 'neutral',
 };
 
 // Front desk hold no clinical licence, so the Credentials tab is hidden for
 // them rather than shown with four permanently empty fields.
 const CREDENTIALLED_ROLES = ['doctor', 'nurse', 'lab'];
 
-const formatDate = (value) => {
-  if (!value) return '—';
-  const d = new Date(value);
-  return isNaN(d) ? '—' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-};
+const PERSONAL_FIELDS = [
+  { key: 'dateOfBirth', label: 'Date of birth', type: 'date' },
+  { key: 'gender',      label: 'Gender',        type: 'select', options: ['Male', 'Female', 'Other'] },
+  { key: 'idNumber',    label: 'National ID' },
+  { key: 'address',     label: 'Address' },
+  { key: 'city',        label: 'City' },
+];
 
-const formatDateTime = (value) => {
-  if (!value) return '—';
-  const d = new Date(value);
-  return isNaN(d) ? '—' : d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
+const EMPLOYMENT_FIELDS = [
+  { key: 'position',       label: 'Position' },
+  { key: 'department',     label: 'Department' },
+  { key: 'ward',           label: 'Ward / unit' },
+  { key: 'shift',          label: 'Shift',           type: 'select', options: SHIFTS },
+  { key: 'employmentType', label: 'Employment type', type: 'select', options: EMPLOYMENT_TYPES },
+  { key: 'startDate',      label: 'Joined',          type: 'date' },
+  { key: 'endDate',        label: 'Left',            type: 'date' },
+];
 
-// ─── Small presentational pieces ────────────────────────────────────────────
+// Dotted paths — emergencyContact is one JSON column, edited as three fields.
+const EMERGENCY_FIELDS = [
+  { key: 'emergencyContact.name',         label: 'Name' },
+  { key: 'emergencyContact.relationship', label: 'Relationship' },
+  { key: 'emergencyContact.phone',        label: 'Phone' },
+];
 
-const InfoCard = ({ title, rows }) => (
-  <div className="bg-white rounded-xl border border-gray-200 p-5">
-    <h3 className="text-sm font-semibold text-gray-800 mb-3">{title}</h3>
-    <dl className="space-y-2">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex items-start justify-between gap-4 text-sm">
-          <dt className="text-gray-500 flex-shrink-0">{label}</dt>
-          <dd className="text-gray-800 text-right break-words">{value || '—'}</dd>
-        </div>
-      ))}
-    </dl>
-  </div>
-);
+const LICENCE_FIELDS = [
+  { key: 'licenseNumber', label: 'Number' },
+  { key: 'licenseBody',   label: 'Issuing body' },
+  { key: 'licenseExpiry', label: 'Expires', type: 'date' },
+  { key: 'specialty',     label: 'Specialty' },
+];
 
-const EmptyState = ({ children }) => (
-  <p className="text-sm text-gray-400 py-8 text-center">{children}</p>
-);
-
-// ─── Tabs ───────────────────────────────────────────────────────────────────
-
-const OverviewTab = ({ staff }) => {
-  const emergency = staff.emergencyContact || {};
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      <InfoCard
-        title="Personal"
-        rows={[
-          ['Date of birth', formatDate(staff.dateOfBirth)],
-          ['Gender', staff.gender],
-          ['National ID', staff.idNumber],
-          ['Address', staff.address],
-          ['City', staff.city],
-        ]}
-      />
-      <InfoCard
-        title="Employment"
-        rows={[
-          ['Position', staff.position],
-          ['Department', staff.department],
-          ['Ward / unit', staff.ward],
-          ['Shift', staff.shift],
-          ['Employment type', staff.employmentType],
-          ['Joined', formatDate(staff.startDate)],
-          ...(staff.endDate ? [['Left', formatDate(staff.endDate)]] : []),
-        ]}
-      />
-      <InfoCard
-        title="Emergency contact"
-        rows={[
-          ['Name', emergency.name],
-          ['Relationship', emergency.relationship],
-          ['Phone', emergency.phone],
-        ]}
-      />
-    </div>
-  );
-};
-
-const CredentialsTab = ({ staff }) => {
-  const details = staff.roleDetails || {};
-  const certifications = Array.isArray(details.certifications) ? details.certifications : [];
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <InfoCard
-        title="Licence"
-        rows={[
-          ['Number', staff.licenseNumber],
-          ['Issuing body', staff.licenseBody],
-          ['Expires', formatDate(staff.licenseExpiry)],
-          ['Specialty', staff.specialty],
-          ...(details.subSpecialty ? [['Sub-specialty', details.subSpecialty]] : []),
-          ...(details.nursingCadre ? [['Cadre', details.nursingCadre]] : []),
-          ...(details.labSection ? [['Lab section', details.labSection]] : []),
-        ]}
-      />
-      <InfoCard
-        title="Training"
-        rows={[
-          ['Qualification', staff.qualification],
-          ['Institution', staff.institution],
-          ['Years of experience', staff.yearsExperience],
-          ['Certifications', certifications.length ? certifications.join(', ') : null],
-        ]}
-      />
-    </div>
-  );
-};
+const TRAINING_FIELDS = [
+  { key: 'qualification',   label: 'Qualification' },
+  { key: 'institution',     label: 'Institution' },
+  { key: 'yearsExperience', label: 'Experience', type: 'number', suffix: 'years' },
+];
 
 const ActivityTab = ({ employeeId }) => {
   const [data, setData] = useState(null);
@@ -148,8 +86,7 @@ const ActivityTab = ({ employeeId }) => {
       .catch(() => { if (!cancelled) toast.error('Failed to load activity'); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
-    // Guards against setting state after the admin has navigated away — the
-    // request outlives the component otherwise.
+    // Guards against setting state after the admin has navigated away.
     return () => { cancelled = true; };
   }, [employeeId]);
 
@@ -165,7 +102,7 @@ const ActivityTab = ({ employeeId }) => {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h3 className="text-sm font-semibold text-gray-800 mb-3">Recent logins</h3>
         {logins.length === 0 ? (
-          <EmptyState>No logins recorded.</EmptyState>
+          <p className="text-sm text-gray-400 py-8 text-center">No logins recorded.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
             {logins.map((l) => (
@@ -181,7 +118,7 @@ const ActivityTab = ({ employeeId }) => {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h3 className="text-sm font-semibold text-gray-800 mb-3">Edit history</h3>
         {edits.length === 0 ? (
-          <EmptyState>No edits recorded.</EmptyState>
+          <p className="text-sm text-gray-400 py-8 text-center">No edits recorded.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
             {edits.map((e) => (
@@ -202,18 +139,24 @@ const ActivityTab = ({ employeeId }) => {
   );
 };
 
-// ─── Page ───────────────────────────────────────────────────────────────────
-
 const StaffProfile = () => {
   const { employeeId } = useParams();
   const navigate = useNavigate();
 
-  const [staff, setStaff] = useState(null);
+  const [staff, setStaff]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy]       = useState(false);
+
+  // Read from the session rather than refetched: it decides whether the
+  // permission toggles are offered, and the server enforces the same rule
+  // regardless, so this is UX only.
+  const currentUser = (() => {
+    try { return JSON.parse(sessionStorage.getItem('currentUser') || 'null'); }
+    catch { return null; }
+  })();
+  const isAdmin = currentUser?.role === 'admin';
 
   const loadStaff = useCallback(async () => {
     try {
@@ -227,6 +170,20 @@ const StaffProfile = () => {
   }, [employeeId]);
 
   useEffect(() => { loadStaff(); }, [loadStaff]);
+
+  // One save path for every inline section. Errors are re-thrown so
+  // EditableSection keeps the form open with the admin's input intact rather
+  // than closing and losing it.
+  const saveSection = async (patch) => {
+    try {
+      const res = await staffService.update(employeeId, patch);
+      setStaff(res.data);
+      toast.success('Saved');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save');
+      throw err;
+    }
+  };
 
   const handleStatusChange = async (employmentStatus) => {
     setMenuOpen(false);
@@ -244,6 +201,10 @@ const StaffProfile = () => {
 
   const handleResetPassword = async () => {
     setMenuOpen(false);
+    if (!staff.email) {
+      toast.error(`${staff.name} has no email address on file.`);
+      return;
+    }
     if (!window.confirm(`Send a password reset email to ${staff.email}?`)) return;
 
     setBusy(true);
@@ -282,7 +243,7 @@ const StaffProfile = () => {
     try {
       const res = await staffService.restore(employeeId);
       setStaff(res.data);
-      toast.success('Restored. Reactivate the account to allow login again.');
+      toast.success('Restored. Set their status back to Active to allow login.');
     } catch (err) {
       toast.error(err.message || 'Failed to restore');
     } finally {
@@ -303,10 +264,7 @@ const StaffProfile = () => {
       <div className="text-center py-20">
         <p className="text-xl font-bold text-red-600">Staff member not found</p>
         <p className="text-gray-500 mt-1">Employee ID: {employeeId}</p>
-        <button
-          onClick={() => navigate('/admin/manage-users')}
-          className="mt-4 text-sm text-blue-600 hover:underline"
-        >
+        <button onClick={() => navigate('/admin/manage-users')} className="mt-4 text-sm text-blue-600 hover:underline">
           ← Back to Manage Users
         </button>
       </div>
@@ -316,10 +274,14 @@ const StaffProfile = () => {
   const tabs = [
     { id: 'overview',    name: 'Overview',    Icon: ClipboardList, show: true },
     { id: 'credentials', name: 'Credentials', Icon: Award,         show: CREDENTIALLED_ROLES.includes(staff.role) },
-    { id: 'activity',    name: 'Activity',    Icon: History,       show: true },
+    { id: 'access',      name: 'Access',      Icon: Lock,          show: isAdmin },
+    { id: 'leave',       name: 'Leave',       Icon: Calendar,      show: true },
+    { id: 'documents',   name: 'Documents',   Icon: FileText,      show: true },
+    { id: 'activity',    name: 'Activity',    Icon: History,       show: isAdmin },
   ].filter((t) => t.show);
 
   const initial = (staff.firstName || staff.name || '?').charAt(0).toUpperCase();
+  const canEdit = isAdmin && !staff.isArchived;
 
   return (
     <div>
@@ -337,10 +299,9 @@ const StaffProfile = () => {
           <button
             onClick={handleRestore}
             disabled={busy}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg text-sm font-semibold hover:bg-gray-800 transition-colors disabled:opacity-60 whitespace-nowrap"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded-lg text-sm font-semibold hover:bg-gray-800 disabled:opacity-60 whitespace-nowrap"
           >
-            <ArchiveRestore className="w-4 h-4" />
-            Restore
+            <ArchiveRestore className="w-4 h-4" /> Restore
           </button>
         </div>
       )}
@@ -353,95 +314,74 @@ const StaffProfile = () => {
 
         <div className="flex-1 min-w-[180px]">
           <p className="text-base font-bold text-gray-800 leading-tight">
-            {staff.name}{' '}
-            <span className="text-xs text-gray-400 font-normal">{staff.employeeId}</span>
+            {staff.name} <span className="text-xs text-gray-400 font-normal">{staff.employeeId}</span>
           </p>
           <p className="text-xs text-gray-500 mt-0.5">
-            {[ROLE_LABEL[staff.role] || staff.role, staff.department, staff.employmentType]
-              .filter(Boolean)
-              .join(' · ')}
+            {[ROLE_LABEL[staff.role] || staff.role, staff.department, staff.employmentType].filter(Boolean).join(' · ')}
             {staff.startDate && ` · joined ${formatDate(staff.startDate)}`}
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <a href={`tel:${staff.phone}`} className="hidden sm:flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700">
-            <Phone className="w-3.5 h-3.5" />{staff.phone || '—'}
-          </a>
+          {staff.phone && (
+            <a href={`tel:${staff.phone}`} className="hidden sm:flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700">
+              <Phone className="w-3.5 h-3.5" />{staff.phone}
+            </a>
+          )}
 
           <StatusBadge shape="tag" size="xs" tone={EMPLOYMENT_STATUS_TONES[staff.employmentStatus] || 'neutral'}>
             {staff.employmentStatus}
           </StatusBadge>
 
           {/* Only shown when there is something to act on — an in-date licence
-              needs no pill, and staff without a licence get none at all. */}
+              needs no pill, and staff without one get none at all. */}
           {staff.licenceExpiringSoon && (
             <StatusBadge shape="tag" size="xs" tone={staff.licenceExpired ? 'danger' : 'warning'}>
-              {staff.licenceExpired
-                ? 'Licence expired'
-                : `Licence ${staff.licenceExpiresInDays}d`}
+              {staff.licenceExpired ? 'Licence expired' : `Licence ${staff.licenceExpiresInDays}d`}
             </StatusBadge>
           )}
 
-          <button
-            onClick={() => setShowEditModal(true)}
-            disabled={busy || staff.isArchived}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <Pencil className="w-3.5 h-3.5" /> Edit
-          </button>
+          {isAdmin && (
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                disabled={busy}
+                aria-label="More actions"
+                className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
 
-          <div className="relative">
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              disabled={busy}
-              aria-label="More actions"
-              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 disabled:opacity-50"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-
-            {menuOpen && (
-              <>
-                {/* Click-away layer — without it the menu can only be closed by
-                    the toggle, which traps the admin on small screens. */}
-                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-                  <button
-                    onClick={handleResetPassword}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    <KeyRound className="w-3.5 h-3.5" /> Reset password
-                  </button>
-
-                  <div className="border-t border-gray-100 my-1" />
-                  <p className="px-3 py-1 text-[10px] uppercase tracking-wide text-gray-400">Employment status</p>
-                  {EMPLOYMENT_STATUSES.map((status) => (
+              {menuOpen && (
+                <>
+                  {/* Click-away layer — without it the menu can only be closed
+                      by the toggle, which traps the admin on small screens. */}
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
                     <button
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      disabled={status === staff.employmentStatus}
-                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent"
+                      onClick={handleResetPassword}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50"
                     >
-                      {status}
+                      <KeyRound className="w-3.5 h-3.5" /> Reset password
                     </button>
-                  ))}
 
-                  {!staff.isArchived && (
-                    <>
-                      <div className="border-t border-gray-100 my-1" />
+                    <div className="border-t border-gray-100 my-1" />
+                    <p className="px-3 py-1 text-[10px] uppercase tracking-wide text-gray-400">Employment status</p>
+                    {EMPLOYMENT_STATUSES.map((status) => (
                       <button
-                        onClick={handleArchive}
-                        className="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                        key={status}
+                        onClick={() => handleStatusChange(status)}
+                        disabled={status === staff.employmentStatus}
+                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:hover:bg-transparent"
                       >
-                        Archive account
+                        {status}
                       </button>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           <button
             onClick={() => navigate('/admin/manage-users')}
@@ -470,17 +410,39 @@ const StaffProfile = () => {
         ))}
       </div>
 
-      {activeTab === 'overview'    && <OverviewTab staff={staff} />}
-      {activeTab === 'credentials' && <CredentialsTab staff={staff} />}
-      {activeTab === 'activity'    && <ActivityTab employeeId={employeeId} />}
+      {activeTab === 'overview' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <EditableSection title="Personal"          fields={PERSONAL_FIELDS}   values={staff} onSave={saveSection} canEdit={canEdit} />
+          <EditableSection title="Employment"        fields={EMPLOYMENT_FIELDS} values={staff} onSave={saveSection} canEdit={canEdit} />
+          <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS}  values={staff} onSave={saveSection} canEdit={canEdit} />
+        </div>
+      )}
 
-      {showEditModal && (
-        <EditUserModal
-          user={{ ...staff, id: staff.userId }}
-          onClose={() => setShowEditModal(false)}
-          onSaved={() => { setShowEditModal(false); loadStaff(); }}
+      {activeTab === 'credentials' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <EditableSection
+            title="Licence" fields={LICENCE_FIELDS} values={staff}
+            onSave={saveSection} canEdit={canEdit}
+            description="An expiry date here drives the warning pill in the header."
+          />
+          <EditableSection title="Training" fields={TRAINING_FIELDS} values={staff} onSave={saveSection} canEdit={canEdit} />
+        </div>
+      )}
+
+      {activeTab === 'access' && (
+        <AccessTab
+          staff={staff}
+          currentUser={currentUser}
+          onChanged={setStaff}
+          onArchive={handleArchive}
+          onRestore={handleRestore}
+          busy={busy}
         />
       )}
+
+      {activeTab === 'leave'     && <LeaveTab staff={staff} isAdmin={isAdmin} />}
+      {activeTab === 'documents' && <DocumentsTab staff={staff} isAdmin={isAdmin} />}
+      {activeTab === 'activity'  && <ActivityTab employeeId={employeeId} />}
 
       <p className="mt-6 text-xs text-gray-400 flex items-center gap-1.5">
         <Mail className="w-3.5 h-3.5" />{staff.email || 'No email on file'}
