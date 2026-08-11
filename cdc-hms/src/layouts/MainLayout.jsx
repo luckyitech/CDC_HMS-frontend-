@@ -6,7 +6,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
 import { canAccessAdmin, hasPermission, PERMISSIONS } from "../utils/permissions";
-import DashboardWorkspaceTabs from "../components/shared/DashboardWorkspaceTabs";
+import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
   LayoutDashboard,
@@ -95,6 +95,22 @@ const MainLayout = ({ userRole = "Staff" }) => {
     userRole.toLowerCase() === 'inpatient'
       ? `/${currentUser?.role}/dashboard`
       : `/${userRole.toLowerCase()}/dashboard`;
+
+  // Grouped pages that share one top-of-page switcher instead of separate sidebar
+  // entries. Only the group matching the current route renders (decongests the
+  // side nav). Add a group here to collapse more items later.
+  const pageTabs = showWorkspaceTabs
+    ? [
+        { label: 'Outpatient Dashboard', path: outpatientPath, Icon: Stethoscope },
+        { label: 'Inpatient Dashboard', path: '/inpatient/board', Icon: BedDouble },
+      ]
+    : userRole.toLowerCase() === 'doctor' &&
+      ['/doctor/appointments', '/doctor/my-schedule'].includes(location.pathname)
+    ? [
+        { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
+        { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
+      ]
+    : null;
 
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
@@ -225,7 +241,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       //   icon: Stethoscope,
       // },
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
-      { name: "My Schedule", path: "/doctor/my-schedule", icon: CalendarCheck },
       { name: "Patient Visits", path: "/doctor/patient-visits", icon: TrendingUp },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
@@ -624,7 +639,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto no-scrollbar overscroll-contain px-4 pb-4 pt-3 lg:px-8 lg:pb-8 lg:pt-4 bg-gray-50 mt-[4.75rem] md:mt-0">
-          {showWorkspaceTabs && <DashboardWorkspaceTabs outpatientPath={outpatientPath} />}
+          {pageTabs && <PageTabs tabs={pageTabs} />}
           <Outlet />
         </main>
       </div>
