@@ -81,6 +81,10 @@ const CreateUsers = lazy(() => import("./pages/admin/CreateUsers"));
 const ClinicalCatalog = lazy(() => import("./pages/admin/ClinicalCatalog"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 const StaffFile = lazy(() => import("./pages/admin/StaffFile"));
+// Unified, role-aware patient file — used by the doctor, staff and admin portals
+// (replaces doctor/PatientProfile + staff/StaffPatientProfile, which remain in
+// the tree for rollback).
+const PatientFile = lazy(() => import("./pages/shared/PatientFile"));
 const DuplicatePatients = lazy(() => import("./pages/admin/DuplicatePatients"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
 const SystemSettings = lazy(() => import("./pages/admin/SystemSettings"));
@@ -159,7 +163,7 @@ function App() {
                   <Route path="queue" element={<QueueManagement />} />
                   <Route path="triage" element={<Triage />} />
                   <Route path="create-patient" element={<StaffCreatePatient />} />
-                  <Route path="patient-profile/:uhid" element={<StaffPatientProfile />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="appointments" element={<StaffAppointmentsList />} />
                   <Route path="book-appointment" element={<StaffBookAppointment />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
@@ -176,7 +180,7 @@ function App() {
                 >
                   <Route path="dashboard" element={<DoctorDashboard />} />
                   <Route path="patients" element={<MyPatients />} />
-                  <Route path="patient-profile/:uhid" element={<PatientProfile />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="consultation/:uhid" element={<Consultation />} />
                   <Route path="initial-assessment" element={<InitialAssessment />} />
                   <Route path="prescriptions" element={<DoctorPrescriptions />} />
@@ -258,7 +262,7 @@ function App() {
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="queue" element={<QueueManagement />} />
                   <Route path="triage" element={<Triage />} />
-                  <Route path="patient-profile/:uhid" element={<StaffPatientProfile />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
