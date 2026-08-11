@@ -24,11 +24,14 @@ import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
  * onSuccess() fires when a treatment plan is saved — the parent uses it to mark
  * the required step complete.
  */
-const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onSuccess = () => {} }) => {
+const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onSuccess = () => {}, notesRef = null }) => {
   const { getNotesByPatient, addNote, updateNote } = useConsultationNotesContext();
   const { getPlansByPatient, addTreatmentPlan, updateTreatmentPlan } = useTreatmentPlanContext();
 
   const [notesText, setNotesText]   = useState("");
+  // Expose the live (unsaved) note text to the parent so the Admit modal can
+  // pre-fill the admission note without lifting this component's state.
+  useEffect(() => { if (notesRef) notesRef.current = notesText; }, [notesText, notesRef]);
   const [todayNote, setTodayNote]   = useState(null);
   const [planText, setPlanText]     = useState("");
   const [todayPlan, setTodayPlan]   = useState(null);

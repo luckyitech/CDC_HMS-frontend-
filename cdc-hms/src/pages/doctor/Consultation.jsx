@@ -124,6 +124,9 @@ const Consultation = () => {
   // Patient bar dropdown — slides the full Overview details open under the bar
   const [overviewOpen, setOverviewOpen] = useState(false);
   const overviewScrollRef = useRef(null);
+  // Live consultation note text, handed up from ConsultationNotesPlan so the
+  // Admit modal can pre-fill the admission note.
+  const notesTextRef = useRef('');
   // Always open at the top, and freeze the page behind it while expanded
   // (MainLayout's <main> is the app scroll container; the overview scrolls itself)
   useEffect(() => {
@@ -787,6 +790,7 @@ const Consultation = () => {
                       currentUser={currentUser}
                       activeDiagnoses={activeDiagnoses}
                       onSuccess={handleDiagnosisSuccess}
+                      notesRef={notesTextRef}
                     />
                   )}
                 </AccordionPanel>
@@ -1283,10 +1287,19 @@ const Consultation = () => {
         if (!activeQueueItem) {
           return <NoOpenVisitNotice onClose={() => setShowAdmitModal(false)} />;
         }
+        // Pre-fill the admission note from the active diagnoses + the live
+        // consultation note text (handed up via notesTextRef).
+        const dxLines = activeDiagnoses.map((d) => `• ${d.diagnosis}${d.code ? ` (${d.code})` : ''}`).join('\n');
+        const noteText = (notesTextRef.current || '').trim();
+        const defaultNote = [
+          dxLines && `Working diagnosis:\n${dxLines}`,
+          noteText && `Clinical notes:\n${noteText}`,
+        ].filter(Boolean).join('\n\n');
         return (
           <AdmitPatientModal
             patient={patient}
             queueItem={activeQueueItem}
+            defaultNote={defaultNote}
             onClose={() => setShowAdmitModal(false)}
             onSuccess={() => {
               sessionStorage.removeItem(DRAFT_KEY);
