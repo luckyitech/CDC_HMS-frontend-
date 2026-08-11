@@ -127,9 +127,28 @@ const MainLayout = ({ userRole = "Staff" }) => {
         { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy },
       ],
     },
+    {
+      show: homeRole === 'admin',
+      tabs: [
+        { label: 'Activity Log', path: '/admin/activity-log', Icon: ShieldAlert },
+        { label: 'Analytics', path: '/admin/analytics', Icon: TrendingUp },
+        { label: 'Patient Visits', path: '/admin/patient-visits', Icon: ClipboardList },
+      ],
+    },
+    {
+      show: homeRole === 'admin',
+      tabs: [
+        { label: 'System Settings', path: '/admin/settings', Icon: Settings },
+        { label: 'Change Password', path: '/admin/change-password', Icon: KeyRound },
+      ],
+    },
   ];
+  // The switcher shows wherever one of its tabs is active (prefix match, so
+  // sub-routes like /admin/analytics/doctors still show the Monitoring tabs).
+  const matchesTab = (t) =>
+    location.pathname === t.path || location.pathname.startsWith(`${t.path}/`);
   const pageTabs =
-    switcherGroups.find((g) => g.show && g.tabs.some((t) => t.path === location.pathname))?.tabs ?? null;
+    switcherGroups.find((g) => g.show && g.tabs.some(matchesTab))?.tabs ?? null;
 
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
@@ -319,21 +338,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble },
       {
         name: "Monitoring",
+        path: "/admin/activity-log",
         icon: Activity,
-        children: [
-          { name: "Activity Log", path: "/admin/activity-log", icon: ShieldAlert },
-          { name: "Analytics", path: "/admin/analytics", icon: TrendingUp },
-          { name: "Patient Visits", path: "/admin/patient-visits", icon: ClipboardList },
-        ],
       },
       {
         name: "Settings",
+        path: "/admin/settings",
         icon: Settings,
-        children: [
-          // /admin/settings holds the staff password rotation policy.
-          { name: "System Settings", path: "/admin/settings", icon: Settings },
-          { name: "Change Password", path: "/admin/change-password", icon: KeyRound },
-        ],
       },
     ],
   };
