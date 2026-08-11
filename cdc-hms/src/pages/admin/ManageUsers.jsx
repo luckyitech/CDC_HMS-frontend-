@@ -532,7 +532,6 @@ const ManageUsers = () => {
                       </StatusBadge>
                     </div>
                   </div>
-                  <ActionButtons user={user} mobile />
                 </div>
               );
             })}
@@ -543,11 +542,10 @@ const ManageUsers = () => {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {['User', 'Role', 'Phone', 'Position', 'Status', 'Joined', 'Actions'].map((h, i) => (
+                  {['User', 'Role', 'Phone', 'Position', 'Status', 'Joined'].map((h) => (
                     <th key={h} className={`px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide ${
                       h === 'Position' ? 'hidden lg:table-cell' :
-                      h === 'Joined'   ? 'hidden xl:table-cell' :
-                      h === 'Actions'  ? 'text-right' : ''
+                      h === 'Joined'   ? 'hidden xl:table-cell' : ''
                     }`}>{h}</th>
                   ))}
                 </tr>
@@ -620,10 +618,6 @@ const ManageUsers = () => {
                         {user.createdAt
                           ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                           : '—'}
-                      </td>
-
-                      <td className="px-5 py-3.5">
-                        <ActionButtons user={user} />
                       </td>
                     </tr>
                   );

@@ -2,15 +2,15 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  ChevronDown, ArrowLeft, Phone, Mail, ClipboardList, Hospital, AlertTriangle,
-  Pill, Zap, Radio, BarChart3, Battery, Calendar, TrendingUp, FileText,
-  MessageSquare, LineChart, Pencil, ClipboardEdit,
+  ChevronDown, ArrowLeft, Pill, Zap, Radio, Battery, Calendar, TrendingUp,
+  FileText, MessageSquare, LineChart, Pencil, ClipboardEdit, AlertTriangle,
+  KeyRound, UserCheck, UserX, Trash2,
 } from "lucide-react";
 import { formatDOB } from "../../utils/dateUtils";
-import { useUserContext } from "../../contexts/UserContext";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { patientService } from "../../services/patientService";
+import api from "../../services/api";
 
 import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
@@ -74,6 +74,7 @@ const ROLE_CONFIG = {
     patientsLabel: "Back to Users",
     canEditPatient: true,
     canEditVitals: true,
+    canManageAccount: true,
     showRegistrationBanner: true,
     tabs: [
       { id: "notes", name: "Doctor's Notes", Icon: MessageSquare },
@@ -212,10 +213,14 @@ const PatientFile = () => {
   const navigate = useNavigate();
   const { uhid } = useParams();
   const location = useLocation();
-  const { currentUser } = useUserContext();
 
-  const role = currentUser?.role === "doctor" ? "doctor" : currentUser?.role === "admin" ? "admin" : "staff";
-  const cfg = ROLE_CONFIG[role];
+  // Behaviour follows the PORTAL you're in (the URL), not the account's role —
+  // a doctor with admin access viewing /admin must get the admin file (Back to
+  // Users), not be bounced to the doctor patient list.
+  const portal = location.pathname.startsWith("/admin") ? "admin"
+    : location.pathname.startsWith("/doctor") ? "doctor"
+    : "staff"; // /staff and /nurse share the staff config
+  const cfg = ROLE_CONFIG[portal];
   const fromConsultation = location.state?.fromConsultation;
 
   const { fetchPatientByUHID } = usePatientContext();
@@ -241,9 +246,9 @@ const PatientFile = () => {
 
   // Prescriptions only needed for the staff/admin prescriptions tab.
   useEffect(() => {
-    if (!patient || role === "doctor") return;
+    if (!patient || portal === "doctor") return;
     getPrescriptionsByPatient(uhid).then((d) => setPrescriptions(Array.isArray(d) ? d : []));
-  }, [patient, uhid, role, getPrescriptionsByPatient]);
+  }, [patient, uhid, portal, getPrescriptionsByPatient]);
 
   const handleReactivate = async () => {
     if (!window.confirm(`Reactivate patient ${patient.uhid}? This will unlink them from the merged record.`)) return;
@@ -256,6 +261,41 @@ const PatientFile = () => {
       toast.error(err?.response?.data?.message || "Failed to reactivate patient.");
     } finally {
       setReactivating(false);
+    }
+  };
+
+  // Account actions (admin portal) — patient equivalents of the old Manage
+  // Users row icons, now living inside the file.
+  const resetPassword = async () => {
+    if (!patient.email) return toast.error("No email on file — add one via Edit Profile first.");
+    if (!window.confirm(`Send a password reset link to ${patient.email}?`)) return;
+    try {
+      await api.post("/auth/forgot-password", { email: patient.email });
+      toast.success(`Reset link sent to ${patient.email}.`);
+    } catch (err) {
+      toast.error(err?.message || "Failed to send reset link.");
+    }
+  };
+  const toggleStatus = async () => {
+    const activate = patient.status !== "Active";
+    if (!window.confirm(`${activate ? "Activate" : "Deactivate"} ${patient.name}?`)) return;
+    try {
+      await api.put(`/patients/${uhid}`, { status: activate ? "Active" : "Inactive" });
+      toast.success(`${patient.name} ${activate ? "activated" : "deactivated"}.`);
+      await loadPatient();
+    } catch (err) {
+      toast.error(err?.message || "Failed to update status.");
+    }
+  };
+  const deletePatient = async () => {
+    if (!window.confirm(`Delete ${patient.name}? This cannot be undone.`)) return;
+    if (!window.confirm(`Are you absolutely sure you want to permanently delete ${patient.name}?`)) return;
+    try {
+      await api.delete(`/patients/${uhid}`);
+      toast.success(`${patient.name} deleted.`);
+      navigate("/admin/manage-users");
+    } catch (err) {
+      toast.error(err?.message || "Failed to delete patient.");
     }
   };
 
@@ -279,7 +319,7 @@ const PatientFile = () => {
         title="Patient Profile"
         actions={
           <div className="flex flex-wrap gap-2">
-            {role === "doctor" && fromConsultation && (
+            {portal === "doctor" && fromConsultation && (
               <Button variant="primary" onClick={() => navigate(`/doctor/consultation/${uhid}`)} className="flex items-center gap-2">
                 <ArrowLeft className="w-5 h-5" /> Back to Consultation
               </Button>
@@ -349,6 +389,22 @@ const PatientFile = () => {
               onEditVitals={() => setShowVitalsModal(true)}
               goToEquipment={() => setActiveTab("equipment")}
             />
+            {cfg.canManageAccount && (
+              <Card title="Account" shadow={false} className="border border-gray-100 mt-6">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={resetPassword} className="flex items-center gap-1.5 px-3 py-2 text-sm">
+                    <KeyRound className="w-4 h-4" /> Reset password
+                  </Button>
+                  <Button variant="outline" onClick={toggleStatus} className="flex items-center gap-1.5 px-3 py-2 text-sm">
+                    {patient.status === "Active" ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                    {patient.status === "Active" ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button variant="danger" onClick={deletePatient} className="flex items-center gap-1.5 px-3 py-2 text-sm">
+                    <Trash2 className="w-4 h-4" /> Delete patient
+                  </Button>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>
