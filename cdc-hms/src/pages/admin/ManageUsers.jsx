@@ -201,9 +201,23 @@ const ManageUsers = () => {
     }
   };
 
+  // Staff accounts are archived, not destroyed — their name is still attached
+  // to prescriptions, notes and lab results. Patients created in error are
+  // still deleted outright, which is why the wording branches.
   const handleDelete = async (user) => {
-    if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) return;
-    if (!window.confirm(`Are you absolutely sure you want to permanently delete ${user.name}?`)) return;
+    const isStaffAccount = user.hasUserAccount !== false && user.role !== 'patient';
+
+    if (isStaffAccount) {
+      const confirmed = window.confirm(
+        `Archive ${user.name}?\n\nTheir login will be disabled and they will drop out of staff lists. ` +
+        'Their name stays on past records. This can be undone from their profile.'
+      );
+      if (!confirmed) return;
+    } else {
+      if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) return;
+      if (!window.confirm(`Are you absolutely sure you want to permanently delete ${user.name}?`)) return;
+    }
+
     try {
       // Patient-only records have no User account — delete via the patients API using UHID
       if (user.hasUserAccount === false && !user.uhid) {
@@ -216,10 +230,14 @@ const ManageUsers = () => {
       const res = await api.delete(endpoint);
       if (res.success) {
         setUsers(prev => prev.filter(u => u.id !== user.id));
-        toastSuccess(`${user.name} has been deleted`);
+        toastSuccess(
+          isStaffAccount
+            ? `${user.name} has been archived`
+            : `${user.name} has been deleted`
+        );
       }
     } catch (err) {
-      toastError(err.message || 'Failed to delete user');
+      toastError(err.message || 'Failed to remove user');
     }
   };
 
@@ -483,7 +501,16 @@ const ManageUsers = () => {
                       <span className="text-white text-sm font-bold">{getInitials(user.name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
+                      {user.employeeId ? (
+                        <button
+                          onClick={() => navigate(`/admin/staff-profile/${user.employeeId}`)}
+                          className="text-sm font-semibold text-blue-700 hover:underline truncate text-left"
+                        >
+                          {user.name}
+                        </button>
+                      ) : (
+                        <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
+                      )}
                       <p className="text-xs text-gray-400 truncate">{user.email || '—'}</p>
                       <p className="text-xs text-gray-400">{user.phone || '—'}</p>
                     </div>
@@ -543,7 +570,20 @@ const ManageUsers = () => {
                             <span className="text-white text-xs font-bold">{getInitials(user.name)}</span>
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-gray-800">{user.name}</p>
+                            {/* Staff rows link through to the full profile. A row
+                                without an employeeId — a patient, or a legacy
+                                account the backfill has not reached — renders as
+                                plain text rather than a link to nowhere. */}
+                            {user.employeeId ? (
+                              <button
+                                onClick={() => navigate(`/admin/staff-profile/${user.employeeId}`)}
+                                className="text-sm font-semibold text-blue-700 hover:underline text-left"
+                              >
+                                {user.name}
+                              </button>
+                            ) : (
+                              <p className="text-sm font-semibold text-gray-800">{user.name}</p>
+                            )}
                             <p className="text-xs text-gray-400">{user.email || '—'}</p>
                           </div>
                         </div>
