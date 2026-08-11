@@ -198,6 +198,18 @@ const Consultation = () => {
   // ACCORDION_SECTIONS column-parity note). Open to all clinical roles.
   const [showRecordUse, setShowRecordUse]           = useState(false);
   const [showActions, setShowActions]               = useState(false);
+  const actionsRef = useRef(null);
+  // Close the Actions dropdown on an outside click. Deliberately NOT a
+  // fixed inset-0 overlay — that sits outside <main> (the scroll container) and
+  // swallows wheel events, freezing the page.
+  useEffect(() => {
+    if (!showActions) return undefined;
+    const onDown = (e) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target)) setShowActions(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showActions]);
   const [showAdmitModal, setShowAdmitModal]         = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal]     = useState(false);
@@ -875,7 +887,7 @@ const Consultation = () => {
       {activeTab === "consultation" && (
       <div className="mt-6 flex items-center justify-end gap-2">
         {/* Secondary actions collapsed into one dropdown to keep the bar uncluttered */}
-        <div className="relative">
+        <div className="relative" ref={actionsRef}>
           <button
             onClick={() => setShowActions((o) => !o)}
             className="flex items-center gap-1.5 bg-white hover:bg-blue-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
@@ -885,30 +897,26 @@ const Consultation = () => {
           </button>
 
           {showActions && (
-            <>
-              {/* click-away */}
-              <div className="fixed inset-0 z-10" onClick={() => setShowActions(false)} />
-              <div className="absolute right-0 top-full mt-2 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-xl py-1">
-                <button
-                  onClick={() => { setShowActions(false); setShowRecordUse(true); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
-                >
-                  <Package className="w-3.5 h-3.5" /> Record Use
-                </button>
-                <button
-                  onClick={() => { setShowActions(false); setShowReferModal(true); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
-                >
-                  <UserCircle className="w-3.5 h-3.5" /> Refer Patient
-                </button>
-                <button
-                  onClick={() => { setShowActions(false); setShowAdmitModal(true); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
-                >
-                  <BedDouble className="w-3.5 h-3.5" /> Admit Patient
-                </button>
-              </div>
-            </>
+            <div className="absolute right-0 top-full mt-2 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-xl py-1">
+              <button
+                onClick={() => { setShowActions(false); setShowRecordUse(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+              >
+                <Package className="w-3.5 h-3.5" /> Record Use
+              </button>
+              <button
+                onClick={() => { setShowActions(false); setShowReferModal(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+              >
+                <UserCircle className="w-3.5 h-3.5" /> Refer Patient
+              </button>
+              <button
+                onClick={() => { setShowActions(false); setShowAdmitModal(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+              >
+                <BedDouble className="w-3.5 h-3.5" /> Admit Patient
+              </button>
+            </div>
           )}
         </div>
 
