@@ -197,6 +197,7 @@ const Consultation = () => {
   // Floating-bar button — deliberately NOT an accordion section (see the
   // ACCORDION_SECTIONS column-parity note). Open to all clinical roles.
   const [showRecordUse, setShowRecordUse]           = useState(false);
+  const [showActions, setShowActions]               = useState(false);
   const [showAdmitModal, setShowAdmitModal]         = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal]     = useState(false);
@@ -873,44 +874,43 @@ const Consultation = () => {
              section (never obscure the summary panel or page content) ===== */}
       {activeTab === "consultation" && (
       <div className="mt-6 flex items-center justify-end gap-2">
-        <button
-          onClick={() => setShowRecordUse(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
-        >
-          <Package className="w-3.5 h-3.5" />
-          Record Use
-        </button>
+        {/* Secondary actions collapsed into one dropdown to keep the bar uncluttered */}
+        <div className="relative">
+          <button
+            onClick={() => setShowActions((o) => !o)}
+            className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+          >
+            Actions
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showActions ? "rotate-180" : ""}`} />
+          </button>
 
-        <button
-          onClick={() => setShowRecordUse(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
-        >
-          <Package className="w-3.5 h-3.5" />
-          Record Use
-        </button>
-
-        <button
-          onClick={() => setShowReferModal(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
-        >
-          <UserCircle className="w-3.5 h-3.5" />
-          Refer Patient
-        </button>
-
-        {showRecordUse && (
-          <RecordUseModal
-            patient={{ uhid: patient.uhid, name: patient.name }}
-            onClose={() => setShowRecordUse(false)}
-          />
-        )}
-
-        <button
-          onClick={() => setShowAdmitModal(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
-        >
-          <BedDouble className="w-3.5 h-3.5" />
-          Admit Patient
-        </button>
+          {showActions && (
+            <>
+              {/* click-away */}
+              <div className="fixed inset-0 z-10" onClick={() => setShowActions(false)} />
+              <div className="absolute right-0 bottom-full mb-2 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-xl py-1">
+                <button
+                  onClick={() => { setShowActions(false); setShowRecordUse(true); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Package className="w-3.5 h-3.5" /> Record Use
+                </button>
+                <button
+                  onClick={() => { setShowActions(false); setShowReferModal(true); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <UserCircle className="w-3.5 h-3.5" /> Refer Patient
+                </button>
+                <button
+                  onClick={() => { setShowActions(false); setShowAdmitModal(true); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <BedDouble className="w-3.5 h-3.5" /> Admit Patient
+                </button>
+              </div>
+            </>
+          )}
+        </div>
 
         <button
           onClick={handleCompleteConsultation}
@@ -920,6 +920,13 @@ const Consultation = () => {
           <Check className="w-3.5 h-3.5" />
           Complete Consultation
         </button>
+
+        {showRecordUse && (
+          <RecordUseModal
+            patient={{ uhid: patient.uhid, name: patient.name }}
+            onClose={() => setShowRecordUse(false)}
+          />
+        )}
       </div>
       )}
 
