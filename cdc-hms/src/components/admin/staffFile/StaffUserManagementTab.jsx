@@ -31,7 +31,7 @@ const CATALOGUE = [
     name: 'Stock Management',
     code: 'stock.manage',
     Icon: Package,
-    description: 'Manage the stock / inventory module.',
+    description: 'Access the Stocks module — it appears in their portal switcher.',
   },
 ];
 

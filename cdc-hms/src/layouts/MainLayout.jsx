@@ -97,10 +97,24 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // anyone with admin capability (role admin, or a granted user) can switch.
   const canSwitchPortal = canAccessAdmin(currentUser);
 
+  // Stocks (to become Pharmacy) lives in the portal list, not the sidebar. Shown
+  // to users granted stock access, pointing at the CURRENT portal's stock page so
+  // a non-admin stock user isn't sent to an admin-only route. Only portals that
+  // actually have a stock route qualify. Hiding the link is UX; the API is guarded
+  // server-side regardless.
+  const hasStockAccess = !!currentUser?.canManageStock;
+  const stockModule = (hasStockAccess && ['admin', 'doctor', 'staff'].includes(userRole.toLowerCase()))
+    ? [{ label: 'Stocks', path: `/${userRole.toLowerCase()}/stock`, icon: Package }]
+    : [];
+
+  // The logo opens the switcher for portal-switchers OR stock users (their one
+  // module lives in the list too).
+  const canOpenSwitcher = canSwitchPortal || stockModule.length > 0;
+
   // Logo click: opens the portal dropdown for those who may switch; otherwise it
   // is a shortcut back to the current portal's dashboard.
   const handleLogoClick = () => {
-    if (canSwitchPortal) {
+    if (canOpenSwitcher) {
       setPortalSwitcherOpen((open) => !open);
       setOpenGroups({}); // single-open: opening the switcher closes any open nav group
     } else {
@@ -161,12 +175,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // const handleMarkAsRead = () => { toast.success(...) };
   // const handleMarkAllAsRead = () => { toast.success(...); setNotificationsOpen(false); };
 
-  // Stocks appears only for users the admin has granted stock access
-  // (admins always — their auth profile carries canManageStock: true).
-  // Hiding the link is UX; the API is guarded server-side regardless.
-  const hasStockAccess = !!currentUser?.canManageStock;
-  const stockEntry = (portal) =>
-    hasStockAccess ? [{ name: "Stocks", path: `/${portal}/stock`, icon: Package }] : [];
 
   const menuItems = {
     staff: [
@@ -178,7 +186,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Book Appointment", path: "/staff/book-appointment", icon: CalendarCheck },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
       { name: "Patient Visits", path: "/staff/patient-visits", icon: TrendingUp },
-      ...stockEntry("staff"),
       { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
@@ -205,7 +212,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
       { name: "My Schedule", path: "/doctor/my-schedule", icon: CalendarCheck },
       { name: "Patient Visits", path: "/doctor/patient-visits", icon: TrendingUp },
-      ...stockEntry("doctor"),
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
@@ -271,7 +277,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
-      { name: "Stocks", path: "/admin/stock", icon: Package },
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble },
       {
         name: "Monitoring",
@@ -452,9 +457,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
           <button
             type="button"
             onClick={handleLogoClick}
-            title={canSwitchPortal ? "Switch portal" : "Go to dashboard"}
-            aria-haspopup={canSwitchPortal ? "menu" : undefined}
-            aria-expanded={canSwitchPortal ? portalSwitcherOpen : undefined}
+            title={canOpenSwitcher ? "Switch portal" : "Go to dashboard"}
+            aria-haspopup={canOpenSwitcher ? "menu" : undefined}
+            aria-expanded={canOpenSwitcher ? portalSwitcherOpen : undefined}
             className={`flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl px-3 py-2 transition hover:bg-blue-700/40 ${isCollapsed ? "md:flex-none md:justify-center md:px-0" : ""}`}
           >
             {/* Logo */}
@@ -471,7 +476,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
               <p className="text-xs text-blue-200 mt-0.5 truncate">{userRole} Portal</p>
             </div>
             {/* Switcher affordance — pushed to the far right of the full-width button */}
-            {canSwitchPortal && (
+            {canOpenSwitcher && (
               <ChevronDown
                 size={18}
                 className={`ml-auto flex-shrink-0 text-blue-200 transition-transform duration-200 ${isCollapsed ? "md:hidden" : ""} ${portalSwitcherOpen ? "rotate-180" : ""}`}
@@ -493,11 +498,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
           {/* Portal switcher — opened from the logo. Renders inline and pushes the menu
               down, exactly like the nav group dropdowns (reuses renderLeaf). Negative
               top margin cancels the nav's top padding so it sits right under the logo. */}
-          {canSwitchPortal && portalSwitcherOpen && (
+          {canOpenSwitcher && portalSwitcherOpen && (
             <div className="-mt-4">
-              {portalOptions
+              {canSwitchPortal && portalOptions
                 .filter(({ path }) => !path.startsWith(`/${userRole.toLowerCase()}/`))
                 .map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
+              {stockModule.map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
             </div>
           )}
           {currentMenu
