@@ -44,7 +44,12 @@ const Field = ({ label, value, onChange, type = 'text', options }) => (
  * Overview tab of the Staff File. Personal (read-only account facts) + Employment
  * (editable StaffProfile fields). Editing reuses PUT /api/users/:id.
  */
-const StaffOverviewTab = ({ staff, onSaved }) => {
+const fmtDateTime = (d) => {
+  if (!d) return '—';
+  return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const StaffOverviewTab = ({ staff, lastLogin, onSaved }) => {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -76,18 +81,19 @@ const StaffOverviewTab = ({ staff, onSaved }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card title="Personal Information">
+      <Card title="Personal Information" shadow={false} className="border border-gray-100">
         <div>
           <InfoRow label="Full Name" value={staff.name} />
           <InfoRow label="Role" value={staff.role} valueClass="text-primary capitalize" />
           <InfoRow label="Email" value={staff.email} />
           <InfoRow label="Phone" value={staff.phone} />
           <InfoRow label="Account status" value={staff.status} />
+          <InfoRow label="Last login" value={fmtDateTime(lastLogin)} />
           <InfoRow label="Joined" value={fmtDate(staff.createdAt)} />
         </div>
       </Card>
 
-      <Card title="Employment">
+      <Card title="Employment" shadow={false} className="border border-gray-100">
         {editing ? (
           <div>
             <Field label="Position" value={form.position} onChange={set('position')} />

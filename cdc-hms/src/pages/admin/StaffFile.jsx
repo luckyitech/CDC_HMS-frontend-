@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import {
-  ArrowLeft, Phone, Mail, ClipboardList, FolderOpen, KeyRound, Activity,
-} from 'lucide-react';
+import { ArrowLeft, ChevronDown, FolderOpen, KeyRound, Activity } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
-import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import ProfileTabBar from '../../components/shared/ProfileTabBar';
 import staffFileService from '../../services/staffFileService';
@@ -17,14 +14,7 @@ import StaffActivityTab from '../../components/admin/staffFile/StaffActivityTab'
 const STAFF_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
 const PERMISSIBLE_ROLES = ['doctor', 'staff', 'lab', 'nurse'];
 
-const fmtDate = (d) => {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
-const fmtDateTime = (d) => {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
+const cap = (s = '') => s.charAt(0).toUpperCase() + s.slice(1);
 const initial = (name = '') => (name.trim()[0] || '?').toUpperCase();
 
 const StaffFile = () => {
@@ -34,8 +24,9 @@ const StaffFile = () => {
 
   const [staff, setStaff] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [lastLogin, setLastLogin] = useState(undefined); // undefined = not loaded
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
+  const [lastLogin, setLastLogin] = useState(undefined);
+  const [overviewOpen, setOverviewOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'documents');
 
   const loadStaff = useCallback(async () => {
     setLoading(true);
@@ -51,8 +42,7 @@ const StaffFile = () => {
 
   useEffect(() => { loadStaff(); }, [loadStaff]);
 
-  // Last login for the header stat — derived from the activity feed (login events)
-  // rather than a column, so no schema change is needed.
+  // Last login — derived from the activity feed (login events), not a column.
   useEffect(() => {
     if (!staff?.name) return;
     let alive = true;
@@ -81,95 +71,71 @@ const StaffFile = () => {
   }
 
   const tabs = [
-    { id: 'overview', name: 'Overview', Icon: ClipboardList },
     { id: 'documents', name: 'Staff Documents', Icon: FolderOpen },
     ...(PERMISSIBLE_ROLES.includes(staff.role) ? [{ id: 'permissions', name: 'Permissions', Icon: KeyRound }] : []),
     { id: 'activity', name: 'Activity', Icon: Activity },
   ];
 
-  const stats = [
-    { k: 'Position', v: staff.position || '—', bg: 'bg-gray-50', val: 'text-gray-800' },
-    { k: 'Department', v: staff.department || '—', bg: 'bg-gray-50', val: 'text-gray-800' },
-    { k: 'Shift', v: staff.shift || '—', bg: 'bg-gray-50', val: 'text-gray-800' },
-    {
-      k: 'Last Login',
-      v: lastLogin === undefined ? '…' : fmtDateTime(lastLogin),
-      bg: 'bg-blue-50',
-      val: 'text-blue-600',
-    },
-  ];
+  const subline = [cap(staff.role), staff.department].filter(Boolean).join(' · ');
 
   return (
     <div>
       <PageHeader
         title="Staff File"
-        subtitle={`${staff.name} · ${staff.role?.charAt(0).toUpperCase()}${staff.role?.slice(1)}`}
         actions={
-          <Button
-            variant="outline"
-            onClick={() => navigate('/admin/manage-users')}
-            className="flex items-center gap-2"
-          >
+          <Button variant="outline" onClick={() => navigate('/admin/manage-users')} className="flex items-center gap-2">
             <ArrowLeft className="w-5 h-5" /> <span>Back to Users</span>
           </Button>
         }
       />
 
-      <Card className="mb-6">
-        <div className="flex flex-col md:flex-row items-start justify-between gap-4">
-          <div className="flex items-start gap-3 sm:gap-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center text-white text-2xl sm:text-3xl font-bold flex-shrink-0">
-              {initial(staff.name)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg sm:text-2xl font-bold text-gray-800 truncate">{staff.name}</h3>
-              <div className="mt-1 sm:mt-1.5 space-y-0.5">
-                <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5">
-                  <Phone className="w-3 h-3 sm:w-4 sm:h-4" /><span className="truncate">{staff.phone || '—'}</span>
-                </p>
-                <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1.5">
-                  <Mail className="w-3 h-3 sm:w-4 sm:h-4" /><span className="truncate">{staff.email || '—'}</span>
-                </p>
-              </div>
-            </div>
+      {/* Name bar — click to slide the overview open. Takes the active-tab
+          treatment (primary, white text) while open. Mirrors the consultation
+          patient bar so the two record "files" stay identical. */}
+      <div
+        onClick={() => setOverviewOpen((o) => !o)}
+        className={`mb-1 px-4 py-2 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
+          overviewOpen ? 'bg-primary border-primary text-white' : 'bg-white border-gray-200 hover:bg-gray-50'
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${overviewOpen ? 'rotate-180 text-white' : 'text-gray-400'}`} />
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+            {initial(staff.name)}
           </div>
+          <h2 className={`text-base font-bold truncate ${overviewOpen ? 'text-white' : 'text-gray-800'}`}>{staff.name}</h2>
+          {subline && (
+            <span className={`hidden sm:inline text-sm truncate ${overviewOpen ? 'text-blue-100' : 'text-gray-400'}`}>{subline}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {staff.hasAdminAccess && staff.role !== 'admin' && (
+            <span className="px-2.5 py-1 bg-violet-100 text-violet-700 rounded-md text-xs font-semibold">Admin access</span>
+          )}
+          <span className={`px-2.5 py-1 rounded-md text-xs font-semibold ${
+            staff.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+          }`}>
+            {staff.status}
+          </span>
+        </div>
+      </div>
 
-          <div className="flex flex-wrap gap-2">
-            <span className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-semibold capitalize">
-              {staff.role}
-            </span>
-            {staff.hasAdminAccess && staff.role !== 'admin' && (
-              <span className="px-4 py-2 bg-violet-100 text-violet-700 rounded-lg text-sm font-semibold">
-                Admin access
-              </span>
-            )}
-            {staff.canManageStock && (
-              <span className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm font-semibold">
-                Stock
-              </span>
-            )}
-            <span className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-              staff.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-            }`}>
-              {staff.status}
-            </span>
+      {/* Overview panel — expands in flow with a smooth slide. */}
+      <div
+        className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          overviewOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
+      >
+        <div className="overflow-hidden min-h-0">
+          <div className="py-4">
+            <StaffOverviewTab staff={staff} lastLogin={lastLogin} onSaved={loadStaff} />
           </div>
         </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 pt-6 border-t">
-          {stats.map((s) => (
-            <div key={s.k} className={`${s.bg} rounded-lg p-3`}>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">{s.k}</p>
-              <p className={`text-sm font-semibold ${s.val} mt-1`}>{s.v}</p>
-            </div>
-          ))}
-        </div>
-      </Card>
+      </div>
 
       <ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       <div>
-        {activeTab === 'overview' && <StaffOverviewTab staff={staff} onSaved={loadStaff} />}
         {activeTab === 'documents' && <StaffDocumentsTab staff={staff} />}
         {activeTab === 'permissions' && PERMISSIBLE_ROLES.includes(staff.role) && (
           <StaffPermissionsTab staff={staff} onSaved={loadStaff} />
