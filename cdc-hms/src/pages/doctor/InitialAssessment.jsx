@@ -280,15 +280,18 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                 </Card>
               )}
 
-              {/* Patient Header */}
-              <Card>
-                <h3 className="text-2xl font-bold text-gray-800">
-                  {selectedPatient.name}
-                </h3>
-                <p className="text-gray-600 mt-1">
-                  {selectedPatient.uhid} &middot; {selectedPatient.age} yrs &middot; {selectedPatient.gender}
-                </p>
-              </Card>
+              {/* Patient Header — hidden when embedded in the consultation, where
+                  the patient name already sits in the consultation bar above. */}
+              {!embedded && (
+                <Card>
+                  <h3 className="text-2xl font-bold text-gray-800">
+                    {selectedPatient.name}
+                  </h3>
+                  <p className="text-gray-600 mt-1">
+                    {selectedPatient.uhid} &middot; {selectedPatient.age} yrs &middot; {selectedPatient.gender}
+                  </p>
+                </Card>
+              )}
 
               {/* Presenting Complaints */}
               <Card title="Presenting Complaints">
