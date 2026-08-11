@@ -488,7 +488,7 @@ const Consultation = () => {
           className={`mb-1 px-4 py-1.5 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
             overviewOpen
               ? "bg-primary border-primary text-white"
-              : "bg-white border-gray-200 hover:bg-gray-50"
+              : "bg-white border-gray-200 hover:bg-blue-50"
           }`}
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -694,7 +694,7 @@ const Consultation = () => {
                 className={`flex-1 min-w-max px-4 py-2.5 text-sm font-medium transition-all ${
                   activeTab === tab.id && !overviewOpen
                     ? "bg-primary text-white"
-                    : "text-gray-600 hover:bg-gray-50"
+                    : "text-gray-600 hover:bg-blue-50"
                 }`}
               >
                 <span className="flex items-center justify-center gap-2">
@@ -805,7 +805,7 @@ const Consultation = () => {
             <div className="border border-gray-200 rounded-lg">
               <button
                 onClick={() => setOpenTool(openTool === 'glp1' ? null : 'glp1')}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left"
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 text-left"
               >
                 <div className="flex items-center gap-2">
                   <Syringe className={`w-4 h-4 ${openTool === 'glp1' ? 'text-primary' : 'text-gray-400'}`} />
@@ -878,7 +878,7 @@ const Consultation = () => {
         <div className="relative">
           <button
             onClick={() => setShowActions((o) => !o)}
-            className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+            className="flex items-center gap-1.5 bg-white hover:bg-blue-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
           >
             Actions
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showActions ? "rotate-180" : ""}`} />
@@ -1000,7 +1000,7 @@ const Consultation = () => {
               </div>
               <button
                 onClick={() => setShowBillingModal(false)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1017,7 +1017,7 @@ const Consultation = () => {
                       className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                         selectedCharges.includes(item)
                           ? 'bg-green-50 border-green-400 text-gray-800'
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
                       }`}
                     >
                       <input
@@ -1061,7 +1061,7 @@ const Consultation = () => {
                         className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                           selectedProcedures.includes(item)
                             ? 'bg-green-50 border-green-400 text-gray-800'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
                         }`}
                       >
                         <input
@@ -1095,7 +1095,7 @@ const Consultation = () => {
                   className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                     sendForInjection
                       ? 'bg-green-50 border-green-400 text-gray-800'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
                   }`}
                 >
                   <input
@@ -1219,7 +1219,7 @@ const Consultation = () => {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowBillingModal(false)}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50"
                 >
                   Cancel
                 </button>

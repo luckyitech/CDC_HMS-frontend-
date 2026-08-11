@@ -246,7 +246,7 @@ const PatientDashboard = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {recentReadings.map((reading, index) => (
-                    <tr key={reading.id || index} className="hover:bg-gray-50">
+                    <tr key={reading.id || index} className="hover:bg-blue-50">
                       <td className="px-4 py-3 text-sm">{formatDate(reading.date)}</td>
                       <td className="px-4 py-3 text-sm">{reading.displayTime}</td>
                       <td className="px-4 py-3 text-sm">{reading.typeLabel}</td>

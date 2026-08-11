@@ -99,7 +99,7 @@ const StaffActivityTab = ({ staff }) => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {events.map((e, i) => (
-                <tr key={i} className="hover:bg-gray-50">
+                <tr key={i} className="hover:bg-blue-50">
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmtDateTime(e.timestamp)}</td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700">{e.label}</span>

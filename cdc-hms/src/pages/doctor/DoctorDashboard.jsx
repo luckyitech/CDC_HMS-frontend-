@@ -310,7 +310,7 @@ const DoctorDashboard = () => {
                     const consultationDone = isConsultationDone(queueItem);
 
                     return (
-                      <tr key={queueItem.id} className={`hover:bg-gray-50 transition ${isMyPatient && queueItem.status === 'Awaiting Doctor' ? 'bg-purple-50' : isMyPatient ? 'bg-blue-50' : ''}`}>
+                      <tr key={queueItem.id} className={`hover:bg-blue-50 transition ${isMyPatient && queueItem.status === 'Awaiting Doctor' ? 'bg-purple-50' : isMyPatient ? 'bg-blue-50' : ''}`}>
                         <td className="px-6 py-4 text-sm font-semibold text-gray-700">{formatArrival(queueItem.createdAt)}</td>
                         <td className="px-6 py-4 font-medium text-primary text-sm">{queueItem.uhid}</td>
                         <td className="px-6 py-4 text-sm font-medium">{queueItem.name}</td>
@@ -389,7 +389,7 @@ const DoctorDashboard = () => {
                   <button
                     onClick={() => setQueuePage((p) => Math.max(1, p - 1))}
                     disabled={queuePage === 1}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Prev
                   </button>
@@ -400,7 +400,7 @@ const DoctorDashboard = () => {
                       className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${
                         page === queuePage
                           ? "bg-primary text-white border-primary"
-                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                          : "border-gray-300 text-gray-700 hover:bg-blue-50"
                       }`}
                     >
                       {page}
@@ -409,7 +409,7 @@ const DoctorDashboard = () => {
                   <button
                     onClick={() => setQueuePage((p) => Math.min(queueTotalPages, p + 1))}
                     disabled={queuePage === queueTotalPages}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>

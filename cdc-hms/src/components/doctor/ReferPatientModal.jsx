@@ -121,7 +121,7 @@ const ReferPatientModal = ({ patient, queueItem, onClose, onSuccess }) => {
     `flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
       selected
         ? 'bg-green-50 border-green-400 text-gray-800'
-        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
     }`;
 
   return (
@@ -141,7 +141,7 @@ const ReferPatientModal = ({ patient, queueItem, onClose, onSuccess }) => {
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition"
+            className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-gray-600 transition"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -261,7 +261,7 @@ const ReferPatientModal = ({ patient, queueItem, onClose, onSuccess }) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 transition"
               >
                 Cancel
               </button>
@@ -344,7 +344,7 @@ const ReferPatientModal = ({ patient, queueItem, onClose, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="flex items-center gap-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                className="flex items-center gap-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 transition"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Back

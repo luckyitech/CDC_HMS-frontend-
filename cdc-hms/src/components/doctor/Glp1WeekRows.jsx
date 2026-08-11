@@ -200,7 +200,7 @@ const Glp1WeekRows = ({ step, startDate, currentWeek, administrations = [], read
                   {readOnly ? null : record ? (
                     <button type="button"
                       onClick={() => onUndo(record)}
-                      className="p-1 text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded"
+                      className="p-1 text-gray-300 hover:text-gray-600 hover:bg-blue-50 rounded"
                       title="Clear this week"
                     >
                       <Undo2 className="w-3.5 h-3.5" />

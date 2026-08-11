@@ -166,7 +166,7 @@ const AppointmentsListView = ({ mode }) => {
         </div>
         <button
           onClick={fetchAppointments}
-          className="flex items-center gap-2 px-3 lg:px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+          className="flex items-center gap-2 px-3 lg:px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-blue-50"
         >
           <RefreshCw className="w-4 h-4" />
           <span className="hidden sm:inline">Refresh</span>
@@ -346,7 +346,7 @@ const AppointmentsListView = ({ mode }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {appointments.map(a => (
-                    <tr key={a.id} className="hover:bg-gray-50 transition">
+                    <tr key={a.id} className="hover:bg-blue-50 transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">{a.appointmentNumber}</td>
                       <td className="px-4 py-3">
                         <button
@@ -429,7 +429,7 @@ const AppointmentsListView = ({ mode }) => {
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -450,7 +450,7 @@ const AppointmentsListView = ({ mode }) => {
                     className={`px-3 py-1.5 text-sm border rounded-lg ${
                       page === p
                         ? 'bg-blue-600 border-blue-600 text-white font-semibold'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        : 'border-gray-200 text-gray-600 hover:bg-blue-50'
                     }`}
                   >
                     {p}
@@ -460,7 +460,7 @@ const AppointmentsListView = ({ mode }) => {
             <button
               onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
               disabled={page === pagination.totalPages}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Next
             </button>

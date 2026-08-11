@@ -99,7 +99,7 @@ const StaffDashboard = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {waitingPatients.map((patient) => (
-                  <tr key={patient.id} className="hover:bg-gray-50">
+                  <tr key={patient.id} className="hover:bg-blue-50">
                     <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                     <td className="px-4 lg:px-6 py-4 font-semibold text-sm">{patient.name}</td>
                     <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">{patient.arrivalTime}</td>

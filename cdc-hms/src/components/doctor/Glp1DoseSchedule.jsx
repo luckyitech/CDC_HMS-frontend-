@@ -190,7 +190,7 @@ const Glp1DoseSchedule = ({
                       className="p-1 text-green-600 hover:bg-green-100 rounded" title="Save">
                       <Check className="w-4 h-4" />
                     </button>
-                    <button type="button" onClick={cancel} className="p-1 text-gray-400 hover:bg-gray-100 rounded" title="Cancel">
+                    <button type="button" onClick={cancel} className="p-1 text-gray-400 hover:bg-blue-50 rounded" title="Cancel">
                       <X className="w-4 h-4" />
                     </button>
                   </td>
@@ -249,11 +249,11 @@ const Glp1DoseSchedule = ({
                 {!readOnly && (
                   <td className="py-2 text-right whitespace-nowrap">
                     <button type="button" onClick={() => startEdit(index)}
-                      className="p-1 text-gray-400 hover:text-primary hover:bg-gray-100 rounded" title="Edit step">
+                      className="p-1 text-gray-400 hover:text-primary hover:bg-blue-50 rounded" title="Edit step">
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button type="button" onClick={() => handleDelete(index)}
-                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded" title="Remove step">
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-blue-50 rounded" title="Remove step">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </td>
@@ -287,7 +287,7 @@ const Glp1DoseSchedule = ({
                   className="p-1 text-green-600 hover:bg-green-100 rounded" title="Add">
                   <Check className="w-4 h-4" />
                 </button>
-                <button type="button" onClick={cancel} className="p-1 text-gray-400 hover:bg-gray-100 rounded" title="Cancel">
+                <button type="button" onClick={cancel} className="p-1 text-gray-400 hover:bg-blue-50 rounded" title="Cancel">
                   <X className="w-4 h-4" />
                 </button>
               </td>

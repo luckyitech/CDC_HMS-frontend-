@@ -487,7 +487,7 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
               <button
                 type="button"
                 onClick={() => setSwitching(true)}
-                className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-lg"
+                className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg"
               >
                 <ArrowLeftRight className="w-4 h-4" /> Switch agent
               </button>

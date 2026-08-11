@@ -136,7 +136,7 @@ const AdminDashboard = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {recentAccounts.map((account) => (
-                    <tr key={account.id} className="hover:bg-gray-50">
+                    <tr key={account.id} className="hover:bg-blue-50">
                       <td className="px-6 py-4">
                         <p className="font-semibold text-gray-800">{account.name}</p>
                         <p className="text-xs text-gray-500">{account.email}</p>

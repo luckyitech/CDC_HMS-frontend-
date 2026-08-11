@@ -236,7 +236,7 @@ const GenerateReports = () => {
           <div className="space-y-3">
             <p className="text-sm font-semibold text-gray-700">Report Options</p>
             
-            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50">
               <input
                 type="checkbox"
                 checked={includeGraphs}
@@ -249,7 +249,7 @@ const GenerateReports = () => {
               </div>
             </label>
 
-            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+            <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-blue-50">
               <input
                 type="checkbox"
                 checked={includeHistory}

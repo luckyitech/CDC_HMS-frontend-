@@ -184,7 +184,7 @@ const Glp1StartTherapyForm = ({ medication, patient, vitals, onStart, onCancel }
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 px-2 py-1 rounded-lg hover:bg-gray-100"
+            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 px-2 py-1 rounded-lg hover:bg-blue-50"
           >
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
@@ -374,7 +374,7 @@ const Glp1StartTherapyForm = ({ medication, patient, vitals, onStart, onCancel }
 
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onCancel}
-          className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+          className="px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg">
           Back
         </button>
         <button

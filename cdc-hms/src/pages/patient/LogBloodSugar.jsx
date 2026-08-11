@@ -324,7 +324,7 @@ const LogBloodSugar = () => {
                         dayObj.isSelected ? "bg-primary text-white shadow" :
                         dayObj.isToday    ? "bg-blue-100 text-primary border-2 border-primary" :
                         dayObj.isLogged   ? "bg-green-100 text-green-700" :
-                                            "bg-white text-gray-700 hover:bg-gray-100"
+                                            "bg-white text-gray-700 hover:bg-blue-50"
                       } ${new Date(dayObj.dateStr) > new Date() ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
                     >
                       {dayObj.day}
@@ -393,7 +393,7 @@ const LogBloodSugar = () => {
                         dayObj.isSelected ? "bg-primary text-white shadow-lg" :
                         dayObj.isToday    ? "bg-blue-100 text-primary border-2 border-primary" :
                         dayObj.isLogged   ? "bg-green-100 text-green-700 hover:bg-green-200" :
-                                            "bg-white text-gray-700 hover:bg-gray-100"
+                                            "bg-white text-gray-700 hover:bg-blue-50"
                       } ${new Date(dayObj.dateStr) > new Date() ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
                     >
                       {dayObj.day}
@@ -503,7 +503,7 @@ const LogBloodSugar = () => {
                         <span className="text-xs text-gray-500 font-semibold bg-gray-100 px-2 py-0.5 rounded-full">Saved</span>
                         <button
                           onClick={() => startEditing(slot.key)}
-                          className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 border border-gray-300 hover:bg-gray-50 transition-all"
+                          className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 border border-gray-300 hover:bg-blue-50 transition-all"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                           Edit
@@ -527,7 +527,7 @@ const LogBloodSugar = () => {
                           {isEditing && (
                             <button
                               onClick={() => cancelEditing(slot.key)}
-                              className="px-3 py-2.5 rounded-xl text-xs font-semibold text-gray-500 border border-gray-300 hover:bg-gray-50 transition-all"
+                              className="px-3 py-2.5 rounded-xl text-xs font-semibold text-gray-500 border border-gray-300 hover:bg-blue-50 transition-all"
                             >
                               Cancel
                             </button>

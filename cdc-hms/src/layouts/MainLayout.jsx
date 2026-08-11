@@ -645,7 +645,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         <header className="md:hidden fixed top-3 left-4 right-4 z-20 h-14 bg-white shadow-lg border border-gray-200 rounded-2xl px-3 flex items-center justify-between">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-gray-700 hover:text-primary hover:bg-gray-100 p-2 rounded-lg transition"
+            className="text-gray-700 hover:text-primary hover:bg-blue-50 p-2 rounded-lg transition"
           >
             <Menu size={26} />
           </button>

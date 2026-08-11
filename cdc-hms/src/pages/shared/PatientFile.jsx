@@ -359,7 +359,7 @@ const PatientFile = () => {
       <div
         onClick={() => setOverviewOpen((o) => !o)}
         className={`mb-1 px-4 py-2 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
-          overviewOpen ? "bg-primary border-primary text-white" : "bg-white border-gray-200 hover:bg-gray-50"
+          overviewOpen ? "bg-primary border-primary text-white" : "bg-white border-gray-200 hover:bg-blue-50"
         }`}
       >
         <div className="flex items-center gap-3 min-w-0">

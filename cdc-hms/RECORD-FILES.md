@@ -57,6 +57,13 @@ the Staff File**, not a new file.
   (`model → association in models/index.js → guarded migration → route →
   controller`), soft-deleted via a status field, admin-only.
 
+## UI conventions
+
+- **Hover on white-background actions is `hover:bg-blue-50`** — one token
+  everywhere (buttons, menu items, list rows on white/light cards). Gray *buttons*
+  (an element that is itself `bg-gray-*`) keep their darker-gray hover; only
+  white-bg actions go blue.
+
 ## Non-negotiables
 
 - **No dead or orphaned code.** When you move or replace something, delete the old

@@ -47,7 +47,7 @@ const CollapsibleCard = ({ icon, title, open, onToggle, headerAction, children }
     <div className="flex items-center">
       <button
         onClick={onToggle}
-        className="flex-1 flex items-center gap-2 px-4 py-3 text-left font-bold text-[13.5px] text-gray-700 hover:bg-gray-50 transition-colors rounded-t-2xl"
+        className="flex-1 flex items-center gap-2 px-4 py-3 text-left font-bold text-[13.5px] text-gray-700 hover:bg-blue-50 transition-colors rounded-t-2xl"
       >
         <Icon className="w-4 h-4 text-primary flex-shrink-0" />
         <span className="flex-1">{title}</span>
@@ -270,7 +270,7 @@ const ConsultationSummaryPanel = ({
                     <button
                       onClick={() => onReactivateDiagnosis(d.id)}
                       title="Restore as active"
-                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                     </button>

@@ -465,7 +465,7 @@ const MyProfile = () => {
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {pastAppointments.map((apt) => (
-                          <tr key={apt.id} className="hover:bg-gray-50">
+                          <tr key={apt.id} className="hover:bg-blue-50">
                             <td className="px-4 py-3 text-sm">
                               {new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', {
                                 month: 'short', day: 'numeric', year: 'numeric',
@@ -534,7 +534,7 @@ const MyProfile = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {labTests.map((test) => (
-                    <tr key={test.id} className="hover:bg-gray-50">
+                    <tr key={test.id} className="hover:bg-blue-50">
                       <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">
                         {fmtDate(test.completedDate || test.orderedDate)}
                       </td>

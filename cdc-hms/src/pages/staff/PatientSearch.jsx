@@ -283,7 +283,7 @@ const PatientSearch = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {searchResults.map((patient) => (
-                      <tr key={patient.id} className="hover:bg-gray-50">
+                      <tr key={patient.id} className="hover:bg-blue-50">
                         <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                         <td className="px-4 lg:px-6 py-4 text-sm">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -341,7 +341,7 @@ const PatientSearch = () => {
                     <button
                       onClick={() => handlePageChange(page - 1)}
                       disabled={page === 1 || isSearching}
-                      className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      className="p-2 rounded-lg border border-gray-300 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -351,7 +351,7 @@ const PatientSearch = () => {
                     <button
                       onClick={() => handlePageChange(page + 1)}
                       disabled={page === pagination.totalPages || isSearching}
-                      className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      className="p-2 rounded-lg border border-gray-300 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>

@@ -65,7 +65,7 @@ const Glp1SwitchModal = ({ currentTherapy, medications = [], onSwitch, onClose }
             <ArrowLeftRight className="w-5 h-5 text-primary" />
             <h3 className="font-semibold text-gray-800">Switch agent</h3>
           </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:bg-gray-100 rounded">
+          <button onClick={onClose} className="p-1 text-gray-400 hover:bg-blue-50 rounded">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -142,7 +142,7 @@ const Glp1SwitchModal = ({ currentTherapy, medications = [], onSwitch, onClose }
         </div>
 
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg">
             Cancel
           </button>
           {options.length > 0 && (

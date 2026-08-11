@@ -89,7 +89,7 @@ const LabTestDetailsModal = ({ test, onClose }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-300">
                   {formatTestResults(test.results).map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-100">
+                    <tr key={index} className="hover:bg-blue-50">
                       <td className="px-4 py-3 text-sm font-semibold text-gray-800 capitalize">
                         {item.parameter.replace(/([A-Z])/g, ' $1').trim()}
                       </td>

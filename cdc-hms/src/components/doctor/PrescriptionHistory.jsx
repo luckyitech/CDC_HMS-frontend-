@@ -55,7 +55,7 @@ const PrescriptionHistory = ({
             {/* Header */}
             <div
               onClick={() => collapsible && togglePrescription(prescription.id)}
-              className={`p-3 ${collapsible ? "cursor-pointer hover:bg-gray-50" : ""} transition`}
+              className={`p-3 ${collapsible ? "cursor-pointer hover:bg-blue-50" : ""} transition`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">

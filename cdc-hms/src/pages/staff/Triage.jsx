@@ -592,7 +592,7 @@ const Triage = () => {
                     className={`w-full text-left p-4 rounded-lg border-2 transition ${
                       selectedPatient?.uhid === queueItem.uhid
                         ? "border-primary bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-blue-50"
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">

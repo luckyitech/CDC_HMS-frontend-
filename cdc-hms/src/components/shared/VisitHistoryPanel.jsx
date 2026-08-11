@@ -599,7 +599,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           {(historyFromDate || historyToDate) && (
             <button
               onClick={() => { setHistoryFromDate(''); setHistoryToDate(''); }}
-              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-blue-50 transition-colors"
             >
               Clear
             </button>
@@ -685,7 +685,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             {/* Date header row */}
             <button
               onClick={() => toggleHistoryDate(date)}
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+              className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left"
             >
               <div className="flex items-center gap-3">
                 <Calendar className={`w-5 h-5 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
@@ -722,14 +722,14 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             <button
               onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
               disabled={historyPage === 1}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-blue-50 transition-colors"
             >
               Previous
             </button>
             <button
               onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
               disabled={historyPage === totalPages}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-blue-50 transition-colors"
             >
               Next
             </button>

@@ -97,7 +97,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
               </thead>
               <tbody>
                 {prescription.medications.map((med, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
+                  <tr key={index} className="hover:bg-blue-50">
                     <td className="border border-gray-300 px-4 py-3 text-sm">{index + 1}</td>
                     <td className="border border-gray-300 px-4 py-3 text-sm font-semibold">{med.name}</td>
                     <td className="border border-gray-300 px-4 py-3 text-sm">{med.dosage}</td>

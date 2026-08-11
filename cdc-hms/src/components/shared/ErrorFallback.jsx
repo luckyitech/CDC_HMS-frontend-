@@ -49,7 +49,7 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => {
           </button>
           <button
             onClick={handleGoHome}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-blue-50 transition"
           >
             <Home className="w-4 h-4" />
             Go to Home

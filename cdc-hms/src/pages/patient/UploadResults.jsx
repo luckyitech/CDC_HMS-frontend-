@@ -317,14 +317,14 @@ const UploadResults = () => {
                 <div className="mt-3 ml-9 sm:ml-11 flex gap-2">
                   <button
                     onClick={() => handleView(doc)}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition"
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-blue-50 active:bg-gray-100 transition"
                   >
                     <Eye className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     View
                   </button>
                   <button
                     onClick={() => handleDownload(doc)}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition"
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-blue-50 active:bg-gray-100 transition"
                   >
                     <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     Download
