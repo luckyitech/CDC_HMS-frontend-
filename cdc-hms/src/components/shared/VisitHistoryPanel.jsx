@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-  Calendar, ChevronDown, ChevronRight, Printer,
+  Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
+  BedDouble,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
 import patientService from '../../services/patientService';
+import inpatientService from '../../services/inpatientService';
 import glp1Service from '../../services/glp1Service';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
 import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
@@ -30,7 +32,13 @@ const DATE_FIELD_MAP = {
   glp1Injections:  'administeredDate',
   // GLP-1 monitoring reviews written by any clinician (nurse or doctor)
   glp1Reviews:     'date',
+  // Advised admissions (doctor's admission note from OPD) — an "action", not part
+  // of the clinical document; rendered in the day's Actions tab.
+  admissions:      'requestedAt',
 };
+
+const fmtDay = (d) =>
+  d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -398,6 +406,124 @@ const VisitDocument = ({ records, fullExamCache }) => {
   );
 };
 
+// ── Actions tab ───────────────────────────────────────────────────────────────
+const escHtml = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+const dayTabCls = (active) =>
+  `flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+    active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-50'
+  }`;
+
+// Print an artifact on a letterhead in a new window (same approach as the Admit
+// modal's print, so admission notes print identically from either place).
+const printArtifact = (title, innerHtml) => {
+  const w = window.open('', '_blank', 'width=800,height=900');
+  if (!w) return;
+  w.document.write(`<!DOCTYPE html><html><head><title>${escHtml(title)}</title>
+    <style>body{font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:40px;color:#111}
+    h1{font-size:20px;margin:0 0 2px}.sub{color:#555;font-size:13px}hr{border:none;border-top:1px solid #ccc;margin:16px 0}
+    .label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-top:16px}
+    .val{font-size:14px;margin-top:3px}.note{white-space:pre-wrap;font-size:14px;line-height:1.55}</style>
+    </head><body><h1>Comprehensive Diabetes Centre</h1>${innerHtml}</body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
+};
+
+const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
+  <button onClick={onClick}
+    className="w-full flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left">
+    <span className="flex items-center gap-3 min-w-0">
+      <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${iconCls}`}>{icon}</span>
+      <span className="min-w-0">
+        <span className="block font-semibold text-gray-800 text-sm">{title}</span>
+        <span className="block text-xs text-gray-500 truncate">{sub}</span>
+      </span>
+    </span>
+    <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+  </button>
+);
+
+const ActionsList = ({ records, onView }) => (
+  <div className="space-y-2.5">
+    {records.admissions.map((a) => (
+      <ActionRow key={`adm-${a.id}`}
+        icon={<BedDouble className="w-4 h-4" />} iconCls="bg-indigo-50 text-indigo-600"
+        title={`Admission advised${a.cancelledAt ? ' (cancelled)' : ''}`}
+        sub={[a.admissionType, a.doctorName].filter(Boolean).join(' · ') + ' · view / print note'}
+        onClick={() => onView({ type: 'admission', data: a })} />
+    ))}
+    {records.prescriptions.map((p) => (
+      <ActionRow key={`rx-${p.id}`}
+        icon={<Pill className="w-4 h-4" />} iconCls="bg-emerald-50 text-emerald-600"
+        title="Prescription"
+        sub={`${(p.medications || []).length} item${(p.medications || []).length !== 1 ? 's' : ''} · view / reprint`}
+        onClick={() => onView({ type: 'prescription', data: p })} />
+    ))}
+  </div>
+);
+
+const ArtifactModal = ({ artifact, patient, onClose }) => {
+  if (!artifact) return null;
+  const { type, data } = artifact;
+  const meta = `${escHtml(patient?.name)} &middot; ${escHtml(patient?.uhid)}`;
+
+  let title, body, printInner;
+  if (type === 'admission') {
+    title = 'Admission Note';
+    printInner =
+      `<div class="sub">Admission Note</div><hr/>
+       <div class="val"><strong>${meta}</strong></div>
+       <div class="sub">${escHtml(fmtDay(data.requestedAt))}${data.doctorName ? ' &middot; ' + escHtml(data.doctorName) : ''}</div>
+       <div class="label">Admission type</div><div class="val">${escHtml(data.admissionType)}</div>
+       <div class="label">Admission note</div><div class="note">${escHtml(data.note)}</div>`;
+    body = (
+      <>
+        <p className="text-sm text-gray-500">
+          {[data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ')}
+          {data.cancelledAt ? ' · cancelled' : ''}
+        </p>
+        <div className="whitespace-pre-wrap text-sm text-gray-700 mt-2 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
+      </>
+    );
+  } else {
+    title = 'Prescription';
+    const meds = data.medications || [];
+    const line = (m) => [m.dosage, m.frequency, m.quantity && `Qty: ${m.quantity}`].filter(Boolean).join(' · ');
+    printInner =
+      `<div class="sub">Prescription</div><hr/>
+       <div class="val"><strong>${meta}</strong></div>
+       <div class="sub">${escHtml(fmtDay(data.createdAt))}</div>
+       <div class="label">Medications</div>` +
+      meds.map((m) => `<div class="val">&bull; <strong>${escHtml(m.name)}</strong>${line(m) ? ' — ' + escHtml(line(m)) : ''}</div>`).join('');
+    body = (
+      <div className="space-y-1.5 mt-2">
+        {meds.map((m, i) => (
+          <div key={i} className="text-sm text-gray-700">
+            <b className="font-semibold text-gray-800">{m.name}</b>{line(m) ? ` — ${line(m)}` : ''}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        {body}
+        <div className="flex justify-end gap-2 pt-4">
+          <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Close</button>
+          <button onClick={() => printArtifact(title, printInner)} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── VisitHistoryPanel ─────────────────────────────────────────────────────────
 /**
  * Props:
@@ -428,6 +554,8 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
   const [historyPage, setHistoryPage]           = useState(1);
   const [fullExamCache, setFullExamCache]       = useState({});
   const [printing, setPrinting]                 = useState(false);
+  const [dayTab, setDayTab]                      = useState('notes');   // 'notes' | 'actions'
+  const [viewArtifact, setViewArtifact]         = useState(null);       // { type, data }
 
   const { printRef, handlePrint } = usePrint();
 
@@ -444,7 +572,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes] = await Promise.all([
           getAssessmentsByPatient(uhid),
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
@@ -454,11 +582,13 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           // GLP-1 injections and monitoring reviews — both support uhid directly
           glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),
           glp1Service.getReviews({ uhid }).catch(() => ({ data: { reviews: [] } })),
+          inpatientService.advisedAdmissions(uhid).catch(() => ({ data: { admissions: [] } })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
           const glp1Injections = adminsRes?.data?.administrations  || [];
           const glp1Reviews    = reviewsRes?.data?.reviews         || [];
+          const admissions     = advisedRes?.data?.admissions      || [];
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
             exams:           Array.isArray(exams)           ? exams           : [],
@@ -468,6 +598,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             vitals:          Array.isArray(vitals)          ? vitals          : [],
             glp1Injections:  Array.isArray(glp1Injections)  ? glp1Injections  : [],
             glp1Reviews:     Array.isArray(glp1Reviews)     ? glp1Reviews     : [],
+            admissions:      Array.isArray(admissions)      ? admissions      : [],
           });
         }
       } finally {
@@ -530,6 +661,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
 
   // Open/close a date accordion — only one open at a time
   const toggleHistoryDate = useCallback((date) => {
+    setDayTab('notes'); // every newly-opened day starts on Doctor's Notes
     setOpenHistoryDate(prev => {
       const isOpening = prev !== date;
       if (isOpening) fetchExamsForDate(date);
@@ -679,6 +811,18 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
         const isOpen  = openHistoryDate === date;
         const total   = Object.values(records).reduce((sum, arr) => sum + arr.length, 0);
 
+        // Per-type header summary: e.g. "1 doctor's note · 1 admission · 1 prescription".
+        const noteCount = records.notes.length;
+        const admCount  = records.admissions.length;
+        const rxCount   = records.prescriptions.length;
+        const actionCount = admCount + rxCount;
+        const parts = [
+          noteCount && `${noteCount} doctor's note${noteCount !== 1 ? 's' : ''}`,
+          admCount  && `${admCount} admission${admCount !== 1 ? 's' : ''}`,
+          rxCount   && `${rxCount} prescription${rxCount !== 1 ? 's' : ''}`,
+        ].filter(Boolean);
+        const summary = parts.length ? parts.join(' · ') : `${total} record${total !== 1 ? 's' : ''}`;
+
         return (
           <div key={date} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
 
@@ -687,13 +831,13 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
               onClick={() => toggleHistoryDate(date)}
               className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left"
             >
-              <div className="flex items-center gap-3">
-                <Calendar className={`w-5 h-5 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
+              <div className="flex items-center gap-3 min-w-0">
+                <Calendar className={`w-5 h-5 flex-shrink-0 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
                 <span className={`font-semibold ${isOpen ? 'text-primary' : 'text-gray-800'}`}>
                   {formatDateLong(date)}
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                  {total} record{total !== 1 ? 's' : ''}
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
+                  {summary}
                 </span>
               </div>
               {isOpen
@@ -702,10 +846,24 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
               }
             </button>
 
-            {/* Expanded visit document */}
+            {/* Expanded — Doctor's Notes | Actions (Actions tab only when there are any) */}
             {isOpen && (
               <div className="border-t border-gray-100 p-5">
-                <VisitDocument records={records} fullExamCache={fullExamCache} />
+                {actionCount > 0 && (
+                  <div className="flex gap-2 mb-4">
+                    <button onClick={() => setDayTab('notes')} className={dayTabCls(dayTab === 'notes')}>
+                      <MessageSquare className="w-4 h-4" /> Doctor's Notes
+                    </button>
+                    <button onClick={() => setDayTab('actions')} className={dayTabCls(dayTab === 'actions')}>
+                      <ClipboardList className="w-4 h-4" /> Actions
+                      <span className="ml-0.5 text-[11px] px-1.5 rounded-full bg-white/25">{actionCount}</span>
+                    </button>
+                  </div>
+                )}
+                {dayTab === 'actions' && actionCount > 0
+                  ? <ActionsList records={records} onView={setViewArtifact} />
+                  : <VisitDocument records={records} fullExamCache={fullExamCache} />
+                }
               </div>
             )}
           </div>
@@ -765,6 +923,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           ))}
         </div>
       </div>
+
+      {/* Actions artifact viewer — admission note / prescription, with print */}
+      <ArtifactModal artifact={viewArtifact} patient={patient} onClose={() => setViewArtifact(null)} />
 
     </div>
   );
