@@ -1,20 +1,14 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, CalendarClock } from 'lucide-react';
+import { KeyRound, Check } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import CardTitle from '../../components/shared/CardTitle';
 import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import authService from '../../services/authService';
 import { useUserContext } from '../../contexts/UserContext';
-
-const ROLE_DASHBOARDS = {
-  doctor:  '/doctor/dashboard',
-  staff:   '/staff/dashboard',
-  lab:     '/lab/dashboard',
-  patient: '/patient/dashboard',
-  admin:   '/admin/dashboard',
-};
+import { dashboardFor } from '../../constants/roleDashboards';
 
 // 'YYYY-MM-DD' → 'Monday, 10 August'. Split rather than new Date(str) so a
 // plain date string is never shifted a day by the browser's timezone.
@@ -36,8 +30,8 @@ const ChangePasswordPage = () => {
   // until a new one is set, so there is nothing to go "back" to.
   const isForced = !!currentUser?.mustChangePassword;
   const expiresOn = currentUser?.passwordExpiresOn;
-  // "every Monday" / "every second Monday" / "the first Monday of the month" —
-  // whatever the admin has the policy set to, so this never contradicts it.
+  // "every week" / "every two weeks" / "every month" — whatever the admin has
+  // the policy set to, so this never contradicts the System Settings page.
   const policyLabel = currentUser?.passwordPolicyLabel;
 
   const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -96,7 +90,7 @@ const ChangePasswordPage = () => {
         passwordPolicyLabel: res?.data?.passwordPolicyLabel ?? policyLabel,
       });
 
-      if (isForced) navigate(ROLE_DASHBOARDS[currentUser.role] || '/');
+      if (isForced) navigate(dashboardFor(currentUser.role));
     } catch (err) {
       toast.error(err.message || 'Failed to change password. Please try again.', {
         duration: 5000, position: 'top-right',
@@ -109,7 +103,7 @@ const ChangePasswordPage = () => {
 
   return (
     <div className="max-w-lg mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between gap-4 mb-2">
         <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">
           {isForced ? 'Set a New Password' : 'Change Password'}
         </h2>
@@ -121,31 +115,15 @@ const ChangePasswordPage = () => {
         )}
       </div>
 
-      {isForced && (
-        <div className="mb-6 p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500 flex gap-3">
-          <ShieldAlert className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="font-bold text-amber-900">Your password has expired</p>
-            <p className="mt-1 text-sm text-gray-700">
-              This clinic requires staff to set a new password
-              {policyLabel ? ` ${policyLabel}` : ' regularly'}. Please choose a new one now —
-              the rest of the system stays locked until you do.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* The state is the page's subject, so it reads as the subtitle rather
+          than a tinted callout shouting at someone already held here. */}
+      <p className="mb-6 text-sm text-gray-600 leading-relaxed">
+        {isForced
+          ? `Your password has reached the end of its ${policyLabel ? policyLabel.replace(/^every /, '') : 'current'} period. Choose a new one to carry on — the rest of the system stays locked until you do.`
+          : 'Choose a new password for your account.'}
+      </p>
 
-      {!isForced && expiresOn && (
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500 flex gap-3">
-          <CalendarClock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-gray-700">
-            Your current password is valid until <strong>{formatDate(expiresOn)}</strong>.
-            {policyLabel && ` Staff passwords are renewed ${policyLabel}.`}
-          </p>
-        </div>
-      )}
-
-      <Card title="🔐 Update Your Password">
+      <Card title={<CardTitle icon={KeyRound}>Update Your Password</CardTitle>}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Current Password *"
@@ -164,6 +142,9 @@ const ChangePasswordPage = () => {
             placeholder="At least 6 characters"
             required
           />
+          <p className="-mt-2 text-xs text-gray-500">
+            Must be different from your current password.
+          </p>
 
           <Input
             label="Confirm New Password *"
@@ -173,17 +154,6 @@ const ChangePasswordPage = () => {
             placeholder="Re-enter new password"
             required
           />
-
-          <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-            <p className="text-sm text-gray-700">
-              <strong>Tips for a strong password:</strong>
-            </p>
-            <ul className="mt-1 text-sm text-gray-600 list-disc list-inside space-y-0.5">
-              <li>At least 6 characters long</li>
-              <li>Mix of uppercase, lowercase, numbers and symbols</li>
-              <li>Do not share your password with anyone</li>
-            </ul>
-          </div>
 
           <div className="flex gap-3 pt-2">
             <Button
@@ -199,9 +169,15 @@ const ChangePasswordPage = () => {
               className="flex-1 bg-primary hover:bg-blue-700"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Changing...' : '✓ Change Password'}
+              {isSubmitting ? 'Changing...' : (<><Check className="w-4 h-4" /> Change Password</>)}
             </Button>
           </div>
+
+          {expiresOn && (
+            <p className="text-xs text-gray-500">
+              Next change due {formatDate(expiresOn)}.
+            </p>
+          )}
         </form>
       </Card>
     </div>

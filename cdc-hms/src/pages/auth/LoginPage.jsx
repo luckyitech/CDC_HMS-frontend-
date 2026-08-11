@@ -5,14 +5,7 @@ import LoginLayout from '../../layouts/LoginLayout';
 import Card from '../../components/shared/Card';
 import Input from '../../components/shared/Input';
 import Button from '../../components/shared/Button';
-
-const ROLE_DASHBOARDS = {
-  doctor:  '/doctor/dashboard',
-  staff:   '/staff/dashboard',
-  lab:     '/lab/dashboard',
-  patient: '/patient/dashboard',
-  admin:   '/admin/dashboard',
-};
+import { ROLE_DASHBOARDS } from '../../constants/roleDashboards';
 
 const LoginPage = () => {
   const navigate = useNavigate();
