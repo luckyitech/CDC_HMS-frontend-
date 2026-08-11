@@ -238,6 +238,7 @@ function App() {
                   <Route path="create-patient" element={<Navigate to="/admin/create-users?role=patient" replace />} />
                   <Route path="manage-users" element={<ManageUsers />} />
                   <Route path="staff/:id" element={<StaffFile />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="catalog" element={<ClinicalCatalog />} />
