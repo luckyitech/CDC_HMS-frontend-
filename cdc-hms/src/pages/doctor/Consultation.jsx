@@ -57,7 +57,7 @@ const ACCORDION_SECTIONS = [
   // ONE section. Assessment, exam and plan are optional click-to-add blocks
   // inside it. Keeps the id 'diagnosis' so completion gating, drafts and jumps
   // are unchanged.
-  { id: 'diagnosis',     label: 'Consultation',   icon: MessageSquare, required: true  },
+  { id: 'diagnosis',     label: 'Notes',          icon: MessageSquare, required: true  },
   { id: 'prescriptions', label: 'Prescriptions',  icon: Pill,          required: false },
 ];
 
