@@ -15,6 +15,10 @@ import StatusBadge from '../../components/shared/StatusBadge';
 // Roles that may hold capabilities. Patients never can — the server enforces
 // this too; this only keeps the toggles off rows where they make no sense.
 const PERMISSIBLE_ROLES = ['doctor', 'staff', 'lab'];
+
+// Roles that have a Staff File (clicking the name opens /admin/staff/:id).
+// Patients have their own profile flow, not a staff file.
+const STAFF_FILE_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
 import Pagination from '../../components/shared/Pagination';
 import useDebounce from '../../hooks/useDebounce';
 import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statusStyles';
@@ -483,7 +487,16 @@ const ManageUsers = () => {
                       <span className="text-white text-sm font-bold">{getInitials(user.name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
+                      {STAFF_FILE_ROLES.includes(user.role) ? (
+                        <button
+                          onClick={() => navigate(`/admin/staff/${user.id}`)}
+                          className="text-sm font-semibold text-primary hover:underline truncate text-left block max-w-full"
+                        >
+                          {user.name}
+                        </button>
+                      ) : (
+                        <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
+                      )}
                       <p className="text-xs text-gray-400 truncate">{user.email || '—'}</p>
                       <p className="text-xs text-gray-400">{user.phone || '—'}</p>
                     </div>
@@ -543,7 +556,16 @@ const ManageUsers = () => {
                             <span className="text-white text-xs font-bold">{getInitials(user.name)}</span>
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-gray-800">{user.name}</p>
+                            {STAFF_FILE_ROLES.includes(user.role) ? (
+                              <button
+                                onClick={() => navigate(`/admin/staff/${user.id}`)}
+                                className="text-sm font-semibold text-primary hover:underline text-left"
+                              >
+                                {user.name}
+                              </button>
+                            ) : (
+                              <p className="text-sm font-semibold text-gray-800">{user.name}</p>
+                            )}
                             <p className="text-xs text-gray-400">{user.email || '—'}</p>
                           </div>
                         </div>

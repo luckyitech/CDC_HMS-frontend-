@@ -80,6 +80,7 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const CreateUsers = lazy(() => import("./pages/admin/CreateUsers"));
 const ClinicalCatalog = lazy(() => import("./pages/admin/ClinicalCatalog"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
+const StaffFile = lazy(() => import("./pages/admin/StaffFile"));
 const DuplicatePatients = lazy(() => import("./pages/admin/DuplicatePatients"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
 const SystemSettings = lazy(() => import("./pages/admin/SystemSettings"));
@@ -232,6 +233,7 @@ function App() {
                   <Route path="create-lab" element={<Navigate to="/admin/create-users?role=lab" replace />} />
                   <Route path="create-patient" element={<Navigate to="/admin/create-users?role=patient" replace />} />
                   <Route path="manage-users" element={<ManageUsers />} />
+                  <Route path="staff/:id" element={<StaffFile />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="catalog" element={<ClinicalCatalog />} />
