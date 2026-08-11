@@ -5,7 +5,8 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canAccessAdmin } from "../utils/permissions";
+import { canAccessAdmin, hasPermission, PERMISSIONS } from "../utils/permissions";
+import DashboardWorkspaceTabs from "../components/shared/DashboardWorkspaceTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
   LayoutDashboard,
@@ -78,7 +79,22 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
   // Someone with admin capabilities looking at another portal. Capability, not
   // role: a granted staff member gets the same banner as the admin does.
-  const isAdminViewing = canAccessAdmin(currentUser) && userRole.toLowerCase() !== 'admin';
+  // Outpatient / Inpatient dashboard tabs: shown on every non-admin dashboard
+  // (and the ward board) for users with inpatient access — doctors by role,
+  // staff/others by the admin-granted inpatient.access capability (admins hold
+  // it implicitly). Nurses keep their own ward-board home and are not tabbed.
+  const canSeeInpatientTab =
+    currentUser?.role === 'doctor' || hasPermission(currentUser, PERMISSIONS.INPATIENT_ACCESS);
+  const onDashboardOrBoard =
+    location.pathname.endsWith('/dashboard') || location.pathname === '/inpatient/board';
+  const showWorkspaceTabs =
+    canSeeInpatientTab && onDashboardOrBoard && userRole.toLowerCase() !== 'admin';
+  // The outpatient home to return to: the user's real portal (a doctor viewing
+  // the shared inpatient board still returns to /doctor).
+  const outpatientPath =
+    userRole.toLowerCase() === 'inpatient'
+      ? `/${currentUser?.role}/dashboard`
+      : `/${userRole.toLowerCase()}/dashboard`;
 
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
@@ -193,7 +209,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
       { name: "Patients", path: "/doctor/patients", icon: Users },
-      { name: "Ward Board", path: "/inpatient/board", icon: BedDouble },
       // {
       //   name: "Consultations",
       //   path: "/doctor/consultations",
@@ -528,15 +543,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
               horizontally below the avatar; stack as icons in the collapsed rail */}
           <div className={`flex items-center gap-2 px-4 pb-3 ${isCollapsed ? "md:flex-col md:px-0" : ""}`}>
             <NotificationBell userRole={userRole} />
-            {/* HMIS V3 — workspace switcher for doctors & nurses (Outpatient <-> Inpatient) */}
-            {["doctor", "nurse"].includes(currentUser?.role) && (
+            {/* HMIS V3 — workspace switcher for nurses. Doctors and permitted staff
+                use the Outpatient/Inpatient dashboard tabs instead. */}
+            {currentUser?.role === "nurse" && (
               <button
                 onClick={() =>
-                  navigate(
-                    userRole.toLowerCase() === "inpatient"
-                      ? (currentUser?.role === "nurse" ? "/nurse/dashboard" : "/doctor/dashboard")
-                      : "/inpatient/board"
-                  )
+                  navigate(userRole.toLowerCase() === "inpatient" ? "/nurse/dashboard" : "/inpatient/board")
                 }
                 title={userRole.toLowerCase() === "inpatient" ? "Go to Outpatient" : "Go to Inpatient"}
                 aria-label="Switch workspace"
@@ -612,22 +624,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto no-scrollbar overscroll-contain px-4 pb-4 pt-3 lg:px-8 lg:pb-8 lg:pt-4 bg-gray-50 mt-[4.75rem] md:mt-0">
-          {isAdminViewing && (
-            <div className="mb-6 flex items-center justify-between bg-orange-50 border-2 border-orange-300 rounded-lg px-4 py-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-orange-600 flex-shrink-0" />
-                <span className="text-sm font-bold text-orange-800">
-                  Admin Mode · Viewing {userRole} Portal
-                </span>
-              </div>
-              <button
-                onClick={() => navigate('/admin/dashboard')}
-                className="text-sm font-semibold text-orange-700 hover:text-orange-900 underline whitespace-nowrap ml-4"
-              >
-                ← Back to Admin
-              </button>
-            </div>
-          )}
+          {showWorkspaceTabs && <DashboardWorkspaceTabs outpatientPath={outpatientPath} />}
           <Outlet />
         </main>
       </div>

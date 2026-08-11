@@ -60,6 +60,16 @@ permission the model can't already express.
 
 ## Rule
 
+**All feature access is gated by the admin in User Management.** Going forward,
+every new feature/module is reached via a capability an admin grants on a user's
+User Management → Permissions tab — not by role hardcoding.
+
 Every new capability is one string here + on the backend, checked through the one
 permissions middleware. No bespoke per-capability handlers, no schema change.
 Grow this list; don't fork it.
+
+Capabilities so far: `admin.access`, `stock.manage` (Stocks in the switcher),
+`inpatient.access` (inpatient module + Inpatient Dashboard tab). The backend
+`authorize()` accepts capabilities alongside roles (a dotted arg like
+`inpatient.access` is checked as a permission), so a route reads
+"these roles, OR anyone granted this capability".

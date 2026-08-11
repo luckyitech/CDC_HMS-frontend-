@@ -270,7 +270,7 @@ function App() {
                 {/* Inpatient workspace (HMIS V3) — doctors + nurses switch in */}
                 <Route
                   path="/inpatient"
-                  element={<ProtectedRoute requiredRoles={["doctor", "nurse"]}><MainLayout userRole="Inpatient" /></ProtectedRoute>}
+                  element={<ProtectedRoute requiredRoles={["doctor", "nurse"]} requiredPermission="inpatient.access"><MainLayout userRole="Inpatient" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="board" element={<WardBoard />} />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ShieldCheck, Package, AlertTriangle, KeyRound, UserCheck, UserX, Trash2,
+  ShieldCheck, Package, BedDouble, AlertTriangle, KeyRound, UserCheck, UserX, Trash2,
   Pencil, Check, X,
 } from 'lucide-react';
 import Card from '../../shared/Card';
@@ -32,6 +32,13 @@ const CATALOGUE = [
     code: 'stock.manage',
     Icon: Package,
     description: 'Access the Stocks module — it appears in their portal switcher.',
+  },
+  {
+    key: PERMISSIONS.INPATIENT_ACCESS,
+    name: 'Inpatient Access',
+    code: 'inpatient.access',
+    Icon: BedDouble,
+    description: 'Access the inpatient module — adds the Inpatient Dashboard tab.',
   },
 ];
 
