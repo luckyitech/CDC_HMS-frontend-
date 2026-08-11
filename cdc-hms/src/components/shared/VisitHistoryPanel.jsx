@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
-  BedDouble,
+  BedDouble, Share2,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
@@ -11,6 +11,7 @@ import PrescriptionPrint from '../doctor/PrescriptionPrint';
 import patientService from '../../services/patientService';
 import inpatientService from '../../services/inpatientService';
 import glp1Service from '../../services/glp1Service';
+import queueService from '../../services/queueService';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
 import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
@@ -37,6 +38,8 @@ const DATE_FIELD_MAP = {
   // Advised admissions (doctor's admission note from OPD) — an "action", not part
   // of the clinical document; rendered in the day's Actions tab.
   admissions:      'requestedAt',
+  // Referral notes (doctor's referral letter from OPD) — also an "action".
+  referrals:       'savedAt',
 };
 
 const fmtDay = (d) =>
@@ -437,6 +440,13 @@ const ActionsList = ({ records, onView }) => (
         sub={[a.admissionType, a.doctorName].filter(Boolean).join(' · ') + ' · view / print note'}
         onClick={() => onView({ type: 'admission', data: a })} />
     ))}
+    {(records.referrals || []).map((r) => (
+      <ActionRow key={`ref-${r.id}`}
+        icon={<Share2 className="w-4 h-4" />} iconCls="bg-sky-50 text-sky-600"
+        title={`Referral${r.referralType ? ` (${r.referralType})` : ''}`}
+        sub={[r.destination, r.doctorName].filter(Boolean).join(' · ') + ' · view / print note'}
+        onClick={() => onView({ type: 'referral', data: r })} />
+    ))}
     {records.prescriptions.map((p) => (
       <ActionRow key={`rx-${p.id}`}
         icon={<Pill className="w-4 h-4" />} iconCls="bg-emerald-50 text-emerald-600"
@@ -454,19 +464,25 @@ const ArtifactMeta = ({ patient, sub }) => (
   </div>
 );
 
-// Admission-note viewer (prescriptions use the shared PrescriptionPrint instead).
+// Note viewer for admission and referral actions (prescriptions use the shared
+// PrescriptionPrint instead). Both are just a note + a one-line meta, printed on
+// the shared clinic letterhead.
 const ArtifactModal = ({ artifact, patient, onClose }) => {
   const { printRef, handlePrint } = usePrint();
   if (!artifact) return null;
-  const { data } = artifact;
-  const sub = [data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ')
-    + (data.cancelledAt ? ' · cancelled' : '');
+  const { type, data } = artifact;
+  const isReferral = type === 'referral';
+  const title = isReferral ? 'Referral Note' : 'Admission Note';
+  const sub = isReferral
+    ? [data.referralType, data.destination, data.doctorName, fmtDay(data.savedAt)].filter(Boolean).join(' · ')
+    : [data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ')
+        + (data.cancelledAt ? ' · cancelled' : '');
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-bold text-gray-800">Admission Note</h3>
+          <h3 className="text-lg font-bold text-gray-800">{title}</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <p className="text-sm text-gray-500">{sub}</p>
@@ -479,7 +495,7 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
 
       {/* Print target — shared clinic letterhead */}
       <PrintRoot printRef={printRef}>
-        <ArtifactMeta patient={patient} sub={`Admission Note · ${sub}`} />
+        <ArtifactMeta patient={patient} sub={`${title} · ${sub}`} />
         <p className="text-sm whitespace-pre-wrap">{data.note || '—'}</p>
       </PrintRoot>
     </div>
@@ -534,7 +550,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes] = await Promise.all([
           getAssessmentsByPatient(uhid),
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
@@ -545,12 +561,14 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),
           glp1Service.getReviews({ uhid }).catch(() => ({ data: { reviews: [] } })),
           inpatientService.advisedAdmissions(uhid).catch(() => ({ data: { admissions: [] } })),
+          queueService.advisedReferrals(uhid).catch(() => ({ data: { referrals: [] } })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
           const glp1Injections = adminsRes?.data?.administrations  || [];
           const glp1Reviews    = reviewsRes?.data?.reviews         || [];
           const admissions     = advisedRes?.data?.admissions      || [];
+          const referrals      = referralsRes?.data?.referrals     || [];
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
             exams:           Array.isArray(exams)           ? exams           : [],
@@ -561,6 +579,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             glp1Injections:  Array.isArray(glp1Injections)  ? glp1Injections  : [],
             glp1Reviews:     Array.isArray(glp1Reviews)     ? glp1Reviews     : [],
             admissions:      Array.isArray(admissions)      ? admissions      : [],
+            referrals:       Array.isArray(referrals)       ? referrals       : [],
           });
         }
       } finally {
@@ -773,14 +792,16 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
         const isOpen  = openHistoryDate === date;
         const total   = Object.values(records).reduce((sum, arr) => sum + arr.length, 0);
 
-        // Per-type header summary: e.g. "1 doctor's note · 1 admission · 1 prescription".
+        // Per-type header summary: e.g. "1 doctor's note · 1 admission · 1 referral · 1 prescription".
         const noteCount = records.notes.length;
         const admCount  = records.admissions.length;
+        const refCount  = (records.referrals || []).length;
         const rxCount   = records.prescriptions.length;
-        const actionCount = admCount + rxCount;
+        const actionCount = admCount + refCount + rxCount;
         const parts = [
           noteCount && `${noteCount} doctor's note${noteCount !== 1 ? 's' : ''}`,
           admCount  && `${admCount} admission${admCount !== 1 ? 's' : ''}`,
+          refCount  && `${refCount} referral${refCount !== 1 ? 's' : ''}`,
           rxCount   && `${rxCount} prescription${rxCount !== 1 ? 's' : ''}`,
         ].filter(Boolean);
         const summary = parts.length ? parts.join(' · ') : `${total} record${total !== 1 ? 's' : ''}`;

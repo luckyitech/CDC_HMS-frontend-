@@ -11,14 +11,18 @@ import PrintRoot from "../shared/PrintRoot";
  * The body is an editable ADMISSION NOTE, pre-filled from the consultation
  * (structured like the visit-history document) via `defaultNote`. The doctor
  * edits and can print it — on the shared clinic letterhead (PrintRoot). Ward
- * preference is omitted (the admission clerk's job). On submit the note is stored
- * on the admission request and the patient is sent to Pending Billing.
+ * preference is omitted (the admission clerk's job).
  *
- * Props: patient { name, uhid }, queueItem { id }, defaultNote, onClose, onSuccess
+ * Flow: Save & Print documents the note to the visit history (no billing move).
+ * "Send for admission" hands off to the shared Complete-Consultation billing
+ * modal (`onSendToBilling`) — billing is entered there, and submitting it
+ * finalises the admission and completes the visit. Admission never skips billing.
+ *
+ * Props: patient { name, uhid }, queueItem { id }, defaultNote, onClose,
+ *        onSendToBilling({ admissionType, admissionNote })
  */
-export default function AdmitPatientModal({ patient, queueItem, defaultNote = "", onClose, onSuccess }) {
+export default function AdmitPatientModal({ patient, queueItem, defaultNote = "", onClose, onSendToBilling }) {
   const [form, setForm] = useState({ admissionType: "Elective", admissionNote: defaultNote });
-  const [submitting, setSubmitting] = useState(false);
   const [saving, setSaving] = useState(false);
   const { printRef, handlePrint } = usePrint();
 
@@ -43,24 +47,13 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
     }
   };
 
-  const submit = async (e) => {
+  // Send for admission — hand off to the shared billing modal. The admission is
+  // finalised there once the doctor enters billing (never skipped).
+  const submit = (e) => {
     e.preventDefault();
     if (!form.admissionNote.trim()) return toast.error("The admission note is empty.");
     if (!queueItem?.id) return toast.error("No active queue visit for this patient.");
-    setSubmitting(true);
-    try {
-      await inpatientService.requestAdmission({
-        queueId: queueItem.id,
-        admissionType: form.admissionType,
-        admissionReason: form.admissionNote,
-      });
-      toast.success("Admission advised — patient sent to billing.");
-      onSuccess?.();
-    } catch (err) {
-      toast.error(err.message || "Failed to advise admission");
-    } finally {
-      setSubmitting(false);
-    }
+    onSendToBilling?.({ admissionType: form.admissionType, admissionNote: form.admissionNote });
   };
 
   return (
@@ -93,8 +86,8 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
             </button>
             <div className="flex gap-2">
               <button type="button" onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Cancel</button>
-              <button type="submit" disabled={submitting} className="px-3 py-1.5 rounded text-sm bg-primary text-white disabled:opacity-50">
-                {submitting ? "Sending…" : "Send for admission"}
+              <button type="submit" className="px-3 py-1.5 rounded text-sm bg-primary text-white">
+                Send for admission
               </button>
             </div>
           </div>

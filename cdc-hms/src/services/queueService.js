@@ -54,6 +54,21 @@ export const queueService = {
    *   External:  { referralType: 'External', referralReason, externalReferralTarget }
    */
   refer: (id, data) => api.post(`/queue/${id}/refer`, data),
+
+  /**
+   * Save & Print the referral NOTE without finalising the referral or moving to
+   * billing (mirrors admissions saveNote). Persists it for the letterhead print
+   * and the Visit History Actions tab.
+   * @param {number} id - Queue item ID
+   * @param {Object} data - { referralNote, referralType }
+   */
+  saveReferralNote: (id, data) => api.post(`/queue/${id}/refer-note`, data),
+
+  /**
+   * Referral notes documented for one patient — Visit History Actions.
+   * @param {string} uhid
+   */
+  advisedReferrals: (uhid) => api.get('/queue/advised-referrals', { params: { uhid } }),
 };
 
 export default queueService;

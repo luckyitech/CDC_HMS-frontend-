@@ -38,6 +38,7 @@ import AdmitPatientModal from "../../components/doctor/AdmitPatientModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
 import { INJECTION_REASON, PENDING_INJECTION } from "../../utils/queueStatus";
 import patientService from "../../services/patientService";
+import inpatientService from "../../services/inpatientService";
 import ConsultationNotesPlan from "../../components/doctor/ConsultationNotesPlan";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
@@ -108,7 +109,7 @@ const Consultation = () => {
 
   const { currentUser }                               = useUserContext();
   const { fetchPatientByUHID }                        = usePatientContext();
-  const { queue, sendToBilling, updateQueueStatus }   = useQueueContext();
+  const { queue, sendToBilling, updateQueueStatus, referPatient } = useQueueContext();
   const { getPrescriptionsByPatient, addPrescription } = usePrescriptionContext();
   const { getAvailableSlots, addAppointment }         = useAppointmentContext();
 
@@ -216,6 +217,11 @@ const Consultation = () => {
   const [showAdmitModal, setShowAdmitModal]         = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal]     = useState(false);
+  // Billing modal serves three flows. 'complete' is the normal end-of-visit path;
+  // 'admission' and 'referral' route the admit/refer actions through the SAME
+  // billing entry so neither can skip it. billingContext carries the note/payload.
+  const [billingMode, setBillingMode]               = useState('complete');
+  const [billingContext, setBillingContext]         = useState(null);
   const [billingQueueItem, setBillingQueueItem]     = useState(null);
   const [selectedCharges, setSelectedCharges]       = useState([]);
   const [selectedProcedures, setSelectedProcedures] = useState([]);
@@ -328,6 +334,8 @@ const Consultation = () => {
       return;
     }
     // Reset all billing modal state before opening
+    setBillingMode('complete');
+    setBillingContext(null);
     setBillingQueueItem(queueItem);
     setSelectedCharges([]);
     setSelectedProcedures([]);
@@ -338,6 +346,58 @@ const Consultation = () => {
     setFollowUpSlot('');
     setAvailableSlots([]);
     setShowBillingModal(true);
+  };
+
+  // Structured consultation summary, shared by the admission and referral notes:
+  // Triage Vitals → Reason for Visit → Consultation Notes → Diagnosis & Treatment
+  // Plan. Sourced from this visit's triage vitals, the live consultation note
+  // (handed up via notesTextRef) and the active diagnoses. The doctor edits from there.
+  const buildConsultationNote = () => {
+    const v = patient?.vitals || {};
+    const vitalsLine = [
+      v.bp && `BP ${v.bp}`,
+      v.heartRate && `HR ${v.heartRate}`,
+      v.temperature && `Temp ${v.temperature}`,
+      v.weight && `Weight ${v.weight}`,
+      v.rbs && `RBS ${v.rbs}`,
+      v.hba1c && `HbA1c ${v.hba1c}`,
+    ].filter(Boolean).join(' · ');
+    const reason = v.chiefComplaint;
+    const noteText = (notesTextRef.current || '').trim();
+    const dxLines = activeDiagnoses.map((d) => `• ${d.diagnosis}${d.code ? ` (${d.code})` : ''}`).join('\n');
+    return [
+      vitalsLine && `TRIAGE VITALS\n${vitalsLine}`,
+      reason && `REASON FOR VISIT\n${reason}`,
+      noteText && `CONSULTATION NOTES\n${noteText}`,
+      dxLines && `DIAGNOSIS & TREATMENT PLAN\n${dxLines}`,
+    ].filter(Boolean).join('\n\n');
+  };
+
+  // Open the shared billing modal in a non-'complete' flow (admission/referral).
+  // The action's payload rides in billingContext and is finalised on billing submit.
+  const openActionBilling = (mode, context, queueItem) => {
+    setBillingMode(mode);
+    setBillingContext(context);
+    setBillingQueueItem(queueItem);
+    setSelectedCharges([]);
+    setSelectedProcedures([]);
+    // Injection + follow-up are end-of-visit concepts — not offered for these flows.
+    setSendForInjection(false);
+    setDoctorNotes('');
+    setBookFollowUp(false);
+    setFollowUpDate('');
+    setFollowUpSlot('');
+    setAvailableSlots([]);
+    setShowAdmitModal(false);
+    setShowReferModal(false);
+    setShowBillingModal(true);
+  };
+
+  // Close/reset the billing modal, always returning it to the default flow.
+  const closeBilling = () => {
+    setShowBillingModal(false);
+    setBillingMode('complete');
+    setBillingContext(null);
   };
 
   // Called when doctor picks a follow-up date — fetches open slots for the assigned doctor
@@ -374,7 +434,26 @@ const Consultation = () => {
     }
     setBillingSubmitting(true);
     try {
-      if (sendForInjection) {
+      if (billingMode === 'admission') {
+        // Finalise the admission the doctor advised — charges entered here are
+        // merged server-side; the visit moves to Pending Billing (completed).
+        await inpatientService.requestAdmission({
+          queueId: queueItem.id,
+          admissionType:   billingContext?.admissionType,
+          admissionReason: billingContext?.admissionNote,
+          selectedCharges,
+          selectedProcedures,
+        });
+      } else if (billingMode === 'referral') {
+        // Finalise the referral — charges merge server-side; internal hands off
+        // to the next doctor, external moves to Pending Billing.
+        const result = await referPatient(queueItem.id, {
+          ...billingContext,
+          selectedCharges,
+          selectedProcedures,
+        });
+        if (!result?.success) throw new Error(result?.message || 'Referral failed');
+      } else if (sendForInjection) {
         // Back to the nurse. Charges ride along on the queue entry and are
         // merged by sendToBilling when the nurse finishes — no double entry.
         await updateQueueStatus(queueItem.id, PENDING_INJECTION, null, {
@@ -387,7 +466,7 @@ const Consultation = () => {
         await sendToBilling(queueItem.id, selectedCharges, selectedProcedures, doctorNotes.trim() || null);
       }
 
-      if (bookFollowUp && followUpDate && followUpSlot) {
+      if (billingMode === 'complete' && bookFollowUp && followUpDate && followUpSlot) {
         const apptResult = await addAppointment({
           uhid:            patient.uhid,
           doctorId:        queueItem.assignedDoctorId,
@@ -404,11 +483,11 @@ const Consultation = () => {
       }
 
       sessionStorage.removeItem(DRAFT_KEY);
-      setShowBillingModal(false);
+      closeBilling();
       setShowSuccessMessage(true);
       setTimeout(() => navigate("/doctor/dashboard"), 3000);
-    } catch {
-      toast.error('Something went wrong. Please try again.', { duration: 5000, position: 'top-right' });
+    } catch (err) {
+      toast.error(err?.message || 'Something went wrong. Please try again.', { duration: 5000, position: 'top-right' });
     } finally {
       setBillingSubmitting(false);
     }
@@ -1007,11 +1086,19 @@ const Consultation = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
               <div>
-                <h2 className="text-lg font-bold text-gray-800">Complete Consultation</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Select charges and procedures for this visit</p>
+                <h2 className="text-lg font-bold text-gray-800">
+                  {billingMode === 'admission' ? 'Admission Billing'
+                    : billingMode === 'referral' ? 'Referral Billing'
+                    : 'Complete Consultation'}
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {billingMode === 'admission' ? 'Enter charges — this finalises the admission and completes the visit'
+                    : billingMode === 'referral' ? 'Enter charges — this finalises the referral and completes the visit'
+                    : 'Select charges and procedures for this visit'}
+                </p>
               </div>
               <button
-                onClick={() => setShowBillingModal(false)}
+                onClick={closeBilling}
                 className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
@@ -1101,6 +1188,10 @@ const Consultation = () => {
                 )}
               </div>
 
+              {/* Injection, doctor's instructions and follow-up are end-of-visit
+                  concepts — only shown for the normal 'complete' flow. Admission
+                  and referral billing collect charges only. */}
+              {billingMode === 'complete' && (<>
               {/* Send for injection — routes to the nurse instead of billing */}
               <div>
                 <label
@@ -1220,6 +1311,7 @@ const Consultation = () => {
                   );
                 })()}
               </div>
+              </>)}
             </div>
 
             <div className="px-6 py-4 border-t flex-shrink-0">
@@ -1230,18 +1322,20 @@ const Consultation = () => {
               )}
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowBillingModal(false)}
+                  onClick={closeBilling}
                   className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleBillingSubmit}
-                  disabled={billingSubmitting || !hasBillingSelection || (bookFollowUp && (!followUpDate || !followUpSlot))}
+                  disabled={billingSubmitting || !hasBillingSelection || (billingMode === 'complete' && bookFollowUp && (!followUpDate || !followUpSlot))}
                   className="flex-1 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {billingSubmitting
                     ? 'Submitting…'
+                    : billingMode === 'admission' ? 'Confirm & Send for Admission'
+                    : billingMode === 'referral' ? 'Confirm Referral'
                     : sendForInjection ? 'Confirm & Send for Injection' : 'Confirm & Send to Billing'}
                 </button>
               </div>
@@ -1271,12 +1365,9 @@ const Consultation = () => {
           <ReferPatientModal
             patient={patient}
             queueItem={activeQueueItem}
+            defaultNote={buildConsultationNote()}
             onClose={() => setShowReferModal(false)}
-            onSuccess={() => {
-              sessionStorage.removeItem(DRAFT_KEY);
-              setShowReferModal(false);
-              navigate('/doctor/dashboard');
-            }}
+            onSendToBilling={(payload) => openActionBilling('referral', payload, activeQueueItem)}
           />
         );
       })()}
@@ -1287,40 +1378,13 @@ const Consultation = () => {
         if (!activeQueueItem) {
           return <NoOpenVisitNotice onClose={() => setShowAdmitModal(false)} />;
         }
-        // Pre-fill the admission note in the same shape as the Visit History
-        // document: Triage Vitals → Reason for Visit → Consultation Notes →
-        // Diagnosis & Treatment Plan. Sourced from this visit's triage vitals,
-        // the live consultation note (handed up via notesTextRef) and the active
-        // diagnoses. The doctor edits from there.
-        const v = patient.vitals || {};
-        const vitalsLine = [
-          v.bp && `BP ${v.bp}`,
-          v.heartRate && `HR ${v.heartRate}`,
-          v.temperature && `Temp ${v.temperature}`,
-          v.weight && `Weight ${v.weight}`,
-          v.rbs && `RBS ${v.rbs}`,
-          v.hba1c && `HbA1c ${v.hba1c}`,
-        ].filter(Boolean).join(' · ');
-        const reason = v.chiefComplaint;
-        const noteText = (notesTextRef.current || '').trim();
-        const dxLines = activeDiagnoses.map((d) => `• ${d.diagnosis}${d.code ? ` (${d.code})` : ''}`).join('\n');
-        const defaultNote = [
-          vitalsLine && `TRIAGE VITALS\n${vitalsLine}`,
-          reason && `REASON FOR VISIT\n${reason}`,
-          noteText && `CONSULTATION NOTES\n${noteText}`,
-          dxLines && `DIAGNOSIS & TREATMENT PLAN\n${dxLines}`,
-        ].filter(Boolean).join('\n\n');
         return (
           <AdmitPatientModal
             patient={patient}
             queueItem={activeQueueItem}
-            defaultNote={defaultNote}
+            defaultNote={buildConsultationNote()}
             onClose={() => setShowAdmitModal(false)}
-            onSuccess={() => {
-              sessionStorage.removeItem(DRAFT_KEY);
-              setShowAdmitModal(false);
-              navigate('/doctor/dashboard');
-            }}
+            onSendToBilling={(ctx) => openActionBilling('admission', ctx, activeQueueItem)}
           />
         );
       })()}
