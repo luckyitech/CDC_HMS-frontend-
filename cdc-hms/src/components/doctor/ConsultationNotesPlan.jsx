@@ -188,7 +188,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
           onClick={() => toggleTool("assessment")}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg border transition-colors ${
             showAssessment
-              ? "text-gray-500 border-gray-300 hover:bg-blue-50"
+              ? "bg-primary text-white border-primary"
               : "text-primary border-primary hover:bg-blue-50"
           }`}
         >
@@ -200,7 +200,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
           onClick={() => toggleTool("exam")}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg border transition-colors ${
             showExam
-              ? "text-gray-500 border-gray-300 hover:bg-blue-50"
+              ? "bg-primary text-white border-primary"
               : "text-primary border-primary hover:bg-blue-50"
           }`}
         >
@@ -212,7 +212,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
           onClick={() => toggleTool("plan")}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg border transition-colors ${
             showPlan
-              ? "text-gray-500 border-gray-300 hover:bg-blue-50"
+              ? "bg-primary text-white border-primary"
               : "text-primary border-primary hover:bg-blue-50"
           }`}
         >
