@@ -18,6 +18,11 @@ export const staffFileService = {
   // Server enforces "admin account only" — this just sends the new list.
   setPermissions: (id, permissions) => api.put(`/users/${id}`, { permissions }),
 
+  // ── Account actions (relocated from the Manage Users row icons) ────────────
+  resetPassword: (email) => api.post('/auth/forgot-password', { email }),
+  setStatus: (id, isActive) => api.put(`/users/${id}/status`, { isActive }),
+  deleteUser: (id) => api.delete(`/users/${id}`),
+
   // ── Documents ─────────────────────────────────────────────────────────────
   // GET /api/staff-documents?staffUserId=&archived=
   listDocuments: (staffUserId, archived = false) =>

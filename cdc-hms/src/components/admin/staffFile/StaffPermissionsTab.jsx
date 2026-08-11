@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { ShieldCheck, Package, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ShieldCheck, Package, AlertTriangle, KeyRound, UserCheck, UserX, Trash2 } from 'lucide-react';
 import Card from '../../shared/Card';
+import Button from '../../shared/Button';
 import { PERMISSIONS } from '../../../utils/permissions';
 import staffFileService from '../../../services/staffFileService';
 import toast from 'react-hot-toast';
@@ -44,8 +46,54 @@ const Toggle = ({ on, disabled, onClick }) => (
 );
 
 const StaffPermissionsTab = ({ staff, onSaved }) => {
+  const navigate = useNavigate();
   const [permissions, setPermissions] = useState(staff.permissions || []);
   const [busy, setBusy] = useState(null);
+  const [acting, setActing] = useState(null);
+  const isActive = staff.status === 'Active';
+
+  const resetPassword = async () => {
+    if (!staff.email) return toast.error('No email on file — add one via Edit details first.');
+    if (!window.confirm(`Send a password reset link to ${staff.email}?`)) return;
+    setActing('reset');
+    try {
+      await staffFileService.resetPassword(staff.email);
+      toast.success(`Reset link sent to ${staff.email}.`);
+    } catch (err) {
+      toast.error(err?.message || 'Failed to send reset link.');
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const toggleStatus = async () => {
+    const activate = !isActive;
+    if (!window.confirm(`${activate ? 'Activate' : 'Deactivate'} ${staff.name}?`)) return;
+    setActing('status');
+    try {
+      await staffFileService.setStatus(staff.id, activate);
+      toast.success(`${staff.name} ${activate ? 'activated' : 'deactivated'}.`);
+      onSaved?.();
+    } catch (err) {
+      toast.error(err?.message || 'Failed to update status.');
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const removeUser = async () => {
+    if (!window.confirm(`Delete ${staff.name}? This cannot be undone.`)) return;
+    if (!window.confirm(`Are you absolutely sure you want to permanently delete ${staff.name}?`)) return;
+    setActing('delete');
+    try {
+      await staffFileService.deleteUser(staff.id);
+      toast.success(`${staff.name} deleted.`);
+      navigate('/admin/manage-users');
+    } catch (err) {
+      toast.error(err?.message || 'Failed to delete user.');
+      setActing(null);
+    }
+  };
 
   const toggle = async (perm) => {
     const held = permissions.includes(perm.key);
@@ -104,6 +152,25 @@ const StaffPermissionsTab = ({ staff, onSaved }) => {
             );
           })}
         </div>
+      </Card>
+
+      <Card shadow={false} className="border border-gray-100">
+        <h4 className="text-sm font-bold text-gray-700 mb-3">Account</h4>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={resetPassword} disabled={acting === 'reset'} className="flex items-center gap-1.5">
+            <KeyRound className="w-4 h-4" /> {acting === 'reset' ? 'Sending…' : 'Reset password'}
+          </Button>
+          <Button variant="outline" onClick={toggleStatus} disabled={acting === 'status'} className="flex items-center gap-1.5">
+            {isActive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+            {acting === 'status' ? 'Saving…' : isActive ? 'Deactivate' : 'Activate'}
+          </Button>
+          <Button variant="danger" onClick={removeUser} disabled={acting === 'delete'} className="flex items-center gap-1.5">
+            <Trash2 className="w-4 h-4" /> {acting === 'delete' ? 'Deleting…' : 'Delete account'}
+          </Button>
+        </div>
+        <p className="text-xs text-gray-400 mt-3">
+          Edit personal &amp; employment details from the Overview panel (click the name bar).
+        </p>
       </Card>
     </div>
   );

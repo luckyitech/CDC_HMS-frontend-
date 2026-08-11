@@ -17,8 +17,16 @@ import StatusBadge from '../../components/shared/StatusBadge';
 const PERMISSIBLE_ROLES = ['doctor', 'staff', 'lab'];
 
 // Roles that have a Staff File (clicking the name opens /admin/staff/:id).
-// Patients have their own profile flow, not a staff file.
 const STAFF_FILE_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
+
+// The file a row opens when its name is clicked. Staff-type accounts open their
+// Staff File; patients open the shared patient profile — the SAME component and
+// route the staff portal uses (/…/patient-profile/:uhid) so a patient file is
+// opened the same way in every portal. Returns null when there's nothing to open.
+const fileHref = (user) =>
+  STAFF_FILE_ROLES.includes(user.role) ? `/admin/staff/${user.id}`
+  : user.uhid ? `/admin/patient-profile/${user.uhid}`
+  : null;
 import Pagination from '../../components/shared/Pagination';
 import useDebounce from '../../hooks/useDebounce';
 import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statusStyles';
@@ -487,9 +495,9 @@ const ManageUsers = () => {
                       <span className="text-white text-sm font-bold">{getInitials(user.name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      {STAFF_FILE_ROLES.includes(user.role) ? (
+                      {fileHref(user) ? (
                         <button
-                          onClick={() => navigate(`/admin/staff/${user.id}`)}
+                          onClick={() => navigate(fileHref(user))}
                           className="text-sm font-semibold text-primary hover:underline truncate text-left block max-w-full"
                         >
                           {user.name}
@@ -556,9 +564,9 @@ const ManageUsers = () => {
                             <span className="text-white text-xs font-bold">{getInitials(user.name)}</span>
                           </div>
                           <div>
-                            {STAFF_FILE_ROLES.includes(user.role) ? (
+                            {fileHref(user) ? (
                               <button
-                                onClick={() => navigate(`/admin/staff/${user.id}`)}
+                                onClick={() => navigate(fileHref(user))}
                                 className="text-sm font-semibold text-primary hover:underline text-left"
                               >
                                 {user.name}
