@@ -170,7 +170,12 @@ const ConsultationSummaryContainer = ({ patient, medications = [], onOpenMeds = 
     Object.keys(doctorsByDay).forEach((k) => {
       if (!map.has(k)) map.set(k, { id: k, date: k, count: null, records: [], doctors: doctorsByDay[k] });
     });
-    return [...map.values()].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8);
+    // Side panel shows the last month only — the full history lives in the
+    // Visit History tab; this keeps the summary rail short.
+    const cutoff = Date.now() - 31 * 24 * 60 * 60 * 1000;
+    return [...map.values()]
+      .filter((v) => new Date(v.date).getTime() >= cutoff)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
   })();
 
   // ── Metric toggle — persisted per patient ──────────────────────────────────

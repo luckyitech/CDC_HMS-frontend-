@@ -7,6 +7,7 @@ import {
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
 import PrintRoot from './PrintRoot';
+import PrescriptionPrint from '../doctor/PrescriptionPrint';
 import patientService from '../../services/patientService';
 import inpatientService from '../../services/inpatientService';
 import glp1Service from '../../services/glp1Service';
@@ -413,8 +414,6 @@ const dayTabCls = (active) =>
     active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-50'
   }`;
 
-const rxLine = (m) => [m.dosage, m.frequency, m.quantity && `Qty: ${m.quantity}`].filter(Boolean).join(' · ');
-
 const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
   <button onClick={onClick}
     className="w-full flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left">
@@ -455,38 +454,23 @@ const ArtifactMeta = ({ patient, sub }) => (
   </div>
 );
 
+// Admission-note viewer (prescriptions use the shared PrescriptionPrint instead).
 const ArtifactModal = ({ artifact, patient, onClose }) => {
   const { printRef, handlePrint } = usePrint();
   if (!artifact) return null;
-  const { type, data } = artifact;
-  const isAdm = type === 'admission';
-  const title = isAdm ? 'Admission Note' : 'Prescription';
-  const meds = data.medications || [];
-  const sub = isAdm
-    ? [data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ') + (data.cancelledAt ? ' · cancelled' : '')
-    : fmtDay(data.createdAt);
-
-  const body = isAdm ? (
-    <>
-      <p className="text-sm text-gray-500">{sub}</p>
-      <div className="whitespace-pre-wrap text-sm text-gray-700 mt-2 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
-    </>
-  ) : (
-    <div className="space-y-1.5 mt-2">
-      {meds.map((m, i) => (
-        <div key={i} className="text-sm text-gray-700"><b className="font-semibold text-gray-800">{m.name}</b>{rxLine(m) ? ` — ${rxLine(m)}` : ''}</div>
-      ))}
-    </div>
-  );
+  const { data } = artifact;
+  const sub = [data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ')
+    + (data.cancelledAt ? ' · cancelled' : '');
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+          <h3 className="text-lg font-bold text-gray-800">Admission Note</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
-        {body}
+        <p className="text-sm text-gray-500">{sub}</p>
+        <div className="whitespace-pre-wrap text-sm text-gray-700 mt-2 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
         <div className="flex justify-end gap-2 pt-4">
           <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Close</button>
           <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
@@ -495,14 +479,8 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
 
       {/* Print target — shared clinic letterhead */}
       <PrintRoot printRef={printRef}>
-        <ArtifactMeta patient={patient} sub={`${title} · ${sub}`} />
-        {isAdm ? (
-          <p className="text-sm whitespace-pre-wrap">{data.note || '—'}</p>
-        ) : (
-          meds.map((m, i) => (
-            <p key={i} className="text-sm"><b className="font-semibold text-gray-800">{m.name}</b>{rxLine(m) ? ` — ${rxLine(m)}` : ''}</p>
-          ))
-        )}
+        <ArtifactMeta patient={patient} sub={`Admission Note · ${sub}`} />
+        <p className="text-sm whitespace-pre-wrap">{data.note || '—'}</p>
       </PrintRoot>
     </div>
   );
@@ -908,8 +886,13 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
         </div>
       </div>
 
-      {/* Actions artifact viewer — admission note / prescription, with print */}
-      <ArtifactModal artifact={viewArtifact} patient={patient} onClose={() => setViewArtifact(null)} />
+      {/* Actions artifact viewer. Prescriptions use the shared PrescriptionPrint
+          (same format as the consultation); admissions use the note viewer. */}
+      {viewArtifact?.type === 'prescription' ? (
+        <PrescriptionPrint prescription={viewArtifact.data} onClose={() => setViewArtifact(null)} />
+      ) : (
+        <ArtifactModal artifact={viewArtifact} patient={patient} onClose={() => setViewArtifact(null)} />
+      )}
 
     </div>
   );

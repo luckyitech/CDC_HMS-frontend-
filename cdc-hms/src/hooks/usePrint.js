@@ -22,7 +22,10 @@ const usePrint = ({ pageSize = "A4" } = {}) => {
     pageStyle: `
       @page {
         size: ${pageSize};
-        margin: 0;
+        /* Vertical margin gives every page breathing room — a footer gap at the
+           bottom of one page and a header gap at the top of the next, so multi-
+           page documents never run content to the paper edge at a break. */
+        margin: 14mm 0;
       }
       html, body {
         margin: 0 !important;
