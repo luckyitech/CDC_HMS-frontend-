@@ -4,6 +4,7 @@ import { ArrowLeft, ChevronDown, FolderOpen, UserCog, Activity } from 'lucide-re
 import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
 import ProfileTabBar from '../../components/shared/ProfileTabBar';
+import useCollapsibleOverview from '../../hooks/useCollapsibleOverview';
 import staffFileService from '../../services/staffFileService';
 import activityService from '../../services/activityService';
 import StaffOverviewTab from '../../components/admin/staffFile/StaffOverviewTab';
@@ -24,8 +25,7 @@ const StaffFile = () => {
   const [staff, setStaff] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastLogin, setLastLogin] = useState(undefined);
-  const [overviewOpen, setOverviewOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'documents');
+  const { activeTab, selectTab, overviewOpen, setOverviewOpen } = useCollapsibleOverview(location.state?.activeTab || 'documents');
 
   const loadStaff = useCallback(async () => {
     setLoading(true);
@@ -132,7 +132,7 @@ const StaffFile = () => {
         </div>
       </div>
 
-      <ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+      <ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={selectTab} />
 
       <div>
         {activeTab === 'documents' && <StaffDocumentsTab staff={staff} />}

@@ -16,6 +16,7 @@ import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import PageHeader from "../../components/shared/PageHeader";
 import ProfileTabBar from "../../components/shared/ProfileTabBar";
+import useCollapsibleOverview from "../../hooks/useCollapsibleOverview";
 import InactivePatientBanner from "../../components/shared/InactivePatientBanner";
 import BarcodeActions from "../../components/shared/BarcodeActions";
 import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
@@ -238,8 +239,7 @@ const PatientFile = () => {
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [prescriptions, setPrescriptions] = useState([]);
-  const [overviewOpen, setOverviewOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || cfg.tabs[0].id);
+  const { activeTab, selectTab, overviewOpen, setOverviewOpen } = useCollapsibleOverview(location.state?.activeTab || cfg.tabs[0].id);
   const [reactivating, setReactivating] = useState(false);
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -391,13 +391,13 @@ const PatientFile = () => {
               patient={patient}
               canEditVitals={cfg.canEditVitals}
               onEditVitals={() => setShowVitalsModal(true)}
-              goToEquipment={() => setActiveTab("equipment")}
+              goToEquipment={() => selectTab("equipment")}
             />
           </div>
         </div>
       </div>
 
-      <ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+      <ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={selectTab} />
 
       <div>
         {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
