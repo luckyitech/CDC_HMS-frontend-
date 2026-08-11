@@ -94,7 +94,7 @@ const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
   </div>
 );
 
-const OverviewPanel = ({ patient, canEditVitals, onEditVitals, goToEquipment }) => (
+const OverviewPanel = ({ patient }) => (
   <div className="space-y-6">
     <PatientSummaryCard patient={patient} shadow={false} />
 
@@ -124,13 +124,6 @@ const OverviewPanel = ({ patient, canEditVitals, onEditVitals, goToEquipment }) 
     </div>
 
     <Card title="Latest Vitals" shadow={false} className="border border-gray-100">
-      {canEditVitals && (
-        <div className="flex justify-end mb-2">
-          <Button variant="outline" onClick={onEditVitals} className="flex items-center gap-1.5 px-3 py-2 text-sm">
-            <Pencil className="w-4 h-4" /> Edit vitals
-          </Button>
-        </div>
-      )}
       <VitalsGrid vitals={patient.vitals} patient={patient} />
     </Card>
 
@@ -203,7 +196,6 @@ const OverviewPanel = ({ patient, canEditVitals, onEditVitals, goToEquipment }) 
               <p className="text-sm text-gray-700"><span className="font-semibold">Serial:</span> {patient.medicalEquipment.insulinPump.transmitter.serialNo}</p>
             </div>
           )}
-          <Button variant="outline" onClick={goToEquipment} className="w-full">Manage Equipment Details →</Button>
         </div>
       </Card>
     )}
@@ -228,7 +220,7 @@ const PatientFile = () => {
   // action (edit profile, reset password, activate/deactivate, delete, and
   // whatever is added later). It only appears in portals that can manage the
   // patient — doctors get no such tab.
-  const showUserMgmt = cfg.canEditPatient || cfg.canManageAccount;
+  const showUserMgmt = cfg.canEditPatient || cfg.canManageAccount || cfg.canEditVitals;
   const tabs = showUserMgmt
     ? [...cfg.tabs, { id: "user-management", name: "User Management", Icon: UserCog }]
     : cfg.tabs;
@@ -387,12 +379,7 @@ const PatientFile = () => {
       <div className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${overviewOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden min-h-0">
           <div className="py-4">
-            <OverviewPanel
-              patient={patient}
-              canEditVitals={cfg.canEditVitals}
-              onEditVitals={() => setShowVitalsModal(true)}
-              goToEquipment={() => selectTab("equipment")}
-            />
+            <OverviewPanel patient={patient} />
           </div>
         </div>
       </div>
@@ -414,12 +401,21 @@ const PatientFile = () => {
         )}
         {activeTab === "user-management" && (
           <div className="space-y-6">
-            {cfg.canEditPatient && (
+            {(cfg.canEditPatient || cfg.canEditVitals) && (
               <Card title="Profile" shadow={false} className="border border-gray-100">
-                <p className="text-sm text-gray-500 mb-3">Edit this patient's personal, medical and contact details.</p>
-                <Button variant="outline" onClick={() => setShowEditModal(true)} className="flex items-center gap-1.5 px-3 py-2 text-sm">
-                  <Pencil className="w-4 h-4" /> Edit profile
-                </Button>
+                <p className="text-sm text-gray-500 mb-3">Edit this patient's details and recorded vitals.</p>
+                <div className="flex flex-wrap gap-2">
+                  {cfg.canEditPatient && (
+                    <Button variant="outline" onClick={() => setShowEditModal(true)} className="flex items-center gap-1.5 px-3 py-2 text-sm">
+                      <Pencil className="w-4 h-4" /> Edit profile
+                    </Button>
+                  )}
+                  {cfg.canEditVitals && (
+                    <Button variant="outline" onClick={() => setShowVitalsModal(true)} className="flex items-center gap-1.5 px-3 py-2 text-sm">
+                      <Pencil className="w-4 h-4" /> Edit vitals
+                    </Button>
+                  )}
+                </div>
               </Card>
             )}
             {cfg.canManageAccount && (
