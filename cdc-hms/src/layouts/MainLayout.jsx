@@ -86,15 +86,14 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const canSeeInpatientTab =
     currentUser?.role === 'doctor' || hasPermission(currentUser, PERMISSIONS.INPATIENT_ACCESS);
   const onDashboardOrBoard =
-    location.pathname.endsWith('/dashboard') || location.pathname === '/inpatient/board';
+    location.pathname.endsWith('/dashboard') || location.pathname.endsWith('/inpatient-board');
   const showWorkspaceTabs =
     canSeeInpatientTab && onDashboardOrBoard && userRole.toLowerCase() !== 'admin';
-  // The outpatient home to return to: the user's real portal (a doctor viewing
-  // the shared inpatient board still returns to /doctor).
-  const outpatientPath =
-    userRole.toLowerCase() === 'inpatient'
-      ? `/${currentUser?.role}/dashboard`
-      : `/${userRole.toLowerCase()}/dashboard`;
+  // Both tabs stay INSIDE the current portal so the sidebar never changes — the
+  // inpatient board renders at /{portal}/inpatient-board, not the separate
+  // /inpatient portal layout.
+  const outpatientPath = `/${userRole.toLowerCase()}/dashboard`;
+  const inpatientBoardPath = `/${userRole.toLowerCase()}/inpatient-board`;
 
   // Grouped pages that share one top-of-page switcher instead of separate sidebar
   // entries. Only the group matching the current route renders (decongests the
@@ -102,7 +101,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const pageTabs = showWorkspaceTabs
     ? [
         { label: 'Outpatient Dashboard', path: outpatientPath, Icon: Stethoscope },
-        { label: 'Inpatient Dashboard', path: '/inpatient/board', Icon: BedDouble },
+        { label: 'Inpatient Dashboard', path: inpatientBoardPath, Icon: BedDouble },
       ]
     : userRole.toLowerCase() === 'doctor' &&
       ['/doctor/appointments', '/doctor/my-schedule'].includes(location.pathname)
