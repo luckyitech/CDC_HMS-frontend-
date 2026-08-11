@@ -888,7 +888,7 @@ const Consultation = () => {
             <>
               {/* click-away */}
               <div className="fixed inset-0 z-10" onClick={() => setShowActions(false)} />
-              <div className="absolute right-0 bottom-full mb-2 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-xl py-1">
+              <div className="absolute right-0 top-full mt-2 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-xl py-1">
                 <button
                   onClick={() => { setShowActions(false); setShowRecordUse(true); }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
