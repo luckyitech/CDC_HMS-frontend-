@@ -41,8 +41,11 @@ const DATE_FIELD_MAP = {
   // against it must not vanish with it.
   glp1WeekNotes:   'createdAt',
   // Advised admissions (doctor's admission note from OPD) — an "action", not part
-  // of the clinical document; rendered in the day's Actions tab.
-  admissions:      'requestedAt',
+  // of the clinical document; rendered in the day's Actions tab. Grouped by
+  // savedAt (when the note was documented), not requestedAt (when it was sent for
+  // admission): the note belongs to the day it was written, and requestedAt is
+  // null while the note has only been documented.
+  admissions:      'savedAt',
   // Referral notes (doctor's referral letter from OPD) — also an "action".
   referrals:       'savedAt',
 };
@@ -497,7 +500,8 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
   const title = isReferral ? 'Referral Note' : 'Admission Note';
   const sub = isReferral
     ? [data.referralType, data.destination, data.doctorName, fmtDay(data.savedAt)].filter(Boolean).join(' · ')
-    : [data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ')
+    : [data.admissionType, data.doctorName, fmtDay(data.savedAt)].filter(Boolean).join(' · ')
+        + (data.sent ? ' · sent for admission' : ' · documented only')
         + (data.cancelledAt ? ' · cancelled' : '');
 
   return (
