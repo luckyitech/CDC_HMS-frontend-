@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Syringe, AlertCircle, RotateCcw } from 'lucide-react';
+import { Syringe, AlertCircle, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useGlp1Context } from '../../contexts/Glp1Context';
 import Glp1DoseSchedule from '../doctor/Glp1DoseSchedule';
 import Glp1ReviewDueBanner from './Glp1ReviewDueBanner';
+import Glp1WeekNotes from './Glp1WeekNotes';
+import { groupNotesByWeek } from '../../utils/glp1Weeks';
 
 /**
  * Glp1InjectionCard — the nurse's view in triage.
@@ -27,7 +29,10 @@ import Glp1ReviewDueBanner from './Glp1ReviewDueBanner';
  */
 
 const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
-  const { loadActiveTherapy, recordAdministration, removeAdministration } = useGlp1Context();
+  const {
+    loadActiveTherapy, recordAdministration, removeAdministration,
+    addWeekNote, removeWeekNote,
+  } = useGlp1Context();
 
   const [therapy, setTherapy] = useState(null);
   const [detail, setDetail]   = useState(null);
@@ -37,6 +42,9 @@ const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed]   = useState(false);
   const [busy, setBusy]       = useState(false);
+  // Earlier weeks' notes, folded away — the nurse opens them when they want the
+  // history, so the card stays about today's injection by default.
+  const [showPrevious, setShowPrevious] = useState(false);
 
   const uhid = patient?.uhid;
 
@@ -103,6 +111,23 @@ const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
   const administrations = detail?.administrations || [];
   const lastGiven = [...administrations].reverse().find(a => a.status === 'given');
 
+  // Already in the payload getFull returned — no second request for notes
+  const weekNotes   = detail?.weekNotes || [];
+  const currentWeek = therapy.currentWeek;
+  const notesByWeek = groupNotesByWeek(weekNotes);
+
+  const currentWeekNotes = currentWeek == null
+    ? []
+    : notesByWeek.get(Number(currentWeek)) || [];
+
+  // Every other week carrying a note, newest first. The dose ladder holds these
+  // too, but its steps are collapsed by default — a nurse should not have to
+  // guess which step to open to find out what happened last time.
+  const previousWeeks = [...notesByWeek.keys()]
+    .filter(w => currentWeek == null || w !== Number(currentWeek))
+    .sort((a, b) => b - a);
+  const previousCount = previousWeeks.reduce((n, w) => n + notesByWeek.get(w).length, 0);
+
   // Same handlers the doctor's tracker uses, so both write identically
   const handleRecordWeek = async (payload) => {
     const result = await recordAdministration({ therapyId: therapy.id, ...payload });
@@ -119,6 +144,21 @@ const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
     } else {
       toast.error(result.message || 'Could not clear the week');
     }
+    return result;
+  };
+
+  // Notes reuse the same reload as the injections above, so a note and the week
+  // it belongs to are never read from two different snapshots. Glp1WeekNotes
+  // raises its own toasts — these only report the result back to it.
+  const handleAddNote = async (weekNumber, body) => {
+    const result = await addWeekNote({ therapyId: therapy.id, weekNumber, body });
+    if (result.success) await load();
+    return result;
+  };
+
+  const handleRemoveNote = async (note) => {
+    const result = await removeWeekNote(note.id);
+    if (result.success) await load();
     return result;
   };
 
@@ -150,6 +190,70 @@ const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
         ))}
       </div>
 
+      {/* Today's note. The same component the dose ladder puts under each week,
+          hoisted here with its composer already open: this is the one thing the
+          nurse is meant to write on this visit, and it should not be three
+          clicks inside a step they have no other reason to expand. */}
+      {(currentWeek != null || previousCount > 0) && (
+        <div className="border border-gray-200 border-t-2 border-t-primary rounded-lg p-3 bg-gray-50 mb-4">
+          {/* A course with no computed current week can still have a history,
+              so the composer is conditional but the history below is not. */}
+          {currentWeek != null && (
+            <>
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <span className="text-sm font-semibold text-gray-800">
+                  Today's note · Week {currentWeek}
+                </span>
+                <span className="text-xs text-gray-400">Visible to the doctor</span>
+              </div>
+              <Glp1WeekNotes
+                weekNumber={currentWeek}
+                notes={currentWeekNotes}
+                onAdd={handleAddNote}
+                onRemove={handleRemoveNote}
+                alwaysOpen
+                className=""
+              />
+            </>
+          )}
+
+          {/* Earlier weeks, read-only: this is context for today's injection,
+              not a place to work. Corrections stay in the dose ladder, which is
+              also where the week they belong to is visible. */}
+          {previousCount > 0 && (
+            <div className={currentWeek != null ? 'mt-3 pt-3 border-t border-gray-200' : ''}>
+              <button
+                type="button"
+                onClick={() => setShowPrevious(v => !v)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-primary"
+              >
+                {showPrevious
+                  ? <ChevronDown className="w-3.5 h-3.5" />
+                  : <ChevronRight className="w-3.5 h-3.5" />}
+                {previousCount === 1 ? '1 earlier note' : `${previousCount} earlier notes`}
+              </button>
+
+              {showPrevious && (
+                <div className="mt-2 space-y-3">
+                  {previousWeeks.map(week => (
+                    <div key={week}>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">
+                        Week {week}
+                      </p>
+                      <Glp1WeekNotes
+                        weekNumber={week}
+                        notes={notesByWeek.get(week)}
+                        readOnly
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* readOnly locks the plan (doctor's job); weeksReadOnly={false} opens
           week-by-week recording, including back-filling missed weeks */}
       <Glp1DoseSchedule
@@ -161,6 +265,9 @@ const Glp1InjectionCard = ({ patient, onTherapyChange }) => {
         weeksReadOnly={false}
         onRecordWeek={handleRecordWeek}
         onClearWeek={handleClearWeek}
+        weekNotes={weekNotes}
+        onAddNote={handleAddNote}
+        onRemoveNote={handleRemoveNote}
       />
 
       <p className="text-xs text-gray-400 mt-2">

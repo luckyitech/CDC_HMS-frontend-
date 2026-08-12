@@ -53,6 +53,27 @@ export const impliedWeekStatus = (week, currentWeek, record) => {
 };
 
 /**
+ * Groups week notes by their week number.
+ *
+ * A week has at most one administration but any number of notes, so this returns
+ * a Map of week → note[] rather than week → note. Order is preserved as the API
+ * sent it (weekNumber, then id), which is oldest-first within a week — a thread
+ * reads top to bottom.
+ *
+ * Lives here beside impliedWeekStatus so anything keyed by week number is
+ * derived in one place, not rebuilt inline by each component that needs it.
+ */
+export const groupNotesByWeek = (notes = []) => {
+  const byWeek = new Map();
+  for (const note of notes) {
+    const week = Number(note.weekNumber);
+    if (!byWeek.has(week)) byWeek.set(week, []);
+    byWeek.get(week).push(note);
+  }
+  return byWeek;
+};
+
+/**
  * Re-chains a schedule so every step after `fromIndex` starts where the previous
  * one ends, preserving each step's own length. Editing one step's range then
  * ripples the change through the later steps instead of leaving an overlap or a

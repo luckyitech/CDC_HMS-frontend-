@@ -26,6 +26,10 @@ import api from './api';
  * - GET    /glp1-symptoms              - Symptom catalogue (doctor, staff)
  * - POST   /glp1-symptoms              - Add a symptom clinic-wide (doctor, admin)
  * - DELETE /glp1-symptoms/:id          - Retire a symptom (admin only)
+ *
+ * - GET    /glp1-week-notes?therapyId= - Per-week notes (doctor, staff)
+ * - POST   /glp1-week-notes            - Add a note to a week (doctor, staff)
+ * - DELETE /glp1-week-notes/:id        - Soft delete (author's own; doctors any)
  */
 
 export const glp1Service = {
@@ -115,6 +119,32 @@ export const glp1Service = {
   recordAdministration: (data) => api.post('/glp1-administrations', data),
 
   removeAdministration: (id) => api.delete(`/glp1-administrations/${id}`),
+
+  // ============================================
+  // WEEK NOTES
+  // ============================================
+
+  /**
+   * Free-text notes attached to one week — the nurse's injection note and the
+   * doctor's clinical note, both against the same week and told apart by
+   * authorRole.
+   *
+   * Rarely needed alongside getFull, which already returns weekNotes for a
+   * course. Use this for a patient-wide read (visit history) or to refresh
+   * without refetching the whole therapy.
+   * @param {Object} params - { therapyId } or { uhid }, plus weekNumber, includeDeleted
+   */
+  getWeekNotes: (params) => api.get('/glp1-week-notes', { params }),
+
+  /**
+   * Add a note to one week.
+   * @param {Object} data - therapyId, weekNumber, body — all required
+   * Note: authorId and authorRole are auto-assigned from the JWT, never sent
+   */
+  addWeekNote: (data) => api.post('/glp1-week-notes', data),
+
+  /** Soft delete — the row stays. A nurse may remove only their own note */
+  removeWeekNote: (id) => api.delete(`/glp1-week-notes/${id}`),
 
   // ============================================
   // REVIEWS
