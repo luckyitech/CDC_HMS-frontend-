@@ -25,7 +25,7 @@ const NotFound = () => {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-blue-50 transition"
           >
             <ArrowLeft className="w-4 h-4" />
             Go Back

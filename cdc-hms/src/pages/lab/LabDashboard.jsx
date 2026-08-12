@@ -106,7 +106,7 @@ const LabDashboard = () => {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {dashboardData.recentTests.map((test) => (
-                <tr key={test.id} className="hover:bg-gray-50">
+                <tr key={test.id} className="hover:bg-blue-50">
                   <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium text-gray-800">
                     {test.patient}
                   </td>

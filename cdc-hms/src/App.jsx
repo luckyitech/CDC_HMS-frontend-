@@ -162,6 +162,7 @@ function App() {
                   element={<ProtectedRoute requiredRole="staff"><MainLayout userRole="Staff" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<StaffDashboard />} />
+                  <Route path="inpatient-board" element={<WardBoard />} />
                   <Route path="patients" element={<PatientSearch />} />
                   <Route path="queue" element={<QueueManagement />} />
                   <Route path="triage" element={<Triage />} />
@@ -182,6 +183,7 @@ function App() {
                   element={<ProtectedRoute requiredRole="doctor"><MainLayout userRole="Doctor" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<DoctorDashboard />} />
+                  <Route path="inpatient-board" element={<WardBoard />} />
                   <Route path="patients" element={<MyPatients />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="consultation/:uhid" element={<Consultation />} />
@@ -219,6 +221,7 @@ function App() {
                   element={<ProtectedRoute requiredRole="lab"><MainLayout userRole="Lab" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<LabDashboard />} />
+                  <Route path="inpatient-board" element={<WardBoard />} />
                   <Route path="pending-tests" element={<PendingTests />} />
                   <Route path="enter-results" element={<EnterResults />} />
                   <Route path="test-history" element={<TestHistory />} />
@@ -278,7 +281,7 @@ function App() {
                 {/* Inpatient workspace (HMIS V3) — doctors + nurses switch in */}
                 <Route
                   path="/inpatient"
-                  element={<ProtectedRoute requiredRoles={["doctor", "nurse"]}><MainLayout userRole="Inpatient" /></ProtectedRoute>}
+                  element={<ProtectedRoute requiredRoles={["doctor", "nurse"]} requiredPermission="inpatient.access"><MainLayout userRole="Inpatient" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="board" element={<WardBoard />} />

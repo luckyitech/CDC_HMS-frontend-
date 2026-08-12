@@ -182,7 +182,7 @@ const MyPatients = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {patients.map((patient) => (
-                    <tr key={patient.id} className="hover:bg-gray-50 transition">
+                    <tr key={patient.id} className="hover:bg-blue-50 transition">
                       <td className="px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                       <td className="px-6 py-4">
                         <p className="font-semibold text-gray-800">{patient.name}</p>
@@ -224,7 +224,7 @@ const MyPatients = () => {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Prev
                 </button>
@@ -238,7 +238,7 @@ const MyPatients = () => {
                       <button
                         onClick={() => setPage(p)}
                         className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${
-                          p === page ? "bg-primary text-white border-primary" : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                          p === page ? "bg-primary text-white border-primary" : "border-gray-300 text-gray-700 hover:bg-blue-50"
                         }`}
                       >
                         {p}
@@ -249,7 +249,7 @@ const MyPatients = () => {
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>

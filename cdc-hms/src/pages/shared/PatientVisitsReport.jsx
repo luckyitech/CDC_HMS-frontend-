@@ -214,7 +214,7 @@ const PatientVisitsReport = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {paginatedDays.map((day) => (
-                  <tr key={day.date} className="hover:bg-gray-50">
+                  <tr key={day.date} className="hover:bg-blue-50">
                     <td className="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap">
                       {new Date(`${day.date}T00:00:00`).toLocaleDateString('en-GB', {
                         weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',

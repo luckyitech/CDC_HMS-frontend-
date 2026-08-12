@@ -294,7 +294,7 @@ const ManageUsers = () => {
                 {paginatedUsers.map(user => {
                   const isActive = user.status === 'Active';
                   return (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={user.id} className="hover:bg-blue-50 transition-colors">
 
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">

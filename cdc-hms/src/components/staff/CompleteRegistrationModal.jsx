@@ -326,7 +326,7 @@ const CompleteRegistrationModal = ({ patient, onCompleted, onClose }) => {
         <div className="px-6 py-4 border-t flex gap-3 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-blue-50"
           >
             Cancel
           </button>

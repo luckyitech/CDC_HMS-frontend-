@@ -17,7 +17,7 @@ const AccordionPanel = ({ icon, label, badge, isOpen, onToggle, padding = 'p-4',
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left"
       >
         <div className="flex items-center gap-3">
           <Icon className={`w-5 h-5 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />

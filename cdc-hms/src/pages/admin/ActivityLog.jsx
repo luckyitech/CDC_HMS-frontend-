@@ -282,7 +282,7 @@ const ActivityLog = () => {
                   const style = ACTION_STYLE[e.type] || { color: 'bg-gray-100 text-gray-600', icon: Activity };
                   const Icon = style.icon;
                   return (
-                    <tr key={i} className="hover:bg-gray-50 transition">
+                    <tr key={i} className="hover:bg-blue-50 transition">
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDateTime(e.timestamp)}</td>
                       <td className="px-4 py-3 font-semibold text-gray-800">{e.staff}</td>
                       <td className="px-4 py-3">
@@ -310,12 +310,12 @@ const ActivityLog = () => {
             </span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
               <span className="text-sm font-semibold text-gray-700">Page {page} of {totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
                 Next <ChevronRight className="w-4 h-4" />
               </button>
             </div>

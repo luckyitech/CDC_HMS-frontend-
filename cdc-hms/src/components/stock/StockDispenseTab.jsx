@@ -229,7 +229,7 @@ const StockDispenseTab = ({ onLockChange }) => {
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button type="button" aria-label="Decrease"
                     onClick={() => setLine(idx, { quantity: Math.max(1, Number(s.quantity) - 1) })}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100">
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50">
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <input type="number" min="1" value={s.quantity}
@@ -237,7 +237,7 @@ const StockDispenseTab = ({ onLockChange }) => {
                     className="w-12 text-center text-sm font-semibold border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-primary" />
                   <button type="button" aria-label="Increase"
                     onClick={() => setLine(idx, { quantity: Number(s.quantity) + 1 })}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100">
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50">
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                   <button type="button" aria-label="Remove" onClick={() => removeLine(idx)}

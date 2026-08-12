@@ -24,11 +24,14 @@ import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
  * onSuccess() fires when a treatment plan is saved — the parent uses it to mark
  * the required step complete.
  */
-const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onSuccess = () => {} }) => {
+const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onSuccess = () => {}, notesRef = null }) => {
   const { getNotesByPatient, addNote, updateNote } = useConsultationNotesContext();
   const { getPlansByPatient, addTreatmentPlan, updateTreatmentPlan } = useTreatmentPlanContext();
 
   const [notesText, setNotesText]   = useState("");
+  // Expose the live (unsaved) note text to the parent so the Admit modal can
+  // pre-fill the admission note without lifting this component's state.
+  useEffect(() => { if (notesRef) notesRef.current = notesText; }, [notesText, notesRef]);
   const [todayNote, setTodayNote]   = useState(null);
   const [planText, setPlanText]     = useState("");
   const [todayPlan, setTodayPlan]   = useState(null);
@@ -188,7 +191,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
           onClick={() => toggleTool("assessment")}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg border transition-colors ${
             showAssessment
-              ? "text-gray-500 border-gray-300 hover:bg-gray-50"
+              ? "bg-primary text-white border-primary"
               : "text-primary border-primary hover:bg-blue-50"
           }`}
         >
@@ -200,7 +203,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
           onClick={() => toggleTool("exam")}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg border transition-colors ${
             showExam
-              ? "text-gray-500 border-gray-300 hover:bg-gray-50"
+              ? "bg-primary text-white border-primary"
               : "text-primary border-primary hover:bg-blue-50"
           }`}
         >
@@ -212,7 +215,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
           onClick={() => toggleTool("plan")}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-lg border transition-colors ${
             showPlan
-              ? "text-gray-500 border-gray-300 hover:bg-gray-50"
+              ? "bg-primary text-white border-primary"
               : "text-primary border-primary hover:bg-blue-50"
           }`}
         >

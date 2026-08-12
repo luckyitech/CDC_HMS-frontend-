@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import {
   ChevronDown, ArrowLeft, Pill, Zap, Radio, Battery, Calendar, TrendingUp,
   FileText, MessageSquare, LineChart, Pencil, ClipboardEdit, AlertTriangle,
-  KeyRound, UserCheck, UserX, Trash2,
+  KeyRound, UserCheck, UserX, Trash2, UserCog,
 } from "lucide-react";
 import { formatDOB } from "../../utils/dateUtils";
 import { usePatientContext } from "../../contexts/PatientContext";
@@ -16,6 +16,7 @@ import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import PageHeader from "../../components/shared/PageHeader";
 import ProfileTabBar from "../../components/shared/ProfileTabBar";
+import useCollapsibleOverview from "../../hooks/useCollapsibleOverview";
 import InactivePatientBanner from "../../components/shared/InactivePatientBanner";
 import BarcodeActions from "../../components/shared/BarcodeActions";
 import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
@@ -93,7 +94,7 @@ const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
   </div>
 );
 
-const OverviewPanel = ({ patient, canEditVitals, onEditVitals, goToEquipment }) => (
+const OverviewPanel = ({ patient }) => (
   <div className="space-y-6">
     <PatientSummaryCard patient={patient} shadow={false} />
 
@@ -123,13 +124,6 @@ const OverviewPanel = ({ patient, canEditVitals, onEditVitals, goToEquipment }) 
     </div>
 
     <Card title="Latest Vitals" shadow={false} className="border border-gray-100">
-      {canEditVitals && (
-        <div className="flex justify-end mb-2">
-          <Button variant="outline" onClick={onEditVitals} className="flex items-center gap-1.5 px-3 py-2 text-sm">
-            <Pencil className="w-4 h-4" /> Edit vitals
-          </Button>
-        </div>
-      )}
       <VitalsGrid vitals={patient.vitals} patient={patient} />
     </Card>
 
@@ -202,7 +196,6 @@ const OverviewPanel = ({ patient, canEditVitals, onEditVitals, goToEquipment }) 
               <p className="text-sm text-gray-700"><span className="font-semibold">Serial:</span> {patient.medicalEquipment.insulinPump.transmitter.serialNo}</p>
             </div>
           )}
-          <Button variant="outline" onClick={goToEquipment} className="w-full">Manage Equipment Details →</Button>
         </div>
       </Card>
     )}
@@ -223,14 +216,22 @@ const PatientFile = () => {
   const cfg = ROLE_CONFIG[portal];
   const fromConsultation = location.state?.fromConsultation;
 
+  // A "User Management" tab, appended last, houses every account/management
+  // action (edit profile, reset password, activate/deactivate, delete, and
+  // whatever is added later). It only appears in portals that can manage the
+  // patient — doctors get no such tab.
+  const showUserMgmt = cfg.canEditPatient || cfg.canManageAccount || cfg.canEditVitals;
+  const tabs = showUserMgmt
+    ? [...cfg.tabs, { id: "user-management", name: "User Management", Icon: UserCog }]
+    : cfg.tabs;
+
   const { fetchPatientByUHID } = usePatientContext();
   const { getPrescriptionsByPatient } = usePrescriptionContext();
 
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [prescriptions, setPrescriptions] = useState([]);
-  const [overviewOpen, setOverviewOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || cfg.tabs[0].id);
+  const { activeTab, selectTab, overviewOpen, setOverviewOpen } = useCollapsibleOverview(location.state?.activeTab || cfg.tabs[0].id);
   const [reactivating, setReactivating] = useState(false);
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -325,11 +326,6 @@ const PatientFile = () => {
               </Button>
             )}
             <BarcodeActions patient={patient} />
-            {cfg.canEditPatient && (
-              <Button variant="outline" onClick={() => setShowEditModal(true)} className="flex items-center gap-2">
-                <Pencil className="w-4 h-4" /> Edit Profile
-              </Button>
-            )}
             <Button variant="outline" onClick={() => navigate(cfg.patientsPath)} className="flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" /> {cfg.patientsLabel}
             </Button>
@@ -363,7 +359,7 @@ const PatientFile = () => {
       <div
         onClick={() => setOverviewOpen((o) => !o)}
         className={`mb-1 px-4 py-2 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
-          overviewOpen ? "bg-primary border-primary text-white" : "bg-white border-gray-200 hover:bg-gray-50"
+          overviewOpen ? "bg-primary border-primary text-white" : "bg-white border-gray-200 hover:bg-blue-50"
         }`}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -383,14 +379,47 @@ const PatientFile = () => {
       <div className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${overviewOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden min-h-0">
           <div className="py-4">
-            <OverviewPanel
-              patient={patient}
-              canEditVitals={cfg.canEditVitals}
-              onEditVitals={() => setShowVitalsModal(true)}
-              goToEquipment={() => setActiveTab("equipment")}
-            />
+            <OverviewPanel patient={patient} />
+          </div>
+        </div>
+      </div>
+
+      <ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={selectTab} />
+
+      <div>
+        {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
+        {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
+        {activeTab === "visit-history" && (<><VisitHistoryPanel patient={patient} /><StockDispenseHistory uhid={uhid} /></>)}
+        {activeTab === "glycemic-charts" && <GlycemicCharts />}
+        {activeTab === "charts" && <GlycemicChartPanel patient={patient} />}
+        {activeTab === "notes" && <ConsultationNotesList patient={patient} readOnly />}
+        {activeTab === "prescriptions" && (
+          <>
+            <PrescriptionManagement patient={patient} patientPrescriptions={prescriptions} readOnly />
+            <StockDispenseHistory uhid={uhid} />
+          </>
+        )}
+        {activeTab === "user-management" && (
+          <div className="space-y-6">
+            {(cfg.canEditPatient || cfg.canEditVitals) && (
+              <Card title="Profile" shadow={false} className="border border-gray-100">
+                <p className="text-sm text-gray-500 mb-3">Edit this patient's details and recorded vitals.</p>
+                <div className="flex flex-wrap gap-2">
+                  {cfg.canEditPatient && (
+                    <Button variant="outline" onClick={() => setShowEditModal(true)} className="flex items-center gap-1.5 px-3 py-2 text-sm">
+                      <Pencil className="w-4 h-4" /> Edit profile
+                    </Button>
+                  )}
+                  {cfg.canEditVitals && (
+                    <Button variant="outline" onClick={() => setShowVitalsModal(true)} className="flex items-center gap-1.5 px-3 py-2 text-sm">
+                      <Pencil className="w-4 h-4" /> Edit vitals
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            )}
             {cfg.canManageAccount && (
-              <Card title="Account" shadow={false} className="border border-gray-100 mt-6">
+              <Card title="Account" shadow={false} className="border border-gray-100">
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={resetPassword} className="flex items-center gap-1.5 px-3 py-2 text-sm">
                     <KeyRound className="w-4 h-4" /> Reset password
@@ -406,23 +435,6 @@ const PatientFile = () => {
               </Card>
             )}
           </div>
-        </div>
-      </div>
-
-      <ProfileTabBar tabs={cfg.tabs} activeTab={activeTab} onChange={setActiveTab} />
-
-      <div>
-        {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
-        {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
-        {activeTab === "visit-history" && (<><VisitHistoryPanel patient={patient} /><StockDispenseHistory uhid={uhid} /></>)}
-        {activeTab === "glycemic-charts" && <GlycemicCharts />}
-        {activeTab === "charts" && <GlycemicChartPanel patient={patient} />}
-        {activeTab === "notes" && <ConsultationNotesList patient={patient} readOnly />}
-        {activeTab === "prescriptions" && (
-          <>
-            <PrescriptionManagement patient={patient} patientPrescriptions={prescriptions} readOnly />
-            <StockDispenseHistory uhid={uhid} />
-          </>
         )}
       </div>
 

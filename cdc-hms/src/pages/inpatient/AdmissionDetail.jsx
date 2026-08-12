@@ -77,7 +77,7 @@ export default function AdmissionDetail() {
           </div>
           <div className="flex gap-2">
             {(isDoctor || isNurse) && adm.status === "Admitted" &&
-              <button onClick={doTransfer} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-gray-50">Transfer</button>}
+              <button onClick={doTransfer} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50">Transfer</button>}
             {(isDoctor || role === "staff") && adm.status === "Admitted" &&
               <button onClick={doDischarge} className="px-3 py-1.5 rounded text-sm bg-red-600 text-white hover:opacity-90">Discharge</button>}
           </div>
@@ -344,7 +344,7 @@ function BillingTab({ admissionId, canWrite }) {
           </div>
           <div className="flex gap-2 mt-2">
             <button onClick={add} className={btn}>Add charge</button>
-            <button onClick={accrue} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-gray-50">Accrue bed-days</button>
+            <button onClick={accrue} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50">Accrue bed-days</button>
           </div>
         </div>
       )}
@@ -476,7 +476,7 @@ function DischargeTab({ admissionId, isDoctor, onSigned }) {
           </div>
           {summary?.status !== "signed" && (
             <div className="flex gap-2">
-              <button onClick={save} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-gray-50">Save draft</button>
+              <button onClick={save} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50">Save draft</button>
               <button onClick={sign} className={btn}>Sign</button>
             </div>
           )}

@@ -113,7 +113,7 @@ const PanelButtons = ({ onConfirm, onCancel, submitting, confirmLabel, confirmCl
       {submitting ? '...' : confirmLabel}
     </button>
     <button onClick={onCancel} disabled={submitting}
-      className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+      className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors">
       Cancel
     </button>
   </div>
@@ -253,7 +253,7 @@ const PairCard = ({ pair, onResolved }) => {
             Keep {b.name} ({b.uhid})
           </button>
           <button onClick={() => setAction({ type: 'update-id' })}
-            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-blue-50 transition-colors">
             Update ID
           </button>
           <button onClick={() => setAction({ type: 'flag' })}

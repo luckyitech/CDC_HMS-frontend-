@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useUserContext } from '../../contexts/UserContext';
-import { canAccessAdmin } from '../../utils/permissions';
+import { canAccessAdmin, hasPermission } from '../../utils/permissions';
 
 /**
  * Wraps a portal layout and ensures the logged-in user may be there.
@@ -23,7 +23,7 @@ import { canAccessAdmin } from '../../utils/permissions';
  * This is UX. Every endpoint behind these screens is guarded server-side, so a
  * user who slipped past this would still be refused by the API.
  */
-const ProtectedRoute = ({ requiredRole, requiredRoles, children }) => {
+const ProtectedRoute = ({ requiredRole, requiredRoles, requiredPermission, children }) => {
   const { currentUser } = useUserContext();
   const location = useLocation();
 
@@ -41,6 +41,12 @@ const ProtectedRoute = ({ requiredRole, requiredRoles, children }) => {
   }
 
   if (canAccessAdmin(currentUser)) return children;
+
+  // A route may also be reached by a granted capability, not only a role — e.g.
+  // the inpatient workspace is open to doctors/nurses by role, plus anyone the
+  // admin has granted inpatient.access. Mirrors the backend's permission-aware
+  // authorize().
+  if (requiredPermission && hasPermission(currentUser, requiredPermission)) return children;
 
   // Multi-role support (HMIS V3): a route may allow several roles (e.g. the
   // inpatient workspace is entered by both doctors and nurses). Falls back to

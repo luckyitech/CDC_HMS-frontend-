@@ -119,11 +119,11 @@ const Glp1ReviewTable = ({
                     {!readOnly && (
                       <td className="py-2 text-right whitespace-nowrap">
                         <button onClick={() => onAmend(review)}
-                          className="p-1 text-gray-400 hover:text-primary hover:bg-gray-100 rounded" title="Amend review">
+                          className="p-1 text-gray-400 hover:text-primary hover:bg-blue-50 rounded" title="Amend review">
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button type="button" onClick={() => setRemoving(review)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded" title="Remove review">
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-blue-50 rounded" title="Remove review">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>

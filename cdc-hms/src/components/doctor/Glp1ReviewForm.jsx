@@ -197,7 +197,7 @@ const Glp1ReviewForm = ({
             ? `Amend week ${existingReview.weekNumber} review`
             : 'Record a monitoring visit'}
         </h4>
-        <button onClick={onCancel} className="p-1 text-gray-400 hover:bg-gray-100 rounded" title="Cancel">
+        <button onClick={onCancel} className="p-1 text-gray-400 hover:bg-blue-50 rounded" title="Cancel">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -338,7 +338,7 @@ const Glp1ReviewForm = ({
       </div>
 
       <div className="flex justify-end gap-2">
-        <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
+        <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 rounded-lg">
           Cancel
         </button>
         <button

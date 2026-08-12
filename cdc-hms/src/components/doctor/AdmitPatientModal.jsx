@@ -1,33 +1,59 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { X, BedDouble } from "lucide-react";
+import { X, BedDouble, Printer } from "lucide-react";
 import inpatientService from "../../services/inpatientService";
+import usePrint from "../../hooks/usePrint";
+import PrintRoot from "../shared/PrintRoot";
 
 /**
- * AdmitPatientModal — doctor ADVISES admission from the OPD consultation
- * (sibling to ReferPatientModal). Writes admission-request fields onto the queue
- * item and sends the patient to Pending Billing. The front desk then converts.
+ * AdmitPatientModal — doctor ADVISES admission from the OPD consultation.
  *
- * Props: patient { name, uhid }, queueItem { id }, onClose, onSuccess
+ * The body is an editable ADMISSION NOTE, pre-filled from the consultation
+ * (structured like the visit-history document) via `defaultNote`. The doctor
+ * edits and can print it — on the shared clinic letterhead (PrintRoot). Ward
+ * preference is omitted (the admission clerk's job).
+ *
+ * Flow: Save & Print documents the note to the visit history (no billing move).
+ * "Send for admission" hands off to the shared Complete-Consultation billing
+ * modal (`onSendToBilling`) — billing is entered there, and submitting it
+ * finalises the admission and completes the visit. Admission never skips billing.
+ *
+ * Props: patient { name, uhid }, queueItem { id }, defaultNote, onClose,
+ *        onSendToBilling({ admissionType, admissionNote })
  */
-export default function AdmitPatientModal({ patient, queueItem, onClose, onSuccess }) {
-  const [form, setForm] = useState({ admissionType: "Elective", admissionReason: "", admissionWardPreference: "" });
-  const [submitting, setSubmitting] = useState(false);
+export default function AdmitPatientModal({ patient, queueItem, defaultNote = "", onClose, onSendToBilling }) {
+  const [form, setForm] = useState({ admissionType: "Elective", admissionNote: defaultNote });
+  const [saving, setSaving] = useState(false);
+  const { printRef, handlePrint } = usePrint();
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!form.admissionReason.trim()) return toast.error("Please give a reason for admission.");
+  // Save & Print — documents the admission note to the visit history per protocol,
+  // WITHOUT sending for admission. The doctor then sends for admission or cancels.
+  const saveAndPrint = async () => {
+    if (!form.admissionNote.trim()) return toast.error("The admission note is empty.");
     if (!queueItem?.id) return toast.error("No active queue visit for this patient.");
-    setSubmitting(true);
+    setSaving(true);
     try {
-      await inpatientService.requestAdmission({ queueId: queueItem.id, ...form });
-      toast.success("Admission advised — patient sent to billing.");
-      onSuccess?.();
+      await inpatientService.saveAdmissionNote({
+        queueId: queueItem.id,
+        admissionType: form.admissionType,
+        admissionReason: form.admissionNote,
+      });
+      toast.success("Admission note saved to visit history.");
+      handlePrint();
     } catch (err) {
-      toast.error(err.message || "Failed to advise admission");
+      toast.error(err.message || "Failed to save admission note");
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
+  };
+
+  // Send for admission — hand off to the shared billing modal. The admission is
+  // finalised there once the doctor enters billing (never skipped).
+  const submit = (e) => {
+    e.preventDefault();
+    if (!form.admissionNote.trim()) return toast.error("The admission note is empty.");
+    if (!queueItem?.id) return toast.error("No active queue visit for this patient.");
+    onSendToBilling?.({ admissionType: form.admissionType, admissionNote: form.admissionNote });
   };
 
   return (
@@ -47,23 +73,38 @@ export default function AdmitPatientModal({ patient, queueItem, onClose, onSucce
             </select>
           </div>
           <div>
-            <label className="text-xs text-gray-500">Reason / working diagnosis</label>
-            <textarea className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" rows={3}
-              value={form.admissionReason} onChange={(e) => setForm({ ...form, admissionReason: e.target.value })} />
+            <label className="text-xs text-gray-500">Admission note</label>
+            <textarea className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm" rows={8}
+              value={form.admissionNote} onChange={(e) => setForm({ ...form, admissionNote: e.target.value })}
+              placeholder="Pre-filled from the consultation — edit as needed." />
+            <p className="text-[11px] text-gray-400 mt-1">Pre-filled from this visit's vitals, notes and diagnosis. The admission clerk assigns the ward.</p>
           </div>
-          <div>
-            <label className="text-xs text-gray-500">Ward preference (optional)</label>
-            <input className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-              value={form.admissionWardPreference} onChange={(e) => setForm({ ...form, admissionWardPreference: e.target.value })} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300">Cancel</button>
-            <button type="submit" disabled={submitting} className="px-3 py-1.5 rounded text-sm bg-primary text-white disabled:opacity-50">
-              {submitting ? "Sending…" : "Advise admission → billing"}
+          <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
+            <button type="button" onClick={saveAndPrint} disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border border-primary text-primary font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50">
+              <Printer size={15} /> {saving ? "Saving…" : "Save & Print"}
             </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Cancel</button>
+              <button type="submit" className="px-3 py-1.5 rounded text-sm bg-primary text-white">
+                Send for admission
+              </button>
+            </div>
           </div>
         </form>
       </div>
+
+      {/* Print target — shared clinic letterhead */}
+      <PrintRoot printRef={printRef}>
+        <div className="border-b border-gray-300 pb-3 mb-4">
+          <p className="text-sm text-gray-700"><b>{patient?.name}</b>{patient?.uhid ? ` · ${patient.uhid}` : ""}</p>
+          <p className="text-xs text-gray-500">Admission Note · {new Date().toLocaleString()}</p>
+        </div>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Admission type</p>
+        <p className="text-sm mb-3">{form.admissionType}</p>
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Admission note</p>
+        <p className="text-sm whitespace-pre-wrap">{form.admissionNote}</p>
+      </PrintRoot>
     </div>
   );
 }

@@ -5,7 +5,8 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canAccessAdmin } from "../utils/permissions";
+import { canAccessAdmin, hasPermission, PERMISSIONS } from "../utils/permissions";
+import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
   LayoutDashboard,
@@ -78,7 +79,76 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
   // Someone with admin capabilities looking at another portal. Capability, not
   // role: a granted staff member gets the same banner as the admin does.
-  const isAdminViewing = canAccessAdmin(currentUser) && userRole.toLowerCase() !== 'admin';
+  // The doctor/staff dashboard switcher. Always carries Dashboard + Patient Visits;
+  // the Inpatient Dashboard tab is inserted (as the middle tab) only for users
+  // with inpatient access — doctors by role, others by the admin-granted
+  // inpatient.access capability (admins hold it implicitly). Every tab stays
+  // INSIDE the current portal (the board renders at /{portal}/inpatient-board),
+  // so the sidebar never changes. Nurses keep their own ward-board home.
+  const homeRole = userRole.toLowerCase();
+  const canSeeInpatientTab =
+    currentUser?.role === 'doctor' || hasPermission(currentUser, PERMISSIONS.INPATIENT_ACCESS);
+
+  const dashboardTabs = [
+    {
+      label: canSeeInpatientTab ? 'Outpatient Dashboard' : 'Dashboard',
+      path: `/${homeRole}/dashboard`,
+      Icon: canSeeInpatientTab ? Stethoscope : LayoutDashboard,
+    },
+    ...(canSeeInpatientTab
+      ? [{ label: 'Inpatient Dashboard', path: `/${homeRole}/inpatient-board`, Icon: BedDouble }]
+      : []),
+    ...(['doctor', 'staff'].includes(homeRole)
+      ? [{ label: 'Patient Visits', path: `/${homeRole}/patient-visits`, Icon: TrendingUp }]
+      : []),
+  ];
+  // Grouped pages that share one top-of-page switcher instead of separate sidebar
+  // entries (decongests the side nav). Each group lists the routes it covers; the
+  // first group containing the current route renders. Add a group here to collapse
+  // more sidebar items into tabs.
+  const switcherGroups = [
+    {
+      // Doctor/staff dashboard: Dashboard (+ Inpatient if permitted) + Patient Visits.
+      show: homeRole !== 'admin' && dashboardTabs.length >= 2,
+      tabs: dashboardTabs,
+    },
+    {
+      show: homeRole === 'doctor',
+      tabs: [
+        { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
+        { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
+      ],
+    },
+    {
+      show: homeRole === 'admin',
+      tabs: [
+        { label: 'Create Users', path: '/admin/create-users', Icon: UserPlus },
+        { label: 'Manage Users', path: '/admin/manage-users', Icon: UserCog },
+        { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy },
+      ],
+    },
+    {
+      show: homeRole === 'admin',
+      tabs: [
+        { label: 'Activity Log', path: '/admin/activity-log', Icon: ShieldAlert },
+        { label: 'Analytics', path: '/admin/analytics', Icon: TrendingUp },
+        { label: 'Patient Visits', path: '/admin/patient-visits', Icon: ClipboardList },
+      ],
+    },
+    {
+      show: homeRole === 'admin',
+      tabs: [
+        { label: 'System Settings', path: '/admin/settings', Icon: Settings },
+        { label: 'Change Password', path: '/admin/change-password', Icon: KeyRound },
+      ],
+    },
+  ];
+  // The switcher shows wherever one of its tabs is active (prefix match, so
+  // sub-routes like /admin/analytics/doctors still show the Monitoring tabs).
+  const matchesTab = (t) =>
+    location.pathname === t.path || location.pathname.startsWith(`${t.path}/`);
+  const pageTabs =
+    switcherGroups.find((g) => g.show && g.tabs.some(matchesTab))?.tabs ?? null;
 
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
@@ -97,10 +167,24 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // anyone with admin capability (role admin, or a granted user) can switch.
   const canSwitchPortal = canAccessAdmin(currentUser);
 
+  // Stocks (to become Pharmacy) lives in the portal list, not the sidebar. Shown
+  // to users granted stock access, pointing at the CURRENT portal's stock page so
+  // a non-admin stock user isn't sent to an admin-only route. Only portals that
+  // actually have a stock route qualify. Hiding the link is UX; the API is guarded
+  // server-side regardless.
+  const hasStockAccess = !!currentUser?.canManageStock;
+  const stockModule = (hasStockAccess && ['admin', 'doctor', 'staff'].includes(userRole.toLowerCase()))
+    ? [{ label: 'Stocks', path: `/${userRole.toLowerCase()}/stock`, icon: Package }]
+    : [];
+
+  // The logo opens the switcher for portal-switchers OR stock users (their one
+  // module lives in the list too).
+  const canOpenSwitcher = canSwitchPortal || stockModule.length > 0;
+
   // Logo click: opens the portal dropdown for those who may switch; otherwise it
   // is a shortcut back to the current portal's dashboard.
   const handleLogoClick = () => {
-    if (canSwitchPortal) {
+    if (canOpenSwitcher) {
       setPortalSwitcherOpen((open) => !open);
       setOpenGroups({}); // single-open: opening the switcher closes any open nav group
     } else {
@@ -161,12 +245,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // const handleMarkAsRead = () => { toast.success(...) };
   // const handleMarkAllAsRead = () => { toast.success(...); setNotificationsOpen(false); };
 
-  // Stocks appears only for users the admin has granted stock access
-  // (admins always — their auth profile carries canManageStock: true).
-  // Hiding the link is UX; the API is guarded server-side regardless.
-  const hasStockAccess = !!currentUser?.canManageStock;
-  const stockEntry = (portal) =>
-    hasStockAccess ? [{ name: "Stocks", path: `/${portal}/stock`, icon: Package }] : [];
 
   const menuItems = {
     staff: [
@@ -177,8 +255,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Appointments", path: "/staff/appointments", icon: Calendar },
       { name: "Book Appointment", path: "/staff/book-appointment", icon: CalendarCheck },
       { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
-      { name: "Patient Visits", path: "/staff/patient-visits", icon: TrendingUp },
-      ...stockEntry("staff"),
       { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
@@ -186,7 +262,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
       { name: "Patients", path: "/doctor/patients", icon: Users },
-      { name: "Ward Board", path: "/inpatient/board", icon: BedDouble },
       // {
       //   name: "Consultations",
       //   path: "/doctor/consultations",
@@ -203,9 +278,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       //   icon: Stethoscope,
       // },
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
-      { name: "My Schedule", path: "/doctor/my-schedule", icon: CalendarCheck },
-      { name: "Patient Visits", path: "/doctor/patient-visits", icon: TrendingUp },
-      ...stockEntry("doctor"),
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
@@ -260,36 +332,19 @@ const MainLayout = ({ userRole = "Staff" }) => {
     // ({ name, icon, children: [...leaves] }) rendered as an expandable section.
     admin: [
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-      {
-        name: "Users",
-        icon: Users,
-        children: [
-          { name: "Create Users", path: "/admin/create-users", icon: UserPlus },
-          { name: "Manage Users", path: "/admin/manage-users", icon: UserCog },
-          { name: "Duplicate Patients", path: "/admin/duplicate-patients", icon: Copy },
-        ],
-      },
+      { name: "Users", path: "/admin/manage-users", icon: Users },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
-      { name: "Stocks", path: "/admin/stock", icon: Package },
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble },
       {
         name: "Monitoring",
+        path: "/admin/activity-log",
         icon: Activity,
-        children: [
-          { name: "Activity Log", path: "/admin/activity-log", icon: ShieldAlert },
-          { name: "Analytics", path: "/admin/analytics", icon: TrendingUp },
-          { name: "Patient Visits", path: "/admin/patient-visits", icon: ClipboardList },
-        ],
       },
       {
         name: "Settings",
+        path: "/admin/settings",
         icon: Settings,
-        children: [
-          // /admin/settings holds the staff password rotation policy.
-          { name: "System Settings", path: "/admin/settings", icon: Settings },
-          { name: "Change Password", path: "/admin/change-password", icon: KeyRound },
-        ],
       },
     ],
   };
@@ -452,9 +507,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
           <button
             type="button"
             onClick={handleLogoClick}
-            title={canSwitchPortal ? "Switch portal" : "Go to dashboard"}
-            aria-haspopup={canSwitchPortal ? "menu" : undefined}
-            aria-expanded={canSwitchPortal ? portalSwitcherOpen : undefined}
+            title={canOpenSwitcher ? "Switch portal" : "Go to dashboard"}
+            aria-haspopup={canOpenSwitcher ? "menu" : undefined}
+            aria-expanded={canOpenSwitcher ? portalSwitcherOpen : undefined}
             className={`flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl px-3 py-2 transition hover:bg-blue-700/40 ${isCollapsed ? "md:flex-none md:justify-center md:px-0" : ""}`}
           >
             {/* Logo */}
@@ -471,7 +526,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
               <p className="text-xs text-blue-200 mt-0.5 truncate">{userRole} Portal</p>
             </div>
             {/* Switcher affordance — pushed to the far right of the full-width button */}
-            {canSwitchPortal && (
+            {canOpenSwitcher && (
               <ChevronDown
                 size={18}
                 className={`ml-auto flex-shrink-0 text-blue-200 transition-transform duration-200 ${isCollapsed ? "md:hidden" : ""} ${portalSwitcherOpen ? "rotate-180" : ""}`}
@@ -493,11 +548,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
           {/* Portal switcher — opened from the logo. Renders inline and pushes the menu
               down, exactly like the nav group dropdowns (reuses renderLeaf). Negative
               top margin cancels the nav's top padding so it sits right under the logo. */}
-          {canSwitchPortal && portalSwitcherOpen && (
+          {canOpenSwitcher && portalSwitcherOpen && (
             <div className="-mt-4">
-              {portalOptions
+              {canSwitchPortal && portalOptions
                 .filter(({ path }) => !path.startsWith(`/${userRole.toLowerCase()}/`))
                 .map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
+              {stockModule.map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
             </div>
           )}
           {currentMenu
@@ -522,15 +578,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
               horizontally below the avatar; stack as icons in the collapsed rail */}
           <div className={`flex items-center gap-2 px-4 pb-3 ${isCollapsed ? "md:flex-col md:px-0" : ""}`}>
             <NotificationBell userRole={userRole} />
-            {/* HMIS V3 — workspace switcher for doctors & nurses (Outpatient <-> Inpatient) */}
-            {["doctor", "nurse"].includes(currentUser?.role) && (
+            {/* HMIS V3 — workspace switcher for nurses. Doctors and permitted staff
+                use the Outpatient/Inpatient dashboard tabs instead. */}
+            {currentUser?.role === "nurse" && (
               <button
                 onClick={() =>
-                  navigate(
-                    userRole.toLowerCase() === "inpatient"
-                      ? (currentUser?.role === "nurse" ? "/nurse/dashboard" : "/doctor/dashboard")
-                      : "/inpatient/board"
-                  )
+                  navigate(userRole.toLowerCase() === "inpatient" ? "/nurse/dashboard" : "/inpatient/board")
                 }
                 title={userRole.toLowerCase() === "inpatient" ? "Go to Outpatient" : "Go to Inpatient"}
                 aria-label="Switch workspace"
@@ -592,7 +645,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         <header className="md:hidden fixed top-3 left-4 right-4 z-20 h-14 bg-white shadow-lg border border-gray-200 rounded-2xl px-3 flex items-center justify-between">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-gray-700 hover:text-primary hover:bg-gray-100 p-2 rounded-lg transition"
+            className="text-gray-700 hover:text-primary hover:bg-blue-50 p-2 rounded-lg transition"
           >
             <Menu size={26} />
           </button>
@@ -606,22 +659,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto no-scrollbar overscroll-contain px-4 pb-4 pt-3 lg:px-8 lg:pb-8 lg:pt-4 bg-gray-50 mt-[4.75rem] md:mt-0">
-          {isAdminViewing && (
-            <div className="mb-6 flex items-center justify-between bg-orange-50 border-2 border-orange-300 rounded-lg px-4 py-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-orange-600 flex-shrink-0" />
-                <span className="text-sm font-bold text-orange-800">
-                  Admin Mode · Viewing {userRole} Portal
-                </span>
-              </div>
-              <button
-                onClick={() => navigate('/admin/dashboard')}
-                className="text-sm font-semibold text-orange-700 hover:text-orange-900 underline whitespace-nowrap ml-4"
-              >
-                ← Back to Admin
-              </button>
-            </div>
-          )}
+          {pageTabs && <PageTabs tabs={pageTabs} />}
           <Outlet />
         </main>
       </div>

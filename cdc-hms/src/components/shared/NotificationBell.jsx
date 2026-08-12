@@ -102,7 +102,7 @@ const NotificationBell = ({ userRole = 'doctor' }) => {
                   <button
                     key={n.id}
                     onClick={() => handleNotificationClick(n)}
-                    className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${!n.isRead ? 'bg-blue-50' : ''}`}
+                    className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-gray-50 hover:bg-blue-50 transition-colors ${!n.isRead ? 'bg-blue-50' : ''}`}
                   >
                     <div className={`mt-0.5 p-2 rounded-lg shrink-0 ${!n.isRead ? 'bg-blue-100' : 'bg-gray-100'}`}>
                       <FileText className={`w-4 h-4 ${!n.isRead ? 'text-blue-600' : 'text-gray-500'}`} />

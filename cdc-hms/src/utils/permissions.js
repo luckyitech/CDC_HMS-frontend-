@@ -7,6 +7,7 @@
 export const PERMISSIONS = {
   ADMIN_ACCESS: 'admin.access',
   STOCK_MANAGE: 'stock.manage',
+  INPATIENT_ACCESS: 'inpatient.access',
 };
 
 /**

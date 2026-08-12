@@ -1,12 +1,17 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-  Calendar, ChevronDown, ChevronRight, Printer,
+  Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
+  BedDouble, Share2,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
+import PrintRoot from './PrintRoot';
+import PrescriptionPrint from '../doctor/PrescriptionPrint';
 import patientService from '../../services/patientService';
+import inpatientService from '../../services/inpatientService';
 import glp1Service from '../../services/glp1Service';
+import queueService from '../../services/queueService';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
 import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
@@ -35,7 +40,15 @@ const DATE_FIELD_MAP = {
   // without being recorded has no injection row at all, and a note filed
   // against it must not vanish with it.
   glp1WeekNotes:   'createdAt',
+  // Advised admissions (doctor's admission note from OPD) — an "action", not part
+  // of the clinical document; rendered in the day's Actions tab.
+  admissions:      'requestedAt',
+  // Referral notes (doctor's referral letter from OPD) — also an "action".
+  referrals:       'savedAt',
 };
+
+const fmtDay = (d) =>
+  d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -420,6 +433,97 @@ const VisitDocument = ({ records, fullExamCache }) => {
   );
 };
 
+// ── Actions tab ───────────────────────────────────────────────────────────────
+const dayTabCls = (active) =>
+  `flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+    active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-50'
+  }`;
+
+const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
+  <button onClick={onClick}
+    className="w-full flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left">
+    <span className="flex items-center gap-3 min-w-0">
+      <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${iconCls}`}>{icon}</span>
+      <span className="min-w-0">
+        <span className="block font-semibold text-gray-800 text-sm">{title}</span>
+        <span className="block text-xs text-gray-500 truncate">{sub}</span>
+      </span>
+    </span>
+    <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+  </button>
+);
+
+const ActionsList = ({ records, onView }) => (
+  <div className="space-y-2.5">
+    {records.admissions.map((a) => (
+      <ActionRow key={`adm-${a.id}`}
+        icon={<BedDouble className="w-4 h-4" />} iconCls="bg-indigo-50 text-indigo-600"
+        title={`Admission advised${a.cancelledAt ? ' (cancelled)' : ''}`}
+        sub={[a.admissionType, a.doctorName].filter(Boolean).join(' · ') + ' · view / print note'}
+        onClick={() => onView({ type: 'admission', data: a })} />
+    ))}
+    {(records.referrals || []).map((r) => (
+      <ActionRow key={`ref-${r.id}`}
+        icon={<Share2 className="w-4 h-4" />} iconCls="bg-sky-50 text-sky-600"
+        title={`Referral${r.referralType ? ` (${r.referralType})` : ''}`}
+        sub={[r.destination, r.doctorName].filter(Boolean).join(' · ') + ' · view / print note'}
+        onClick={() => onView({ type: 'referral', data: r })} />
+    ))}
+    {records.prescriptions.map((p) => (
+      <ActionRow key={`rx-${p.id}`}
+        icon={<Pill className="w-4 h-4" />} iconCls="bg-emerald-50 text-emerald-600"
+        title="Prescription"
+        sub={`${(p.medications || []).length} item${(p.medications || []).length !== 1 ? 's' : ''} · view / reprint`}
+        onClick={() => onView({ type: 'prescription', data: p })} />
+    ))}
+  </div>
+);
+
+const ArtifactMeta = ({ patient, sub }) => (
+  <div className="border-b border-gray-300 pb-3 mb-4">
+    <p className="text-sm text-gray-700"><b>{patient?.name}</b>{patient?.uhid ? ` · ${patient.uhid}` : ''}</p>
+    {sub && <p className="text-xs text-gray-500">{sub}</p>}
+  </div>
+);
+
+// Note viewer for admission and referral actions (prescriptions use the shared
+// PrescriptionPrint instead). Both are just a note + a one-line meta, printed on
+// the shared clinic letterhead.
+const ArtifactModal = ({ artifact, patient, onClose }) => {
+  const { printRef, handlePrint } = usePrint();
+  if (!artifact) return null;
+  const { type, data } = artifact;
+  const isReferral = type === 'referral';
+  const title = isReferral ? 'Referral Note' : 'Admission Note';
+  const sub = isReferral
+    ? [data.referralType, data.destination, data.doctorName, fmtDay(data.savedAt)].filter(Boolean).join(' · ')
+    : [data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ')
+        + (data.cancelledAt ? ' · cancelled' : '');
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <p className="text-sm text-gray-500">{sub}</p>
+        <div className="whitespace-pre-wrap text-sm text-gray-700 mt-2 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
+        <div className="flex justify-end gap-2 pt-4">
+          <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Close</button>
+          <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
+        </div>
+      </div>
+
+      {/* Print target — shared clinic letterhead */}
+      <PrintRoot printRef={printRef}>
+        <ArtifactMeta patient={patient} sub={`${title} · ${sub}`} />
+        <p className="text-sm whitespace-pre-wrap">{data.note || '—'}</p>
+      </PrintRoot>
+    </div>
+  );
+};
+
 // ── VisitHistoryPanel ─────────────────────────────────────────────────────────
 /**
  * Props:
@@ -450,6 +554,8 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
   const [historyPage, setHistoryPage]           = useState(1);
   const [fullExamCache, setFullExamCache]       = useState({});
   const [printing, setPrinting]                 = useState(false);
+  const [dayTab, setDayTab]                      = useState('notes');   // 'notes' | 'actions'
+  const [viewArtifact, setViewArtifact]         = useState(null);       // { type, data }
 
   const { printRef, handlePrint } = usePrint();
 
@@ -466,7 +572,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, weekNotesRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, weekNotesRes, advisedRes, referralsRes] = await Promise.all([
           getAssessmentsByPatient(uhid),
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
@@ -477,12 +583,16 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),
           glp1Service.getReviews({ uhid }).catch(() => ({ data: { reviews: [] } })),
           glp1Service.getWeekNotes({ uhid }).catch(() => ({ data: { notes: [] } })),
+          inpatientService.advisedAdmissions(uhid).catch(() => ({ data: { admissions: [] } })),
+          queueService.advisedReferrals(uhid).catch(() => ({ data: { referrals: [] } })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
           const glp1Injections = adminsRes?.data?.administrations  || [];
           const glp1Reviews    = reviewsRes?.data?.reviews         || [];
           const glp1WeekNotes  = weekNotesRes?.data?.notes          || [];
+          const admissions     = advisedRes?.data?.admissions      || [];
+          const referrals      = referralsRes?.data?.referrals     || [];
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
             exams:           Array.isArray(exams)           ? exams           : [],
@@ -493,6 +603,8 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             glp1Injections:  Array.isArray(glp1Injections)  ? glp1Injections  : [],
             glp1Reviews:     Array.isArray(glp1Reviews)     ? glp1Reviews     : [],
             glp1WeekNotes:   Array.isArray(glp1WeekNotes)   ? glp1WeekNotes   : [],
+            admissions:      Array.isArray(admissions)      ? admissions      : [],
+            referrals:       Array.isArray(referrals)       ? referrals       : [],
           });
         }
       } finally {
@@ -555,6 +667,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
 
   // Open/close a date accordion — only one open at a time
   const toggleHistoryDate = useCallback((date) => {
+    setDayTab('notes'); // every newly-opened day starts on Doctor's Notes
     setOpenHistoryDate(prev => {
       const isOpening = prev !== date;
       if (isOpening) fetchExamsForDate(date);
@@ -624,7 +737,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           {(historyFromDate || historyToDate) && (
             <button
               onClick={() => { setHistoryFromDate(''); setHistoryToDate(''); }}
-              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-blue-50 transition-colors"
             >
               Clear
             </button>
@@ -704,21 +817,35 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
         const isOpen  = openHistoryDate === date;
         const total   = Object.values(records).reduce((sum, arr) => sum + arr.length, 0);
 
+        // Per-type header summary: e.g. "1 doctor's note · 1 admission · 1 referral · 1 prescription".
+        const noteCount = records.notes.length;
+        const admCount  = records.admissions.length;
+        const refCount  = (records.referrals || []).length;
+        const rxCount   = records.prescriptions.length;
+        const actionCount = admCount + refCount + rxCount;
+        const parts = [
+          noteCount && `${noteCount} doctor's note${noteCount !== 1 ? 's' : ''}`,
+          admCount  && `${admCount} admission${admCount !== 1 ? 's' : ''}`,
+          refCount  && `${refCount} referral${refCount !== 1 ? 's' : ''}`,
+          rxCount   && `${rxCount} prescription${rxCount !== 1 ? 's' : ''}`,
+        ].filter(Boolean);
+        const summary = parts.length ? parts.join(' · ') : `${total} record${total !== 1 ? 's' : ''}`;
+
         return (
           <div key={date} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
 
             {/* Date header row */}
             <button
               onClick={() => toggleHistoryDate(date)}
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+              className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left"
             >
-              <div className="flex items-center gap-3">
-                <Calendar className={`w-5 h-5 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
+              <div className="flex items-center gap-3 min-w-0">
+                <Calendar className={`w-5 h-5 flex-shrink-0 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
                 <span className={`font-semibold ${isOpen ? 'text-primary' : 'text-gray-800'}`}>
                   {formatDateLong(date)}
                 </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                  {total} record{total !== 1 ? 's' : ''}
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
+                  {summary}
                 </span>
               </div>
               {isOpen
@@ -727,10 +854,24 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
               }
             </button>
 
-            {/* Expanded visit document */}
+            {/* Expanded — Doctor's Notes | Actions (Actions tab only when there are any) */}
             {isOpen && (
               <div className="border-t border-gray-100 p-5">
-                <VisitDocument records={records} fullExamCache={fullExamCache} />
+                {actionCount > 0 && (
+                  <div className="flex gap-2 mb-4">
+                    <button onClick={() => setDayTab('notes')} className={dayTabCls(dayTab === 'notes')}>
+                      <MessageSquare className="w-4 h-4" /> Doctor's Notes
+                    </button>
+                    <button onClick={() => setDayTab('actions')} className={dayTabCls(dayTab === 'actions')}>
+                      <ClipboardList className="w-4 h-4" /> Actions
+                      <span className="ml-0.5 text-[11px] px-1.5 rounded-full bg-white/25">{actionCount}</span>
+                    </button>
+                  </div>
+                )}
+                {dayTab === 'actions' && actionCount > 0
+                  ? <ActionsList records={records} onView={setViewArtifact} />
+                  : <VisitDocument records={records} fullExamCache={fullExamCache} />
+                }
               </div>
             )}
           </div>
@@ -747,14 +888,14 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             <button
               onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
               disabled={historyPage === 1}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-blue-50 transition-colors"
             >
               Previous
             </button>
             <button
               onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
               disabled={historyPage === totalPages}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50 transition-colors"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-blue-50 transition-colors"
             >
               Next
             </button>
@@ -790,6 +931,14 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           ))}
         </div>
       </div>
+
+      {/* Actions artifact viewer. Prescriptions use the shared PrescriptionPrint
+          (same format as the consultation); admissions use the note viewer. */}
+      {viewArtifact?.type === 'prescription' ? (
+        <PrescriptionPrint prescription={viewArtifact.data} onClose={() => setViewArtifact(null)} />
+      ) : (
+        <ArtifactModal artifact={viewArtifact} patient={patient} onClose={() => setViewArtifact(null)} />
+      )}
 
     </div>
   );

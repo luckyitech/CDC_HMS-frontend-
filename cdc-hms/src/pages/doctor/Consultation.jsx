@@ -39,6 +39,7 @@ import AdmitPatientModal from "../../components/doctor/AdmitPatientModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
 import { INJECTION_REASON, PENDING_INJECTION } from "../../utils/queueStatus";
 import patientService from "../../services/patientService";
+import inpatientService from "../../services/inpatientService";
 import ConsultationNotesPlan from "../../components/doctor/ConsultationNotesPlan";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
@@ -58,7 +59,7 @@ const ACCORDION_SECTIONS = [
   // ONE section. Assessment, exam and plan are optional click-to-add blocks
   // inside it. Keeps the id 'diagnosis' so completion gating, drafts and jumps
   // are unchanged.
-  { id: 'diagnosis',     label: 'Consultation',   icon: MessageSquare, required: true  },
+  { id: 'diagnosis',     label: 'Notes',          icon: MessageSquare, required: true  },
   { id: 'prescriptions', label: 'Prescriptions',  icon: Pill,          required: false },
 ];
 
@@ -109,7 +110,7 @@ const Consultation = () => {
 
   const { currentUser }                               = useUserContext();
   const { fetchPatientByUHID }                        = usePatientContext();
-  const { queue, sendToBilling, updateQueueStatus }   = useQueueContext();
+  const { queue, sendToBilling, updateQueueStatus, referPatient } = useQueueContext();
   const { getPrescriptionsByPatient, addPrescription } = usePrescriptionContext();
   const { getWeekNotes }                              = useGlp1Context();
   const { getAvailableSlots, addAppointment }         = useAppointmentContext();
@@ -126,6 +127,9 @@ const Consultation = () => {
   // Patient bar dropdown — slides the full Overview details open under the bar
   const [overviewOpen, setOverviewOpen] = useState(false);
   const overviewScrollRef = useRef(null);
+  // Live consultation note text, handed up from ConsultationNotesPlan so the
+  // Admit modal can pre-fill the admission note.
+  const notesTextRef = useRef('');
   // Always open at the top, and freeze the page behind it while expanded
   // (MainLayout's <main> is the app scroll container; the overview scrolls itself)
   useEffect(() => {
@@ -202,9 +206,27 @@ const Consultation = () => {
   // Floating-bar button — deliberately NOT an accordion section (see the
   // ACCORDION_SECTIONS column-parity note). Open to all clinical roles.
   const [showRecordUse, setShowRecordUse]           = useState(false);
+  const [showActions, setShowActions]               = useState(false);
+  const actionsRef = useRef(null);
+  // Close the Actions dropdown on an outside click. Deliberately NOT a
+  // fixed inset-0 overlay — that sits outside <main> (the scroll container) and
+  // swallows wheel events, freezing the page.
+  useEffect(() => {
+    if (!showActions) return undefined;
+    const onDown = (e) => {
+      if (actionsRef.current && !actionsRef.current.contains(e.target)) setShowActions(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [showActions]);
   const [showAdmitModal, setShowAdmitModal]         = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [showBillingModal, setShowBillingModal]     = useState(false);
+  // Billing modal serves three flows. 'complete' is the normal end-of-visit path;
+  // 'admission' and 'referral' route the admit/refer actions through the SAME
+  // billing entry so neither can skip it. billingContext carries the note/payload.
+  const [billingMode, setBillingMode]               = useState('complete');
+  const [billingContext, setBillingContext]         = useState(null);
   const [billingQueueItem, setBillingQueueItem]     = useState(null);
   const [selectedCharges, setSelectedCharges]       = useState([]);
   const [selectedProcedures, setSelectedProcedures] = useState([]);
@@ -346,6 +368,8 @@ const Consultation = () => {
       return;
     }
     // Reset all billing modal state before opening
+    setBillingMode('complete');
+    setBillingContext(null);
     setBillingQueueItem(queueItem);
     setSelectedCharges([]);
     setSelectedProcedures([]);
@@ -356,6 +380,58 @@ const Consultation = () => {
     setFollowUpSlot('');
     setAvailableSlots([]);
     setShowBillingModal(true);
+  };
+
+  // Structured consultation summary, shared by the admission and referral notes:
+  // Triage Vitals → Reason for Visit → Consultation Notes → Diagnosis & Treatment
+  // Plan. Sourced from this visit's triage vitals, the live consultation note
+  // (handed up via notesTextRef) and the active diagnoses. The doctor edits from there.
+  const buildConsultationNote = () => {
+    const v = patient?.vitals || {};
+    const vitalsLine = [
+      v.bp && `BP ${v.bp}`,
+      v.heartRate && `HR ${v.heartRate}`,
+      v.temperature && `Temp ${v.temperature}`,
+      v.weight && `Weight ${v.weight}`,
+      v.rbs && `RBS ${v.rbs}`,
+      v.hba1c && `HbA1c ${v.hba1c}`,
+    ].filter(Boolean).join(' · ');
+    const reason = v.chiefComplaint;
+    const noteText = (notesTextRef.current || '').trim();
+    const dxLines = activeDiagnoses.map((d) => `• ${d.diagnosis}${d.code ? ` (${d.code})` : ''}`).join('\n');
+    return [
+      vitalsLine && `TRIAGE VITALS\n${vitalsLine}`,
+      reason && `REASON FOR VISIT\n${reason}`,
+      noteText && `CONSULTATION NOTES\n${noteText}`,
+      dxLines && `DIAGNOSIS & TREATMENT PLAN\n${dxLines}`,
+    ].filter(Boolean).join('\n\n');
+  };
+
+  // Open the shared billing modal in a non-'complete' flow (admission/referral).
+  // The action's payload rides in billingContext and is finalised on billing submit.
+  const openActionBilling = (mode, context, queueItem) => {
+    setBillingMode(mode);
+    setBillingContext(context);
+    setBillingQueueItem(queueItem);
+    setSelectedCharges([]);
+    setSelectedProcedures([]);
+    // Injection + follow-up are end-of-visit concepts — not offered for these flows.
+    setSendForInjection(false);
+    setDoctorNotes('');
+    setBookFollowUp(false);
+    setFollowUpDate('');
+    setFollowUpSlot('');
+    setAvailableSlots([]);
+    setShowAdmitModal(false);
+    setShowReferModal(false);
+    setShowBillingModal(true);
+  };
+
+  // Close/reset the billing modal, always returning it to the default flow.
+  const closeBilling = () => {
+    setShowBillingModal(false);
+    setBillingMode('complete');
+    setBillingContext(null);
   };
 
   // Called when doctor picks a follow-up date — fetches open slots for the assigned doctor
@@ -392,7 +468,26 @@ const Consultation = () => {
     }
     setBillingSubmitting(true);
     try {
-      if (sendForInjection) {
+      if (billingMode === 'admission') {
+        // Finalise the admission the doctor advised — charges entered here are
+        // merged server-side; the visit moves to Pending Billing (completed).
+        await inpatientService.requestAdmission({
+          queueId: queueItem.id,
+          admissionType:   billingContext?.admissionType,
+          admissionReason: billingContext?.admissionNote,
+          selectedCharges,
+          selectedProcedures,
+        });
+      } else if (billingMode === 'referral') {
+        // Finalise the referral — charges merge server-side; internal hands off
+        // to the next doctor, external moves to Pending Billing.
+        const result = await referPatient(queueItem.id, {
+          ...billingContext,
+          selectedCharges,
+          selectedProcedures,
+        });
+        if (!result?.success) throw new Error(result?.message || 'Referral failed');
+      } else if (sendForInjection) {
         // Back to the nurse. Charges ride along on the queue entry and are
         // merged by sendToBilling when the nurse finishes — no double entry.
         await updateQueueStatus(queueItem.id, PENDING_INJECTION, null, {
@@ -405,7 +500,7 @@ const Consultation = () => {
         await sendToBilling(queueItem.id, selectedCharges, selectedProcedures, doctorNotes.trim() || null);
       }
 
-      if (bookFollowUp && followUpDate && followUpSlot) {
+      if (billingMode === 'complete' && bookFollowUp && followUpDate && followUpSlot) {
         const apptResult = await addAppointment({
           uhid:            patient.uhid,
           doctorId:        queueItem.assignedDoctorId,
@@ -422,11 +517,11 @@ const Consultation = () => {
       }
 
       sessionStorage.removeItem(DRAFT_KEY);
-      setShowBillingModal(false);
+      closeBilling();
       setShowSuccessMessage(true);
       setTimeout(() => navigate("/doctor/dashboard"), 3000);
-    } catch {
-      toast.error('Something went wrong. Please try again.', { duration: 5000, position: 'top-right' });
+    } catch (err) {
+      toast.error(err?.message || 'Something went wrong. Please try again.', { duration: 5000, position: 'top-right' });
     } finally {
       setBillingSubmitting(false);
     }
@@ -521,7 +616,7 @@ const Consultation = () => {
           className={`mb-1 px-4 py-1.5 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
             overviewOpen
               ? "bg-primary border-primary text-white"
-              : "bg-white border-gray-200 hover:bg-gray-50"
+              : "bg-white border-gray-200 hover:bg-blue-50"
           }`}
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -727,7 +822,7 @@ const Consultation = () => {
                 className={`flex-1 min-w-max px-4 py-2.5 text-sm font-medium transition-all ${
                   activeTab === tab.id && !overviewOpen
                     ? "bg-primary text-white"
-                    : "text-gray-600 hover:bg-gray-50"
+                    : "text-gray-600 hover:bg-blue-50"
                 }`}
               >
                 <span className="flex items-center justify-center gap-2">
@@ -808,6 +903,7 @@ const Consultation = () => {
                       currentUser={currentUser}
                       activeDiagnoses={activeDiagnoses}
                       onSuccess={handleDiagnosisSuccess}
+                      notesRef={notesTextRef}
                     />
                   )}
                 </AccordionPanel>
@@ -838,7 +934,7 @@ const Consultation = () => {
             <div className="border border-gray-200 rounded-lg">
               <button
                 onClick={() => setOpenTool(openTool === 'glp1' ? null : 'glp1')}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left"
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 text-left"
               >
                 <div className="flex items-center gap-2 flex-wrap">
                   <Syringe className={`w-4 h-4 ${openTool === 'glp1' ? 'text-primary' : 'text-gray-400'}`} />
@@ -914,44 +1010,39 @@ const Consultation = () => {
              section (never obscure the summary panel or page content) ===== */}
       {activeTab === "consultation" && (
       <div className="mt-6 flex items-center justify-end gap-2">
-        <button
-          onClick={() => setShowRecordUse(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
-        >
-          <Package className="w-3.5 h-3.5" />
-          Record Use
-        </button>
+        {/* Secondary actions collapsed into one dropdown to keep the bar uncluttered */}
+        <div className="relative" ref={actionsRef}>
+          <button
+            onClick={() => setShowActions((o) => !o)}
+            className="flex items-center gap-1.5 bg-white hover:bg-blue-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+          >
+            Actions
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showActions ? "rotate-180" : ""}`} />
+          </button>
 
-        <button
-          onClick={() => setShowRecordUse(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg transition-colors"
-        >
-          <Package className="w-3.5 h-3.5" />
-          Record Use
-        </button>
-
-        <button
-          onClick={() => setShowReferModal(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
-        >
-          <UserCircle className="w-3.5 h-3.5" />
-          Refer Patient
-        </button>
-
-        {showRecordUse && (
-          <RecordUseModal
-            patient={{ uhid: patient.uhid, name: patient.name }}
-            onClose={() => setShowRecordUse(false)}
-          />
-        )}
-
-        <button
-          onClick={() => setShowAdmitModal(true)}
-          className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
-        >
-          <BedDouble className="w-3.5 h-3.5" />
-          Admit Patient
-        </button>
+          {showActions && (
+            <div className="absolute right-0 top-full mt-2 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-xl py-1">
+              <button
+                onClick={() => { setShowActions(false); setShowRecordUse(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+              >
+                <Package className="w-3.5 h-3.5" /> Record Use
+              </button>
+              <button
+                onClick={() => { setShowActions(false); setShowReferModal(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+              >
+                <UserCircle className="w-3.5 h-3.5" /> Refer Patient
+              </button>
+              <button
+                onClick={() => { setShowActions(false); setShowAdmitModal(true); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+              >
+                <BedDouble className="w-3.5 h-3.5" /> Admit Patient
+              </button>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={handleCompleteConsultation}
@@ -961,6 +1052,13 @@ const Consultation = () => {
           <Check className="w-3.5 h-3.5" />
           Complete Consultation
         </button>
+
+        {showRecordUse && (
+          <RecordUseModal
+            patient={{ uhid: patient.uhid, name: patient.name }}
+            onClose={() => setShowRecordUse(false)}
+          />
+        )}
       </div>
       )}
 
@@ -1029,12 +1127,20 @@ const Consultation = () => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
               <div>
-                <h2 className="text-lg font-bold text-gray-800">Complete Consultation</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Select charges and procedures for this visit</p>
+                <h2 className="text-lg font-bold text-gray-800">
+                  {billingMode === 'admission' ? 'Admission Billing'
+                    : billingMode === 'referral' ? 'Referral Billing'
+                    : 'Complete Consultation'}
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {billingMode === 'admission' ? 'Enter charges — this finalises the admission and completes the visit'
+                    : billingMode === 'referral' ? 'Enter charges — this finalises the referral and completes the visit'
+                    : 'Select charges and procedures for this visit'}
+                </p>
               </div>
               <button
-                onClick={() => setShowBillingModal(false)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                onClick={closeBilling}
+                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1051,7 +1157,7 @@ const Consultation = () => {
                       className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                         selectedCharges.includes(item)
                           ? 'bg-green-50 border-green-400 text-gray-800'
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
                       }`}
                     >
                       <input
@@ -1095,7 +1201,7 @@ const Consultation = () => {
                         className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                           selectedProcedures.includes(item)
                             ? 'bg-green-50 border-green-400 text-gray-800'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
                         }`}
                       >
                         <input
@@ -1123,13 +1229,17 @@ const Consultation = () => {
                 )}
               </div>
 
+              {/* Injection, doctor's instructions and follow-up are end-of-visit
+                  concepts — only shown for the normal 'complete' flow. Admission
+                  and referral billing collect charges only. */}
+              {billingMode === 'complete' && (<>
               {/* Send for injection — routes to the nurse instead of billing */}
               <div>
                 <label
                   className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                     sendForInjection
                       ? 'bg-green-50 border-green-400 text-gray-800'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
                   }`}
                 >
                   <input
@@ -1242,6 +1352,7 @@ const Consultation = () => {
                   );
                 })()}
               </div>
+              </>)}
             </div>
 
             <div className="px-6 py-4 border-t flex-shrink-0">
@@ -1252,18 +1363,20 @@ const Consultation = () => {
               )}
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowBillingModal(false)}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  onClick={closeBilling}
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleBillingSubmit}
-                  disabled={billingSubmitting || !hasBillingSelection || (bookFollowUp && (!followUpDate || !followUpSlot))}
+                  disabled={billingSubmitting || !hasBillingSelection || (billingMode === 'complete' && bookFollowUp && (!followUpDate || !followUpSlot))}
                   className="flex-1 px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-bold disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {billingSubmitting
                     ? 'Submitting…'
+                    : billingMode === 'admission' ? 'Confirm & Send for Admission'
+                    : billingMode === 'referral' ? 'Confirm Referral'
                     : sendForInjection ? 'Confirm & Send for Injection' : 'Confirm & Send to Billing'}
                 </button>
               </div>
@@ -1293,12 +1406,9 @@ const Consultation = () => {
           <ReferPatientModal
             patient={patient}
             queueItem={activeQueueItem}
+            defaultNote={buildConsultationNote()}
             onClose={() => setShowReferModal(false)}
-            onSuccess={() => {
-              sessionStorage.removeItem(DRAFT_KEY);
-              setShowReferModal(false);
-              navigate('/doctor/dashboard');
-            }}
+            onSendToBilling={(payload) => openActionBilling('referral', payload, activeQueueItem)}
           />
         );
       })()}
@@ -1313,12 +1423,9 @@ const Consultation = () => {
           <AdmitPatientModal
             patient={patient}
             queueItem={activeQueueItem}
+            defaultNote={buildConsultationNote()}
             onClose={() => setShowAdmitModal(false)}
-            onSuccess={() => {
-              sessionStorage.removeItem(DRAFT_KEY);
-              setShowAdmitModal(false);
-              navigate('/doctor/dashboard');
-            }}
+            onSendToBilling={(ctx) => openActionBilling('admission', ctx, activeQueueItem)}
           />
         );
       })()}

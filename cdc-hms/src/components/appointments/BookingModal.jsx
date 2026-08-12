@@ -342,7 +342,7 @@ const NewBookingForm = ({ slot, doctorId, doctorName, date, onBooked, onClose, o
                 <li key={p.id}>
                   <button
                     onClick={() => { setSelected(p); setSearch(''); setPatients([]); }}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm"
+                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
                   >
                     <span className="font-medium">{p.name}</span>
                     <span className="text-gray-400 ml-2 text-xs">{p.uhid}</span>

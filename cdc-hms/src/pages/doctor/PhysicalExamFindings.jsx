@@ -194,7 +194,7 @@ const PhysicalExamFindings = ({
                   {allFindings.map((finding, index) => {
                     const IconComponent = getIconComponent(finding.icon);
                     return (
-                      <tr key={index} className="border-b border-gray-200 hover:bg-gray-50 transition">
+                      <tr key={index} className="border-b border-gray-200 hover:bg-blue-50 transition">
                         <td className="px-6 py-4 align-top">
                           <div className="flex items-center gap-2">
                             <IconComponent className="w-5 h-5 text-primary flex-shrink-0" />

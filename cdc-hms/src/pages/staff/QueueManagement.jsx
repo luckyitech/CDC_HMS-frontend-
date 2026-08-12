@@ -425,7 +425,7 @@ const QueueManagement = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {activeQueue.map((patient, index) => (
-                    <tr key={patient.id} className={`hover:bg-gray-50 ${patient.priority === 'Urgent' ? 'bg-red-50' : ''}`}>
+                    <tr key={patient.id} className={`hover:bg-blue-50 ${patient.priority === 'Urgent' ? 'bg-red-50' : ''}`}>
                       <td className="px-6 py-4 font-bold text-gray-800 text-sm">{index + 1}</td>
                       <td className="px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                       <td className="px-6 py-4 font-semibold text-sm">
@@ -501,7 +501,7 @@ const QueueManagement = () => {
               </div>
               <button
                 onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); setSupplies([]); }}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -614,7 +614,7 @@ const QueueManagement = () => {
                             type="button"
                             aria-label="Decrease"
                             onClick={() => setSupply(idx, { quantity: Math.max(1, Number(s.quantity) - 1) })}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
@@ -629,7 +629,7 @@ const QueueManagement = () => {
                             type="button"
                             aria-label="Increase"
                             onClick={() => setSupply(idx, { quantity: Number(s.quantity) + 1 })}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -701,7 +701,7 @@ const QueueManagement = () => {
             <div className="flex gap-3 px-6 py-4 border-t flex-shrink-0">
               <button
                 onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); setSupplies([]); }}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50"
               >
                 Cancel
               </button>

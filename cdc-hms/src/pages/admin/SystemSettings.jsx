@@ -127,7 +127,7 @@ const SystemSettings = () => {
                 onClick={() => applyInterval(opt.value)}
                 className={`relative p-4 text-left transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                   i > 0 ? 'border-t sm:border-t-0 sm:border-l' : ''
-                } ${isSelected ? 'bg-blue-50' : 'bg-white hover:bg-gray-50'}`}
+                } ${isSelected ? 'bg-blue-50' : 'bg-white hover:bg-blue-50'}`}
               >
                 {isSelected && (
                   <Check className="absolute top-3 right-3 w-4 h-4 text-primary" strokeWidth={3} />
