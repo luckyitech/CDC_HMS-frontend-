@@ -32,6 +32,7 @@ import { useQueueContext } from "../../contexts/QueueContext";
 import { useUserContext } from "../../contexts/UserContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useAppointmentContext } from "../../contexts/AppointmentContext";
+import { useGlp1Context } from "../../contexts/Glp1Context";
 import ReferPatientModal from "../../components/doctor/ReferPatientModal";
 import RecordUseModal from "../../components/stock/RecordUseModal";
 import AdmitPatientModal from "../../components/doctor/AdmitPatientModal";
@@ -47,7 +48,7 @@ import Glp1Tracker from "../../components/doctor/Glp1Tracker";
 import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
 import ConsultationSummaryContainer from "../../components/doctor/ConsultationSummaryContainer";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
-import { formatDOB } from "../../utils/dateUtils";
+import { formatDOB, isToday } from "../../utils/dateUtils";
 
 // ---------------------------------------------------------------------------
 // Accordion section definitions for "Today's Consultation" tab
@@ -110,6 +111,7 @@ const Consultation = () => {
   const { fetchPatientByUHID }                        = usePatientContext();
   const { queue, sendToBilling, updateQueueStatus }   = useQueueContext();
   const { getPrescriptionsByPatient, addPrescription } = usePrescriptionContext();
+  const { getWeekNotes }                              = useGlp1Context();
   const { getAvailableSlots, addAppointment }         = useAppointmentContext();
 
   // ---------------------------------------------------------------------------
@@ -172,6 +174,9 @@ const Consultation = () => {
 
   // Which tool inside the Tools card is open. GLP-1 is the only one so far.
   const [openTool, setOpenTool] = useState(null);
+  // How many GLP-1 week notes were written for this patient today — drives the
+  // count on the collapsed tool header
+  const [notesToday, setNotesToday] = useState(0);
 
   /**
    * The patient's live queue entry for today.
@@ -242,6 +247,35 @@ const Consultation = () => {
       setLoadingPatient(false);
     });
   }, [uhid, fetchPatientByUHID]);
+
+  /**
+   * GLP-1 week notes the nurse left for this patient today.
+   *
+   * The tool that shows them is collapsed inside a collapsed Tools panel, so a
+   * note written in triage is four clicks from being read and would simply be
+   * missed. The count surfaces it on the closed header; a note from today opens
+   * the panel outright. Runs once per patient, so it seeds the initial state and
+   * never fights the doctor if they close it again.
+   */
+  useEffect(() => {
+    if (!uhid) return;
+    let isMounted = true;
+
+    getWeekNotes({ uhid }).then(notes => {
+      if (!isMounted) return;
+      // Nurse-authored only: the doctor's own notes are not news to them
+      const written = notes.filter(
+        n => n.authorRole !== 'doctor' && isToday(n.createdAt)
+      ).length;
+      setNotesToday(written);
+      if (written > 0) {
+        setOpenSections('tools');
+        setOpenTool('glp1');
+      }
+    });
+
+    return () => { isMounted = false; };
+  }, [uhid, getWeekNotes]);
 
   // Does the patient already have an active tracked diagnosis?
   // (Waives the diagnosis requirement for returning patients; the summary panel
@@ -806,11 +840,18 @@ const Consultation = () => {
                 onClick={() => setOpenTool(openTool === 'glp1' ? null : 'glp1')}
                 className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 text-left"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Syringe className={`w-4 h-4 ${openTool === 'glp1' ? 'text-primary' : 'text-gray-400'}`} />
                   <span className={`text-sm font-medium ${openTool === 'glp1' ? 'text-primary' : 'text-gray-700'}`}>
                     GLP-1 / GIP agonist monitoring
                   </span>
+                  {/* The nurse wrote something today. Said on the closed header
+                      because a note nobody opens the panel to read is no use. */}
+                  {notesToday > 0 && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-300">
+                      {notesToday === 1 ? '1 nurse note today' : `${notesToday} nurse notes today`}
+                    </span>
+                  )}
                 </div>
                 <span className="text-xs text-gray-400">
                   {openTool === 'glp1' ? 'Hide' : 'Open'}

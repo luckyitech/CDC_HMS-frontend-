@@ -28,6 +28,7 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
     getTherapiesByPatient, getFullTherapy,
     startTherapy, updateSchedule, addReviewWeek, stopTherapy, switchMedication,
     recordAdministration, removeAdministration,
+    addWeekNote, removeWeekNote,
     addReview, amendReview, removeReview,
   } = useGlp1Context();
 
@@ -144,6 +145,21 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
   // One week's injection — given, missed or omitted
   const handleRecordWeek = async (payload) => {
     const result = await recordAdministration({ therapyId: activeTherapy.id, ...payload });
+    if (result.success) await refresh();
+    return result;
+  };
+
+  // The other half of the nurse's injection note — the doctor reads what was
+  // written in triage and can answer on the same week. Glp1WeekNotes raises its
+  // own toasts; these just refresh and report back.
+  const handleAddNote = async (weekNumber, body) => {
+    const result = await addWeekNote({ therapyId: activeTherapy.id, weekNumber, body });
+    if (result.success) await refresh();
+    return result;
+  };
+
+  const handleRemoveNote = async (note) => {
+    const result = await removeWeekNote(note.id);
     if (result.success) await refresh();
     return result;
   };
@@ -432,6 +448,9 @@ const Glp1Tracker = ({ patient, readOnly = false, onDirtyChange }) => {
               onRecordWeek={handleRecordWeek}
               onClearWeek={handleClearWeek}
               onSwitch={canSwitch ? () => setSwitching(true) : null}
+              weekNotes={detail?.weekNotes || []}
+              onAddNote={handleAddNote}
+              onRemoveNote={handleRemoveNote}
             />
           </section>
 

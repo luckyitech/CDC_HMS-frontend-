@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Check, X, Ban, Undo2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { impliedWeekStatus } from '../../utils/glp1Weeks';
+import { impliedWeekStatus, groupNotesByWeek } from '../../utils/glp1Weeks';
+import Glp1WeekNotes from '../shared/Glp1WeekNotes';
 
 /**
  * Glp1WeekRows — the individual weeks inside one dose step.
@@ -33,13 +34,19 @@ const STATUS_STYLES = {
 // open-ended maintenance step only. A bounded step is shown in full.
 const RECENT_WEEKS = 6;
 
-const Glp1WeekRows = ({ step, startDate, currentWeek, administrations = [], readOnly, onRecord, onUndo }) => {
+const Glp1WeekRows = ({
+  step, startDate, currentWeek,
+  administrations = [], readOnly, onRecord, onUndo,
+  weekNotes = [], onAddNote, onRemoveNote,
+}) => {
   const [pending, setPending] = useState(null);   // { week, status } awaiting a reason
   const [note, setNote]       = useState('');
   const [saving, setSaving]   = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const byWeek = new Map(administrations.map(a => [a.weekNumber, a]));
+  // A week has one administration but any number of notes — hence a Map of lists
+  const notesByWeek = groupNotesByWeek(weekNotes);
 
   const isOpenEnded = step.toWeek === null;
   // An open-ended final step has no natural end; show a year's worth
@@ -135,8 +142,15 @@ const Glp1WeekRows = ({ step, startDate, currentWeek, administrations = [], read
             const style     = record ? STATUS_STYLES[record.status] : null;
             const canAct    = assumed || due;                  // recordable weeks
 
+            const notes = notesByWeek.get(week) || [];
+            // Notes appear wherever they were written; the composer is offered
+            // on the current week only — that is the visit the clinician is in,
+            // and an Add button on all six rows of a step is just noise.
+            const showThread = notes.length > 0 || (!readOnly && isNow);
+
             return (
-              <tr key={week} className={`border-b border-gray-100 last:border-0 ${isNow ? 'bg-blue-50' : ''}`}>
+              <Fragment key={week}>
+              <tr className={`${showThread ? '' : 'border-b border-gray-100 last:border-0'} ${isNow ? 'bg-blue-50' : ''}`}>
                 <td className={`py-1.5 pr-3 w-20 ${isNow ? 'text-primary font-medium' : 'text-gray-600'}`}>
                   Week {week}
                 </td>
@@ -224,6 +238,21 @@ const Glp1WeekRows = ({ step, startDate, currentWeek, administrations = [], read
                   ) : null}
                 </td>
               </tr>
+
+              {showThread && (
+                <tr className={`border-b border-gray-100 last:border-0 ${isNow ? 'bg-blue-50' : ''}`}>
+                  <td colSpan={4} className="pb-2 pl-1">
+                    <Glp1WeekNotes
+                      weekNumber={week}
+                      notes={notes}
+                      readOnly={readOnly}
+                      onAdd={onAddNote}
+                      onRemove={onRemoveNote}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>

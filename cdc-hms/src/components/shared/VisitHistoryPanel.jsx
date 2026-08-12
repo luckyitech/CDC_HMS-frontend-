@@ -30,6 +30,11 @@ const DATE_FIELD_MAP = {
   glp1Injections:  'administeredDate',
   // GLP-1 monitoring reviews written by any clinician (nurse or doctor)
   glp1Reviews:     'date',
+  // Per-week notes — the nurse's injection note and the doctor's reply. Their
+  // own section rather than nested under the injection: a week that elapsed
+  // without being recorded has no injection row at all, and a note filed
+  // against it must not vanish with it.
+  glp1WeekNotes:   'createdAt',
 };
 
 const HISTORY_PAGE_SIZE = 10;
@@ -269,6 +274,23 @@ const EncounterBlock = ({ records, fullExamCache }) => (
       </div>
     )}
 
+    {/* GLP-1 week notes — what the nurse wrote at the injection, and the
+        doctor's reply. Read-only here: the record, not a place to work. */}
+    {records.glp1WeekNotes?.length > 0 && (
+      <div>
+        <SectionHeader icon={<MessageSquare className="w-3.5 h-3.5" />} label="GLP-1 Injection Notes" />
+        {records.glp1WeekNotes.map(note => (
+          <DocBox key={note.id}>
+            <p className="text-xs text-gray-500">
+              Week {note.weekNumber} · {note.authorName}
+              {note.authorRole === 'doctor' ? ' (Doctor)' : ' (Nurse)'}
+            </p>
+            <p className="whitespace-pre-wrap mt-0.5">{note.body}</p>
+          </DocBox>
+        ))}
+      </div>
+    )}
+
     {/* GLP-1 tools — monitoring reviews (doctor or nurse) */}
     {records.glp1Reviews?.length > 0 && (
       <div>
@@ -444,21 +466,23 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, weekNotesRes] = await Promise.all([
           getAssessmentsByPatient(uhid),
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
           getPrescriptionsByPatient(uhid),
           getNotesByPatient(uhid),
           patientService.getVitalsHistory(uhid).catch(() => ({ success: false, data: [] })),
-          // GLP-1 injections and monitoring reviews — both support uhid directly
+          // GLP-1 injections, monitoring reviews and week notes — all support uhid directly
           glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),
           glp1Service.getReviews({ uhid }).catch(() => ({ data: { reviews: [] } })),
+          glp1Service.getWeekNotes({ uhid }).catch(() => ({ data: { notes: [] } })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
           const glp1Injections = adminsRes?.data?.administrations  || [];
           const glp1Reviews    = reviewsRes?.data?.reviews         || [];
+          const glp1WeekNotes  = weekNotesRes?.data?.notes          || [];
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
             exams:           Array.isArray(exams)           ? exams           : [],
@@ -468,6 +492,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             vitals:          Array.isArray(vitals)          ? vitals          : [],
             glp1Injections:  Array.isArray(glp1Injections)  ? glp1Injections  : [],
             glp1Reviews:     Array.isArray(glp1Reviews)     ? glp1Reviews     : [],
+            glp1WeekNotes:   Array.isArray(glp1WeekNotes)   ? glp1WeekNotes   : [],
           });
         }
       } finally {
