@@ -18,6 +18,40 @@ const COMMON_FIELDS = [
   { key: 'phone',      label: 'Phone',      type: 'text' },
 ];
 
+const SHIFTS           = ['Morning', 'Afternoon', 'Night', 'Rotating'];
+const EMPLOYMENT_TYPES = ['Full-time', 'Part-time', 'Contract', 'Consultant', 'Locum', 'Temporary'];
+
+// Identity and contact fields shared by every staff cadre, since they all share
+// one StaffProfile table. Without these the profile page displays date of
+// birth, national ID, address and emergency contact with no way to enter them.
+const STAFF_IDENTITY_FIELDS = [
+  { key: 'dateOfBirth', label: 'Date of Birth', type: 'date' },
+  { key: 'gender',      label: 'Gender',        type: 'select', options: ['Male', 'Female', 'Other'] },
+  { key: 'idNumber',    label: 'National ID',   type: 'text' },
+  { key: 'address',     label: 'Address',       type: 'text' },
+  { key: 'city',        label: 'City',          type: 'text' },
+];
+
+// Emergency contact is one JSON column, so it is split into three inputs here
+// and reassembled on save — the same treatment the patient form already gives it.
+const STAFF_EMERGENCY_FIELDS = [
+  { key: 'emergencyContactName',         label: 'Emergency Contact Name',  type: 'text' },
+  { key: 'emergencyContactRelationship', label: 'Relationship',            type: 'text' },
+  { key: 'emergencyContactPhone',        label: 'Emergency Contact Phone', type: 'text' },
+];
+
+const STAFF_EMPLOYMENT_FIELDS = [
+  { key: 'employmentType', label: 'Employment Type', type: 'select', options: EMPLOYMENT_TYPES },
+  { key: 'startDate',      label: 'Start Date',      type: 'date' },
+  { key: 'ward',           label: 'Ward / Unit',     type: 'text' },
+];
+
+// Licence details, for the cadres that hold one. Front desk staff get none.
+const LICENCE_FIELDS = [
+  { key: 'licenseBody',   label: 'Issuing Body',   type: 'text' },
+  { key: 'licenseExpiry', label: 'Licence Expiry', type: 'date' },
+];
+
 const ROLE_FIELDS = {
   patient: [
     { key: 'dateOfBirth',   label: 'Date of Birth',   type: 'date' },
@@ -34,14 +68,33 @@ const ROLE_FIELDS = {
     { key: 'qualification',   label: 'Qualification',      type: 'text' },
     { key: 'medicalSchool',   label: 'Medical School',     type: 'text' },
     { key: 'yearsExperience', label: 'Years of Experience',type: 'number' },
-    { key: 'employmentType',  label: 'Employment Type',    type: 'select', options: ['Full-time', 'Part-time', 'Contract', 'Consultant'] },
-    { key: 'address',         label: 'Address',            type: 'text' },
-    { key: 'city',            label: 'City',               type: 'text' },
+    ...LICENCE_FIELDS,
+    ...STAFF_EMPLOYMENT_FIELDS,
+    ...STAFF_IDENTITY_FIELDS,
+    ...STAFF_EMERGENCY_FIELDS,
   ],
   staff: [
     { key: 'position',   label: 'Position',   type: 'text' },
     { key: 'department', label: 'Department', type: 'text' },
-    { key: 'shift',      label: 'Shift',      type: 'select', options: ['Morning', 'Afternoon', 'Night'] },
+    { key: 'shift',      label: 'Shift',      type: 'select', options: SHIFTS },
+    ...STAFF_EMPLOYMENT_FIELDS,
+    ...STAFF_IDENTITY_FIELDS,
+    ...STAFF_EMERGENCY_FIELDS,
+  ],
+  // Nurses had no entry at all here, so the modal showed them no profile fields
+  // whatsoever — they borrowed the staff profile and nothing surfaced it.
+  nurse: [
+    { key: 'position',        label: 'Position',              type: 'text' },
+    { key: 'department',      label: 'Department',            type: 'text' },
+    { key: 'shift',           label: 'Shift',                 type: 'select', options: SHIFTS },
+    { key: 'licenseNumber',   label: 'Council Registration',  type: 'text' },
+    ...LICENCE_FIELDS,
+    { key: 'qualification',   label: 'Qualification',         type: 'text' },
+    { key: 'institution',     label: 'Training Institution',  type: 'text' },
+    { key: 'yearsExperience', label: 'Years of Experience',   type: 'number' },
+    ...STAFF_EMPLOYMENT_FIELDS,
+    ...STAFF_IDENTITY_FIELDS,
+    ...STAFF_EMERGENCY_FIELDS,
   ],
   lab: [
     { key: 'specialization',      label: 'Specialization',      type: 'text' },
@@ -49,9 +102,17 @@ const ROLE_FIELDS = {
     { key: 'qualification',       label: 'Qualification',       type: 'text' },
     { key: 'institution',         label: 'Institution',         type: 'text' },
     { key: 'yearsExperience',     label: 'Years of Experience', type: 'number' },
-    { key: 'shift',               label: 'Shift',               type: 'select', options: ['Morning', 'Afternoon', 'Night'] },
+    { key: 'shift',               label: 'Shift',               type: 'select', options: SHIFTS },
+    ...LICENCE_FIELDS,
+    ...STAFF_EMPLOYMENT_FIELDS,
+    ...STAFF_IDENTITY_FIELDS,
+    ...STAFF_EMERGENCY_FIELDS,
   ],
 };
+
+// Cadres whose emergency contact must be reassembled into the JSON column on
+// save. Patients are handled separately because they also carry insurance.
+const STAFF_ROLES = ['doctor', 'nurse', 'staff', 'lab', 'admin'];
 
 // ── Small reusable field renderer ────────────────────────────────────────────
 const Field = ({ field, value, onChange }) => {
@@ -85,6 +146,9 @@ const FIELD_LABELS = {
   position: 'Position', shift: 'Shift',
   specialization: 'Specialization', certificationNumber: 'Certification Number', institution: 'Institution',
   emergencyContact: 'Emergency Contact', insurance: 'Insurance',
+  idNumber: 'National ID', ward: 'Ward / Unit', startDate: 'Start Date',
+  licenseBody: 'Issuing Body', licenseExpiry: 'Licence Expiry',
+  employmentStatus: 'Employment Status', archived: 'Archived',
 };
 
 // ── Main component ───────────────────────────────────────────────────────────
@@ -107,8 +171,12 @@ const EditUserModal = ({ user, onClose, onSaved }) => {
           const knownProvider = INSURANCE_PROVIDERS.includes(rawProvider) ? rawProvider : (rawProvider ? 'Other' : '');
           setForm({
             ...u,
+            // <input type="date"> only accepts YYYY-MM-DD; the API returns full
+            // ISO timestamps, which the input silently rejects and renders blank.
             dateOfBirth:   u.dateOfBirth   ? u.dateOfBirth.split('T')[0]   : '',
             diagnosisDate: u.diagnosisDate ? u.diagnosisDate.split('T')[0] : '',
+            startDate:     u.startDate     ? u.startDate.split('T')[0]     : '',
+            licenseExpiry: u.licenseExpiry ? u.licenseExpiry.split('T')[0] : '',
             emergencyContactName:         u.emergencyContact?.name         ?? '',
             emergencyContactRelationship: u.emergencyContact?.relationship ?? '',
             emergencyContactPhone:        u.emergencyContact?.phone        ?? '',
@@ -139,8 +207,21 @@ const EditUserModal = ({ user, onClose, onSaved }) => {
     if (!window.confirm(`Are you sure you want to save changes to ${user.name}? This will update their details across the entire system.`)) return;
     setSaving(true);
     try {
-      // Re-assemble emergencyContact / insurance JSON for patients
+      // Re-assemble emergencyContact / insurance JSON
       const payload = { ...form };
+
+      if (STAFF_ROLES.includes(user.role)) {
+        const name         = form.emergencyContactName;
+        const relationship = form.emergencyContactRelationship;
+        const phone        = form.emergencyContactPhone;
+
+        // Sending an object of three empty strings would overwrite a real
+        // contact with blanks whenever the admin edits some other field.
+        payload.emergencyContact = (name || relationship || phone)
+          ? { name: name || null, relationship: relationship || null, phone: phone || null }
+          : null;
+      }
+
       if (user.role === 'patient') {
         payload.emergencyContact = {
           name:         form.emergencyContactName,

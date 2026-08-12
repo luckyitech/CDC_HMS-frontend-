@@ -15,10 +15,15 @@ const STAFF_FILE_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
 // Staff File; patients open the shared patient profile — the SAME component and
 // route the staff portal uses (/…/patient-profile/:uhid) so a patient file is
 // opened the same way in every portal. Returns null when there's nothing to open.
+// Staff resolve on employeeId (EMP014) rather than the database PK, mirroring
+// how patients resolve on uhid — the same reason neither URL exposes a row id.
+// A staff account with no employeeId yet (a legacy row the backfill has not
+// reached) returns null and renders as plain text rather than a dead link.
 const fileHref = (user) =>
-  STAFF_FILE_ROLES.includes(user.role) ? `/admin/staff/${user.id}`
-  : user.uhid ? `/admin/patient-profile/${user.uhid}`
-  : null;
+  STAFF_FILE_ROLES.includes(user.role)
+    ? (user.employeeId ? `/admin/staff/${user.employeeId}` : null)
+    : user.uhid ? `/admin/patient-profile/${user.uhid}`
+    : null;
 
 // The clinic has hundreds of patient records; rendering them all at once
 // makes the page unusable, so the list is paged.

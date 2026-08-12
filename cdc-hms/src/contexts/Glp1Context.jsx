@@ -247,6 +247,46 @@ export const Glp1Provider = ({ children }) => {
   }, []);
 
   // ============================================
+  // WEEK NOTES
+  // ============================================
+
+  /**
+   * Notes for a course or a patient. Mostly unnecessary alongside getFull, which
+   * already returns weekNotes — this is for the patient-wide read in visit
+   * history, and for refreshing notes without refetching the whole therapy.
+   */
+  const getWeekNotes = useCallback(async (params) => {
+    try {
+      const response = await glp1Service.getWeekNotes(params);
+      if (response.success) return response.data.notes || [];
+      return [];
+    } catch (err) {
+      console.error('Get GLP-1 week notes error:', err.message);
+      return [];
+    }
+  }, []);
+
+  const addWeekNote = useCallback(async (data) => {
+    try {
+      const response = await glp1Service.addWeekNote(data);
+      if (response.success) return { success: true, note: response.data };
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  }, []);
+
+  const removeWeekNote = useCallback(async (id) => {
+    try {
+      const response = await glp1Service.removeWeekNote(id);
+      if (response.success) return { success: true };
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  }, []);
+
+  // ============================================
   // REVIEWS
   // ============================================
 
@@ -311,6 +351,11 @@ export const Glp1Provider = ({ children }) => {
     getAdministrations,
     recordAdministration,
     removeAdministration,
+
+    // Week notes
+    getWeekNotes,
+    addWeekNote,
+    removeWeekNote,
 
     // Reviews
     addReview,

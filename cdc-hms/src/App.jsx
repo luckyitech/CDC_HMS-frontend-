@@ -80,6 +80,9 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const CreateUsers = lazy(() => import("./pages/admin/CreateUsers"));
 const ClinicalCatalog = lazy(() => import("./pages/admin/ClinicalCatalog"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
+// The staff file — one page for every cadre. Its shell (collapsible name bar,
+// ProfileTabBar) is shared with PatientFile so the two record "files" behave
+// identically; its data comes from /api/staff/:employeeId.
 const StaffFile = lazy(() => import("./pages/admin/StaffFile"));
 // Unified, role-aware patient file — used by the doctor, staff and admin portals
 // (replaces doctor/PatientProfile + staff/StaffPatientProfile, which remain in
@@ -240,7 +243,12 @@ function App() {
                   <Route path="create-lab" element={<Navigate to="/admin/create-users?role=lab" replace />} />
                   <Route path="create-patient" element={<Navigate to="/admin/create-users?role=patient" replace />} />
                   <Route path="manage-users" element={<ManageUsers />} />
-                  <Route path="staff/:id" element={<StaffFile />} />
+                  {/* Resolves on employeeId (EMP014), mirroring the patient
+                      routes which resolve on uhid — the database PK stays out
+                      of the URL. */}
+                  <Route path="staff/:employeeId" element={<StaffFile />} />
+                  {/* Old path kept so existing links and bookmarks still land */}
+                  <Route path="staff-profile/:employeeId" element={<StaffFile />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />

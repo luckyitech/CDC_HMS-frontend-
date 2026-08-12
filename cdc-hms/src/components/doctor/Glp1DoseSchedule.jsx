@@ -23,11 +23,14 @@ const Glp1DoseSchedule = ({
   startDate,
   administrations = [],
   readOnly,          // plan editing — doctors only
-  weeksReadOnly,     // week-by-week recording — nurses too
+  weeksReadOnly,     // week-by-week recording AND notes — nurses too
   onSave,
   onRecordWeek,
   onClearWeek,
   onSwitch,
+  weekNotes = [],
+  onAddNote,
+  onRemoveNote,
 }) => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [draft, setDraft]     = useState(emptyStep);
@@ -271,6 +274,9 @@ const Glp1DoseSchedule = ({
                       readOnly={weeksReadOnly ?? readOnly}
                       onRecord={onRecordWeek}
                       onUndo={onClearWeek}
+                      weekNotes={weekNotes}
+                      onAddNote={onAddNote}
+                      onRemoveNote={onRemoveNote}
                     />
                   </td>
                 </tr>

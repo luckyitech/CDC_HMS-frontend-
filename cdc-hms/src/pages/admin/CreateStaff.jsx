@@ -55,8 +55,7 @@ const CreateStaff = ({ embedded = false }) => {
     'Front Desk',
   ];
 
-  // TODO: Uncomment when the hospital introduces shifts
-  // const shifts = ['Morning', 'Afternoon', 'Night'];
+  const SHIFTS = ['Morning', 'Afternoon', 'Night', 'Rotating'];
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -77,15 +76,41 @@ const CreateStaff = ({ embedded = false }) => {
 
     setIsSubmitting(true);
     try {
+      // Every field below is sent. This form has always COLLECTED date of
+      // birth, gender, national ID, address, city and the emergency contact —
+      // they were simply never submitted, because StaffProfile had nowhere to
+      // put them. The admin typed them in, the form cleared, and the data was
+      // silently discarded. The consolidated StaffProfile has the columns now.
       const response = await api.post('/users/staff', {
         firstName: staffData.firstName,
         lastName: staffData.lastName,
         email: staffData.email,
         phone: staffData.phone,
-        position: staffData.role,       // form uses 'role', backend expects 'position'
+
+        // The form field is called 'role' but holds a job title (Receptionist,
+        // Admin). The account's User.role is always 'staff' — this maps onto
+        // `position`, which is the HR job title.
+        position: staffData.role,
         department: staffData.department,
+        employmentType: staffData.employmentType || undefined,
         startDate: staffData.startDate || null,
-        shift: 'Morning',               // backend requires shift; default until hospital introduces shift scheduling
+        shift: staffData.shift || 'Morning',
+
+        dateOfBirth: staffData.dateOfBirth || null,
+        gender: staffData.gender || undefined,
+        idNumber: staffData.idNumber || undefined,
+        address: staffData.address || undefined,
+        city: staffData.city || undefined,
+
+        // Stored as one JSON column, matching how Patient holds the same thing.
+        emergencyContact: staffData.emergencyContact || staffData.emergencyPhone
+          ? {
+              name: staffData.emergencyContact || null,
+              relationship: staffData.emergencyRelationship || null,
+              phone: staffData.emergencyPhone || null,
+            }
+          : undefined,
+
         password: staffData.temporaryPassword || undefined,
       });
 
@@ -214,22 +239,24 @@ const CreateStaff = ({ embedded = false }) => {
               required
             />
 
-            {/* TODO: Uncomment when the hospital introduces shifts
+            {/* Previously commented out, while the submit handler hardcoded
+                'Morning' to satisfy the backend validator — which meant every
+                staff member in the database was on the morning shift whatever
+                they actually worked. Optional rather than required, so a
+                hospital not running shifts can leave it blank. */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Work Shift *</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Work Shift</label>
               <select
                 value={staffData.shift}
                 onChange={(e) => setStaffData({ ...staffData, shift: e.target.value })}
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-                required
               >
-                <option value="">Select shift</option>
-                {shifts.map((shift) => (
+                <option value="">Not applicable</option>
+                {SHIFTS.map((shift) => (
                   <option key={shift} value={shift}>{shift}</option>
                 ))}
               </select>
             </div>
-            */}
           </div>
         </Card>
 

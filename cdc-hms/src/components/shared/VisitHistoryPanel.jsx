@@ -40,6 +40,11 @@ const DATE_FIELD_MAP = {
   admissions:      'requestedAt',
   // Referral notes (doctor's referral letter from OPD) — also an "action".
   referrals:       'savedAt',
+  // Per-week notes — the nurse's injection note and the doctor's reply. Their
+  // own section rather than nested under the injection: a week that elapsed
+  // without being recorded has no injection row at all, and a note filed
+  // against it must not vanish with it.
+  glp1WeekNotes:   'createdAt',
 };
 
 const fmtDay = (d) =>
@@ -277,6 +282,23 @@ const EncounterBlock = ({ records, fullExamCache }) => (
             )}
             {inj.site && <p>Site: {inj.site}</p>}
             {inj.note && <p className="whitespace-pre-wrap">{inj.note}</p>}
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+    {/* GLP-1 week notes — what the nurse wrote at the injection, and the
+        doctor's reply. Read-only here: the record, not a place to work. */}
+    {records.glp1WeekNotes?.length > 0 && (
+      <div>
+        <SectionHeader icon={<MessageSquare className="w-3.5 h-3.5" />} label="GLP-1 Injection Notes" />
+        {records.glp1WeekNotes.map(note => (
+          <DocBox key={note.id}>
+            <p className="text-xs text-gray-500">
+              Week {note.weekNumber} · {note.authorName}
+              {note.authorRole === 'doctor' ? ' (Doctor)' : ' (Nurse)'}
+            </p>
+            <p className="whitespace-pre-wrap mt-0.5">{note.body}</p>
           </DocBox>
         ))}
       </div>
@@ -550,18 +572,19 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes] = await Promise.all([
           getAssessmentsByPatient(uhid),
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
           getPrescriptionsByPatient(uhid),
           getNotesByPatient(uhid),
           patientService.getVitalsHistory(uhid).catch(() => ({ success: false, data: [] })),
-          // GLP-1 injections and monitoring reviews — both support uhid directly
+          // GLP-1 injections, monitoring reviews and week notes — all support uhid directly
           glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),
           glp1Service.getReviews({ uhid }).catch(() => ({ data: { reviews: [] } })),
           inpatientService.advisedAdmissions(uhid).catch(() => ({ data: { admissions: [] } })),
           queueService.advisedReferrals(uhid).catch(() => ({ data: { referrals: [] } })),
+          glp1Service.getWeekNotes({ uhid }).catch(() => ({ data: { notes: [] } })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
@@ -569,6 +592,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           const glp1Reviews    = reviewsRes?.data?.reviews         || [];
           const admissions     = advisedRes?.data?.admissions      || [];
           const referrals      = referralsRes?.data?.referrals     || [];
+          const glp1WeekNotes  = weekNotesRes?.data?.notes          || [];
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
             exams:           Array.isArray(exams)           ? exams           : [],
@@ -580,6 +604,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             glp1Reviews:     Array.isArray(glp1Reviews)     ? glp1Reviews     : [],
             admissions:      Array.isArray(admissions)      ? admissions      : [],
             referrals:       Array.isArray(referrals)       ? referrals       : [],
+            glp1WeekNotes:   Array.isArray(glp1WeekNotes)   ? glp1WeekNotes   : [],
           });
         }
       } finally {
