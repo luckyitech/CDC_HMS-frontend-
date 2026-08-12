@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Loader, Upload, FileText, Download, Trash2, Lock, Eye } from 'lucide-react';
+import { Loader, Upload, FileText, Download, Trash2, Lock, Eye, ArchiveRestore } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import { formatDate } from './staffFormat';
 
@@ -17,24 +17,32 @@ const ADMIN_ONLY_BY_DEFAULT = new Set(['Employment Contract', 'Appraisal', 'Disc
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
 
+// Categories that typically lapse — the expiry field is offered for these and
+// hidden for the rest, so a CV upload isn't asking for an expiry date.
+const EXPIRING_CATEGORIES = new Set([
+  'Practising Licence', 'Training Certificate', 'National ID', 'Employment Contract',
+]);
+
 const DocumentsTab = ({ staff, isAdmin }) => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [uploading, setUploading] = useState(false);
   const [category, setCategory]   = useState('Other');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const fileInput = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await staffService.getDocuments(staff.employeeId);
+      const res = await staffService.getDocuments(staff.employeeId, showArchived);
       setDocuments(res.data || []);
     } catch (err) {
       toast.error(err.message || 'Failed to load documents');
     } finally {
       setLoading(false);
     }
-  }, [staff.employeeId]);
+  }, [staff.employeeId, showArchived]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -46,9 +54,11 @@ const DocumentsTab = ({ staff, isAdmin }) => {
     try {
       await staffService.uploadDocument(staff.employeeId, file, {
         category,
+        expiryDate: expiryDate || undefined,
         visibility: ADMIN_ONLY_BY_DEFAULT.has(category) ? 'Admin only' : 'Staff',
       });
       toast.success('Document uploaded');
+      setExpiryDate('');
       load();
     } catch (err) {
       toast.error(err.message || 'Upload failed');
@@ -90,12 +100,25 @@ const DocumentsTab = ({ staff, isAdmin }) => {
 
   const archive = async (doc) => {
     if (!window.confirm(`Archive "${doc.fileName}"? It will be hidden but not deleted.`)) return;
+    // Asked for, not required — "superseded by the 2027 licence" and "uploaded
+    // to the wrong person" need different follow-up.
+    const reason = window.prompt('Reason (optional)') || null;
     try {
-      await staffService.archiveDocument(staff.employeeId, doc.id);
+      await staffService.archiveDocument(staff.employeeId, doc.id, reason);
       toast.success('Document archived');
       load();
     } catch (err) {
       toast.error(err.message || 'Failed to archive');
+    }
+  };
+
+  const restore = async (doc) => {
+    try {
+      await staffService.restoreDocument(staff.employeeId, doc.id);
+      toast.success('Document restored');
+      load();
+    } catch (err) {
+      toast.error(err.message || 'Failed to restore');
     }
   };
 
@@ -106,7 +129,19 @@ const DocumentsTab = ({ staff, isAdmin }) => {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-        <h3 className="text-sm font-semibold text-gray-800">Files</h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold text-gray-800">
+            {showArchived ? 'Archived files' : 'Files'}
+          </h3>
+          {isAdmin && (
+            <button
+              onClick={() => setShowArchived((v) => !v)}
+              className="text-xs text-gray-500 hover:text-blue-700 underline"
+            >
+              {showArchived ? 'Show active' : 'Show archived'}
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           <select
@@ -116,6 +151,17 @@ const DocumentsTab = ({ staff, isAdmin }) => {
           >
             {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+
+          {/* Only offered for categories that actually lapse. */}
+          {EXPIRING_CATEGORIES.has(category) && (
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              title="Expiry date (optional)"
+              className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs"
+            />
+          )}
 
           <input
             ref={fileInput}
@@ -139,7 +185,9 @@ const DocumentsTab = ({ staff, isAdmin }) => {
 
       {documents.length === 0 ? (
         <p className="text-sm text-gray-400 py-8 text-center">
-          No documents yet. PDF, image and Word files up to 25MB.
+          {showArchived
+            ? 'Nothing archived.'
+            : 'No documents yet. PDF, image and Word files up to 25MB.'}
         </p>
       ) : (
         <ul className="divide-y divide-gray-100">
@@ -152,10 +200,24 @@ const DocumentsTab = ({ staff, isAdmin }) => {
                 <p className="text-xs text-gray-400">
                   {doc.category} · {doc.fileSize} · {formatDate(doc.uploadedAt)}
                   {doc.uploadedBy && ` · ${doc.uploadedBy}`}
+                  {doc.expiryDate && ` · expires ${formatDate(doc.expiryDate)}`}
                 </p>
+                {doc.archiveReason && (
+                  <p className="text-xs text-gray-400 italic">Archived: {doc.archiveReason}</p>
+                )}
               </div>
 
-              {isAdmin && (
+              {/* Expiry is the thing worth seeing at a glance — a lapsed
+                  practising licence matters more than who uploaded it. */}
+              {doc.expiringSoon && (
+                <span className={`px-2 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap ${
+                  doc.expired ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {doc.expired ? 'Expired' : `${doc.expiresInDays}d left`}
+                </span>
+              )}
+
+              {isAdmin && !showArchived && (
                 <button
                   onClick={() => toggleVisibility(doc)}
                   title={doc.visibility === 'Staff'
@@ -181,13 +243,23 @@ const DocumentsTab = ({ staff, isAdmin }) => {
               </button>
 
               {isAdmin && (
-                <button
-                  onClick={() => archive(doc)}
-                  className="p-1.5 text-gray-400 hover:text-red-600"
-                  aria-label={`Archive ${doc.fileName}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                showArchived ? (
+                  <button
+                    onClick={() => restore(doc)}
+                    className="p-1.5 text-gray-400 hover:text-blue-700"
+                    aria-label={`Restore ${doc.fileName}`}
+                  >
+                    <ArchiveRestore className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => archive(doc)}
+                    className="p-1.5 text-gray-400 hover:text-red-600"
+                    aria-label={`Archive ${doc.fileName}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )
               )}
             </li>
           ))}

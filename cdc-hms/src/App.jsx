@@ -80,7 +80,14 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const CreateUsers = lazy(() => import("./pages/admin/CreateUsers"));
 const ClinicalCatalog = lazy(() => import("./pages/admin/ClinicalCatalog"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
-const StaffProfile = lazy(() => import("./pages/admin/StaffProfile"));
+// The staff file — one page for every cadre. Its shell (collapsible name bar,
+// ProfileTabBar) is shared with PatientFile so the two record "files" behave
+// identically; its data comes from /api/staff/:employeeId.
+const StaffFile = lazy(() => import("./pages/admin/StaffFile"));
+// Unified, role-aware patient file — used by the doctor, staff and admin portals
+// (replaces doctor/PatientProfile + staff/StaffPatientProfile, which remain in
+// the tree for rollback).
+const PatientFile = lazy(() => import("./pages/shared/PatientFile"));
 const DuplicatePatients = lazy(() => import("./pages/admin/DuplicatePatients"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
 const SystemSettings = lazy(() => import("./pages/admin/SystemSettings"));
@@ -159,7 +166,7 @@ function App() {
                   <Route path="queue" element={<QueueManagement />} />
                   <Route path="triage" element={<Triage />} />
                   <Route path="create-patient" element={<StaffCreatePatient />} />
-                  <Route path="patient-profile/:uhid" element={<StaffPatientProfile />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="appointments" element={<StaffAppointmentsList />} />
                   <Route path="book-appointment" element={<StaffBookAppointment />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
@@ -176,7 +183,7 @@ function App() {
                 >
                   <Route path="dashboard" element={<DoctorDashboard />} />
                   <Route path="patients" element={<MyPatients />} />
-                  <Route path="patient-profile/:uhid" element={<PatientProfile />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="consultation/:uhid" element={<Consultation />} />
                   <Route path="initial-assessment" element={<InitialAssessment />} />
                   <Route path="prescriptions" element={<DoctorPrescriptions />} />
@@ -234,8 +241,12 @@ function App() {
                   <Route path="create-patient" element={<Navigate to="/admin/create-users?role=patient" replace />} />
                   <Route path="manage-users" element={<ManageUsers />} />
                   {/* Resolves on employeeId (EMP014), mirroring the patient
-                      profile routes which resolve on uhid */}
-                  <Route path="staff-profile/:employeeId" element={<StaffProfile />} />
+                      routes which resolve on uhid — the database PK stays out
+                      of the URL. */}
+                  <Route path="staff/:employeeId" element={<StaffFile />} />
+                  {/* Old path kept so existing links and bookmarks still land */}
+                  <Route path="staff-profile/:employeeId" element={<StaffFile />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="catalog" element={<ClinicalCatalog />} />
@@ -260,7 +271,7 @@ function App() {
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="queue" element={<QueueManagement />} />
                   <Route path="triage" element={<Triage />} />
-                  <Route path="patient-profile/:uhid" element={<StaffPatientProfile />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Loader, ShieldCheck, Archive, ArchiveRestore } from 'lucide-react';
+import { Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound } from 'lucide-react';
 import staffService from '../../../services/staffService';
+import api from '../../../services/api';
 import { formatDateTime } from './staffFormat';
+
+const EMPLOYMENT_STATUSES = ['Active', 'On Leave', 'Suspended', 'Resigned', 'Terminated'];
 
 // Labels for the capability strings the API returns. A permission with no entry
 // here still renders — using the raw string — so a capability added on the
@@ -38,10 +41,11 @@ const Toggle = ({ on, onClick, disabled, label }) => (
   </button>
 );
 
-const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, busy }) => {
+const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStatusChanged, busy }) => {
   const [catalog, setCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(null);
+  const [acting, setActing]   = useState(null);
 
   // Granting is restricted server-side to a real admin ACCOUNT rather than
   // anyone holding admin.access, so that the capability cannot propagate on its
@@ -87,6 +91,46 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, busy }
     }
   };
 
+  const resetPassword = async () => {
+    if (!staff.email) {
+      toast.error('No email on file — add one on the Overview first.');
+      return;
+    }
+    if (!window.confirm(`Send a password reset link to ${staff.email}?`)) return;
+
+    setActing('reset');
+    try {
+      await api.post('/auth/forgot-password', { email: staff.email });
+      toast.success(`Reset link sent to ${staff.email}`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to send reset link');
+    } finally {
+      setActing(null);
+    }
+  };
+
+  const changeStatus = async (employmentStatus) => {
+    if (employmentStatus === staff.employmentStatus) return;
+
+    // Naming the consequence, because the two are not the same thing: 'On Leave'
+    // still permits login, everything below it does not.
+    const stillAllowsLogin = employmentStatus === 'Active' || employmentStatus === 'On Leave';
+    const message = `Set ${staff.name} to ${employmentStatus}?\n\n` +
+      (stillAllowsLogin ? 'They will still be able to log in.' : 'Their login will be disabled.');
+    if (!window.confirm(message)) return;
+
+    setActing('status');
+    try {
+      const res = await staffService.updateStatus(staff.employeeId, employmentStatus);
+      (onStatusChanged || onChanged)(res.data);
+      toast.success(`Status set to ${employmentStatus}`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to update status');
+    } finally {
+      setActing(null);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center py-10"><Loader className="w-6 h-6 animate-spin text-gray-400" /></div>;
   }
@@ -117,6 +161,29 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, busy }
             </dd>
           </div>
         </dl>
+
+        {/* Account actions live here rather than in the name bar: they are
+            infrequent and consequential, and the bar is for identity. */}
+        <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-100">
+          <button
+            onClick={resetPassword}
+            disabled={!!acting || staff.isArchived}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {acting === 'reset' ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+            Reset password
+          </button>
+
+          <label className="text-xs text-gray-500 ml-2">Employment status</label>
+          <select
+            value={staff.employmentStatus}
+            onChange={(e) => changeStatus(e.target.value)}
+            disabled={!!acting || staff.isArchived}
+            className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-50"
+          >
+            {EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">

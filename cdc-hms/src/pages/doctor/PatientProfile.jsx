@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
+import ProfileTabBar from "../../components/shared/ProfileTabBar";
 import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import StatusBadge from "../../components/shared/StatusBadge";
@@ -236,24 +237,7 @@ const PatientProfile = () => {
         </div>
       </Card>
 
-      <div className="mb-6 overflow-x-auto">
-        <div className="flex gap-2 border-b-2 border-gray-200 pb-2 min-w-max">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 rounded-t-lg font-semibold transition whitespace-nowrap ${
-                activeTab === tab.id
-                  ? "bg-primary text-white shadow-lg"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              <tab.Icon className="w-4 h-4 inline mr-2" />
-              {tab.name}
-            </button>
-          ))}
-        </div>
-      </div>
+      <ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       <div>
         {activeTab === "overview"          && <OverviewTab patient={patient} setActiveTab={setActiveTab} />}

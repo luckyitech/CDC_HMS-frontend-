@@ -1,23 +1,29 @@
 import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import {
-  Search, Users, Pencil, KeyRound, Trash2,
-  ArrowLeft, UserCheck, UserX, Package, ShieldCheck,
-} from 'lucide-react';
+import { Search, Users, ArrowLeft } from 'lucide-react';
 import api from '../../services/api';
-import { PERMISSIONS } from '../../utils/permissions';
-import patientService from '../../services/patientService';
-import EditUserModal from '../../components/admin/EditUserModal';
-import EditPatientModal from '../../components/staff/EditPatientModal';
 import StatusBadge from '../../components/shared/StatusBadge';
-
-// Roles that may hold capabilities. Patients never can — the server enforces
-// this too; this only keeps the toggles off rows where they make no sense.
-const PERMISSIBLE_ROLES = ['doctor', 'staff', 'lab'];
 import Pagination from '../../components/shared/Pagination';
 import useDebounce from '../../hooks/useDebounce';
 import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statusStyles';
+
+// Roles that have a Staff File (clicking the name opens /admin/staff/:id).
+const STAFF_FILE_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
+
+// The file a row opens when its name is clicked. Staff-type accounts open their
+// Staff File; patients open the shared patient profile — the SAME component and
+// route the staff portal uses (/…/patient-profile/:uhid) so a patient file is
+// opened the same way in every portal. Returns null when there's nothing to open.
+// Staff resolve on employeeId (EMP014) rather than the database PK, mirroring
+// how patients resolve on uhid — the same reason neither URL exposes a row id.
+// A staff account with no employeeId yet (a legacy row the backfill has not
+// reached) returns null and renders as plain text rather than a dead link.
+const fileHref = (user) =>
+  STAFF_FILE_ROLES.includes(user.role)
+    ? (user.employeeId ? `/admin/staff/${user.employeeId}` : null)
+    : user.uhid ? `/admin/patient-profile/${user.uhid}`
+    : null;
 
 // The clinic has hundreds of patient records; rendering them all at once
 // makes the page unusable, so the list is paged.
@@ -42,16 +48,6 @@ const SORT_OPTIONS = {
     compare: (a, b) => (b.name || '').localeCompare(a.name || ''),
   },
 };
-
-const Tip = ({ label, children }) => (
-  <div className="relative group">
-    {children}
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
-      {label}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800" />
-    </div>
-  </div>
-);
 
 const ROLE_LABEL = {
   doctor: 'Doctor', staff: 'Staff', lab: 'Lab Tech',
@@ -79,8 +75,6 @@ const ManageUsers = () => {
   const [filterRole, setFilterRole]     = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortBy, setSortBy]             = useState('newest');
-  const [editingUser, setEditingUser]       = useState(null);
-  const [editingPatient, setEditingPatient] = useState(null);
 
   useEffect(() => {
     api.get('/users')
@@ -131,268 +125,8 @@ const ManageUsers = () => {
     inactive: users.filter(u => u.status === 'Inactive').length,
   };
 
-  const toastSuccess = (msg) => toast.success(msg, { duration: 3000, position: 'top-right' });
-  const toastError   = (msg) => toast.error(msg,   { duration: 4000, position: 'top-right' });
-
-  const handleUserSaved = (updatedUser) =>
-    setUsers(prev => prev.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
-
-  const handleToggleStatus = async (user) => {
-    const activate = user.status !== 'Active';
-    if (!window.confirm(`${activate ? 'Activate' : 'Deactivate'} ${user.name}?`)) return;
-    try {
-      if (user.hasUserAccount === false) {
-        // Patient-only record — no User account, update status directly on Patient record
-        if (!user.uhid) { toastError('Cannot update status — UHID is missing.'); return; }
-        await api.put(`/patients/${user.uhid}`, { status: activate ? 'Active' : 'Inactive' });
-      } else {
-        const res = await api.put(`/users/${user.id}/status`, { isActive: activate });
-        if (!res.success) throw new Error('Status update failed');
-      }
-      setUsers(prev => prev.map(u =>
-        u.id === user.id ? { ...u, status: activate ? 'Active' : 'Inactive' } : u
-      ));
-      toastSuccess(`${user.name} has been ${activate ? 'activated' : 'deactivated'}`);
-    } catch (err) {
-      toastError(err.message || 'Failed to update status');
-    }
-  };
-
-  // Grant or revoke one capability. Server-side these are a list on the user,
-  // read from the database on every request, so a change takes effect without
-  // the user logging out — and a revoke lands immediately.
-  //
-  // One handler for every capability rather than a copy per toggle: the whole
-  // point of the permission list is that adding a capability is a string, not
-  // another button with its own bespoke handler.
-  const handleTogglePermission = async (user, permission, label, warning) => {
-    const held = (user.permissions || []).includes(permission);
-    const grant = !held;
-    const question = grant
-      ? `Grant ${label} to ${user.name}?${warning ? `\n\n${warning}` : ''}`
-      : `Revoke ${label} for ${user.name}?`;
-    if (!window.confirm(question)) return;
-
-    const next = grant
-      ? [...(user.permissions || []), permission]
-      : (user.permissions || []).filter(p => p !== permission);
-
-    try {
-      const res = await api.put(`/users/${user.id}`, { permissions: next });
-      if (!res.success) throw new Error('Update failed');
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, permissions: next } : u));
-      toastSuccess(`${label} ${grant ? 'granted to' : 'revoked from'} ${user.name}`);
-    } catch (err) {
-      toastError(err.message || `Failed to update ${label}`);
-    }
-  };
-
-  const handleResetPassword = async (user) => {
-    if (!user.email) {
-      toastError(`${user.name} has no email address on file. Update their profile first.`);
-      return;
-    }
-    if (!window.confirm(`Send a password reset link to ${user.email}?`)) return;
-    try {
-      await api.post('/auth/forgot-password', { email: user.email });
-      toastSuccess(`Password reset link sent to ${user.email}`);
-    } catch (err) {
-      toastError(err.message || 'Failed to send reset link');
-    }
-  };
-
-  // Staff accounts are archived, not destroyed — their name is still attached
-  // to prescriptions, notes and lab results. Patients created in error are
-  // still deleted outright, which is why the wording branches.
-  const handleDelete = async (user) => {
-    const isStaffAccount = user.hasUserAccount !== false && user.role !== 'patient';
-
-    if (isStaffAccount) {
-      const confirmed = window.confirm(
-        `Archive ${user.name}?\n\nTheir login will be disabled and they will drop out of staff lists. ` +
-        'Their name stays on past records. This can be undone from their profile.'
-      );
-      if (!confirmed) return;
-    } else {
-      if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) return;
-      if (!window.confirm(`Are you absolutely sure you want to permanently delete ${user.name}?`)) return;
-    }
-
-    try {
-      // Patient-only records have no User account — delete via the patients API using UHID
-      if (user.hasUserAccount === false && !user.uhid) {
-        toastError('Cannot delete this patient — UHID is missing. Contact support.');
-        return;
-      }
-      const endpoint = user.hasUserAccount === false
-        ? `/patients/${user.uhid}`
-        : `/users/${user.id}`;
-      const res = await api.delete(endpoint);
-      if (res.success) {
-        setUsers(prev => prev.filter(u => u.id !== user.id));
-        toastSuccess(
-          isStaffAccount
-            ? `${user.name} has been archived`
-            : `${user.name} has been deleted`
-        );
-      }
-    } catch (err) {
-      toastError(err.message || 'Failed to remove user');
-    }
-  };
-
-  const ActionButtons = ({ user, mobile = false }) => {
-    const isActive   = user.status === 'Active';
-    const hasAccount = user.hasUserAccount !== false;
-    const openEdit   = async () => {
-      if (hasAccount) { setEditingUser(user); return; }
-      // Fetch full patient data first — the minimal ManageUsers record lacks
-      // dateOfBirth, gender, diagnosis, address, etc. Saving without fetching
-      // first would overwrite those fields with null.
-      try {
-        const res = await patientService.getByUHID(user.uhid);
-        setEditingPatient(res.data);
-      } catch {
-        toastError('Failed to load patient details. Please try again.');
-      }
-    };
-    const base = mobile
-      ? 'flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 transition'
-      : 'p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition';
-    const disabled = 'p-1.5 rounded-lg text-gray-200 cursor-not-allowed';
-
-    if (mobile) return (
-      <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
-        <button onClick={openEdit} className={base}>
-          <Pencil size={13} /> Edit
-        </button>
-        {hasAccount ? (
-          <button onClick={() => handleResetPassword(user)} className={base}>
-            <KeyRound size={13} /> Reset Password
-          </button>
-        ) : (
-          <span className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed">
-            <KeyRound size={13} /> No Account
-          </span>
-        )}
-        <button onClick={() => handleToggleStatus(user)} className={base}>
-          {isActive ? <><UserX size={13} /> Deactivate</> : <><UserCheck size={13} /> Activate</>}
-        </button>
-        {PERMISSIBLE_ROLES.includes(user.role) && (
-          <button
-            onClick={() => handleTogglePermission(user, PERMISSIONS.STOCK_MANAGE, 'stock access')}
-            className={`${base} ${user.canManageStock ? 'text-primary' : ''}`}
-          >
-            <Package size={13} /> {user.canManageStock ? 'Revoke Stock' : 'Grant Stock'}
-          </button>
-        )}
-        {PERMISSIBLE_ROLES.includes(user.role) && (
-          <button
-            onClick={() => handleTogglePermission(
-              user,
-              PERMISSIONS.ADMIN_ACCESS,
-              'admin access',
-              'They will be able to do everything an administrator can, except grant permissions to others.'
-            )}
-            className={`${base} ${user.hasAdminAccess ? 'text-primary' : ''}`}
-          >
-            <ShieldCheck size={13} /> {user.hasAdminAccess ? 'Revoke Admin' : 'Grant Admin'}
-          </button>
-        )}
-        <button onClick={() => handleDelete(user)} className={`${base} text-red-600 hover:bg-red-50 hover:text-red-700`}>
-          <Trash2 size={13} /> Delete
-        </button>
-      </div>
-    );
-
-    return (
-      <div className="flex items-center justify-end gap-0.5">
-        <Tip label="Edit">
-          <button onClick={openEdit} className={base}>
-            <Pencil size={15} />
-          </button>
-        </Tip>
-        <Tip label={hasAccount ? 'Reset Password' : 'No account yet'}>
-          <button
-            onClick={() => hasAccount && handleResetPassword(user)}
-            className={hasAccount ? base : disabled}
-          >
-            <KeyRound size={15} />
-          </button>
-        </Tip>
-        <Tip label={isActive ? 'Deactivate' : 'Activate'}>
-          <button onClick={() => handleToggleStatus(user)} className={base}>
-            {isActive ? <UserX size={15} /> : <UserCheck size={15} />}
-          </button>
-        </Tip>
-        {PERMISSIBLE_ROLES.includes(user.role) && (
-          <Tip label={user.hasAdminAccess ? 'Admin access: granted — click to revoke' : 'Admin access: none — click to grant'}>
-            <button
-              onClick={() => handleTogglePermission(
-                user,
-                PERMISSIONS.ADMIN_ACCESS,
-                'admin access',
-                'They will be able to do everything an administrator can, except grant permissions to others.'
-              )}
-              className={`p-1.5 rounded-lg transition ${
-                user.hasAdminAccess
-                  ? 'text-primary hover:bg-blue-50'
-                  : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <ShieldCheck size={15} />
-            </button>
-          </Tip>
-        )}
-        {PERMISSIBLE_ROLES.includes(user.role) && (
-          <Tip label={user.canManageStock ? 'Stock access: granted — click to revoke' : 'Stock access: none — click to grant'}>
-            <button
-              onClick={() => handleTogglePermission(user, PERMISSIONS.STOCK_MANAGE, 'stock access')}
-              className={`p-1.5 rounded-lg transition ${
-                user.canManageStock
-                  ? 'text-primary hover:bg-blue-50'
-                  : 'text-gray-300 hover:text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <Package size={15} />
-            </button>
-          </Tip>
-        )}
-        <Tip label="Delete">
-          <button onClick={() => handleDelete(user)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition">
-            <Trash2 size={15} />
-          </button>
-        </Tip>
-      </div>
-    );
-  };
-
   return (
     <div className="space-y-5">
-      {editingUser && (
-        <EditUserModal
-          user={editingUser}
-          onClose={() => setEditingUser(null)}
-          onSaved={handleUserSaved}
-        />
-      )}
-      {editingPatient && (
-        <EditPatientModal
-          patient={editingPatient}
-          onClose={() => setEditingPatient(null)}
-          onUpdated={(updated) => {
-            // Only update fields shown in the list — do not replace the full record
-            // shape (which includes id: "patient_123", hasUserAccount, etc.)
-            setUsers(prev => prev.map(u =>
-              u.uhid === editingPatient.uhid
-                ? { ...u, name: updated.name || u.name, email: updated.email || u.email, phone: updated.phone || u.phone, status: updated.status || u.status }
-                : u
-            ));
-            setEditingPatient(null);
-          }}
-        />
-      )}
-
       {/* Header */}
       <div>
         <button
@@ -404,7 +138,7 @@ const ManageUsers = () => {
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <Users size={22} className="text-gray-600" /> Manage Users
         </h1>
-        <p className="text-sm text-gray-500 mt-1">View, edit and manage all system accounts</p>
+        <p className="text-sm text-gray-500 mt-1">View accounts and open a patient or staff file to manage them</p>
       </div>
 
       {/* Stats */}
@@ -501,10 +235,10 @@ const ManageUsers = () => {
                       <span className="text-white text-sm font-bold">{getInitials(user.name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      {user.employeeId ? (
+                      {fileHref(user) ? (
                         <button
-                          onClick={() => navigate(`/admin/staff-profile/${user.employeeId}`)}
-                          className="text-sm font-semibold text-blue-700 hover:underline truncate text-left"
+                          onClick={() => navigate(fileHref(user))}
+                          className="text-sm font-semibold text-primary hover:underline truncate text-left block max-w-full"
                         >
                           {user.name}
                         </button>
@@ -538,7 +272,6 @@ const ManageUsers = () => {
                       </StatusBadge>
                     </div>
                   </div>
-                  <ActionButtons user={user} mobile />
                 </div>
               );
             })}
@@ -549,11 +282,10 @@ const ManageUsers = () => {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  {['User', 'Role', 'Phone', 'Position', 'Status', 'Joined', 'Actions'].map((h, i) => (
+                  {['User', 'Role', 'Phone', 'Position', 'Status', 'Joined'].map((h) => (
                     <th key={h} className={`px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide ${
                       h === 'Position' ? 'hidden lg:table-cell' :
-                      h === 'Joined'   ? 'hidden xl:table-cell' :
-                      h === 'Actions'  ? 'text-right' : ''
+                      h === 'Joined'   ? 'hidden xl:table-cell' : ''
                     }`}>{h}</th>
                   ))}
                 </tr>
@@ -570,14 +302,10 @@ const ManageUsers = () => {
                             <span className="text-white text-xs font-bold">{getInitials(user.name)}</span>
                           </div>
                           <div>
-                            {/* Staff rows link through to the full profile. A row
-                                without an employeeId — a patient, or a legacy
-                                account the backfill has not reached — renders as
-                                plain text rather than a link to nowhere. */}
-                            {user.employeeId ? (
+                            {fileHref(user) ? (
                               <button
-                                onClick={() => navigate(`/admin/staff-profile/${user.employeeId}`)}
-                                className="text-sm font-semibold text-blue-700 hover:underline text-left"
+                                onClick={() => navigate(fileHref(user))}
+                                className="text-sm font-semibold text-primary hover:underline text-left"
                               >
                                 {user.name}
                               </button>
@@ -630,10 +358,6 @@ const ManageUsers = () => {
                         {user.createdAt
                           ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                           : '—'}
-                      </td>
-
-                      <td className="px-5 py-3.5">
-                        <ActionButtons user={user} />
                       </td>
                     </tr>
                   );

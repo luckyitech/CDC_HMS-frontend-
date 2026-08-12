@@ -88,7 +88,9 @@ export const staffService = {
   // DOCUMENTS
   // ============================================
 
-  getDocuments: (employeeId) => api.get(`/staff/${employeeId}/documents`),
+  /** @param {boolean} archived - admin only; archived documents are hidden by default */
+  getDocuments: (employeeId, archived = false) =>
+    api.get(`/staff/${employeeId}/documents`, { params: archived ? { archived: 'true' } : {} }),
 
   /**
    * @param {File} file
@@ -108,8 +110,11 @@ export const staffService = {
   updateDocument: (employeeId, id, data) =>
     api.patch(`/staff/${employeeId}/documents/${id}`, data),
 
-  archiveDocument: (employeeId, id) =>
-    api.delete(`/staff/${employeeId}/documents/${id}`),
+  archiveDocument: (employeeId, id, reason) =>
+    api.delete(`/staff/${employeeId}/documents/${id}`, { data: { reason } }),
+
+  restoreDocument: (employeeId, id) =>
+    api.patch(`/staff/${employeeId}/documents/${id}/restore`),
 
   /** Files stream through an authenticated route, so this fetches a blob. */
   downloadDocument: (employeeId, id) =>
