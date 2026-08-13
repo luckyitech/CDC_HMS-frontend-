@@ -41,8 +41,8 @@ import {
   LogOut,
   ShieldCheck,
   ChevronDown,
-  ChevronsLeft,
-  ChevronsRight,
+  PanelLeftClose,
+  PanelLeftOpen,
   Copy,
   FileStack,
   Package,
@@ -567,7 +567,10 @@ const MainLayout = ({ userRole = "Staff" }) => {
               title={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
               className={`w-full flex items-center px-6 py-3 ${isCollapsed ? "justify-center px-0" : ""} text-blue-200 hover:text-white hover:bg-blue-700 transition-all duration-200`}
             >
-              {collapsed ? <ChevronsRight size={22} /> : <ChevronsLeft size={22} />}
+              {/* The panel glyph says what the control acts on, which a bare
+                  chevron does not: a rail with the arrow pointing out of it to
+                  open, back into it to collapse. */}
+              {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
               <span className={`ml-4 font-medium ${isCollapsed ? "hidden" : ""}`}>
                 {collapsed ? "Pin open" : "Collapse"}
               </span>
