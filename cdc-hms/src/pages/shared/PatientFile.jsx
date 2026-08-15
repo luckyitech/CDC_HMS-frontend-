@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  ChevronDown, ArrowLeft, Pill, Zap, Radio, Battery, Calendar, TrendingUp,
+  ChevronDown, ArrowLeft, Pill, Zap, Radio, Battery, Calendar,
   FileText, MessageSquare, LineChart, Pencil, ClipboardEdit, AlertTriangle,
   KeyRound, UserCheck, UserX, Trash2, UserCog,
 } from "lucide-react";
@@ -32,7 +32,6 @@ import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import ScanActionModal from "../../components/staff/ScanActionModal";
-import GlycemicCharts from "../doctor/GlycemicCharts";
 
 const fmtDate = (d) => {
   if (!d) return "—";
@@ -40,8 +39,27 @@ const fmtDate = (d) => {
   return isNaN(parsed) ? d : parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-// Per-portal config. Preserves exactly what each portal shows today; only the
-// code is shared. Admin mirrors staff (admin already used the staff profile).
+// Every section of the patient record, in one list. Reading a patient's file is
+// not restricted by cadre — whoever can open the file sees all of it, and the
+// portals differ only in what they can EDIT (the canEdit* flags below) and where
+// "Back" goes. Previously each portal carried its own tab array, so the doctor's
+// notes and prescriptions were simply absent from the doctor portal's file and
+// visit history was absent from staff and admin.
+//
+// Note the two chart tabs are one entry: the doctor portal used to render the
+// full GlycemicCharts *page* (with its own header and patient picker) inside a
+// tab, while staff and admin rendered the GlycemicChartPanel. The panel is the
+// chart itself and is correct in both places.
+const PATIENT_FILE_TABS = [
+  { id: "notes", name: "Doctor's Notes", Icon: MessageSquare },
+  { id: "prescriptions", name: "Prescriptions", Icon: Pill },
+  { id: "charts", name: "Glycemic Charts", Icon: LineChart },
+  { id: "equipment", name: "Medical Equipment", Icon: Battery },
+  { id: "visit-history", name: "Visit History", Icon: Calendar },
+  { id: "medical-documents", name: "Medical Documents", Icon: FileText },
+];
+
+// Per-portal config. Tabs are shared; only editing rights and navigation differ.
 const ROLE_CONFIG = {
   doctor: {
     patientsPath: "/doctor/patients",
@@ -49,12 +67,7 @@ const ROLE_CONFIG = {
     canEditPatient: false,
     canEditVitals: true,
     showRegistrationBanner: false,
-    tabs: [
-      { id: "equipment", name: "Medical Equipment", Icon: Zap },
-      { id: "visit-history", name: "Visit History", Icon: Calendar },
-      { id: "glycemic-charts", name: "Glycemic Charts", Icon: TrendingUp },
-      { id: "medical-documents", name: "Medical Documents", Icon: FileText },
-    ],
+    tabs: PATIENT_FILE_TABS,
   },
   staff: {
     patientsPath: "/staff/patients",
@@ -62,13 +75,7 @@ const ROLE_CONFIG = {
     canEditPatient: true,
     canEditVitals: false,
     showRegistrationBanner: true,
-    tabs: [
-      { id: "notes", name: "Doctor's Notes", Icon: MessageSquare },
-      { id: "prescriptions", name: "Prescriptions", Icon: Pill },
-      { id: "charts", name: "Glycemic Charts", Icon: LineChart },
-      { id: "equipment", name: "Medical Equipment", Icon: Battery },
-      { id: "medical-documents", name: "Medical Documents", Icon: FileText },
-    ],
+    tabs: PATIENT_FILE_TABS,
   },
   admin: {
     patientsPath: "/admin/manage-users",
@@ -77,13 +84,7 @@ const ROLE_CONFIG = {
     canEditVitals: true,
     canManageAccount: true,
     showRegistrationBanner: true,
-    tabs: [
-      { id: "notes", name: "Doctor's Notes", Icon: MessageSquare },
-      { id: "prescriptions", name: "Prescriptions", Icon: Pill },
-      { id: "charts", name: "Glycemic Charts", Icon: LineChart },
-      { id: "equipment", name: "Medical Equipment", Icon: Battery },
-      { id: "medical-documents", name: "Medical Documents", Icon: FileText },
-    ],
+    tabs: PATIENT_FILE_TABS,
   },
 };
 
@@ -245,11 +246,12 @@ const PatientFile = () => {
     fetchPatientByUHID(uhid).then((p) => { setPatient(p || null); setLoading(false); });
   }, [uhid, fetchPatientByUHID]);
 
-  // Prescriptions only needed for the staff/admin prescriptions tab.
+  // Every portal now has the prescriptions tab, so this no longer skips the
+  // doctor portal — without the fetch that tab would render an empty list.
   useEffect(() => {
-    if (!patient || portal === "doctor") return;
+    if (!patient) return;
     getPrescriptionsByPatient(uhid).then((d) => setPrescriptions(Array.isArray(d) ? d : []));
-  }, [patient, uhid, portal, getPrescriptionsByPatient]);
+  }, [patient, uhid, getPrescriptionsByPatient]);
 
   const handleReactivate = async () => {
     if (!window.confirm(`Reactivate patient ${patient.uhid}? This will unlink them from the merged record.`)) return;
@@ -390,7 +392,6 @@ const PatientFile = () => {
         {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
         {activeTab === "visit-history" && (<><VisitHistoryPanel patient={patient} /><StockDispenseHistory uhid={uhid} /></>)}
-        {activeTab === "glycemic-charts" && <GlycemicCharts />}
         {activeTab === "charts" && <GlycemicChartPanel patient={patient} />}
         {activeTab === "notes" && <ConsultationNotesList patient={patient} readOnly />}
         {activeTab === "prescriptions" && (
