@@ -10,6 +10,7 @@ import { QUEUE_STATUS_TONES } from '../../utils/statusStyles';
 import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
 import useNotificationSound from '../../hooks/useNotificationSound';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { isConsultationDone, isPendingInjection } from '../../utils/queueStatus';
 
 const QUEUE_PER_PAGE = 15;
@@ -154,39 +155,15 @@ const DoctorDashboard = () => {
 
       {/* Today's Queue - All Patients */}
       <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5" />Today's Queue</span>}>
-        {/* Tab bar */}
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-lg mb-4 w-fit">
-          <button
-            onClick={() => switchTab('all')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-              activeTab === 'all'
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            All Patients
-            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
-              activeTab === 'all' ? 'bg-primary text-white' : 'bg-gray-300 text-gray-600'
-            }`}>
-              {todayQueue.length}
-            </span>
-          </button>
-          <button
-            onClick={() => switchTab('mine')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-              activeTab === 'mine'
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            My Patients Today
-            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
-              activeTab === 'mine' ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
-            }`}>
-              {myTodayQueue.length}
-            </span>
-          </button>
-        </div>
+        <SwitcherTabs
+          className="mb-4"
+          active={activeTab}
+          onChange={switchTab}
+          tabs={[
+            { id: 'all',  label: 'All Patients',      count: todayQueue.length },
+            { id: 'mine', label: 'My Patients Today', count: myTodayQueue.length },
+          ]}
+        />
 
         {displayQueue.length > 0 ? (
           <>

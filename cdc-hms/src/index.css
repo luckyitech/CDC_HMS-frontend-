@@ -13,6 +13,42 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* ── Installed-app (PWA) stability ─────────────────────────────────────────
+   The app is installed as a PWA on Windows/macOS/iOS/Android. These rules pin
+   the shell so content never sways: no document rubber-banding (iOS), no
+   pull-to-refresh (Android), no sideways pan, no tap-highlight flash. The app
+   shell in MainLayout is the ONLY scroll container. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;      /* no bounce / pull-to-refresh at the document */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Shell height: exactly the visible viewport. 100dvh tracks browser chrome and
+   the keyboard on mobile; 100vh is the fallback for older engines. */
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Safe areas — content clears the iPhone notch/home bar and Android gesture
+   bar when installed (viewport-fit=cover exposes the env() values). */
+.safe-t { padding-top: env(safe-area-inset-top, 0px); }
+.safe-b { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-x { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+
+/* Scrolling inside a modal must never drag the page behind it. Every modal is
+   a fixed overlay, so this targets their inner scroll bodies. */
+.fixed .overflow-y-auto { overscroll-behavior: contain; }
+
+/* iOS zooms the whole viewport when focusing any input under 16px — the app
+   visibly jumps on every field tap. On touch devices only, form controls render
+   at 16px; desktop keeps the designed sizes. */
+@media (hover: none) and (pointer: coarse) {
+  input, select, textarea { font-size: 16px; }
+}
+
 /* Force full color printing across all browsers and devices (including Safari/iOS).
    react-to-print copies this stylesheet into the print iframe automatically. */
 * {

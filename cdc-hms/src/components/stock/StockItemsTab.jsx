@@ -5,6 +5,7 @@ import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
+import SwitcherTabs from "../shared/SwitcherTabs";
 import { Field, inputCls, StatusPill } from "./stockUi";
 
 // Items, Locations and Suppliers share one tab: three sub-lists over the same
@@ -93,27 +94,15 @@ const StockItemsTab = () => {
     rows.filter((r) => r.name.toLowerCase().includes(search.toLowerCase()));
 
   const subTabs = [
-    { id: "items", label: `Items (${items.length})` },
-    { id: "locations", label: `Locations (${locations.length})` },
-    { id: "suppliers", label: `Suppliers (${suppliers.length})` },
+    { id: "items", label: "Items", count: items.length },
+    { id: "locations", label: "Locations", count: locations.length },
+    { id: "suppliers", label: "Suppliers", count: suppliers.length },
   ];
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex gap-2">
-          {subTabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setView(t.id)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
-                view === t.id ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <SwitcherTabs active={view} onChange={setView} tabs={subTabs} />
         <div className="flex gap-2">
           <input
             className={`${inputCls} w-56`}

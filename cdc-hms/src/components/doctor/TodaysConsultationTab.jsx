@@ -1,20 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Check,
   AlertCircle,
-  FileEdit,
-  Stethoscope,
   MessageSquare,
-  Target,
-  User,
   Pill,
-  LineChart,
   UserCircle,
-  FileText,
-  Calendar,
   X,
-  Pencil,
   Wrench,
   Syringe,
   ChevronUp,
@@ -24,32 +16,26 @@ import {
   BedDouble,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import Card from "../../components/shared/Card";
-import Button from "../../components/shared/Button";
-import EditVitalsModal from "../../components/doctor/EditVitalsModal";
-import { usePatientContext } from "../../contexts/PatientContext";
+import Card from "../shared/Card";
+import EditVitalsModal from "./EditVitalsModal";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useUserContext } from "../../contexts/UserContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useAppointmentContext } from "../../contexts/AppointmentContext";
 import { useGlp1Context } from "../../contexts/Glp1Context";
-import ReferPatientModal from "../../components/doctor/ReferPatientModal";
-import RecordUseModal from "../../components/stock/RecordUseModal";
-import AdmitPatientModal from "../../components/doctor/AdmitPatientModal";
+import ReferPatientModal from "./ReferPatientModal";
+import RecordUseModal from "../stock/RecordUseModal";
+import AdmitPatientModal from "./AdmitPatientModal";
 import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOptions";
 import { INJECTION_REASON, PENDING_INJECTION } from "../../utils/queueStatus";
 import patientService from "../../services/patientService";
 import inpatientService from "../../services/inpatientService";
-import ConsultationNotesPlan from "../../components/doctor/ConsultationNotesPlan";
-import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
-import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
-import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
-import AccordionPanel from "../../components/shared/AccordionPanel";
-import Glp1Tracker from "../../components/doctor/Glp1Tracker";
-import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
-import ConsultationSummaryContainer from "../../components/doctor/ConsultationSummaryContainer";
-import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
-import { formatDOB, isToday } from "../../utils/dateUtils";
+import ConsultationNotesPlan from "./ConsultationNotesPlan";
+import PrescriptionManagement from "./PrescriptionManagement";
+import AccordionPanel from "../shared/AccordionPanel";
+import Glp1Tracker from "./Glp1Tracker";
+import ConsultationSummaryContainer from "./ConsultationSummaryContainer";
+import { isToday } from "../../utils/dateUtils";
 
 // ---------------------------------------------------------------------------
 // Accordion section definitions for "Today's Consultation" tab
@@ -101,15 +87,23 @@ const NoOpenVisitNotice = ({ onClose }) => (
 );
 
 // ---------------------------------------------------------------------------
-// Main component
+// TodaysConsultationTab — the doctor's live "Today's Consultation" workspace,
+// extracted from the old standalone Consultation page so it can be a tab inside
+// the shared PatientFile (mirrors NursingActionsTab). The outer chrome — patient
+// bar, overview panel, tab bar and the History/Diagnostics/Charts tabs — now
+// belongs to PatientFile; only the consultation body, its action bar, summary
+// panel and modals live here.
+//
+// Props:
+//   patient    resolved patient object (PatientFile owns loading)
+//   onRefresh  re-fetch the patient in PatientFile (after a vitals edit, etc.)
 // ---------------------------------------------------------------------------
-const Consultation = () => {
-  const { uhid } = useParams();
+const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = false }) => {
+  const uhid = patient?.uhid;
   const navigate  = useNavigate();
   const DRAFT_KEY = `consultation_progress_${uhid}`;
 
   const { currentUser }                               = useUserContext();
-  const { fetchPatientByUHID }                        = usePatientContext();
   const { queue, sendToBilling, updateQueueStatus, referPatient } = useQueueContext();
   const { getPrescriptionsByPatient, addPrescription } = usePrescriptionContext();
   const { getWeekNotes }                              = useGlp1Context();
@@ -119,27 +113,9 @@ const Consultation = () => {
   // State
   // ---------------------------------------------------------------------------
 
-  const [patient, setPatient]           = useState(null);
-  const [loadingPatient, setLoadingPatient] = useState(true);
-
-  // Which of the 5 top-level tabs is active
-  const [activeTab, setActiveTab] = useState("consultation");
-  // Patient bar dropdown — slides the full Overview details open under the bar
-  const [overviewOpen, setOverviewOpen] = useState(false);
-  const overviewScrollRef = useRef(null);
   // Live consultation note text, handed up from ConsultationNotesPlan so the
   // Admit modal can pre-fill the admission note.
   const notesTextRef = useRef('');
-  // Always open at the top, and freeze the page behind it while expanded
-  // (MainLayout's <main> is the app scroll container; the overview scrolls itself)
-  useEffect(() => {
-    if (!overviewOpen) return undefined;
-    if (overviewScrollRef.current) overviewScrollRef.current.scrollTop = 0;
-    const main = document.querySelector('main');
-    const prev = main?.style.overflowY;
-    if (main) main.style.overflowY = 'hidden';
-    return () => { if (main) main.style.overflowY = prev || ''; };
-  }, [overviewOpen]);
   // Patient summary drawer — mobile/tablet only (always visible ≥ xl)
   const [summaryOpen, setSummaryOpen] = useState(false);
   // Tracked diagnoses (summary panel is their single home). Active ones are
@@ -262,14 +238,6 @@ const Consultation = () => {
   // Effects
   // ---------------------------------------------------------------------------
 
-  // Load patient from UHID
-  useEffect(() => {
-    fetchPatientByUHID(uhid).then(p => {
-      setPatient(p || null);
-      setLoadingPatient(false);
-    });
-  }, [uhid, fetchPatientByUHID]);
-
   /**
    * GLP-1 week notes the nurse left for this patient today.
    *
@@ -355,7 +323,6 @@ const Consultation = () => {
         { duration: 4000, position: "top-right", icon: "❌",
           style: { background: "#EF4444", color: "#FFFFFF", fontWeight: "bold", padding: "16px" } }
       );
-      setActiveTab("consultation");
       setOpenSections('diagnosis');
       return;
     }
@@ -543,33 +510,6 @@ const Consultation = () => {
   // Early returns
   // ---------------------------------------------------------------------------
 
-  if (loadingPatient) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-gray-500">
-        <svg className="animate-spin w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-        </svg>
-        Loading patient data...
-      </div>
-    );
-  }
-
-  if (!patient) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="max-w-md">
-          <div className="text-center py-8">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Patient Not Found</h2>
-            <p className="text-gray-600 mb-4">Unable to find patient with UHID: {uhid}</p>
-            <Button onClick={() => navigate("/doctor/dashboard")}>Back to Dashboard</Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
   if (showSuccessMessage) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -588,268 +528,28 @@ const Consultation = () => {
   }
 
   // ---------------------------------------------------------------------------
-  // Tab configuration (5 tabs)
-  // ---------------------------------------------------------------------------
-  // Overview is no longer a tab — its content opens from the patient bar dropdown.
-  const tabs = [
-    { id: "consultation",  label: "Today's Consultation", icon: Stethoscope   },
-    { id: "history",       label: "Visit History",        icon: Calendar      },
-    { id: "documents",     label: "Diagnostics",          icon: FileText      },
-    { id: "charts",        label: "Charts",               icon: LineChart     },
-  ];
-
-  // getRecordsForDate — moved to VisitHistoryPanel (shared component)
-
-  // ---------------------------------------------------------------------------
   // JSX
   // ---------------------------------------------------------------------------
   return (
     <div className="pb-12">
-
-      {/* ===== Sticky Header ===== */}
-      <div className="sticky top-0 z-10 bg-gray-50 pb-3">
-
-        {/* Patient info bar — click to slide the full patient overview open.
-            While open it takes the active-tab treatment (blue, white text). */}
-        <div
-          onClick={() => setOverviewOpen((o) => !o)}
-          className={`mb-1 px-4 py-1.5 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
-            overviewOpen
-              ? "bg-primary border-primary text-white"
-              : "bg-white border-gray-200 hover:bg-blue-50"
-          }`}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <ChevronDown
-              className={`w-4 h-4 flex-shrink-0 transition-transform ${
-                overviewOpen ? "rotate-180 text-white" : "text-gray-400"
-              }`}
-            />
-            <h2 className={`text-base font-bold truncate ${overviewOpen ? "text-white" : "text-gray-800"}`}>
-              {patient.name}
-            </h2>
-            <div className="hidden sm:flex sm:flex-col">
-              <span className={`text-sm ${overviewOpen ? "text-blue-100" : "text-gray-400"}`}>
-                {patient.uhid} · {patient.age} yrs · {patient.gender}
-              </span>
-              {patient.dateOfBirth && (
-                <span className={`text-xs ${overviewOpen ? "text-blue-100" : "text-gray-400"}`}>
-                  DOB: {formatDOB(patient.dateOfBirth)}
-                </span>
-              )}
-            </div>
-          </div>
-          {/* Patient Summary toggle — mobile/tablet, Today's Consultation tab only
-              (the panel is scoped to that tab; always visible there ≥ xl).
-              Replaces the old "← Dashboard" back button (sidebar covers navigation). */}
-          {activeTab === "consultation" && !overviewOpen && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setSummaryOpen(true); }}
-              className={`xl:hidden flex-shrink-0 flex items-center gap-1.5 text-sm font-semibold border rounded-lg px-3 py-1.5 transition-colors ${
-                overviewOpen
-                  ? "text-white border-white/60 hover:bg-white/10"
-                  : "text-primary border-primary hover:bg-blue-50"
-              }`}
-            >
-              <MenuIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Patient Summary</span>
-              <span className="sm:hidden">Summary</span>
-            </button>
-          )}
-        </div>
-
-
-        {/* Overview panel — expands in flow with a smooth slide, pushing the
-            tabs and all content below it down (65vh cap, scrolls internally) */}
-        <div
-          className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            overviewOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-          }`}
-        >
-          <div className="overflow-hidden min-h-0">
-            <div
-              ref={overviewScrollRef}
-              className="h-[calc(100dvh-16rem)] md:h-[calc(100dvh-11rem)] overflow-y-auto no-scrollbar overscroll-contain py-2 mb-1 space-y-6"
-            >
-          <PatientSummaryCard patient={patient} shadow={false} />
-
-          <Card shadow={false} title={<span className="flex items-center gap-2"><User className="w-6 h-6" />Patient Information</span>}>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600">Age</p>
-                <p className="font-semibold">{patient.age ? `${patient.age} years` : '—'}</p>
-                {patient.dateOfBirth && (
-                  <p className="text-xs text-gray-400 mt-0.5">DOB: {formatDOB(patient.dateOfBirth)}</p>
-                )}
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Gender</p>
-                <p className="font-semibold">{patient.gender || '—'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Date of Birth</p>
-                <p className="font-semibold">
-                  {patient.dateOfBirth
-                    ? new Date(patient.dateOfBirth).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-                    : '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">ID Number</p>
-                <p className="font-semibold">{patient.idNumber || '—'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Phone</p>
-                <p className="font-semibold">{patient.phone || '—'}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Email</p>
-                <p className="font-semibold">{patient.email || '—'}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-sm text-gray-600">Address</p>
-                <p className="font-semibold">{patient.address || '—'}</p>
-              </div>
-              {patient.primaryDoctor && (
-                <div>
-                  <p className="text-sm text-gray-600">Primary Doctor</p>
-                  <p className="font-semibold">{patient.primaryDoctor}</p>
-                </div>
-              )}
-              {patient.referredBy && (
-                <div>
-                  <p className="text-sm text-gray-600">Referred By</p>
-                  <p className="font-semibold">{patient.referredBy}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Emergency Contact */}
-            {patient.emergencyContact && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Emergency Contact</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Name</p>
-                    <p className="text-sm font-semibold">{patient.emergencyContact.name || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Relationship</p>
-                    <p className="text-sm font-semibold">{patient.emergencyContact.relationship || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Phone</p>
-                    <p className="text-sm font-semibold">{patient.emergencyContact.phone || '—'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Insurance */}
-            {patient.insurance && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <p className="text-sm font-semibold text-gray-700 mb-2">Insurance</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Provider</p>
-                    <p className="text-sm font-semibold">{patient.insurance.provider || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Policy No.</p>
-                    <p className="text-sm font-semibold">{patient.insurance.policyNumber || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Expiry</p>
-                    <p className="text-sm font-semibold">{patient.insurance.expiryDate || '—'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Allergies — safety-critical, kept; the rest of the old Medical
-              Information grid (dx/risk/HbA1c/comorbidities) is covered by the
-              summary panel and removed. */}
-          {patient.allergies && (
-            <Card shadow={false} title={<span className="flex items-center gap-2"><AlertCircle className="w-6 h-6 text-red-500" />Allergies</span>}>
-              <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
-                <p className="text-sm text-gray-800 font-medium">{patient.allergies}</p>
-              </div>
-            </Card>
-          )}
-
-          {/* Medical Equipment */}
-          {patient.medicalEquipment?.insulinPump?.hasPump && (
-            <Card shadow={false} title={<span className="flex items-center gap-2"><span className="text-2xl">🔋</span>Medical Equipment</span>}>
-              <div className="space-y-3">
-                {patient.medicalEquipment.insulinPump.current && (
-                  <div className="p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
-                    <p className="text-sm font-bold text-gray-800 mb-1">⚡ Insulin Pump</p>
-                    <p className="text-sm text-gray-700">
-                      {patient.medicalEquipment.insulinPump.current.model || "Not specified"}{" "}
-                      ({patient.medicalEquipment.insulinPump.current.serialNo})
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Active since {new Date(patient.medicalEquipment.insulinPump.current.startDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                {patient.medicalEquipment.insulinPump.transmitter?.hasTransmitter && (
-                  <div className="p-3 bg-purple-50 rounded-lg border-l-4 border-purple-500">
-                    <p className="text-sm font-bold text-gray-800 mb-1">📡 Transmitter</p>
-                    <p className="text-sm text-gray-700">
-                      Serial: {patient.medicalEquipment.insulinPump.transmitter.serialNo}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Active since {new Date(patient.medicalEquipment.insulinPump.transmitter.startDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
-            </div>
-          </div>
-        </div>
-
-        {/* Tab navigation */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
-          <div className="flex">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setOverviewOpen(false); }}
-                className={`flex-1 min-w-max px-4 py-2.5 text-sm font-medium transition-all ${
-                  activeTab === tab.id && !overviewOpen
-                    ? "bg-primary text-white"
-                    : "text-gray-600 hover:bg-blue-50"
-                }`}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <tab.icon className="w-4 h-4" />
-                  {tab.label}
-                  {tab.id === 'consultation' && tabsCompleted.diagnosis && (
-                    <Check className="w-4 h-4 text-green-500 bg-white rounded-full p-0.5" />
-                  )}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-      {/* ===== End Sticky Header ===== */}
-
-
-      {/* ===== Tab Content =====
-          Two-column layout: main tab content + right summary panel.
-          The panel lives OUTSIDE the accordion grid, so ACCORDION_SECTIONS
-          parity is untouched. */}
+      {/* Two-column layout: consultation body + right summary panel. The panel
+          lives OUTSIDE the accordion grid, so ACCORDION_SECTIONS parity is
+          untouched. */}
       <div className="flex flex-col xl:flex-row xl:items-start gap-4">
       <div className="flex-1 min-w-0">
 
+      {/* Patient summary — mobile/tablet trigger for the drawer (always-on ≥ xl) */}
+      <div className="xl:hidden flex justify-end mb-3">
+        <button
+          onClick={() => setSummaryOpen(true)}
+          className="flex items-center gap-1.5 text-sm font-semibold border border-primary text-primary rounded-lg px-3 py-1.5 hover:bg-blue-50"
+        >
+          <MenuIcon className="w-4 h-4" /> Patient Summary
+        </button>
+      </div>
+
       {/* ── Today's Consultation (accordion) ── */}
-      {activeTab === "consultation" && (
-        <div className="space-y-3">
+      <div className="space-y-3">
           {/* Reminder banner — only for patients with no active tracked diagnosis */}
           {!tabsCompleted.diagnosis && !hasActiveDx && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-3">
@@ -992,23 +692,9 @@ const Consultation = () => {
             );
           })()}
         </div>
-      )}
 
-      {/* ── Visit History ── */}
-      {activeTab === "history" && <VisitHistoryPanel patient={patient} excludeToday />}
-
-      {/* ── Diagnostics ── */}
-      {activeTab === "documents" && <MedicalDocumentsTab patient={patient} />}
-
-      {/* ── Charts ── */}
-      {activeTab === "charts" && (
-        <GlycemicChartPanel patient={patient} />
-      )}
-
-      {/* ===== Action Buttons — Today's Consultation only, in flow at the very
-             end of the content column: visible after scrolling past the last
-             section (never obscure the summary panel or page content) ===== */}
-      {activeTab === "consultation" && (
+      {/* ===== Action Buttons — in flow at the very end of the content column:
+             visible after scrolling past the last section ===== */}
       <div className="mt-6 flex items-center justify-end gap-2">
         {/* Secondary actions collapsed into one dropdown to keep the bar uncluttered */}
         <div className="relative" ref={actionsRef}>
@@ -1060,7 +746,6 @@ const Consultation = () => {
           />
         )}
       </div>
-      )}
 
       </div>
 
@@ -1070,21 +755,22 @@ const Consultation = () => {
           cannot). The spacer below reserves its column in the layout.
           < xl: right-side floating drawer opened by the "Patient Summary" button. */}
 
-      {/* Summary panel — Today's Consultation tab only (not a global feature) */}
-      {activeTab === "consultation" && (
+      {/* Summary panel — shown alongside the consultation body, but hidden while
+          the full patient overview is expanded so the fixed panel can't overlap it. */}
+      {!overviewOpen && (
       <>
-      {/* Drawer backdrop — mobile/tablet only (toggle lives in the patient info bar) */}
+      {/* Drawer backdrop — mobile/tablet only (toggle lives above the accordion) */}
       {summaryOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 xl:hidden" onClick={() => setSummaryOpen(false)} />
       )}
 
       <aside
         className={`
-          fixed inset-y-4 right-4 z-40 w-[320px] max-w-[88vw] md:w-[50vw] overflow-y-auto no-scrollbar overscroll-contain rounded-[20px] bg-gray-50 shadow-2xl p-3
+          fixed top-[calc(1rem+env(safe-area-inset-top,0px))] bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-[calc(1rem+env(safe-area-inset-right,0px))] z-40 w-[320px] max-w-[88vw] md:w-[50vw] overflow-y-auto no-scrollbar overscroll-contain rounded-[20px] bg-gray-50 shadow-2xl p-3
           transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
           ${summaryOpen ? "translate-x-0" : "translate-x-[calc(100%+1.5rem)]"}
-          xl:inset-auto xl:top-[7.5rem] xl:right-8 xl:z-[5] xl:w-[340px] xl:max-w-none xl:translate-x-0
-          xl:max-h-[calc(100dvh-8.5rem)] xl:rounded-none xl:bg-transparent xl:shadow-none xl:p-0
+          xl:inset-auto xl:top-[11.5rem] xl:right-8 xl:z-[5] xl:w-[340px] xl:max-w-none xl:translate-x-0
+          xl:max-h-[calc(100dvh-12.5rem)] xl:rounded-none xl:bg-transparent xl:shadow-none xl:p-0
         `}
       >
         {/* Drawer header — mobile/tablet only */}
@@ -1105,7 +791,6 @@ const Consultation = () => {
             }))
           )}
           onOpenMeds={() => {
-            setActiveTab("consultation");
             setOpenSections("prescriptions");
             setSummaryOpen(false);
           }}
@@ -1392,7 +1077,7 @@ const Consultation = () => {
           vitals={patient?.vitals}
           uhid={uhid}
           onClose={() => setShowVitalsModal(false)}
-          onSaved={() => fetchPatientByUHID(uhid).then(p => setPatient(p || null))}
+          onSaved={() => onRefresh()}
         />
       )}
 
@@ -1434,4 +1119,4 @@ const Consultation = () => {
   );
 };
 
-export default Consultation;
+export default TodaysConsultationTab;

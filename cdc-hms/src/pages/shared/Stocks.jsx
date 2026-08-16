@@ -10,6 +10,8 @@ import StockMovementsTab from "../../components/stock/StockMovementsTab";
 import StockRoomBalanceTab from "../../components/stock/StockRoomBalanceTab";
 import StockStocktakeTab from "../../components/stock/StockStocktakeTab";
 import StockAnalyticsTab from "../../components/stock/StockAnalyticsTab";
+import PageHeader from "../../components/shared/PageHeader";
+import SwitcherTabs from "../../components/shared/SwitcherTabs";
 
 // Stocks — the full module: items/locations/suppliers, receive (STK- shelf-label
 // printing), dispense + transfer (scan-first, FEFO-gated), room balance (par
@@ -56,33 +58,25 @@ const Stocks = () => {
 
   return (
     <div>
-      {/* Header — standard page header block (AdminDashboard / ClinicalCatalog) */}
-      <div className="mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Stocks</h2>
-        <p className="text-gray-600 mt-1">
-          Monitor medication and supply quantities — batches, expiry, movements and room balance. No pricing.
-        </p>
-      </div>
+      <PageHeader
+        title="Stocks"
+        subtitle="Monitor medication and supply quantities — batches, expiry, movements and room balance. No pricing."
+      />
 
-      {/* Tab switcher — same pill group as the Clinical Catalog / Create Users tabs */}
-      <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">
-        {TABS.map((t) => {
+      <SwitcherTabs
+        className="mb-6"
+        active={tab}
+        onChange={changeTab}
+        tabs={TABS.map((t) => {
           const blocked = dispenseLocked && tab === "dispense" && t.id !== "dispense";
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => changeTab(t.id)}
-              title={blocked ? "Complete or cancel the dispense first" : undefined}
-              className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-                tab === t.id ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
-              } ${blocked ? "opacity-40 cursor-not-allowed" : ""}`}
-            >
-              {t.label}
-            </button>
-          );
+          return {
+            id: t.id,
+            label: t.label,
+            disabled: blocked,
+            title: blocked ? "Complete or cancel the dispense first" : undefined,
+          };
         })}
-      </div>
+      />
 
       {/* key remounts the tab on switch so each loads fresh data */}
       <div key={tab}>

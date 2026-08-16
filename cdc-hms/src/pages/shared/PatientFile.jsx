@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  ChevronDown, ArrowLeft, Pill, Zap, Radio, Battery, Calendar, TrendingUp,
-  FileText, MessageSquare, LineChart, Pencil, ClipboardEdit, AlertTriangle,
-  KeyRound, UserCheck, UserX, Trash2, UserCog,
+  ChevronDown, ArrowLeft, Zap, Radio, Battery, Calendar,
+  FileText, Pencil, ClipboardEdit, AlertTriangle,
+  KeyRound, UserCheck, UserX, Trash2, UserCog, Stethoscope,
 } from "lucide-react";
 import { formatDOB } from "../../utils/dateUtils";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
+import { useQueueContext } from "../../contexts/QueueContext";
 import { patientService } from "../../services/patientService";
 import api from "../../services/api";
 
@@ -16,23 +17,23 @@ import Card from "../../components/shared/Card";
 import Button from "../../components/shared/Button";
 import PageHeader from "../../components/shared/PageHeader";
 import ProfileTabBar from "../../components/shared/ProfileTabBar";
+import SwitcherTabs from "../../components/shared/SwitcherTabs";
 import useCollapsibleOverview from "../../hooks/useCollapsibleOverview";
 import InactivePatientBanner from "../../components/shared/InactivePatientBanner";
 import BarcodeActions from "../../components/shared/BarcodeActions";
 import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
-import VitalsGrid from "../../components/shared/VitalsGrid";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
-import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
+import NursingActionsTab from "../../components/nursing/NursingActionsTab";
+import TodaysConsultationTab from "../../components/doctor/TodaysConsultationTab";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
 import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import ScanActionModal from "../../components/staff/ScanActionModal";
-import GlycemicCharts from "../doctor/GlycemicCharts";
 
 const fmtDate = (d) => {
   if (!d) return "—";
@@ -40,8 +41,29 @@ const fmtDate = (d) => {
   return isNaN(parsed) ? d : parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
-// Per-portal config. Preserves exactly what each portal shows today; only the
-// code is shared. Admin mirrors staff (admin already used the staff profile).
+// Every portal shows the SAME patient file. The only difference is the first,
+// role-specific "live visit" tab, and it's queue-gated — like the doctor's
+// Today's Consultation, it only exists while the patient is in an active visit:
+//   • doctor        → Today's Consultation
+//   • staff / nurse → Nursing
+//   • admin         → neither (review-only portal)
+// Everything after it is identical everywhere. Visit History is the master
+// record (doctor's notes, doctor's actions, nursing history AND prescriptions).
+const REST_TABS = [
+  { id: "visit-history", name: "Visit History", Icon: Calendar },
+  // Diagnostics hosts two sub-tabs: Medical Documents and Charts.
+  { id: "medical-documents", name: "Diagnostics", Icon: FileText },
+  { id: "equipment", name: "Medical Equipment", Icon: Battery },
+];
+
+// The role-specific live tabs, keyed by the portal's `liveTab`.
+const LIVE_TABS = {
+  consultation: { id: "consultation", name: "Today's Consultation", Icon: Stethoscope },
+  nursing:      { id: "nursing",      name: "Nursing",              Icon: Stethoscope },
+};
+
+// Per-portal config. Portals differ only in navigation labels, management
+// permissions, and which live tab (if any) they open.
 const ROLE_CONFIG = {
   doctor: {
     patientsPath: "/doctor/patients",
@@ -49,12 +71,7 @@ const ROLE_CONFIG = {
     canEditPatient: false,
     canEditVitals: true,
     showRegistrationBanner: false,
-    tabs: [
-      { id: "equipment", name: "Medical Equipment", Icon: Zap },
-      { id: "visit-history", name: "Visit History", Icon: Calendar },
-      { id: "glycemic-charts", name: "Glycemic Charts", Icon: TrendingUp },
-      { id: "medical-documents", name: "Medical Documents", Icon: FileText },
-    ],
+    liveTab: "consultation",
   },
   staff: {
     patientsPath: "/staff/patients",
@@ -62,13 +79,15 @@ const ROLE_CONFIG = {
     canEditPatient: true,
     canEditVitals: false,
     showRegistrationBanner: true,
-    tabs: [
-      { id: "notes", name: "Doctor's Notes", Icon: MessageSquare },
-      { id: "prescriptions", name: "Prescriptions", Icon: Pill },
-      { id: "charts", name: "Glycemic Charts", Icon: LineChart },
-      { id: "equipment", name: "Medical Equipment", Icon: Battery },
-      { id: "medical-documents", name: "Medical Documents", Icon: FileText },
-    ],
+    liveTab: "nursing",
+  },
+  nurse: {
+    patientsPath: "/nurse/queue",
+    patientsLabel: "Back to Queue",
+    canEditPatient: false,
+    canEditVitals: false,
+    showRegistrationBanner: false,
+    liveTab: "nursing",
   },
   admin: {
     patientsPath: "/admin/manage-users",
@@ -77,14 +96,50 @@ const ROLE_CONFIG = {
     canEditVitals: true,
     canManageAccount: true,
     showRegistrationBanner: true,
-    tabs: [
-      { id: "notes", name: "Doctor's Notes", Icon: MessageSquare },
-      { id: "prescriptions", name: "Prescriptions", Icon: Pill },
-      { id: "charts", name: "Glycemic Charts", Icon: LineChart },
-      { id: "equipment", name: "Medical Equipment", Icon: Battery },
-      { id: "medical-documents", name: "Medical Documents", Icon: FileText },
-    ],
+    liveTab: null,
   },
+};
+
+// Diagnostics tab body — a Medical Documents / Charts sub-toggle, same pattern
+// as Visit History's Visits/Prescriptions.
+const DiagnosticsTab = ({ patient }) => {
+  const [sub, setSub] = useState("documents");
+  return (
+    <div>
+      <SwitcherTabs
+        className="mb-4"
+        active={sub}
+        onChange={setSub}
+        tabs={[{ id: "documents", label: "Medical Documents" }, { id: "charts", label: "Charts" }]}
+      />
+      {sub === "documents" ? <MedicalDocumentsTab patient={patient} /> : <GlycemicChartPanel patient={patient} />}
+    </div>
+  );
+};
+
+// Visit History tab body — the master record. A Visits/Prescriptions sub-toggle:
+// "Visits" is the day-by-day timeline (doctor's notes, actions, nursing);
+// "Prescriptions" hosts the prescriptions view, moved here unchanged.
+const VisitHistoryTab = ({ patient, uhid, prescriptions }) => {
+  const [sub, setSub] = useState("visits");
+  return (
+    <div>
+      <SwitcherTabs
+        className="mb-4"
+        active={sub}
+        onChange={setSub}
+        tabs={[{ id: "visits", label: "Visits" }, { id: "prescriptions", label: "Prescriptions" }]}
+      />
+      {sub === "visits" ? (
+        <>
+          <VisitHistoryPanel patient={patient} />
+          <StockDispenseHistory uhid={uhid} />
+        </>
+      ) : (
+        <PrescriptionManagement patient={patient} patientPrescriptions={prescriptions} readOnly />
+      )}
+    </div>
+  );
 };
 
 const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
@@ -123,10 +178,6 @@ const OverviewPanel = ({ patient }) => (
       </Card>
     </div>
 
-    <Card title="Latest Vitals" shadow={false} className="border border-gray-100">
-      <VitalsGrid vitals={patient.vitals} patient={patient} />
-    </Card>
-
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card title="Emergency Contact" shadow={false} className="border border-gray-100">
         {patient.emergencyContact?.name ? (
@@ -152,21 +203,6 @@ const OverviewPanel = ({ patient }) => (
         )}
       </Card>
     </div>
-
-    <Card title="Current Medications" shadow={false} className="border border-gray-100">
-      {patient.medications && patient.medications.length > 0 ? (
-        <ul className="space-y-2">
-          {patient.medications.map((med, i) => (
-            <li key={i} className="flex items-start p-3 bg-gray-50 rounded-lg">
-              <Pill className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-800">{med}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-gray-500">No current medications on file</p>
-      )}
-    </Card>
 
     <Card title="Allergies" shadow={false} className="border border-gray-100">
       <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
@@ -212,26 +248,48 @@ const PatientFile = () => {
   // Users), not be bounced to the doctor patient list.
   const portal = location.pathname.startsWith("/admin") ? "admin"
     : location.pathname.startsWith("/doctor") ? "doctor"
-    : "staff"; // /staff and /nurse share the staff config
+    : location.pathname.startsWith("/nurse") ? "nurse"
+    : "staff";
   const cfg = ROLE_CONFIG[portal];
   const fromConsultation = location.state?.fromConsultation;
+
+  // The role-specific live tab (Today's Consultation for doctors, Nursing for
+  // staff/nurses, none for admin). Prepended to the shared REST_TABS.
+  const liveTabDef = cfg.liveTab ? LIVE_TABS[cfg.liveTab] : null;
+  const orderedTabs = liveTabDef ? [liveTabDef, ...REST_TABS] : REST_TABS;
 
   // A "User Management" tab, appended last, houses every account/management
   // action (edit profile, reset password, activate/deactivate, delete, and
   // whatever is added later). It only appears in portals that can manage the
-  // patient — doctors get no such tab.
+  // patient — the nurse portal gets no such tab.
   const showUserMgmt = cfg.canEditPatient || cfg.canManageAccount || cfg.canEditVitals;
-  const tabs = showUserMgmt
-    ? [...cfg.tabs, { id: "user-management", name: "User Management", Icon: UserCog }]
-    : cfg.tabs;
+  const allTabs = showUserMgmt
+    ? [...orderedTabs, { id: "user-management", name: "User Management", Icon: UserCog }]
+    : orderedTabs;
 
   const { fetchPatientByUHID } = usePatientContext();
   const { getPrescriptionsByPatient } = usePrescriptionContext();
+  const { isInQueue } = useQueueContext();
+
+  // The live tab is the "today's visit" workspace — like the doctor's Today's
+  // Consultation, it only exists while the patient is in the queue. When they're
+  // not, it's hidden; the past record is always under Visit History.
+  const inQueue = isInQueue(uhid);
+  const tabs = (liveTabDef && !inQueue)
+    ? allTabs.filter((t) => t.id !== liveTabDef.id)
+    : allTabs;
 
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [prescriptions, setPrescriptions] = useState([]);
-  const { activeTab, selectTab, overviewOpen, setOverviewOpen } = useCollapsibleOverview(location.state?.activeTab || cfg.tabs[0].id);
+  // On the consultation route the doctor should land on Today's Consultation
+  // even before the queue finishes loading; elsewhere, the first visible tab.
+  const onConsultationRoute = location.pathname.includes("/consultation/");
+  const initialTab = location.state?.activeTab || (onConsultationRoute ? "consultation" : tabs[0].id);
+  const { activeTab, selectTab, overviewOpen, setOverviewOpen } = useCollapsibleOverview(initialTab);
+  // Guard the active tab: if it isn't currently visible (e.g. Nursing after the
+  // patient leaves the queue), fall back to the first visible tab.
+  const currentTab = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0]?.id;
   const [reactivating, setReactivating] = useState(false);
   const [showVitalsModal, setShowVitalsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -325,10 +383,6 @@ const PatientFile = () => {
                 <ArrowLeft className="w-5 h-5" /> Back to Consultation
               </Button>
             )}
-            <BarcodeActions patient={patient} />
-            <Button variant="outline" onClick={() => navigate(cfg.patientsPath)} className="flex items-center gap-2">
-              <ArrowLeft className="w-5 h-5" /> {cfg.patientsLabel}
-            </Button>
           </div>
         }
       />
@@ -384,23 +438,32 @@ const PatientFile = () => {
         </div>
       </div>
 
-      <ProfileTabBar tabs={tabs} activeTab={activeTab} onChange={selectTab} />
+      <ProfileTabBar tabs={tabs} activeTab={currentTab} onChange={selectTab} />
 
       <div>
-        {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
-        {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
-        {activeTab === "visit-history" && (<><VisitHistoryPanel patient={patient} /><StockDispenseHistory uhid={uhid} /></>)}
-        {activeTab === "glycemic-charts" && <GlycemicCharts />}
-        {activeTab === "charts" && <GlycemicChartPanel patient={patient} />}
-        {activeTab === "notes" && <ConsultationNotesList patient={patient} readOnly />}
-        {activeTab === "prescriptions" && (
-          <>
-            <PrescriptionManagement patient={patient} patientPrescriptions={prescriptions} readOnly />
-            <StockDispenseHistory uhid={uhid} />
-          </>
+        {currentTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
+        {currentTab === "consultation" && (
+          <TodaysConsultationTab patient={patient} onRefresh={loadPatient} overviewOpen={overviewOpen} />
         )}
-        {activeTab === "user-management" && (
+        {currentTab === "nursing" && (
+          <NursingActionsTab
+            patient={patient}
+            onRefresh={loadPatient}
+            // Staff/nurse return to their queue after a disposition; doctor/admin
+            // have no queue, so just refresh the file in place.
+            onDone={() => (portal === "staff" || portal === "nurse") ? navigate(`/${portal}/queue`) : loadPatient()}
+          />
+        )}
+        {currentTab === "medical-documents" && <DiagnosticsTab patient={patient} />}
+        {currentTab === "visit-history" && (
+          <VisitHistoryTab patient={patient} uhid={uhid} prescriptions={prescriptions} />
+        )}
+        {currentTab === "user-management" && (
           <div className="space-y-6">
+            <Card title="Barcode" shadow={false} className="border border-gray-100">
+              <p className="text-sm text-gray-500 mb-3">Scan or print this patient's identification barcode.</p>
+              <BarcodeActions patient={patient} />
+            </Card>
             {(cfg.canEditPatient || cfg.canEditVitals) && (
               <Card title="Profile" shadow={false} className="border border-gray-100">
                 <p className="text-sm text-gray-500 mb-3">Edit this patient's details and recorded vitals.</p>

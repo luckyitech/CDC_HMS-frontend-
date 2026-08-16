@@ -5,6 +5,7 @@ import useIdNumberCheck from '../../hooks/useIdNumberCheck';
 import Card from './Card';
 import Button from './Button';
 import Input from './Input';
+import PageHeader from './PageHeader';
 import { useNavigate } from 'react-router-dom';
 import { notify } from '../../utils/notify';
 import { usePatientContext } from '../../contexts/PatientContext';
@@ -196,15 +197,15 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
     <div>
       {/* Page header — hidden when hosted inside Create Users */}
       {!embedded && (
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
-          <div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">Create Patient Account</h2>
-            <p className="text-gray-600 mt-1">Register new patient in the system</p>
-          </div>
-          <Button variant="outline" onClick={() => navigate(backPath)}>
-            ← Back to Dashboard
-          </Button>
-        </div>
+        <PageHeader
+          title="Create Patient Account"
+          subtitle="Register new patient in the system"
+          actions={
+            <Button variant="outline" onClick={() => navigate(backPath)}>
+              ← Back to Dashboard
+            </Button>
+          }
+        />
       )}
 
       {/* UHID Section */}

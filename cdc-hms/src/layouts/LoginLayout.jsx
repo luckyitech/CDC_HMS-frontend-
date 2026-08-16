@@ -5,8 +5,11 @@ const LoginLayout = ({ children }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-400 flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl">
+    // app-shell + own scroll: html/body are locked for PWA stability, so any
+    // full-page route outside MainLayout scrolls itself. m-auto centres the
+    // card but still allows scrolling when it's taller than a small screen.
+    <div className="app-shell safe-t safe-b overflow-y-auto no-scrollbar overscroll-contain bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-400 flex p-4">
+      <div className="w-full max-w-3xl m-auto">
         <div className="text-center mb-8">
           <div
             className="w-28 h-28 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-xl p-4 cursor-pointer"
