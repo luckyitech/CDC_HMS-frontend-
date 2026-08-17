@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { KeyRound, Check } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
 import Toggle from '../../components/shared/Toggle';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
@@ -79,10 +80,7 @@ const SystemSettings = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl lg:text-3xl font-bold text-gray-800">System Settings</h2>
-        <p className="text-gray-600 mt-1">Clinic-wide policies and access controls</p>
-      </div>
+      <PageHeader title="System Settings" subtitle="Clinic-wide policies and access controls" />
 
       {/* Card is used without its `title` prop so the switch can sit on the
           header row itself, which is where a settings toggle belongs. */}

@@ -25,7 +25,9 @@ export default defineConfig({
         theme_color: '#0066CC',
         background_color: '#ffffff',
         display: 'standalone',
-        orientation: 'portrait-primary',
+        // 'any': tablets and convertibles rotate freely — a records-heavy app
+        // with wide tables is regularly used landscape at the desk.
+        orientation: 'any',
         start_url: '/',
         scope: '/',
         icons: [

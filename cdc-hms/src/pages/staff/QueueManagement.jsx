@@ -18,7 +18,6 @@ import {
   Package,
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
-import PageHeader from '../../components/shared/PageHeader';
 import StatCard from '../../components/shared/StatCard';
 import Button from '../../components/shared/Button';
 import StatusBadge from '../../components/shared/StatusBadge';
@@ -27,6 +26,8 @@ import { useQueueContext } from '../../contexts/QueueContext';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
 import { BatchScanBox } from '../../components/stock/stockUi';
 import stockService from '../../services/stockService';
+import TriageWorklist from '../../components/nursing/TriageWorklist';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 
 const formatArrival = (iso) => {
   if (!iso) return '-';
@@ -291,18 +292,28 @@ const QueueManagement = () => {
     }
   };
 
+  const [tab, setTab] = useState("queue");
+
   return (
     <div>
-      <PageHeader
-        title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5 text-primary" />Queue Management</span>}
-        actions={
-          <Button variant="outline" onClick={fetchQueue} disabled={loading} className="flex items-center gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Refresh
-          </Button>
-        }
-      />
+      {/* Tabs + refresh. The page title isn't repeated here — the nav (and, for
+          staff, the page switcher) already names this section. */}
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <SwitcherTabs
+          active={tab}
+          onChange={setTab}
+          tabs={[{ id: "queue", label: "Queue" }, { id: "triage", label: "Triage" }]}
+        />
+        <Button variant="outline" onClick={fetchQueue} disabled={loading} className="flex items-center gap-2 flex-shrink-0">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          Refresh
+        </Button>
+      </div>
 
+      {tab === "triage" ? (
+        <TriageWorklist />
+      ) : (
+      <>
       {/* Statistics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
         <StatCard title="Waiting for Triage" value={stats.waiting} icon={Clock} gradient="from-yellow-500 to-yellow-600" />
@@ -483,6 +494,8 @@ const QueueManagement = () => {
           </div>
         )}
       </Card>
+      </>
+      )}
 
       {/* Confirm & Discharge Modal */}
       {showDischargeModal && dischargePatient && (

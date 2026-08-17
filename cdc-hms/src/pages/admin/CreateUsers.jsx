@@ -3,6 +3,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { HeartPulse, Users, TestTube, UserPlus, BedDouble } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import Button from '../../components/shared/Button';
 import CreateDoctor from './CreateDoctor';
 import CreateStaff from './CreateStaff';
@@ -53,24 +54,12 @@ const CreateUsers = () => {
         }
       />
 
-      {/* Role switcher — same pattern as the doctor dashboard queue tabs */}
-      <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">
-        {ROLES.map((role) => (
-          <button
-            key={role.key}
-            type="button"
-            onClick={() => switchRole(role.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-              activeRole.key === role.key
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {role.icon}
-            {role.label}
-          </button>
-        ))}
-      </div>
+      <SwitcherTabs
+        className="mb-6"
+        active={activeRole.key}
+        onChange={switchRole}
+        tabs={ROLES.map((role) => ({ id: role.key, label: <>{role.icon}{role.label}</> }))}
+      />
 
       {/* key remounts the form on switch so state never leaks between roles */}
       <ErrorBoundary FallbackComponent={FormError} resetKeys={[activeRole.key]}>
