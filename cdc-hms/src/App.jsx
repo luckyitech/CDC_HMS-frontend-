@@ -96,6 +96,10 @@ const StaffAnalytics         = lazy(() => import("./pages/admin/analytics/StaffA
 const ConsultationAnalytics  = lazy(() => import("./pages/admin/analytics/ConsultationAnalytics"));
 const WardConfig             = lazy(() => import("./pages/admin/WardConfig"));
 
+// HMIS V4 — ultrasound (lazy)
+const UnassignedUltrasound   = lazy(() => import("./pages/admin/UnassignedUltrasound"));
+const UltrasoundStudio       = lazy(() => import("./pages/doctor/UltrasoundStudio"));
+
 // HMIS V3 — inpatient (lazy)
 const WardBoard          = lazy(() => import("./pages/inpatient/WardBoard"));
 const AdmissionDetail    = lazy(() => import("./pages/inpatient/AdmissionDetail"));
@@ -195,6 +199,7 @@ function App() {
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="physical-exam" element={<PhysicalExamination />} />
                   <Route path="glycemic-charts" element={<GlycemicCharts />} />
+                  <Route path="ultrasound-studio" element={<UltrasoundStudio />} />
                   <Route path="appointments" element={<DoctorAppointmentsList />} />
                   <Route path="my-schedule" element={<MySchedule />} />
                   <Route path="stock" element={<Stocks />} />
@@ -256,6 +261,7 @@ function App() {
                   <Route path="catalog" element={<ClinicalCatalog />} />
                   <Route path="stock" element={<Stocks />} />
                   <Route path="duplicate-patients" element={<DuplicatePatients />} />
+                  <Route path="unassigned-ultrasound" element={<UnassignedUltrasound />} />
                   <Route path="activity-log" element={<ActivityLog />} />
                   <Route path="analytics" element={<AnalyticsOverview />} />
                   <Route path="analytics/doctors" element={<DoctorAnalytics />} />

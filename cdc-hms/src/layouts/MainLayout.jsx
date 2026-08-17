@@ -48,6 +48,7 @@ import {
   FileStack,
   Package,
   KeyRound,
+  Waves,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
@@ -326,6 +327,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       //   path: "/doctor/physical-exam",
       //   icon: Stethoscope,
       // },
+      { name: "Ultrasound Studio", path: "/doctor/ultrasound-studio", icon: Waves },
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
@@ -383,6 +385,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
       { name: "Users", path: "/admin/manage-users", icon: Users },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
+      { name: "Ultrasound Queue", path: "/admin/unassigned-ultrasound", icon: Waves },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble },
       {
