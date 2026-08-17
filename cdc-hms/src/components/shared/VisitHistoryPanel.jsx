@@ -770,6 +770,32 @@ const visitTimelineTasks = (records) => {
   return items.sort((a, b) => new Date(b.ts || 0) - new Date(a.ts || 0));
 };
 
+// Doctor's notes are paged by the API (default 20 per page). Visit History is
+// now the ONLY place the full note history appears — the patient file no longer
+// carries a standalone Doctor's Notes tab — so fetching a single page silently
+// hid older notes on long-running patients. Walk every page.
+//
+// Page 1 reports how many pages exist; the remainder are fetched together.
+const NOTES_FETCH_PAGE_SIZE = 100;
+// 5000 notes. A guard against a runaway loop, not a limit we expect to reach.
+const NOTES_MAX_PAGES = 50;
+
+const fetchAllNotes = async (uhid, getNotes) => {
+  const first = await getNotes(uhid, { page: 1, limit: NOTES_FETCH_PAGE_SIZE });
+  const notes = [...(first?.notes || [])];
+
+  const totalPages = Math.min(first?.pagination?.totalPages || 1, NOTES_MAX_PAGES);
+  if (totalPages > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, i) =>
+        getNotes(uhid, { page: i + 2, limit: NOTES_FETCH_PAGE_SIZE }).catch(() => ({ notes: [] }))
+      )
+    );
+    rest.forEach((r) => notes.push(...(r?.notes || [])));
+  }
+  return { notes };
+};
+
 // Turn queue visit rows into flat, time-stamped workflow milestones for the
 // timeline: check-in, triage done, seen by (each) doctor, consultation complete.
 const workflowFromVisits = (visits) => {
@@ -984,7 +1010,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
           getPrescriptionsByPatient(uhid),
-          getNotesByPatient(uhid),
+          fetchAllNotes(uhid, getNotesByPatient),
           patientService.getVitalsHistory(uhid).catch(() => ({ success: false, data: [] })),
           // GLP-1 injections, monitoring reviews and week notes — all support uhid directly
           glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),
