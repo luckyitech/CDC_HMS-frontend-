@@ -18,6 +18,8 @@ const fmtNoteDate = (d) => {
   });
 };
 
+const NOTES_PAGE_SIZE = 10;
+
 const ConsultationNotesList = ({
   patient,
   showStatistics = false,
@@ -29,12 +31,16 @@ const ConsultationNotesList = ({
   const [editingNote, setEditingNote] = useState(null);
   const [filteredNotes, setFilteredNotes] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
 
   // Load recent notes for this patient. The old search/filter/pagination UI was
-  // removed (past visits live in the summary panel's Visit History), so this
-  // always fetches the default first page.
+  // removed for the editor (past visits live in the summary panel's Visit
+  // History), but the read-only history below still paginates — a patient
+  // with more than one page of notes previously had no way to reach the rest
+  // (the "Showing the 10 most recent of N notes" footer had no Load More).
   //
   // A failed load is tracked separately from an empty one. The context layer
   // turns a rejected request into `{ notes: [] }`, so without this flag a 403
@@ -46,10 +52,11 @@ const ConsultationNotesList = ({
       setLoading(true);
       setLoadFailed(false);
       try {
-        const { notes, pagination } = await searchNotes(patient.uhid, "", { page: 1, limit: 10 });
+        const { notes, pagination } = await searchNotes(patient.uhid, "", { page: 1, limit: NOTES_PAGE_SIZE });
         if (!isMounted) return;
         setFilteredNotes(notes);
         setTotalCount(pagination?.total ?? notes.length);
+        setPage(1);
       } catch {
         if (!isMounted) return;
         setFilteredNotes([]);
@@ -61,6 +68,25 @@ const ConsultationNotesList = ({
     load();
     return () => { isMounted = false; };
   }, [patient.uhid, getNotesByPatient, searchNotes]);
+
+  const loadMoreNotes = async () => {
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const { notes, pagination } = await searchNotes(patient.uhid, "", { page: nextPage, limit: NOTES_PAGE_SIZE });
+      setFilteredNotes((prev) => [...prev, ...notes]);
+      setTotalCount(pagination?.total ?? totalCount);
+      setPage(nextPage);
+    } catch {
+      toast.error("Could not load more notes. Please try again.", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleSaveNote = async () => {
     if (!consultationNotes.trim()) {
@@ -263,9 +289,14 @@ const ConsultationNotesList = ({
               </div>
             ))}
             {totalCount > filteredNotes.length && (
-              <p className="text-xs text-gray-400 text-center">
-                Showing the {filteredNotes.length} most recent of {totalCount} notes.
-              </p>
+              <div className="text-center pt-2">
+                <p className="text-xs text-gray-400 mb-2">
+                  Showing {filteredNotes.length} of {totalCount} notes.
+                </p>
+                <Button variant="outline" onClick={loadMoreNotes} disabled={loadingMore}>
+                  {loadingMore ? "Loading…" : "Load more notes"}
+                </Button>
+              </div>
             )}
           </div>
         )

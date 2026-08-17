@@ -105,7 +105,11 @@ const CareLinkSection = ({ equipment }) => {
 };
 
 // Displays and manages the list of CareLink partners.
-const CareLinkPartnersSection = ({ partners, onAdd, onEdit, onRemove }) => (
+// canEdit gates Add / Edit / Remove — the backend's carelink-partners writes
+// are authorize('doctor', 'staff') only, same as equipment. Previously
+// ungated, so nurse and admin (who can now reach this section via the
+// unified patient-file tabs) saw buttons that would 403.
+const CareLinkPartnersSection = ({ partners, canEdit, onAdd, onEdit, onRemove }) => (
   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -119,12 +123,14 @@ const CareLinkPartnersSection = ({ partners, onAdd, onEdit, onRemove }) => (
           </span>
         )}
       </div>
-      <button
-        onClick={onAdd}
-        className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
-      >
-        <PlusCircle className="w-3.5 h-3.5" /> Add Partner
-      </button>
+      {canEdit && (
+        <button
+          onClick={onAdd}
+          className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1"
+        >
+          <PlusCircle className="w-3.5 h-3.5" /> Add Partner
+        </button>
+      )}
     </div>
 
     {partners.length === 0 ? (
@@ -147,20 +153,22 @@ const CareLinkPartnersSection = ({ partners, onAdd, onEdit, onRemove }) => (
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 ml-3 flex-shrink-0">
-              <button
-                onClick={() => onEdit(p)}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-              >
-                <Edit className="w-3 h-3" /> Edit
-              </button>
-              <button
-                onClick={() => onRemove(p.id)}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
-              >
-                <Trash2 className="w-3 h-3" /> Remove
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                <button
+                  onClick={() => onEdit(p)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                >
+                  <Edit className="w-3 h-3" /> Edit
+                </button>
+                <button
+                  onClick={() => onRemove(p.id)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3 h-3" /> Remove
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -291,7 +299,13 @@ const MedicalEquipmentTab = ({ patient }) => {
   const equipment    = equipmentData;
   const hasPump        = equipment?.hasPump && equipment?.current;
   const hasTransmitter = equipment?.transmitter?.hasTransmitter;
-  const canReplace     = ["staff", "doctor"].includes(currentUser?.role?.toLowerCase());
+  // Add / Edit / Replace equipment and CareLink partner writes are all
+  // authorize('doctor', 'staff') on the backend — nurse and admin are not in
+  // that list. Only Replace was checking this; Add and Edit rendered
+  // unconditionally for every role that can reach this tab (now nurse and
+  // admin too, since the patient-file tabs were unified), so those roles saw
+  // buttons that 403 on click.
+  const canManageEquipment = ["staff", "doctor"].includes(currentUser?.role?.toLowerCase());
 
   // ── Mutation handlers ───────────────────────────────────────────────────────
   const handleMutation = (modalKey, successMsg, action) => async (eqData, reason) => {
@@ -375,14 +389,18 @@ const MedicalEquipmentTab = ({ patient }) => {
             <Battery className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <p className="text-xl font-bold text-gray-800 mb-2">No Medical Equipment Registered</p>
             <p className="text-gray-600 mb-6">This patient does not have an insulin pump or transmitter on record.</p>
-            <div className="flex gap-4 justify-center">
-              <Button onClick={() => openModal('addPump')}>
-                <Zap className="w-4 h-4 mr-2" /> Add Insulin Pump
-              </Button>
-              <Button variant="secondary" onClick={() => openModal('addTransmitter')}>
-                <Radio className="w-4 h-4 mr-2" /> Add Transmitter
-              </Button>
-            </div>
+            {canManageEquipment ? (
+              <div className="flex gap-4 justify-center">
+                <Button onClick={() => openModal('addPump')}>
+                  <Zap className="w-4 h-4 mr-2" /> Add Insulin Pump
+                </Button>
+                <Button variant="secondary" onClick={() => openModal('addTransmitter')}>
+                  <Radio className="w-4 h-4 mr-2" /> Add Transmitter
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">Only doctors and staff can register equipment.</p>
+            )}
           </div>
         </Card>
       )}
@@ -433,6 +451,7 @@ const MedicalEquipmentTab = ({ patient }) => {
             <CareLinkSection equipment={equipment.current} />
             <CareLinkPartnersSection
               partners={partners}
+              canEdit={canManageEquipment}
               onAdd={() => openModal('addPartner')}
               onEdit={(p) => { setEditingPartner(p); openModal('editPartner'); }}
               onRemove={handleRemovePartner}
@@ -440,10 +459,12 @@ const MedicalEquipmentTab = ({ patient }) => {
           </div>
 
           <div className="flex flex-wrap gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => openModal('editPump')}>
-              <Edit className="w-4 h-4 mr-2" /> Edit Details
-            </Button>
-            {canReplace && (
+            {canManageEquipment && (
+              <Button variant="outline" onClick={() => openModal('editPump')}>
+                <Edit className="w-4 h-4 mr-2" /> Edit Details
+              </Button>
+            )}
+            {canManageEquipment && (
               <Button variant="outline" onClick={() => openModal('replacePump')}>
                 <RefreshCw className="w-4 h-4 mr-2" /> Replace Pump
               </Button>
@@ -460,9 +481,11 @@ const MedicalEquipmentTab = ({ patient }) => {
         <Card>
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">No insulin pump registered</p>
-            <Button onClick={() => openModal('addPump')}>
-              <Zap className="w-4 h-4 mr-2" /> Add Insulin Pump
-            </Button>
+            {canManageEquipment && (
+              <Button onClick={() => openModal('addPump')}>
+                <Zap className="w-4 h-4 mr-2" /> Add Insulin Pump
+              </Button>
+            )}
           </div>
         </Card>
       )}
@@ -504,10 +527,12 @@ const MedicalEquipmentTab = ({ patient }) => {
           </div>
 
           <div className="flex flex-wrap gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => openModal('editTransmitter')}>
-              <Edit className="w-4 h-4 mr-2" /> Edit Details
-            </Button>
-            {canReplace && (
+            {canManageEquipment && (
+              <Button variant="outline" onClick={() => openModal('editTransmitter')}>
+                <Edit className="w-4 h-4 mr-2" /> Edit Details
+              </Button>
+            )}
+            {canManageEquipment && (
               <Button variant="outline" onClick={() => openModal('replaceTransmitter')}>
                 <RefreshCw className="w-4 h-4 mr-2" /> Replace Transmitter
               </Button>
@@ -524,9 +549,11 @@ const MedicalEquipmentTab = ({ patient }) => {
         <Card>
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">No transmitter registered</p>
-            <Button variant="secondary" onClick={() => openModal('addTransmitter')}>
-              <Radio className="w-4 h-4 mr-2" /> Add Transmitter
-            </Button>
+            {canManageEquipment && (
+              <Button variant="secondary" onClick={() => openModal('addTransmitter')}>
+                <Radio className="w-4 h-4 mr-2" /> Add Transmitter
+              </Button>
+            )}
           </div>
         </Card>
       )}

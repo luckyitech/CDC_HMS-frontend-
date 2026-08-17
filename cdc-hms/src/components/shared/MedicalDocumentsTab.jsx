@@ -154,6 +154,11 @@ const MedicalDocumentsTab = ({ patient }) => {
 
   const isDoctor = currentUser?.role?.toLowerCase() === 'doctor';
   const isAdmin = currentUser?.role === 'admin';
+  // POST /api/documents allows doctor, staff, admin — not nurse. This tab is
+  // now reachable from the nurse portal (it shares the staff patient-file
+  // config), so without this check a nurse would see an Upload Document
+  // button that 403s when clicked.
+  const canUpload = ['doctor', 'staff', 'admin'].includes(currentUser?.role?.toLowerCase());
 
   // Show loading state
   if (isLoading) {
@@ -177,13 +182,15 @@ const MedicalDocumentsTab = ({ patient }) => {
             {allDocuments.length} document{allDocuments.length !== 1 ? 's' : ''} uploaded
           </p>
         </div>
-        <Button
-          onClick={() => setShowUploadModal(true)}
-          className="w-full sm:w-auto flex items-center justify-center gap-2"
-        >
-          <Upload className="w-4 h-4" />
-          Upload Document
-        </Button>
+        {canUpload && (
+          <Button
+            onClick={() => setShowUploadModal(true)}
+            className="w-full sm:w-auto flex items-center justify-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Upload Document
+          </Button>
+        )}
       </div>
 
       {/* Filters and Search */}
