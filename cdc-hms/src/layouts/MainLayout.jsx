@@ -42,8 +42,8 @@ import {
   LogOut,
   ShieldCheck,
   ChevronDown,
-  ChevronsLeft,
-  ChevronsRight,
+  PanelLeftClose,
+  PanelLeftOpen,
   Copy,
   FileStack,
   Package,
@@ -95,8 +95,15 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // renders at /{portal}/inpatient-board), so the sidebar never changes. Nurses
   // keep their own ward-board home.
   const homeRole = userRole.toLowerCase();
+  // Only these portals actually mount an /{portal}/inpatient-board route (App.jsx).
+  // The nurse and inpatient portals do NOT: a nurse's own dashboard IS the ward
+  // board, and the inpatient workspace has /inpatient/board. Generating the tab
+  // path from homeRole without this check produced /nurse/inpatient-board and
+  // /inpatient/inpatient-board — links straight to NotFound.
+  const PORTALS_WITH_INPATIENT_BOARD = ['staff', 'doctor', 'lab'];
   const canSeeInpatientTab =
-    currentUser?.role === 'doctor' || hasPermission(currentUser, PERMISSIONS.INPATIENT_ACCESS);
+    PORTALS_WITH_INPATIENT_BOARD.includes(homeRole) &&
+    (currentUser?.role === 'doctor' || hasPermission(currentUser, PERMISSIONS.INPATIENT_ACCESS));
 
   const dashboardTabs = [
     {
@@ -677,12 +684,23 @@ const MainLayout = ({ userRole = "Staff" }) => {
           {profileOpen && (
           <div className={`flex items-center gap-2 px-4 pb-3 ${isCollapsed ? "md:flex-col md:px-0" : ""}`}>
             <NotificationBell userRole={userRole} />
-            {/* HMIS V3 — workspace switcher for nurses. Doctors and permitted staff
-                use the Outpatient/Inpatient dashboard tabs instead. */}
-            {currentUser?.role === "nurse" && (
+            {/* HMIS V3 — workspace switcher.
+                Nurses use it in both directions. Everyone else reaches the ward
+                board through the Outpatient/Inpatient dashboard tabs — but those
+                tabs do NOT render inside the Inpatient portal, and clicking a bed
+                on the board navigates to /inpatient/admission/:id. Without a way
+                out here, a doctor who opened a bed was stranded: no tabs, no
+                portal switcher (unless admin), and one sidebar entry. So the
+                button is also shown to anyone currently inside /inpatient/*. */}
+            {(currentUser?.role === "nurse" || userRole.toLowerCase() === "inpatient") && (
               <button
                 onClick={() =>
-                  navigate(userRole.toLowerCase() === "inpatient" ? "/nurse/dashboard" : "/inpatient/board")
+                  navigate(
+                    userRole.toLowerCase() === "inpatient"
+                      // Back to the user's own portal home, whoever they are.
+                      ? `/${currentUser?.role || "staff"}/dashboard`
+                      : "/inpatient/board"
+                  )
                 }
                 title={userRole.toLowerCase() === "inpatient" ? "Go to Outpatient" : "Go to Inpatient"}
                 aria-label="Switch workspace"
@@ -720,7 +738,10 @@ const MainLayout = ({ userRole = "Staff" }) => {
               title={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
               className={`w-full flex items-center px-6 py-3 ${isCollapsed ? "justify-center px-0" : ""} text-blue-200 hover:text-white hover:bg-blue-700 transition-all duration-200`}
             >
-              {collapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}
+              {/* The panel glyph says what the control acts on, which a bare
+                  chevron does not: a rail with the arrow pointing out of it to
+                  open, back into it to collapse. */}
+              {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
               <span className={`ml-4 font-medium ${isCollapsed ? "hidden" : ""}`}>
                 {collapsed ? "Pin open" : "Collapse"}
               </span>

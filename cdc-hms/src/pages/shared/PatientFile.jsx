@@ -303,11 +303,12 @@ const PatientFile = () => {
     fetchPatientByUHID(uhid).then((p) => { setPatient(p || null); setLoading(false); });
   }, [uhid, fetchPatientByUHID]);
 
-  // Prescriptions only needed for the staff/admin prescriptions tab.
+  // Every portal now has the prescriptions tab, so this no longer skips the
+  // doctor portal — without the fetch that tab would render an empty list.
   useEffect(() => {
-    if (!patient || portal === "doctor") return;
+    if (!patient) return;
     getPrescriptionsByPatient(uhid).then((d) => setPrescriptions(Array.isArray(d) ? d : []));
-  }, [patient, uhid, portal, getPrescriptionsByPatient]);
+  }, [patient, uhid, getPrescriptionsByPatient]);
 
   const handleReactivate = async () => {
     if (!window.confirm(`Reactivate patient ${patient.uhid}? This will unlink them from the merged record.`)) return;

@@ -40,16 +40,19 @@ const DATE_FIELD_MAP = {
   glp1Injections:  'administeredDate',
   // GLP-1 monitoring reviews written by any clinician (nurse or doctor)
   glp1Reviews:     'date',
-  // Advised admissions (doctor's admission note from OPD) — an "action", not part
-  // of the clinical document; rendered in the day's Actions tab.
-  admissions:      'requestedAt',
-  // Referral notes (doctor's referral letter from OPD) — also an "action".
-  referrals:       'savedAt',
   // Per-week notes — the nurse's injection note and the doctor's reply. Their
   // own section rather than nested under the injection: a week that elapsed
   // without being recorded has no injection row at all, and a note filed
   // against it must not vanish with it.
   glp1WeekNotes:   'createdAt',
+  // Advised admissions (doctor's admission note from OPD) — an "action", not part
+  // of the clinical document; rendered in the day's Actions tab. Grouped by
+  // savedAt (when the note was documented), not requestedAt (when it was sent for
+  // admission): the note belongs to the day it was written, and requestedAt is
+  // null while the note has only been documented.
+  admissions:      'savedAt',
+  // Referral notes (doctor's referral letter from OPD) — also an "action".
+  referrals:       'savedAt',
   // Nursing notes — the DAR-format Kardex. Each entry is dated by its own day.
   nursingNotes:    'date',
   // Workflow milestones from the queue (check-in, triage done, seen by doctor,
@@ -575,7 +578,8 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
   const title = isReferral ? 'Referral Note' : 'Admission Note';
   const sub = isReferral
     ? [data.referralType, data.destination, data.doctorName, fmtDay(data.savedAt)].filter(Boolean).join(' · ')
-    : [data.admissionType, data.doctorName, fmtDay(data.requestedAt)].filter(Boolean).join(' · ')
+    : [data.admissionType, data.doctorName, fmtDay(data.savedAt)].filter(Boolean).join(' · ')
+        + (data.sent ? ' · sent for admission' : ' · documented only')
         + (data.cancelledAt ? ' · cancelled' : '');
 
   return (
@@ -764,6 +768,32 @@ const visitTimelineTasks = (records) => {
   }));
   // Newest action first — the most recent thing that happened sits at the top.
   return items.sort((a, b) => new Date(b.ts || 0) - new Date(a.ts || 0));
+};
+
+// Doctor's notes are paged by the API (default 20 per page). Visit History is
+// now the ONLY place the full note history appears — the patient file no longer
+// carries a standalone Doctor's Notes tab — so fetching a single page silently
+// hid older notes on long-running patients. Walk every page.
+//
+// Page 1 reports how many pages exist; the remainder are fetched together.
+const NOTES_FETCH_PAGE_SIZE = 100;
+// 5000 notes. A guard against a runaway loop, not a limit we expect to reach.
+const NOTES_MAX_PAGES = 50;
+
+const fetchAllNotes = async (uhid, getNotes) => {
+  const first = await getNotes(uhid, { page: 1, limit: NOTES_FETCH_PAGE_SIZE });
+  const notes = [...(first?.notes || [])];
+
+  const totalPages = Math.min(first?.pagination?.totalPages || 1, NOTES_MAX_PAGES);
+  if (totalPages > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, i) =>
+        getNotes(uhid, { page: i + 2, limit: NOTES_FETCH_PAGE_SIZE }).catch(() => ({ notes: [] }))
+      )
+    );
+    rest.forEach((r) => notes.push(...(r?.notes || [])));
+  }
+  return { notes };
 };
 
 // Turn queue visit rows into flat, time-stamped workflow milestones for the
@@ -980,7 +1010,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
           getPrescriptionsByPatient(uhid),
-          getNotesByPatient(uhid),
+          fetchAllNotes(uhid, getNotesByPatient),
           patientService.getVitalsHistory(uhid).catch(() => ({ success: false, data: [] })),
           // GLP-1 injections, monitoring reviews and week notes — all support uhid directly
           glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),

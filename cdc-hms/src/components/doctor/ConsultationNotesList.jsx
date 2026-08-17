@@ -6,6 +6,20 @@ import VoiceInput from "../shared/VoiceInput";
 import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
 import { Save } from "lucide-react";
 
+// Notes carry a plain YYYY-MM-DD string from the backend (clinicToday()).
+// Parsed as UTC by the Date constructor, so render the parts directly rather
+// than letting the local timezone shift the displayed day.
+const fmtNoteDate = (d) => {
+  if (!d) return "";
+  const [y, m, day] = String(d).split("-").map(Number);
+  if (!y || !m || !day) return d;
+  return new Date(y, m - 1, day).toLocaleDateString("en-US", {
+    weekday: "short", month: "short", day: "numeric", year: "numeric",
+  });
+};
+
+const NOTES_PAGE_SIZE = 10;
+
 const ConsultationNotesList = ({
   patient,
   showStatistics = false,
@@ -17,25 +31,62 @@ const ConsultationNotesList = ({
   const [editingNote, setEditingNote] = useState(null);
   const [filteredNotes, setFilteredNotes] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   // Load recent notes for this patient. The old search/filter/pagination UI was
-  // removed (past visits live in the summary panel's Visit History), so this
-  // always fetches the default first page.
+  // removed for the editor (past visits live in the summary panel's Visit
+  // History), but the read-only history below still paginates — a patient
+  // with more than one page of notes previously had no way to reach the rest
+  // (the "Showing the 10 most recent of N notes" footer had no Load More).
+  //
+  // A failed load is tracked separately from an empty one. The context layer
+  // turns a rejected request into `{ notes: [] }`, so without this flag a 403
+  // and a patient with no notes render identically — which is how the missing
+  // 'admin' role on GET /consultation-notes stayed invisible.
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
+      setLoading(true);
+      setLoadFailed(false);
       try {
-        const { notes, pagination } = await searchNotes(patient.uhid, "", { page: 1, limit: 10 });
+        const { notes, pagination } = await searchNotes(patient.uhid, "", { page: 1, limit: NOTES_PAGE_SIZE });
         if (!isMounted) return;
         setFilteredNotes(notes);
         setTotalCount(pagination?.total ?? notes.length);
+        setPage(1);
       } catch {
-        if (isMounted) setFilteredNotes([]);
+        if (!isMounted) return;
+        setFilteredNotes([]);
+        setLoadFailed(true);
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
     load();
     return () => { isMounted = false; };
   }, [patient.uhid, getNotesByPatient, searchNotes]);
+
+  const loadMoreNotes = async () => {
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const { notes, pagination } = await searchNotes(patient.uhid, "", { page: nextPage, limit: NOTES_PAGE_SIZE });
+      setFilteredNotes((prev) => [...prev, ...notes]);
+      setTotalCount(pagination?.total ?? totalCount);
+      setPage(nextPage);
+    } catch {
+      toast.error("Could not load more notes. Please try again.", {
+        duration: 3000,
+        position: "top-right",
+        icon: "❌",
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleSaveNote = async () => {
     if (!consultationNotes.trim()) {
@@ -124,7 +175,12 @@ const ConsultationNotesList = ({
     }
   };
 
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  // Local calendar date, NOT toISOString() — that returns the UTC date, which
+  // disagrees with the clinic's date (the backend stamps notes with
+  // clinicToday()) for the first hours of every day in a UTC+ timezone. A note
+  // written at 01:00 would not match, so the editor would open blank and Save
+  // would create a second note for the same day.
+  const today = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD
 
   // Inline editor: prefill with today's note once loaded (if the doctor hasn't
   // started typing), so Save updates it instead of creating a duplicate.
@@ -186,13 +242,65 @@ const ConsultationNotesList = ({
         </div>
       )}
 
-      {/* Read-only view (e.g. non-editing contexts): today's note as text */}
-      {readOnly && filteredNotes.filter((n) => n.date === today).map((note) => (
-        <div key={note.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">{note.time} · 👨‍⚕️ {note.doctorName}</p>
-          <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{note.notes}</pre>
-        </div>
-      ))}
+      {/* Read-only view (staff / nurse / admin portals): the full history of
+          notes the API returned, newest first. This used to filter to
+          `n.date === today`, so unless a doctor had written a note that same
+          day the tab rendered nothing at all — indistinguishable from a bug. */}
+      {readOnly && (
+        loading ? (
+          <div className="p-6 text-center bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-sm text-gray-500">Loading notes…</p>
+          </div>
+        ) : loadFailed ? (
+          <div className="p-6 text-center bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700">
+              Could not load this patient's notes. Please refresh, or contact an
+              administrator if this keeps happening.
+            </p>
+          </div>
+        ) : filteredNotes.length === 0 ? (
+          <div className="p-6 text-center bg-gray-50 border border-gray-200 rounded-lg">
+            <p className="text-sm text-gray-500">
+              No doctor's notes have been recorded for this patient yet.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredNotes.map((note) => (
+              <div key={note.id} className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-xs text-gray-500 mb-1">
+                  {fmtNoteDate(note.date)}
+                  {note.time ? ` · ${note.time}` : ""}
+                  {note.doctorName ? ` · 👨‍⚕️ ${note.doctorName}` : ""}
+                </p>
+                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{note.notes}</pre>
+                {note.assessment && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-gray-600 mb-1">Assessment</p>
+                    <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{note.assessment}</pre>
+                  </div>
+                )}
+                {note.plan && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-gray-600 mb-1">Plan</p>
+                    <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{note.plan}</pre>
+                  </div>
+                )}
+              </div>
+            ))}
+            {totalCount > filteredNotes.length && (
+              <div className="text-center pt-2">
+                <p className="text-xs text-gray-400 mb-2">
+                  Showing {filteredNotes.length} of {totalCount} notes.
+                </p>
+                <Button variant="outline" onClick={loadMoreNotes} disabled={loadingMore}>
+                  {loadingMore ? "Loading…" : "Load more notes"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )
+      )}
     </div>
   );
 };
