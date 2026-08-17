@@ -85,10 +85,14 @@ const NursingActionsTab = ({ patient, onRefresh = () => {}, onDone = () => {} })
   const [menuOpen, setMenuOpen] = useState(false);
   const [modal, setModal] = useState(null); // 'doctor' | 'record' | 'billing'
   // How the billing modal behaves when it fires:
-  //   'bill'        — finalise: send the patient to billing (Pending Billing).
-  //   'addToDoctor' — the patient is on their way to a doctor; just merge the
-  //                   nurse's charges onto the bill and keep Awaiting Doctor.
+  //   'bill'         — finalise: send the patient to billing (Pending Billing).
+  //   'sendToDoctor' — the nurse has picked a doctor (pendingDoctor); submitting
+  //                    merges the nurse's charges AND moves the row to Awaiting
+  //                    Doctor in one update. Every hand-off carries its billing:
+  //                    nurse bills their side here, the doctor adds theirs at
+  //                    Complete Consultation, reception adds extras at checkout.
   const [billingMode, setBillingMode] = useState("bill");
+  const [pendingDoctor, setPendingDoctor] = useState(null); // { doctorId, doctorName }
   const menuRef = useRef(null);
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -229,39 +233,47 @@ const NursingActionsTab = ({ patient, onRefresh = () => {}, onDone = () => {} })
       {modal === "doctor" && triageQueueItem && (
         <SendToDoctorModal
           patient={patient}
-          queueItem={triageQueueItem}
           onClose={() => setModal(null)}
-          // After routing to the doctor, fire the billing modal so the nurse can
-          // bill their side — added to the bill, patient still Awaiting Doctor.
-          onDone={() => { setBillingMode("addToDoctor"); setModal("billing"); }}
+          // Step 1 picks the doctor; step 2 (below) bills the nurse's side and
+          // sends in one update. The old order — send, then bill — never showed
+          // billing: once the row was Awaiting Doctor it was no longer the
+          // nurse's queue item, so the billing modal had nothing to render for.
+          onSelect={(doctor) => { setPendingDoctor(doctor); setBillingMode("sendToDoctor"); setModal("billing"); }}
         />
       )}
       {modal === "billing" && triageQueueItem && (
         <BillingModal
           patient={patient}
-          title={billingMode === "addToDoctor" ? "Bill your side" : "Send to billing"}
-          submitLabel={billingMode === "addToDoctor" ? "Add to bill" : "Send to billing"}
+          title={billingMode === "sendToDoctor" ? `Bill your side — sending to ${pendingDoctor?.doctorName}` : "Send to billing"}
+          submitLabel={billingMode === "sendToDoctor" ? "Add to bill & send to doctor" : "Send to billing"}
           chargeOptions={NURSE_CHARGE_OPTIONS}
           procedureOptions={NURSE_PROCEDURE_OPTIONS}
           existingCharges={triageQueueItem.selectedCharges || []}
           existingProcedures={triageQueueItem.selectedProcedures || []}
           onSubmit={async ({ charges, procedures }) => {
-            if (billingMode === "addToDoctor") {
-              // Merge the nurse's charges onto the visit; keep Awaiting Doctor and
-              // whichever doctor was just assigned (null leaves it unchanged).
-              await updateQueueStatus(triageQueueItem.id, "Awaiting Doctor", null, {
+            if (billingMode === "sendToDoctor") {
+              // One atomic update: nurse's charges merged onto whatever is already
+              // on the visit, doctor assigned, status → Awaiting Doctor. The
+              // doctor's Complete Consultation and reception's checkout both merge
+              // onto selectedCharges too, so the bill keeps building.
+              const result = await updateQueueStatus(triageQueueItem.id, "Awaiting Doctor", pendingDoctor.doctorId, {
                 selectedCharges: [...new Set([...(triageQueueItem.selectedCharges || []), ...charges])],
                 selectedProcedures: [...new Set([...(triageQueueItem.selectedProcedures || []), ...procedures])],
               });
-              toast.success("Charges added to the bill");
+              if (result?.success === false) { toast.error(result.message || "Could not send to doctor"); return; }
+              toast.success(`${patient?.name} sent to ${pendingDoctor.doctorName}`);
             } else {
               await sendToBilling(triageQueueItem.id, charges, procedures);
               toast.success(`${patient?.name} sent to billing`);
             }
             setModal(null);
+            setPendingDoctor(null);
             onDone();
           }}
-          onClose={() => { setModal(null); if (billingMode === "addToDoctor") onDone(); }}
+          // Cancelling here cancels the hand-off: nothing was sent, the patient
+          // is still with nursing. Same rule as admit/refer — billing is not a
+          // step you can skip past.
+          onClose={() => { setModal(null); setPendingDoctor(null); }}
         />
       )}
       {modal === "record" && (

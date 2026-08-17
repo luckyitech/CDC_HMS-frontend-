@@ -3,15 +3,25 @@ import toast from "react-hot-toast";
 import { X, Stethoscope, CheckCircle2 } from "lucide-react";
 import Button from "../shared/Button";
 import api from "../../services/api";
-import { useQueueContext } from "../../contexts/QueueContext";
 
-// Send to doctor — pick a doctor and move the patient to Awaiting Doctor. Decoupled
-// from triage so a nurse can route a patient at any point after vitals.
-const SendToDoctorModal = ({ patient, queueItem, onClose, onDone = () => {} }) => {
-  const { updateQueueStatus } = useQueueContext();
+/**
+ * SendToDoctorModal — step 1 of the nurse's "Send to doctor": pick the doctor.
+ *
+ * It does NOT move the patient. It hands the choice back via onSelect and the
+ * host (NursingActionsTab) opens the shared BillingModal for the nurse's charges;
+ * submitting THAT does one atomic queue update — charges merged + Awaiting Doctor
+ * + assignedDoctorId. Billing is never skipped and never a second, losable step:
+ * the earlier version sent first and then tried to open billing, but by then the
+ * row had left the nurse-facing statuses and the billing modal never rendered.
+ *
+ * Props:
+ *   patient    resolved patient object
+ *   onSelect({ doctorId, doctorName })   the nurse confirmed a doctor
+ *   onClose
+ */
+const SendToDoctorModal = ({ patient, onSelect = () => {}, onClose }) => {
   const [doctors, setDoctors] = useState([]);
   const [doctorId, setDoctorId] = useState("");
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api.get("/users/doctors")
@@ -19,14 +29,11 @@ const SendToDoctorModal = ({ patient, queueItem, onClose, onDone = () => {} }) =
       .catch(() => {});
   }, []);
 
-  const send = async () => {
+  const chosen = doctors.find((d) => d.id === parseInt(doctorId));
+
+  const next = () => {
     if (!doctorId) { toast.error("Select a doctor"); return; }
-    setBusy(true);
-    await updateQueueStatus(queueItem.id, "Awaiting Doctor", parseInt(doctorId));
-    setBusy(false);
-    const name = doctors.find((d) => d.id === parseInt(doctorId))?.name || "the doctor";
-    toast.success(`${patient?.name} sent to ${name}`);
-    onDone();
+    onSelect({ doctorId: parseInt(doctorId), doctorName: chosen?.name || "the doctor" });
   };
 
   return (
@@ -37,7 +44,10 @@ const SendToDoctorModal = ({ patient, queueItem, onClose, onDone = () => {} }) =
           <button onClick={onClose} aria-label="Close"><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <div className="p-5 space-y-3">
-          <p className="text-sm text-gray-500">Assign {patient?.name} to a doctor — they move to Awaiting Doctor.</p>
+          <p className="text-sm text-gray-500">
+            Assign {patient?.name} to a doctor. Next you&rsquo;ll bill your side of the visit;
+            they move to Awaiting Doctor when that&rsquo;s added.
+          </p>
           <select
             value={doctorId}
             onChange={(e) => setDoctorId(e.target.value)}
@@ -48,15 +58,15 @@ const SendToDoctorModal = ({ patient, queueItem, onClose, onDone = () => {} }) =
               <option key={d.id} value={d.id}>{d.name} - {d.specialty || "General Physician"}</option>
             ))}
           </select>
-          {doctorId && (
+          {chosen && (
             <p className="text-xs text-green-600 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> {patient?.name} → {doctors.find((d) => d.id === parseInt(doctorId))?.name}
+              <CheckCircle2 className="w-3 h-3" /> {patient?.name} → {chosen.name}
             </p>
           )}
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={send} disabled={busy}>{busy ? "Sending…" : "Send to doctor"}</Button>
+          <Button onClick={next}>Next: bill your side</Button>
         </div>
       </div>
     </div>
