@@ -604,6 +604,10 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
                       activeDiagnoses={activeDiagnoses}
                       onSuccess={handleDiagnosisSuccess}
                       notesRef={notesTextRef}
+                      // This visit = this queue row. Scopes the "note/plan already
+                      // saved" prefill so a second same-day check-in starts fresh
+                      // instead of overwriting the earlier visit's note.
+                      visitStartedAt={findQueueItem()?.createdAt || null}
                     />
                   )}
                 </AccordionPanel>
