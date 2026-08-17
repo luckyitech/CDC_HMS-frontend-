@@ -28,7 +28,10 @@ import { parseDiagnoses } from './DiagnosisInput';
 const DATE_FIELD_MAP = {
   vitals:          'recordedAt',
   plans:           'date',
-  assessments:     'createdAt',
+  // Assessments come back with date + time (like notes and exams) and NO
+  // createdAt, so keying them off createdAt silently dropped every assessment
+  // from every day.
+  assessments:     'date',
   exams:           'date',
   notes:           'date',
   prescriptions:   'createdAt',
@@ -195,12 +198,13 @@ const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) =>
         {records.assessments.map(a => (
           <DocBox key={a.id}>
             <div className="space-y-2">
+              {/* API field names are hpi / ros (assessmentController.formatAssessment) */}
               {[
-                ['History of Present Illness', a.historyOfPresentIllness],
+                ['History of Present Illness', a.hpi ?? a.historyOfPresentIllness],
                 ['Past Medical History', a.pastMedicalHistory],
                 ['Family History', a.familyHistory],
                 ['Social History', a.socialHistory],
-                ['Review of Systems', a.reviewOfSystems],
+                ['Review of Systems', a.ros ?? a.reviewOfSystems],
               ].filter(([, val]) => val).map(([label, val]) => (
                 <div key={label}>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
@@ -713,7 +717,7 @@ const NursingKardexView = ({ records, patient, fullExamCache }) => {
 // (stamped from the JWT); null on rows recorded before that column existed.
 const VISIT_TIMELINE_KINDS = [
   { kind: 'note',          type: 'notes',          ts: 'date',             Icon: MessageSquare, title: "Doctor's note",     by: (r) => r.doctorName },
-  { kind: 'assessment',    type: 'assessments',    ts: 'createdAt',        Icon: ClipboardList, title: 'Assessment',        by: (r) => r.doctorName },
+  { kind: 'assessment',    type: 'assessments',    ts: 'date',             Icon: ClipboardList, title: 'Assessment',        by: (r) => r.doctorName },
   { kind: 'exam',          type: 'exams',          ts: 'date',             Icon: Stethoscope,   title: 'Physical exam',     by: (r) => r.doctorName },
   { kind: 'plan',          type: 'plans',          ts: 'date',             Icon: Target,        title: 'Treatment plan',    by: (r) => r.doctorName },
   { kind: 'prescription',  type: 'prescriptions',  ts: 'createdAt',        Icon: Pill,          title: 'Prescription',      by: (r) => r.doctorName },
