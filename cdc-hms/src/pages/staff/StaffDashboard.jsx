@@ -1,23 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Users,
-  Clock,
   CheckCircle,
-  AlertTriangle,
   UserPlus,
   Search,
   ClipboardList,
   Activity,
   Calendar,
   FileText,
-  Stethoscope,
   Package
 } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
-import StatCard from '../../components/shared/StatCard';
-import Button from '../../components/shared/Button';
 import RecordUseModal from '../../components/stock/RecordUseModal';
+import TodaysWorkload from '../../components/staff/TodaysWorkload';
 import { useUserContext } from '../../contexts/UserContext';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useQueueContext } from '../../contexts/QueueContext';
@@ -28,7 +23,7 @@ const StaffDashboard = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
   const { getPatientStats } = usePatientContext();
-  const { queue, getLocalQueueStats, getQueueByStatus } = useQueueContext();
+  const { queue, getLocalQueueStats } = useQueueContext();
 
   const [patientStats, setPatientStats] = useState({ total: 0, active: 0, highRisk: 0, registeredToday: 0 });
   // Point-of-care stock use — open to all clinical roles, no stock permission
@@ -45,7 +40,6 @@ const StaffDashboard = () => {
 
   // Queue stats computed from local state — always in sync, no extra API call
   const queueStats = getLocalQueueStats();
-  const waitingPatients = getQueueByStatus('Awaiting Triage');
 
   // New patients registered today — from API stats
   const newRegistrationsToday = patientStats.registeredToday ?? 0;
@@ -62,79 +56,12 @@ const StaffDashboard = () => {
       <PageHeader
         title="Staff Dashboard"
         subtitle={`Welcome back, ${currentUser?.name || 'Staff'}!`}
-        actions={
-          <Button onClick={() => navigate('/staff/create-patient')}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Register Patient
-          </Button>
-        }
       />
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-        <StatCard title="Total Patients" value={patientStats.total ?? 0} icon={Users} gradient="from-blue-500 to-blue-600" />
-        <StatCard title="Waiting Queue" value={queueStats.waiting} icon={Clock} gradient="from-green-500 to-green-600" />
-        <StatCard title="Active Patients" value={patientStats.active ?? 0} icon={CheckCircle} gradient="from-purple-500 to-purple-600" />
-        <StatCard title="High Risk" value={patientStats.highRisk ?? 0} icon={AlertTriangle} gradient="from-red-500 to-red-600" />
-      </div>
-
-      {/* Waiting Patients */}
-      <Card title={
-        <span className="flex items-center gap-2">
-          <Stethoscope className="w-5 h-5" />
-          Patients Waiting for Triage
-        </span>
-      }>
-        {waitingPatients.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200">
-                <tr>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
-                  <th className="hidden md:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Arrival Time</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Priority</th>
-                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {waitingPatients.map((patient) => (
-                  <tr key={patient.id} className="hover:bg-blue-50">
-                    <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
-                    <td className="px-4 lg:px-6 py-4 font-semibold text-sm">{patient.name}</td>
-                    <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">{patient.arrivalTime}</td>
-                    <td className="px-4 lg:px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        patient.priority === 'Urgent'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-green-100 text-green-700'
-                      }`}>
-                        {patient.priority}
-                      </span>
-                    </td>
-                    <td className="px-4 lg:px-6 py-4">
-                      <Button
-                        variant="primary"
-                        className="text-xs py-1 px-3"
-                        onClick={() => navigate('/staff/triage')}
-                      >
-                        Start Triage
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="flex justify-center mb-3">
-              <CheckCircle className="w-12 h-12 text-gray-400" />
-            </div>
-            <p className="text-gray-500">No patients waiting for triage</p>
-          </div>
-        )}
-      </Card>
+      {/* Today's workload — every patient through the clinic today, tabbed by
+          doctor. (Replaced the old "Patients Waiting for Triage" worklist,
+          which now lives in Queue Management → Triage.) */}
+      <TodaysWorkload />
 
       {/* Quick Actions & Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">

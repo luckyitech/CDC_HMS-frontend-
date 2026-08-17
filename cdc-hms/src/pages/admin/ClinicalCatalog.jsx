@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Pill, Stethoscope, Pencil, Trash2, Search, ListPlus, Plus } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import Button from '../../components/shared/Button';
 import Modal from '../../components/shared/Modal';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
@@ -204,24 +205,14 @@ const CatalogManager = ({ config }) => {
               Keep the external API while you build your own list below, then switch. Doctors see the change on their next page load.
             </p>
           </div>
-          <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
-            {[
-              { value: 'external', text: externalLabel },
-              { value: 'catalog', text: 'Clinic Catalog' },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => handleSourceChange(opt.value)}
-                disabled={source === null}
-                className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-                  source === opt.value ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {opt.text}
-              </button>
-            ))}
-          </div>
+          <SwitcherTabs
+            active={source}
+            onChange={handleSourceChange}
+            tabs={[
+              { id: 'external', label: externalLabel, disabled: source === null },
+              { id: 'catalog', label: 'Clinic Catalog', disabled: source === null },
+            ]}
+          />
         </div>
       </Card>
 
@@ -441,22 +432,15 @@ const ClinicalCatalog = () => {
         subtitle="Manage the medication and diagnosis lists doctors see when writing prescriptions and treatment plans"
       />
 
-      {/* Catalog switcher — same pattern as the Create Users tabs */}
-      <div className="flex flex-wrap gap-1 p-1 bg-gray-100 rounded-lg mb-6 w-fit">
-        {CATALOG_TABS.map((tab) => (
-          <button
-            key={tab.type}
-            type="button"
-            onClick={() => setActiveType(tab.type)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all ${
-              activeType === tab.type ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <SwitcherTabs
+        className="mb-6"
+        active={activeType}
+        onChange={setActiveType}
+        tabs={CATALOG_TABS.map((tab) => ({
+          id: tab.type,
+          label: <>{tab.icon}{tab.label}</>,
+        }))}
+      />
 
       {/* key remounts the manager so state never leaks between catalogs */}
       <CatalogManager key={activeType} config={activeTab} />

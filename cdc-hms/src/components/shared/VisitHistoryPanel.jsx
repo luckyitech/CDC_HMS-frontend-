@@ -2,16 +2,18 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
-  BedDouble, Share2,
+  BedDouble, Share2, FileText, Clock,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
 import PrintRoot from './PrintRoot';
 import PrescriptionPrint from '../doctor/PrescriptionPrint';
+import SwitcherTabs from './SwitcherTabs';
 import patientService from '../../services/patientService';
 import inpatientService from '../../services/inpatientService';
 import glp1Service from '../../services/glp1Service';
 import queueService from '../../services/queueService';
+import nursingNoteService from '../../services/nursingNoteService';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
 import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
@@ -26,7 +28,10 @@ import { parseDiagnoses } from './DiagnosisInput';
 const DATE_FIELD_MAP = {
   vitals:          'recordedAt',
   plans:           'date',
-  assessments:     'createdAt',
+  // Assessments come back with date + time (like notes and exams) and NO
+  // createdAt, so keying them off createdAt silently dropped every assessment
+  // from every day.
+  assessments:     'date',
   exams:           'date',
   notes:           'date',
   prescriptions:   'createdAt',
@@ -48,6 +53,12 @@ const DATE_FIELD_MAP = {
   admissions:      'savedAt',
   // Referral notes (doctor's referral letter from OPD) — also an "action".
   referrals:       'savedAt',
+  // Nursing notes — the DAR-format Kardex. Each entry is dated by its own day.
+  nursingNotes:    'date',
+  // Workflow milestones from the queue (check-in, triage done, seen by doctor,
+  // completed). Timeline-only — the clinical tabs and the "N records" count
+  // ignore them; they're visit events, not saved clinical records.
+  workflow:        'ts',
 };
 
 const fmtDay = (d) =>
@@ -57,14 +68,16 @@ const HISTORY_PAGE_SIZE = 10;
 
 // ── Small read-only helpers ───────────────────────────────────────────────────
 const SectionHeader = ({ icon, label }) => (
-  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+  <h4 className="text-xs font-bold text-primary uppercase tracking-wide flex items-center gap-1.5 mb-2">
     {icon}
     {label}
   </h4>
 );
 
+// break-words + overflow-hidden: long unbroken strings (pasted text, URLs)
+// wrap inside the box instead of running past its edge — on every viewport.
 const DocBox = ({ children }) => (
-  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mb-2 last:mb-0 text-sm text-gray-700">
+  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 mb-2 last:mb-0 text-sm text-gray-700 break-words overflow-hidden">
     {children}
   </div>
 );
@@ -126,7 +139,7 @@ const fmtTime = (d) =>
 // Section order (clinical flow): Vitals → Reason for Visit → Consultation
 // Notes → Assessment → Physical Exam → Diagnosis & Treatment Plan → GLP-1
 // tools → Prescriptions.
-const EncounterBlock = ({ records, fullExamCache }) => (
+const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) => (
   <div className="space-y-5 select-text">
 
     {/* Triage Vitals — plain label: value lines */}
@@ -136,7 +149,9 @@ const EncounterBlock = ({ records, fullExamCache }) => (
         {records.vitals.map((v, idx) => (
           <DocBox key={idx}>
             {v.recordedAt && (
-              <p className="text-xs text-gray-500 mb-1">Recorded {fmtTime(v.recordedAt)}</p>
+              <p className="text-xs text-gray-500 mb-1">
+                Recorded {fmtTime(v.recordedAt)}{v.recordedBy ? ` by ${v.recordedBy}` : ''}
+              </p>
             )}
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
               {[
@@ -186,12 +201,13 @@ const EncounterBlock = ({ records, fullExamCache }) => (
         {records.assessments.map(a => (
           <DocBox key={a.id}>
             <div className="space-y-2">
+              {/* API field names are hpi / ros (assessmentController.formatAssessment) */}
               {[
-                ['History of Present Illness', a.historyOfPresentIllness],
+                ['History of Present Illness', a.hpi ?? a.historyOfPresentIllness],
                 ['Past Medical History', a.pastMedicalHistory],
                 ['Family History', a.familyHistory],
                 ['Social History', a.socialHistory],
-                ['Review of Systems', a.reviewOfSystems],
+                ['Review of Systems', a.ros ?? a.reviewOfSystems],
               ].filter(([, val]) => val).map(([label, val]) => (
                 <div key={label}>
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</p>
@@ -350,6 +366,27 @@ const EncounterBlock = ({ records, fullExamCache }) => (
       </div>
     )}
 
+    {/* Nursing notes — DAR-format Kardex. Only in the nursing timeline modal,
+        never in the doctor's visit document (they're nurse-authored). */}
+    {showNursingNotes && records.nursingNotes?.length > 0 && (
+      <div>
+        <SectionHeader icon={<FileText className="w-3.5 h-3.5" />} label="Nursing Notes" />
+        {records.nursingNotes.map((n) => (
+          <DocBox key={n.id}>
+            <p className="text-xs text-gray-500 mb-1">
+              {n.time}
+              {n.authorName ? ` · ${n.authorName}${(n.authorRole === 'staff' || n.authorRole === 'nurse') ? ' (Nurse)' : ''}` : ''}
+            </p>
+            <div className="space-y-1">
+              {n.data && <p><b className="font-semibold text-gray-800">D:</b> {n.data}</p>}
+              {n.action && <p><b className="font-semibold text-gray-800">A:</b> {n.action}</p>}
+              {n.response && <p><b className="font-semibold text-gray-800">R:</b> {n.response}</p>}
+            </div>
+          </DocBox>
+        ))}
+      </div>
+    )}
+
     {/* Prescriptions — plain text lines */}
     {records.prescriptions.length > 0 && (
       <div>
@@ -387,6 +424,49 @@ const encounterDoctor = (r) =>
   (r.glp1Reviews?.[0]?.clinicianRole === 'doctor' ? r.glp1Reviews[0].clinicianName : null) ||
   null;
 
+// Mobile day-tab dropdown. A custom menu (not a native <select>) so the option
+// list always opens BELOW the box — native pickers position wherever the OS
+// likes, including over the content above.
+const DayTabSelect = ({ value, onChange, options }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+  const current = options.find((o) => o.id === value) || options[0];
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 border-2 border-gray-200 rounded-lg text-base font-semibold text-gray-800 bg-white focus:outline-none focus:border-primary"
+      >
+        <span>{current.label}{current.count != null ? ` (${current.count})` : ''}</span>
+        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => { onChange(o.id); setOpen(false); }}
+              className={`w-full text-left px-4 py-3 text-base border-b border-gray-100 last:border-0 ${
+                o.id === value ? 'bg-blue-50 text-primary font-semibold' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {o.label}{o.count != null ? ` (${o.count})` : ''}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const VisitDocument = ({ records, fullExamCache }) => {
   const encounters = splitEncounters(records);
 
@@ -402,15 +482,17 @@ const VisitDocument = ({ records, fullExamCache }) => {
             {/* Encounter stamp — dated, timed and attributed. The per-record
                 "By Dr. X" lines were removed in favour of this one stamp. */}
             <div className={`flex items-center gap-3 ${i > 0 ? 'pt-2' : ''}`}>
-              <div className="flex-1 border-t-2 border-blue-200" />
-              <span className="flex-shrink-0 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-bold text-blue-700 uppercase tracking-wide">
+              <div className="flex-1 min-w-4 border-t-2 border-blue-200" />
+              {/* min-w-0 + wrap: on narrow screens the stamp folds to two lines
+                  inside the divider instead of overflowing and being clipped. */}
+              <span className="min-w-0 max-w-full text-center px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-bold text-blue-700 uppercase tracking-wide break-words">
                 {i === 0 ? 'Visit' : 'Review'}
                 {enc.start
                   ? ` · ${new Date(enc.start).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })} · ${fmtTime(enc.start)}`
                   : i > 0 ? ` ${i + 1}` : ''}
                 {doctor ? ` · By ${doctor}` : ''}
               </span>
-              <div className="flex-1 border-t-2 border-blue-200" />
+              <div className="flex-1 min-w-4 border-t-2 border-blue-200" />
             </div>
             <EncounterBlock records={enc.records} fullExamCache={fullExamCache} />
 
@@ -437,10 +519,6 @@ const VisitDocument = ({ records, fullExamCache }) => {
 };
 
 // ── Actions tab ───────────────────────────────────────────────────────────────
-const dayTabCls = (active) =>
-  `flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-    active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700 hover:bg-blue-50'
-  }`;
 
 const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
   <button onClick={onClick}
@@ -506,14 +584,20 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl w-full max-w-md p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-bold text-gray-800">{title}</h3>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+      {/* Capped to the viewport with a scrolling body — long notes scroll inside
+          the card instead of overflowing the page. Header + footer stay pinned. */}
+      <div className="bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 flex-shrink-0 border-b border-gray-100">
+          <div className="min-w-0">
+            <h3 className="text-lg font-bold text-gray-800">{title}</h3>
+            <p className="text-sm text-gray-500 mt-0.5">{sub}</p>
+          </div>
+          <button onClick={onClose} className="flex-shrink-0" aria-label="Close"><X className="w-5 h-5 text-gray-400" /></button>
         </div>
-        <p className="text-sm text-gray-500">{sub}</p>
-        <div className="whitespace-pre-wrap text-sm text-gray-700 mt-2 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
-        <div className="flex justify-end gap-2 pt-4">
+        <div className="overflow-y-auto overflow-x-hidden px-5 py-4 flex-1 min-h-0">
+          <div className="whitespace-pre-wrap break-words text-sm text-gray-700 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-3 flex-shrink-0 border-t border-gray-100">
           <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Close</button>
           <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
         </div>
@@ -524,6 +608,321 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
         <ArtifactMeta patient={patient} sub={`${title} · ${sub}`} />
         <p className="text-sm whitespace-pre-wrap">{data.note || '—'}</p>
       </PrintRoot>
+    </div>
+  );
+};
+
+// ── Nursing actions ───────────────────────────────────────────────────────────
+// Each nursing task for the day as a clickable row (name + time); clicking opens
+// the full task in a modal — the same pattern as the doctor's actions list. The
+// modal reuses EncounterBlock (one record at a time) so a task reads identically
+// to the doctor's notes.
+const NURSING_BLANK = {
+  vitals: [], plans: [], assessments: [], exams: [], notes: [], prescriptions: [],
+  glp1Injections: [], glp1Reviews: [], glp1WeekNotes: [], nursingNotes: [], admissions: [], referrals: [],
+};
+
+const nursingTasks = (records) => {
+  const tasks = [];
+  (records.vitals || []).forEach((v, i) => tasks.push({
+    key: `v-${v.id ?? i}`, ts: v.recordedAt, Icon: Activity, title: 'Triage vitals',
+    records: { ...NURSING_BLANK, vitals: [v] },
+  }));
+  (records.glp1Injections || []).forEach((inj, i) => tasks.push({
+    key: `i-${inj.id ?? i}`, ts: inj.administeredDate || inj.createdAt, Icon: Syringe,
+    title: `GLP-1 injection — Week ${inj.weekNumber}`,
+    records: { ...NURSING_BLANK, glp1Injections: [inj] },
+  }));
+  (records.glp1Reviews || []).forEach((rev, i) => tasks.push({
+    key: `r-${rev.id ?? i}`, ts: rev.date, Icon: ClipboardList,
+    title: `GLP-1 monitoring review — Week ${rev.weekNumber}`,
+    records: { ...NURSING_BLANK, glp1Reviews: [rev] },
+  }));
+  (records.glp1WeekNotes || []).forEach((note, i) => tasks.push({
+    key: `n-${note.id ?? i}`, ts: note.createdAt, Icon: MessageSquare,
+    title: `GLP-1 note — Week ${note.weekNumber}`,
+    records: { ...NURSING_BLANK, glp1WeekNotes: [note] },
+  }));
+  // Nursing notes collapse into ONE timeline entry — the Kardex is a single
+  // running record, so the modal lists every entry as a row rather than
+  // scattering a separate timeline dot per note.
+  // Each nursing note is its own point on the Kardex timeline — the running
+  // record of the nurse's interactions. Kept individual (not grouped) so a
+  // triage or injection recorded between two notes interleaves by time.
+  (records.nursingNotes || []).forEach((note, i) => tasks.push({
+    key: `k-${note.id ?? i}`,
+    ts: note.createdAt || note.date,
+    Icon: FileText,
+    title: 'Nursing note',
+    records: { ...NURSING_BLANK, nursingNotes: [note] },
+  }));
+  // Newest action first — the most recent thing the nurse did sits at the top.
+  return tasks.sort((a, b) => new Date(b.ts || 0) - new Date(a.ts || 0));
+};
+
+// The full nursing Kardex for a day, rendered INLINE in the day's Nursing tab —
+// every nursing action (notes, triage, injections, reviews) in time order, each
+// expanded to its full detail, with a Print that uses the clinic letterhead.
+const NursingKardexView = ({ records, patient, fullExamCache }) => {
+  const { printRef, handlePrint } = usePrint();
+  const tasks = nursingTasks(records);
+  if (tasks.length === 0) return <p className="text-sm text-gray-500">No nursing actions on this day.</p>;
+  const fmtT = (ts) => (ts ? new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '');
+  // Each entry is a node on the Kardex timeline: time on the left, a dot beside
+  // the entry's section heading, and a connector line running to the next entry.
+  // No per-row title — EncounterBlock already opens each record with its own
+  // heading, time and author.
+  const rows = tasks.map((t, idx) => {
+    const isLast = idx === tasks.length - 1;
+    return (
+      <div key={t.key} className="flex gap-3">
+        <div className="w-12 flex-shrink-0 text-right pr-1 text-[11px] text-gray-500 pt-0.5">{fmtT(t.ts)}</div>
+        <div className="relative w-4 flex-shrink-0 self-stretch">
+          {idx !== 0 && <span className="absolute left-1/2 -translate-x-1/2 top-0 h-2 w-px bg-gray-200" />}
+          {!isLast && <span className="absolute left-1/2 -translate-x-1/2 top-2 bottom-0 w-px bg-gray-200" />}
+          <span className="absolute left-1/2 top-2 -translate-x-1/2 -translate-y-1/2 z-10 w-2.5 h-2.5 rounded-full bg-blue-500 ring-4 ring-white" />
+        </div>
+        <div className={`flex-1 min-w-0 ${isLast ? '' : 'pb-6'}`}>
+          <EncounterBlock records={t.records} fullExamCache={fullExamCache} showNursingNotes />
+        </div>
+      </div>
+    );
+  });
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-bold text-gray-700 flex items-center gap-1.5"><FileText className="w-4 h-4" /> Nursing Kardex</h4>
+        <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
+      </div>
+      {rows}
+
+      {/* Print target — shared clinic letterhead; plain stacked entries (no dots) */}
+      <PrintRoot printRef={printRef}>
+        <ArtifactMeta patient={patient} sub={`Nursing Kardex · ${fmtDay(tasks[0]?.ts)}`} />
+        <div className="divide-y divide-gray-200">
+          {tasks.map((t) => (
+            <div key={t.key} className="py-3 first:pt-0 last:pb-0">
+              <EncounterBlock records={t.records} fullExamCache={fullExamCache} showNursingNotes />
+            </div>
+          ))}
+        </div>
+      </PrintRoot>
+    </div>
+  );
+};
+
+// ── Visit Timeline ────────────────────────────────────────────────────────────
+// One chronological stream of EVERY recorded action in a visit — nursing, doctor
+// and dispositions — each time-stamped. (Check-in and billing events live in the
+// queue/billing system and aren't fetched into Visit History yet; add a queue-
+// history source here to fold them in.) Add a record type below and it appears.
+// `by` pulls the author's display name off each record (field names vary by
+// type). Triage vitals: `recordedBy` is the joined name of PatientVital.recordedById
+// (stamped from the JWT); null on rows recorded before that column existed.
+const VISIT_TIMELINE_KINDS = [
+  { kind: 'note',          type: 'notes',          ts: 'date',             Icon: MessageSquare, title: "Doctor's note",     by: (r) => r.doctorName },
+  { kind: 'assessment',    type: 'assessments',    ts: 'date',             Icon: ClipboardList, title: 'Assessment',        by: (r) => r.doctorName },
+  { kind: 'exam',          type: 'exams',          ts: 'date',             Icon: Stethoscope,   title: 'Physical exam',     by: (r) => r.doctorName },
+  { kind: 'plan',          type: 'plans',          ts: 'date',             Icon: Target,        title: 'Treatment plan',    by: (r) => r.doctorName },
+  { kind: 'prescription',  type: 'prescriptions',  ts: 'createdAt',        Icon: Pill,          title: 'Prescription',      by: (r) => r.doctorName },
+  { kind: 'admission',     type: 'admissions',     ts: 'requestedAt',      Icon: BedDouble,     title: 'Admission advised', by: (r) => r.doctorName },
+  { kind: 'referral',      type: 'referrals',      ts: 'savedAt',          Icon: Share2,        title: 'Referral',          by: (r) => r.doctorName },
+  { kind: 'vitals',        type: 'vitals',         ts: 'recordedAt',       Icon: Activity,      title: 'Triage vitals',     by: (r) => r.recordedBy },
+  { kind: 'nursingNote',   type: 'nursingNotes',   ts: 'createdAt',        Icon: FileText,      title: 'Nursing note',      by: (r) => r.authorName },
+  { kind: 'glp1Injection', type: 'glp1Injections', ts: 'administeredDate', Icon: Syringe,       title: 'GLP-1 injection',   by: (r) => r.clinicianName || r.doctorName },
+  { kind: 'glp1Review',    type: 'glp1Reviews',    ts: 'date',             Icon: ClipboardList, title: 'GLP-1 review',      by: (r) => r.clinicianName || r.doctorName },
+  { kind: 'glp1WeekNote',  type: 'glp1WeekNotes',  ts: 'createdAt',        Icon: MessageSquare, title: 'GLP-1 note',        by: (r) => r.authorName },
+];
+
+const visitTimelineTasks = (records) => {
+  const items = [];
+  VISIT_TIMELINE_KINDS.forEach(({ kind, type, ts, Icon, title, by }) => {
+    (records[type] || []).forEach((r, i) => {
+      // DATEONLY columns (notes.date, plans.date, administeredDate, …) parse as
+      // midnight UTC — 3:00 AM in Nairobi. For those, rebuild the moment from the
+      // date + the record's own clock-time string (recordTs, as the day document
+      // does), falling back to createdAt. Full datetimes pass through untouched.
+      const raw = r[ts];
+      const isDateOnly = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw);
+      const when = !raw ? (r.createdAt || null)
+        : !isDateOnly ? raw
+        : r.time ? recordTs(r, ts)
+        : (r.createdAt || recordTs(r, ts));
+      items.push({
+        key: `${kind}-${r.id ?? i}`,
+        ts: when,
+        Icon, title, kind, raw: r,
+        by: (by && by(r)) || null,
+        records: { ...NURSING_BLANK, [type]: [r] },
+      });
+    });
+  });
+  // Queue workflow milestones (check-in, triage done, seen by doctor, completed) —
+  // informational markers, not clickable records.
+  (records.workflow || []).forEach((w, i) => items.push({
+    key: `wf-${w.id ?? i}`,
+    ts: w.ts,
+    Icon: Clock,
+    title: w.label,
+    kind: 'workflow',
+  }));
+  // Newest action first — the most recent thing that happened sits at the top.
+  return items.sort((a, b) => new Date(b.ts || 0) - new Date(a.ts || 0));
+};
+
+// Turn queue visit rows into flat, time-stamped workflow milestones for the
+// timeline: check-in, triage done, seen by (each) doctor, consultation complete.
+const workflowFromVisits = (visits) => {
+  const events = [];
+  (visits || []).forEach((v) => {
+    const add = (suffix, ts, label) => { if (ts) events.push({ id: `${v.id}-${suffix}`, ts, label }); };
+    add('in', v.checkedInAt, 'Checked in');
+    // triageEndTime is stamped when vitals are saved for the visit; triagedBy is
+    // the nurse who opened triage (name snapshot). Null on visits before this
+    // was recorded — those show only the vitals record itself.
+    add('triage', v.triageEndTime, `Triage completed${v.triagedBy ? ` — ${v.triagedBy}` : ''}`);
+    // Nurse → doctor dispatch (the 'Awaiting Doctor' transition). The gap from
+    // triage completed to here is time spent with nursing after vitals.
+    add('sent', v.sentToDoctorAt, 'Sent to doctor');
+    if (v.doctorSessions && v.doctorSessions.length > 0) {
+      v.doctorSessions.forEach((s, i) => {
+        if (s.startTime) events.push({ id: `${v.id}-doc${i}`, ts: s.startTime, label: s.doctorName ? `Seen by ${s.doctorName}` : 'Seen by doctor' });
+      });
+    } else {
+      add('doc', v.consultationStartTime, 'Seen by doctor');
+    }
+    add('done', v.consultationEndTime, 'Consultation completed');
+    // Referral finalised — referredAt is stamped when the doctor sends the
+    // referral. The referral NOTE (if saved) is its own record on the timeline;
+    // this marker covers referrals made without one.
+    add('ref', v.referredAt, 'Referred');
+    // Checkout at billing — dischargedAt is stamped when billing completes the
+    // visit (null on legacy rows from before it was recorded).
+    add('out', v.dischargedAt, `Checked out at billing${v.dischargedBy ? ` — ${v.dischargedBy}` : ''}`);
+  });
+  return events;
+};
+
+// The day's clinical document (Doctor's Notes tab) with its own Print — the
+// document itself is untouched; this just adds the button + letterhead target.
+const DoctorNotesView = ({ records, patient, fullExamCache }) => {
+  const { printRef, handlePrint } = usePrint();
+  return (
+    <div>
+      <div className="flex justify-end mb-2">
+        <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
+      </div>
+      <VisitDocument records={records} fullExamCache={fullExamCache} />
+      <PrintRoot printRef={printRef}>
+        <ArtifactMeta patient={patient} sub="Visit notes" />
+        <VisitDocument records={records} fullExamCache={fullExamCache} />
+      </PrintRoot>
+    </div>
+  );
+};
+
+// Print-friendly timeline: one line per action (time — what — who). Shared by
+// the Timeline tab's print and the master "print visits" layout.
+const TimelinePrintList = ({ records }) => {
+  const items = visitTimelineTasks(records);
+  const fmtT = (ts) => (ts ? new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '—');
+  return (
+    <table className="w-full text-sm">
+      <tbody>
+        {items.map((t) => (
+          <tr key={t.key} className="border-b border-gray-100 last:border-0">
+            <td className="py-1 pr-3 whitespace-nowrap text-gray-500 align-top w-20">{fmtT(t.ts)}</td>
+            <td className="py-1 pr-3 font-semibold text-gray-800 align-top">{t.title}</td>
+            <td className="py-1 text-gray-500 align-top">{t.by || ''}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+// The whole-visit timeline: every action as a dot on one connected line. Clicking
+// a clinical/nursing entry opens its detail; dispositions (prescription, admission,
+// referral) reuse the shared action viewers so nothing is rendered twice.
+const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact }) => {
+  const { printRef, handlePrint } = usePrint();
+  const items = visitTimelineTasks(records);
+  if (items.length === 0) return <p className="text-sm text-gray-500">No recorded actions on this day.</p>;
+  const fmtT = (ts) => (ts ? new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '');
+  return (
+    <div>
+      <div className="flex justify-end mb-2">
+        <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
+      </div>
+      {/* Print target — the same timeline as a plain time/action/name list */}
+      <PrintRoot printRef={printRef}>
+        <ArtifactMeta patient={patient} sub={`Visit timeline · ${fmtDay(items[items.length - 1]?.ts)}`} />
+        <TimelinePrintList records={records} />
+      </PrintRoot>
+      {items.map((t, idx) => {
+        const Icon = t.Icon;
+        const isLast = idx === items.length - 1;
+        const isWorkflow = t.kind === 'workflow';
+        return (
+          <div key={t.key} className="flex items-center gap-3">
+            <div className="w-12 flex-shrink-0 text-right pr-1 text-[11px] text-gray-500">{fmtT(t.ts)}</div>
+            <div className="relative self-stretch w-4 flex-shrink-0">
+              {idx !== 0 && <span className="absolute left-1/2 -translate-x-1/2 top-0 h-1/2 w-px bg-gray-200" />}
+              {!isLast && <span className="absolute left-1/2 -translate-x-1/2 bottom-0 h-1/2 w-px bg-gray-200" />}
+              <span className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-2.5 h-2.5 rounded-full ring-4 ring-white ${isWorkflow ? 'bg-gray-300' : 'bg-blue-500'}`} />
+            </div>
+            {isWorkflow ? (
+              // Workflow milestone — an informational marker, not a record to open.
+              <div className="flex-1 min-w-0 my-1.5 flex items-center gap-3 border border-dashed border-gray-200 rounded-xl px-4 py-2.5">
+                <span className="w-9 h-9 rounded-lg bg-gray-50 text-gray-400 flex items-center justify-center flex-shrink-0"><Icon className="w-4 h-4" /></span>
+                <span className="text-sm font-medium text-gray-500 truncate">{t.title}</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  if (t.kind === 'prescription' || t.kind === 'admission' || t.kind === 'referral') {
+                    onViewArtifact({ type: t.kind, data: t.raw });
+                  } else {
+                    onViewRecord(t);
+                  }
+                }}
+                className="flex-1 min-w-0 my-1.5 flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left"
+              >
+                <span className="flex items-center gap-3 min-w-0">
+                  <span className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="w-4 h-4" /></span>
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-gray-800 text-sm truncate">{t.title}</span>
+                    {t.by && <span className="block text-xs text-gray-400 truncate">{t.by}</span>}
+                  </span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Detail for a single visit-timeline entry (clinical / nursing) — reuses
+// EncounterBlock exactly as the day document does.
+const RecordDetailModal = ({ item, fullExamCache, onClose }) => {
+  if (!item) return null;
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0 border-b border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800">{item.title}</h3>
+          <button onClick={onClose} aria-label="Close"><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div className="overflow-y-auto overflow-x-hidden px-5 py-4 flex-1 min-h-0">
+          <EncounterBlock records={item.records} fullExamCache={fullExamCache} showNursingNotes />
+        </div>
+        <div className="flex justify-end px-5 py-3 flex-shrink-0 border-t border-gray-100">
+          <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Close</button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -541,7 +940,7 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
  * Printing: the Print button prints the current scope — the single visit in
  * singleDate mode, or every visit matching the date-range filter in tab mode.
  */
-const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null }) => {
+const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, defaultDayTab = 'notes' }) => {
   const { uhid } = patient;
 
   const { getAssessmentsByPatient }                      = useInitialAssessmentContext();
@@ -558,8 +957,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
   const [historyPage, setHistoryPage]           = useState(1);
   const [fullExamCache, setFullExamCache]       = useState({});
   const [printing, setPrinting]                 = useState(false);
-  const [dayTab, setDayTab]                      = useState('notes');   // 'notes' | 'actions'
+  const [dayTab, setDayTab]                      = useState(defaultDayTab); // 'notes' | 'actions' | 'nursing'
   const [viewArtifact, setViewArtifact]         = useState(null);       // { type, data }
+  const [viewRecord, setViewRecord]             = useState(null);       // one visit-timeline entry → detail
+  // Master print: which sections to include for the filtered visits
+  const [showPrintOptions, setShowPrintOptions] = useState(false);
+  const [printInclude, setPrintInclude]         = useState({ notes: true, kardex: false, timeline: false });
 
   const { printRef, handlePrint } = usePrint();
 
@@ -576,7 +979,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, weekNotesRes, advisedRes, referralsRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes] = await Promise.all([
           getAssessmentsByPatient(uhid),
           getExaminationsByPatient(uhid),
           getPlansByPatient(uhid),
@@ -586,17 +989,21 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
           // GLP-1 injections, monitoring reviews and week notes — all support uhid directly
           glp1Service.getAdministrations({ uhid }).catch(() => ({ data: { administrations: [] } })),
           glp1Service.getReviews({ uhid }).catch(() => ({ data: { reviews: [] } })),
-          glp1Service.getWeekNotes({ uhid }).catch(() => ({ data: { notes: [] } })),
           inpatientService.advisedAdmissions(uhid).catch(() => ({ data: { admissions: [] } })),
           queueService.advisedReferrals(uhid).catch(() => ({ data: { referrals: [] } })),
+          glp1Service.getWeekNotes({ uhid }).catch(() => ({ data: { notes: [] } })),
+          nursingNoteService.getByPatient(uhid).catch(() => ({ data: { nursingNotes: [] } })),
+          queueService.patientHistory(uhid).catch(() => ({ data: { visits: [] } })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
           const glp1Injections = adminsRes?.data?.administrations  || [];
           const glp1Reviews    = reviewsRes?.data?.reviews         || [];
-          const glp1WeekNotes  = weekNotesRes?.data?.notes          || [];
           const admissions     = advisedRes?.data?.admissions      || [];
           const referrals      = referralsRes?.data?.referrals     || [];
+          const glp1WeekNotes  = weekNotesRes?.data?.notes          || [];
+          const nursingNotes   = nursingRes?.data?.nursingNotes     || [];
+          const workflow       = workflowFromVisits(queueRes?.data?.visits);
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
             exams:           Array.isArray(exams)           ? exams           : [],
@@ -606,9 +1013,11 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             vitals:          Array.isArray(vitals)          ? vitals          : [],
             glp1Injections:  Array.isArray(glp1Injections)  ? glp1Injections  : [],
             glp1Reviews:     Array.isArray(glp1Reviews)     ? glp1Reviews     : [],
-            glp1WeekNotes:   Array.isArray(glp1WeekNotes)   ? glp1WeekNotes   : [],
             admissions:      Array.isArray(admissions)      ? admissions      : [],
             referrals:       Array.isArray(referrals)       ? referrals       : [],
+            glp1WeekNotes:   Array.isArray(glp1WeekNotes)   ? glp1WeekNotes   : [],
+            nursingNotes:    Array.isArray(nursingNotes)    ? nursingNotes    : [],
+            workflow:        Array.isArray(workflow)        ? workflow        : [],
           });
         }
       } finally {
@@ -671,7 +1080,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
 
   // Open/close a date accordion — only one open at a time
   const toggleHistoryDate = useCallback((date) => {
-    setDayTab('notes'); // every newly-opened day starts on Doctor's Notes
+    setDayTab(defaultDayTab); // newly-opened day starts on the default tab
     setOpenHistoryDate(prev => {
       const isOpening = prev !== date;
       if (isOpening) fetchExamsForDate(date);
@@ -714,6 +1123,66 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
     historyPage * HISTORY_PAGE_SIZE
   );
 
+  // One day's body — the Notes/Actions toggle plus either the record document or
+  // the actions list. Shared by the tab's accordion AND the summary panel's
+  // single-day slide-over (singleDate mode) so the two never drift: opening a day
+  // from the summary is identical to expanding it in the Visit History tab.
+  const renderDayBody = (records) => {
+    const actionCount =
+      records.admissions.length + (records.referrals || []).length + records.prescriptions.length;
+    const nursingCount = (records.vitals?.length || 0) + (records.glp1Injections?.length || 0)
+      + (records.glp1WeekNotes?.length || 0) + (records.glp1Reviews?.length || 0)
+      + (records.nursingNotes?.length || 0);
+    const clinicalCount =
+      records.notes.length + records.assessments.length + records.exams.length + records.plans.length;
+    const workflowCount = records.workflow?.length || 0;
+    const timelineCount = clinicalCount + actionCount + nursingCount + workflowCount;
+    const showTabs = actionCount > 0 || nursingCount > 0 || workflowCount > 0;
+    return (
+      <>
+        {/* Narrow screens: the tab pills wrap into rows, so collapse them into
+            one dropdown. ≥sm keeps the pill row. */}
+        {showTabs && (
+          <div className="sm:hidden mb-4">
+            <DayTabSelect
+              value={dayTab}
+              onChange={setDayTab}
+              options={[
+                { id: 'notes', label: "Doctor's Notes" },
+                ...(actionCount > 0 ? [{ id: 'actions', label: 'Actions', count: actionCount }] : []),
+                ...(nursingCount > 0 ? [{ id: 'nursing', label: 'Nursing', count: nursingCount }] : []),
+                { id: 'timeline', label: 'Visit Timeline', count: timelineCount },
+              ]}
+            />
+          </div>
+        )}
+        {showTabs && (
+          <div className="hidden sm:block mb-4">
+            <SwitcherTabs
+              active={dayTab}
+              onChange={setDayTab}
+              tabs={[
+                { id: 'notes', label: "Doctor's Notes", Icon: MessageSquare },
+                ...(actionCount > 0 ? [{ id: 'actions', label: 'Actions', Icon: ClipboardList, count: actionCount }] : []),
+                ...(nursingCount > 0 ? [{ id: 'nursing', label: 'Nursing', Icon: Activity, count: nursingCount }] : []),
+                { id: 'timeline', label: 'Visit Timeline', Icon: Clock, count: timelineCount },
+              ]}
+            />
+          </div>
+        )}
+        {dayTab === 'timeline' && timelineCount > 0 ? (
+          <VisitTimeline records={records} patient={patient} onViewRecord={setViewRecord} onViewArtifact={setViewArtifact} />
+        ) : dayTab === 'actions' && actionCount > 0 ? (
+          <ActionsList records={records} onView={setViewArtifact} />
+        ) : dayTab === 'nursing' && nursingCount > 0 ? (
+          <NursingKardexView records={records} patient={patient} fullExamCache={fullExamCache} />
+        ) : (
+          <DoctorNotesView records={records} patient={patient} fullExamCache={fullExamCache} />
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="space-y-4">
 
@@ -746,10 +1215,11 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
               Clear
             </button>
           )}
-          {/* Print — whole history, or just the visits matching the date filter */}
+          {/* Print — whole history, or just the visits matching the date filter.
+              Opens a chooser: doctor's notes / nursing Kardex / timeline. */}
           {visitDates.length > 0 && (
             <button
-              onClick={printVisits}
+              onClick={() => setShowPrintOptions(true)}
               disabled={printing}
               className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
@@ -808,10 +1278,11 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
         </div>
       )}
 
-      {/* Single-date mode: the visit document, open — no accordion chrome */}
+      {/* Single-date mode: one day, open — the same body as an expanded day in the
+          tab (Notes/Actions and all), just without the accordion chrome. */}
       {singleDate && !historyLoading && historyData && visitDates.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-          <VisitDocument records={getRecordsForDate(singleDate)} fullExamCache={fullExamCache} />
+          {renderDayBody(getRecordsForDate(singleDate))}
         </div>
       )}
 
@@ -819,14 +1290,15 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
       {!singleDate && !historyLoading && paginatedDates.map(date => {
         const records = getRecordsForDate(date);
         const isOpen  = openHistoryDate === date;
-        const total   = Object.values(records).reduce((sum, arr) => sum + arr.length, 0);
+        // Workflow milestones are visit events, not saved records — excluded from
+        // the "N records" count (they still appear on the Visit Timeline).
+        const total   = Object.entries(records).reduce((sum, [k, arr]) => sum + (k === 'workflow' ? 0 : arr.length), 0);
 
         // Per-type header summary: e.g. "1 doctor's note · 1 admission · 1 referral · 1 prescription".
         const noteCount = records.notes.length;
         const admCount  = records.admissions.length;
         const refCount  = (records.referrals || []).length;
         const rxCount   = records.prescriptions.length;
-        const actionCount = admCount + refCount + rxCount;
         const parts = [
           noteCount && `${noteCount} doctor's note${noteCount !== 1 ? 's' : ''}`,
           admCount  && `${admCount} admission${admCount !== 1 ? 's' : ''}`,
@@ -861,21 +1333,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
             {/* Expanded — Doctor's Notes | Actions (Actions tab only when there are any) */}
             {isOpen && (
               <div className="border-t border-gray-100 p-5">
-                {actionCount > 0 && (
-                  <div className="flex gap-2 mb-4">
-                    <button onClick={() => setDayTab('notes')} className={dayTabCls(dayTab === 'notes')}>
-                      <MessageSquare className="w-4 h-4" /> Doctor's Notes
-                    </button>
-                    <button onClick={() => setDayTab('actions')} className={dayTabCls(dayTab === 'actions')}>
-                      <ClipboardList className="w-4 h-4" /> Actions
-                      <span className="ml-0.5 text-[11px] px-1.5 rounded-full bg-white/25">{actionCount}</span>
-                    </button>
-                  </div>
-                )}
-                {dayTab === 'actions' && actionCount > 0
-                  ? <ActionsList records={records} onView={setViewArtifact} />
-                  : <VisitDocument records={records} fullExamCache={fullExamCache} />
-                }
+                {renderDayBody(records)}
               </div>
             )}
           </div>
@@ -925,16 +1383,88 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
               {(historyFromDate || historyToDate) && ` · ${historyFromDate || '…'} → ${historyToDate || '…'}`}
             </p>
           </div>
-          {visitDates.map(date => (
-            <div key={date} className="mb-6" style={{ breakInside: 'avoid' }}>
-              <h2 className="text-base font-bold text-gray-800 border-b border-gray-300 pb-1 mb-3">
-                {formatDateLong(date)}
-              </h2>
-              <VisitDocument records={getRecordsForDate(date)} fullExamCache={fullExamCache} />
-            </div>
-          ))}
+          {visitDates.map(date => {
+            const recs = getRecordsForDate(date);
+            const kardexTasks = printInclude.kardex ? nursingTasks(recs) : [];
+            return (
+              <div key={date} className="mb-6" style={{ breakInside: 'avoid' }}>
+                <h2 className="text-base font-bold text-gray-800 border-b border-gray-300 pb-1 mb-3">
+                  {formatDateLong(date)}
+                </h2>
+                {printInclude.notes && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-bold text-gray-700 mb-2">Doctor's notes</h3>
+                    <VisitDocument records={recs} fullExamCache={fullExamCache} />
+                  </div>
+                )}
+                {printInclude.kardex && kardexTasks.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-bold text-gray-700 mb-2">Nursing Kardex</h3>
+                    <div className="divide-y divide-gray-200">
+                      {kardexTasks.map((t) => (
+                        <div key={t.key} className="py-3 first:pt-0 last:pb-0">
+                          <EncounterBlock records={t.records} fullExamCache={fullExamCache} showNursingNotes />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {printInclude.timeline && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-bold text-gray-700 mb-2">Visit timeline</h3>
+                    <TimelinePrintList records={recs} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
+
+      {/* ── Master print chooser — what to include for the filtered visits ── */}
+      {showPrintOptions && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowPrintOptions(false)}>
+          <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800">Print visits</h3>
+              <button onClick={() => setShowPrintOptions(false)} aria-label="Close"><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="px-5 py-4 space-y-2">
+              <p className="text-sm text-gray-500 mb-2">
+                Include for {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
+                {(historyFromDate || historyToDate) ? ' in the filtered range' : ''}:
+              </p>
+              {[
+                ['notes',    "Doctor's notes"],
+                ['kardex',   'Nursing Kardex'],
+                ['timeline', 'Visit timeline'],
+              ].map(([key, label]) => (
+                <label key={key} className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
+                  printInclude[key] ? 'bg-blue-50 border-blue-300 text-gray-800' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                }`}>
+                  <input
+                    type="checkbox"
+                    checked={printInclude[key]}
+                    onChange={() => setPrintInclude((p) => ({ ...p, [key]: !p[key] }))}
+                    className="w-4 h-4 accent-blue-600 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium">{label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100">
+              <button onClick={() => setShowPrintOptions(false)} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Cancel</button>
+              <button
+                onClick={() => { setShowPrintOptions(false); printVisits(); }}
+                disabled={!printInclude.notes && !printInclude.kardex && !printInclude.timeline}
+                className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <Printer className="w-4 h-4" /> Print
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Actions artifact viewer. Prescriptions use the shared PrescriptionPrint
           (same format as the consultation); admissions use the note viewer. */}
@@ -943,6 +1473,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null })
       ) : (
         <ArtifactModal artifact={viewArtifact} patient={patient} onClose={() => setViewArtifact(null)} />
       )}
+
+      {/* Nursing task viewer — one task, full detail, in the shared document style */}
+      <RecordDetailModal item={viewRecord} fullExamCache={fullExamCache} onClose={() => setViewRecord(null)} />
 
     </div>
   );

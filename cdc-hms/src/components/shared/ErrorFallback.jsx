@@ -11,8 +11,8 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center">
+    <div className="app-shell safe-t safe-b overflow-y-auto no-scrollbar overscroll-contain bg-gray-50 flex p-4">
+      <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full text-center m-auto">
         {/* Icon */}
         <div className="flex justify-center mb-4">
           <div className="bg-red-100 rounded-full p-4">

@@ -25,6 +25,27 @@ the Staff File**, not a new file.
   with admin access viewing `/admin/...` gets the admin experience. Gate on the
   URL prefix, never on `currentUser.role`.
 
+## Patient File tabs — standardised (2026-08-16)
+
+Every portal shows the **same tab set**; the only per-role difference is the
+first, *live-visit* tab, and it is **queue-gated** (appears only while the
+patient is in an active queue entry — the file's equivalent of a live visit):
+
+| Tab | Notes |
+|---|---|
+| *Live tab* (first) | doctor → **Today's Consultation** (`components/doctor/TodaysConsultationTab.jsx`, extracted from the old `Consultation.jsx` page — that page is deleted; `/doctor/consultation/:uhid` opens the Patient File); staff/nurse → **Nursing** (`components/nursing/NursingActionsTab.jsx`: triage, GLP-1 injection, DAR Kardex, Actions dropdown); admin → none (review-only) |
+| **Visit History** | the master record. Sub-tabs **Visits / Prescriptions**. Each day: Doctor's Notes / Nursing (inline Kardex) / Visit Timeline (every time-stamped action + queue milestones), each printable |
+| **Diagnostics** | sub-tabs **Medical Documents / Charts** |
+| **Medical Equipment** | as before |
+| **User Management** | appended last where permitted; also hosts the **Barcode** card |
+
+Rules that follow from this: nursing/clinical history is *read* in Visit
+History, *written* in the live tab; a new nursing tool is an entry in
+`NURSING_ACTIONS` (NursingActionsTab), not a new tab; a new record type
+surfaces in Visit History via one `DATE_FIELD_MAP` entry + fetch + render
+block (and a `VISIT_TIMELINE_KINDS` entry for the timeline). In-tab sub-toggles
+use `SwitcherTabs`; the main tab strip stays `ProfileTabBar`.
+
 ## Shared building blocks — reuse, never duplicate
 
 - `components/shared/ProfileTabBar.jsx` — the tab strip.

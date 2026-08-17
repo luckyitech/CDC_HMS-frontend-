@@ -49,7 +49,6 @@ const StaffBookAppointment  = lazy(() => import("./pages/staff/BookAppointment")
 const DoctorDashboard = lazy(() => import("./pages/doctor/DoctorDashboard"));
 const MyPatients = lazy(() => import("./pages/doctor/MyPatients"));
 const PatientProfile = lazy(() => import("./pages/doctor/PatientProfile"));
-const Consultation = lazy(() => import("./pages/doctor/Consultation"));
 const InitialAssessment = lazy(() => import("./pages/doctor/InitialAssessment"));
 const DoctorPrescriptions = lazy(() => import("./pages/doctor/DoctorPrescriptions"));
 const Reports = lazy(() => import("./pages/doctor/Reports"));
@@ -186,7 +185,9 @@ function App() {
                   <Route path="inpatient-board" element={<WardBoard />} />
                   <Route path="patients" element={<MyPatients />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
-                  <Route path="consultation/:uhid" element={<Consultation />} />
+                  {/* The consultation opens the shared patient file; Today's
+                      Consultation is its first (queue-gated) tab. */}
+                  <Route path="consultation/:uhid" element={<PatientFile />} />
                   <Route path="initial-assessment" element={<InitialAssessment />} />
                   <Route path="prescriptions" element={<DoctorPrescriptions />} />
                   <Route path="reports" element={<Reports />} />

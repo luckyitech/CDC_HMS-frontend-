@@ -89,7 +89,10 @@ const Glp1WeekRows = ({
     const result = await onRecord({
       weekNumber:       week,
       status,
-      administeredDate: status === 'given' ? dueDate(week) : null,
+      // The actual day it was given — not the week's scheduled date. weekNumber
+      // already records which week this is; administeredDate is what the visit
+      // history dates the injection by, so it must be today.
+      administeredDate: status === 'given' ? new Date().toISOString().slice(0, 10) : null,
       dose:             step.dose,
       note:             reason || null,
     });

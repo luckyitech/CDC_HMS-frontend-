@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSessionTimeout from "../hooks/useSessionTimeout";
 import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
@@ -66,6 +66,14 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // Effective visual state: a pinned-collapsed rail looks expanded while hovered.
   const isCollapsed = collapsed && !hovered;
   const [portalSwitcherOpen, setPortalSwitcherOpen] = useState(false);
+  // Profile footer — the action icons (bell, logout, …) stay hidden behind the
+  // profile row; the chevron (or the avatar, in the collapsed rail) reveals them.
+  const [profileOpen, setProfileOpen] = useState(false);
+  // Collapsing the sidebar (pinning it, or the hover-expand ending) tucks the
+  // profile menu away too — the rail always returns to just the avatar.
+  useEffect(() => {
+    if (isCollapsed) setProfileOpen(false);
+  }, [isCollapsed]);
 
   const toggleCollapsed = () => {
     // Any collapse/expand of the rail closes the portal dropdown — the narrow icon
@@ -79,12 +87,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
   // Someone with admin capabilities looking at another portal. Capability, not
   // role: a granted staff member gets the same banner as the admin does.
-  // The doctor/staff dashboard switcher. Always carries Dashboard + Patient Visits;
-  // the Inpatient Dashboard tab is inserted (as the middle tab) only for users
-  // with inpatient access — doctors by role, others by the admin-granted
-  // inpatient.access capability (admins hold it implicitly). Every tab stays
-  // INSIDE the current portal (the board renders at /{portal}/inpatient-board),
-  // so the sidebar never changes. Nurses keep their own ward-board home.
+  // The doctor/staff dashboard switcher. Carries Dashboard, plus an Inpatient
+  // Dashboard tab for users with inpatient access — doctors by role, others by the
+  // admin-granted inpatient.access capability (admins hold it implicitly). Patient
+  // Visits used to live here but now rides in the Appointments group for both the
+  // doctor and staff portals. Every tab stays INSIDE the current portal (the board
+  // renders at /{portal}/inpatient-board), so the sidebar never changes. Nurses
+  // keep their own ward-board home.
   const homeRole = userRole.toLowerCase();
   // Only these portals actually mount an /{portal}/inpatient-board route (App.jsx).
   // The nurse and inpatient portals do NOT: a nurse's own dashboard IS the ward
@@ -105,9 +114,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
     ...(canSeeInpatientTab
       ? [{ label: 'Inpatient Dashboard', path: `/${homeRole}/inpatient-board`, Icon: BedDouble }]
       : []),
-    ...(['doctor', 'staff'].includes(homeRole)
-      ? [{ label: 'Patient Visits', path: `/${homeRole}/patient-visits`, Icon: TrendingUp }]
-      : []),
   ];
   // Grouped pages that share one top-of-page switcher instead of separate sidebar
   // entries (decongests the side nav). Each group lists the routes it covers; the
@@ -120,10 +126,30 @@ const MainLayout = ({ userRole = "Staff" }) => {
       tabs: dashboardTabs,
     },
     {
+      // Doctor appointments: schedule + the visit report share the Appointments page.
       show: homeRole === 'doctor',
       tabs: [
         { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
         { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
+        { label: 'Patient Visits', path: '/doctor/patient-visits', Icon: TrendingUp },
+      ],
+    },
+    {
+      // Staff appointments: booking + the visit report share the Appointments page.
+      show: homeRole === 'staff',
+      tabs: [
+        { label: 'Appointments', path: '/staff/appointments', Icon: Calendar },
+        { label: 'Book Appointment', path: '/staff/book-appointment', Icon: CalendarCheck },
+        { label: 'Patient Visits', path: '/staff/patient-visits', Icon: TrendingUp },
+      ],
+    },
+    {
+      // Staff front desk: the queue, patient search and registration share one page.
+      show: homeRole === 'staff',
+      tabs: [
+        { label: 'Queue Management', path: '/staff/queue', Icon: ClipboardList },
+        { label: 'Patient Search', path: '/staff/patients', Icon: Search },
+        { label: 'Register Patient', path: '/staff/create-patient', Icon: UserPlus },
       ],
     },
     {
@@ -184,20 +210,36 @@ const MainLayout = ({ userRole = "Staff" }) => {
     ? [{ label: 'Stocks', path: `/${userRole.toLowerCase()}/stock`, icon: Package }]
     : [];
 
-  // The logo opens the switcher for portal-switchers OR stock users (their one
+  // The switcher pill is shown for portal-switchers OR stock users (their one
   // module lives in the list too).
   const canOpenSwitcher = canSwitchPortal || stockModule.length > 0;
 
-  // Logo click: opens the portal dropdown for those who may switch; otherwise it
-  // is a shortcut back to the current portal's dashboard.
+  // Icon + label shown on the switcher pill for the destination the user is
+  // currently in (Meta shows the active account's avatar in the same spot).
+  // Stocks is a switcher destination that lives under the current portal, so when
+  // the user is on a stock route the pill reflects Stocks — otherwise it would
+  // fall back to the base portal's icon (e.g. the admin shield) even though the
+  // user switched into Stocks.
+  const onStockRoute = stockModule.length > 0 && location.pathname.includes("/stock");
+  const SwitcherIcon = onStockRoute
+    ? Package
+    : portalOptions.find((p) => p.path.startsWith(`/${userRole.toLowerCase()}/`))?.icon || Stethoscope;
+  const switcherLabel = onStockRoute ? "Stocks" : `${userRole} Portal`;
+
+  // Logo is now a plain brand shortcut back to the current portal's dashboard.
+  // Portal switching moved out of the logo and into its own pill below the header,
+  // so the two concerns no longer share a single click.
   const handleLogoClick = () => {
-    if (canOpenSwitcher) {
-      setPortalSwitcherOpen((open) => !open);
-      setOpenGroups({}); // single-open: opening the switcher closes any open nav group
-    } else {
-      navigate(`/${userRole.toLowerCase()}/dashboard`);
-      setSidebarOpen(false);
-    }
+    navigate(`/${userRole.toLowerCase()}/dashboard`);
+    setSidebarOpen(false);
+    setPortalSwitcherOpen(false);
+  };
+
+  // The Meta-style switcher pill toggles the portal dropdown. Opening it collapses
+  // any open nav group (single-open accordion).
+  const togglePortalSwitcher = () => {
+    setPortalSwitcherOpen((open) => !open);
+    setOpenGroups({});
   };
   // const [notificationsOpen, setNotificationsOpen] = useState(false); // TODO: notifications
   // const [doctorApptCount, setDoctorApptCount] = useState(0); // TODO: notifications
@@ -256,12 +298,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const menuItems = {
     staff: [
       { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },
-      { name: "Patient Search", path: "/staff/patients", icon: Search },
+      // Front-desk group entry — Patient Search + Register Patient ride along as
+      // tabs on this page (see switcherGroups). Keeps the sidebar decongested.
+      // Triage lives as the second tab inside Queue Management now, not a nav item.
       { name: "Queue Management", path: "/staff/queue", icon: ClipboardList },
-      { name: "Triage", path: "/staff/triage", icon: Stethoscope },
+      // Appointments group entry — Book Appointment + Patient Visits are its tabs.
       { name: "Appointments", path: "/staff/appointments", icon: Calendar },
-      { name: "Book Appointment", path: "/staff/book-appointment", icon: CalendarCheck },
-      { name: "Register Patient", path: "/staff/create-patient", icon: UserPlus },
       { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
@@ -328,8 +370,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
     // HMIS V3 — nurse portal (inpatient home + OPD nursing work)
     nurse: [
       { name: "Ward Board", path: "/nurse/dashboard", icon: BedDouble },
+      // Triage is the second tab inside Queue Management now, not a nav item.
       { name: "Queue Management", path: "/nurse/queue", icon: ClipboardList },
-      { name: "Triage", path: "/nurse/triage", icon: Stethoscope },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [
@@ -384,7 +426,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     const isActive = location.pathname === item.path;
     // Indentation is meaningless in the collapsed icon rail, where group
     // headers are hidden and children show as plain centered icons.
-    const indentCls = nested && !isCollapsed ? "pl-12 lg:pl-14" : "";
+    const indentCls = nested && !isCollapsed ? "pl-6 lg:pl-8" : "";
     return (
       <button
         key={item.path}
@@ -395,37 +437,45 @@ const MainLayout = ({ userRole = "Staff" }) => {
         }}
         title={item.name}
         className={`
-          w-full flex items-center overflow-hidden px-6 py-4 ${indentCls}
+          w-full flex items-center overflow-hidden group px-2 py-0.5 ${indentCls}
           ${isCollapsed ? "md:px-0 md:justify-center" : ""}
           transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
-          border-l-4 group
-          ${
-            isActive
-              ? "bg-blue-700 border-cyan-400 text-white" // ← ACTIVE STATE
-              : "border-transparent hover:bg-blue-700 hover:border-cyan-400" // ← INACTIVE STATE
-          }
         `}
       >
-        <IconComponent
-          size={nested ? 20 : 24}
-          strokeWidth={2}
-          className={`
-            transition-colors
-            ${
-              isActive
-                ? "text-white" // ← ACTIVE ICON COLOR
-                : "text-blue-200 group-hover:text-white" // ← INACTIVE ICON COLOR
-            }
-          `}
-        />
+        {/* Filled rounded slot — Meta-style active/hover highlight. A centered
+            square in the icon rail, a full-width pill when the rail is expanded. */}
         <span
           className={`
-          ml-4 font-medium whitespace-nowrap ${nested ? "text-base" : "text-lg"}
-          ${isCollapsed ? "md:hidden" : ""}
-          ${isActive ? "font-bold" : ""}
-        `}
+            flex items-center rounded-xl transition-colors duration-200
+            ${isCollapsed ? "md:w-10 md:h-10 md:justify-center md:p-0 w-full px-3 py-2.5" : "w-full px-3 py-2.5"}
+            ${
+              isActive
+                ? "bg-white/15 text-white" // ← ACTIVE STATE (filled rounded slot)
+                : "text-blue-200 hover:bg-white/10 hover:text-white" // ← INACTIVE STATE
+            }
+          `}
         >
-          {item.name}
+          <IconComponent
+            size={nested ? 18 : 20}
+            strokeWidth={2}
+            className={`
+              flex-shrink-0 transition-colors
+              ${
+                isActive
+                  ? "text-white" // ← ACTIVE ICON COLOR
+                  : "text-blue-200 group-hover:text-white" // ← INACTIVE ICON COLOR
+              }
+            `}
+          />
+          <span
+            className={`
+            ml-3 font-medium whitespace-nowrap ${nested ? "text-sm" : "text-base"}
+            ${isCollapsed ? "md:hidden" : ""}
+            ${isActive ? "font-semibold" : ""}
+          `}
+          >
+            {item.name}
+          </span>
         </span>
       </button>
     );
@@ -445,32 +495,39 @@ const MainLayout = ({ userRole = "Staff" }) => {
           onClick={() => toggleGroup(groupItem.name)}
           title={groupItem.name}
           className={`
-            w-full flex items-center overflow-hidden px-6 py-4
+            w-full flex items-center overflow-hidden px-2 py-0.5
             ${isCollapsed ? "md:hidden" : ""}
             transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
-            border-l-4 border-transparent hover:bg-blue-700 group
+            group
           `}
         >
-          <GroupIcon
-            size={24}
-            strokeWidth={2}
-            className={`transition-colors ${
-              hasActiveChild ? "text-white" : "text-blue-200 group-hover:text-white"
-            }`}
-          />
           <span
-            className={`ml-4 flex-1 text-left font-medium text-lg whitespace-nowrap ${
-              hasActiveChild ? "font-bold" : ""
-            }`}
+            className={`
+              flex items-center w-full rounded-xl px-3 py-2.5 transition-colors duration-200
+              ${hasActiveChild ? "bg-white/15 text-white" : "text-blue-200 hover:bg-white/10 hover:text-white"}
+            `}
           >
-            {groupItem.name}
+            <GroupIcon
+              size={20}
+              strokeWidth={2}
+              className={`flex-shrink-0 transition-colors ${
+                hasActiveChild ? "text-white" : "text-blue-200 group-hover:text-white"
+              }`}
+            />
+            <span
+              className={`ml-3 flex-1 text-left font-medium text-base whitespace-nowrap ${
+                hasActiveChild ? "font-semibold" : ""
+              }`}
+            >
+              {groupItem.name}
+            </span>
+            <ChevronDown
+              size={16}
+              className={`flex-shrink-0 text-blue-200 transition-transform duration-200 ${
+                isOpen ? "rotate-180" : ""
+              }`}
+            />
           </span>
-          <ChevronDown
-            size={18}
-            className={`text-blue-200 transition-transform duration-200 ${
-              isOpen ? "rotate-180" : ""
-            }`}
-          />
         </button>
 
         {/* Children show when the group is open, and always in the rail */}
@@ -481,7 +538,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="app-shell safe-x flex bg-gray-50 overflow-hidden">
       {/* Mobile Overlay */}
       {sidebarOpen && (
         <div
@@ -502,43 +559,36 @@ const MainLayout = ({ userRole = "Staff" }) => {
         }}
         className={`
         ${sidebarOpen ? "translate-x-0" : "-translate-x-[calc(100%+1.5rem)] md:translate-x-0"}
-        fixed inset-y-4 left-4 z-30 flex flex-col overflow-hidden rounded-[20px]
-        w-72 ${isCollapsed ? "md:w-20" : "md:w-72"}
+        fixed top-[calc(1rem+env(safe-area-inset-top,0px))] bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] z-30 flex flex-col overflow-hidden rounded-[20px]
+        w-72 ${isCollapsed ? "md:w-16" : "md:w-72"}
         bg-gradient-to-b from-blue-600 to-blue-800 text-white
         transition-[width,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-2xl
       `}
       >
-        <div className={`relative px-6 pt-6 transition-[padding] duration-200 ${portalSwitcherOpen ? "pb-1" : "pb-6"} ${isCollapsed ? "md:p-3" : ""} flex items-center justify-between ${isCollapsed ? "md:justify-center" : ""}`}>
-          {/* LEFT SIDE — Logo + text, spanning the full rail width. Acts as the portal
-              switcher when the user may switch (canSwitchPortal); else a dashboard shortcut. */}
+        <div className={`relative px-6 pt-6 transition-[padding] duration-200 ${canOpenSwitcher ? "pb-3" : "pb-6"} ${isCollapsed ? "md:p-2" : ""} flex items-center justify-between ${isCollapsed ? "md:justify-center" : ""}`}>
+          {/* LEFT SIDE — Logo + brand. A plain shortcut back to the dashboard; portal
+              switching now lives in the pill below (see the switcher pill). */}
           <button
             type="button"
             onClick={handleLogoClick}
-            title={canOpenSwitcher ? "Switch portal" : "Go to dashboard"}
-            aria-haspopup={canOpenSwitcher ? "menu" : undefined}
-            aria-expanded={canOpenSwitcher ? portalSwitcherOpen : undefined}
+            title="Go to dashboard"
             className={`flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl px-3 py-2 transition hover:bg-blue-700/40 ${isCollapsed ? "md:flex-none md:justify-center md:px-0" : ""}`}
           >
             {/* Logo */}
-            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-lg p-2 flex-shrink-0">
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg p-1.5 flex-shrink-0">
               <img
                 src={logo}
                 alt="CDC Logo"
                 className="w-full h-full object-contain"
               />
             </div>
-            {/* Text */}
+            {/* Text — the portal name drops when the switcher pill carries it */}
             <div className={`min-w-0 ${isCollapsed ? "md:hidden" : ""}`}>
               <h2 className="text-xl font-bold truncate">CDC HMS</h2>
-              <p className="text-xs text-blue-200 mt-0.5 truncate">{userRole} Portal</p>
+              {!canOpenSwitcher && (
+                <p className="text-xs text-blue-200 mt-0.5 truncate">{userRole} Portal</p>
+              )}
             </div>
-            {/* Switcher affordance — pushed to the far right of the full-width button */}
-            {canOpenSwitcher && (
-              <ChevronDown
-                size={18}
-                className={`ml-auto flex-shrink-0 text-blue-200 transition-transform duration-200 ${isCollapsed ? "md:hidden" : ""} ${portalSwitcherOpen ? "rotate-180" : ""}`}
-              />
-            )}
           </button>
 
           {/* RIGHT SIDE - Close Button (Mobile) */}
@@ -551,16 +601,57 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
         </div>
 
+        {/* ── Portal switcher pill (Meta-style) ───────────────────────────────
+            Sits under the logo, separate from it. Full-width bordered pill when
+            the rail is expanded; a single centered icon button in the icon rail.
+            Only rendered for users who can actually switch (or stock users). */}
+        {canOpenSwitcher && (
+          <div className={`px-4 pb-3 ${isCollapsed ? "md:px-0 md:flex md:justify-center" : ""}`}>
+            <button
+              type="button"
+              onClick={togglePortalSwitcher}
+              title="Switch portal"
+              aria-haspopup="menu"
+              aria-expanded={portalSwitcherOpen}
+              className={`
+                w-full flex items-center gap-3 rounded-xl px-3 py-2.5
+                bg-white/10 hover:bg-white/[0.17] border border-white/15 transition-colors
+                ${isCollapsed ? "md:w-10 md:h-10 md:p-0 md:gap-0 md:justify-center md:border-white/10" : ""}
+              `}
+            >
+              <span className="w-7 h-7 flex-shrink-0 rounded-full bg-white/15 flex items-center justify-center">
+                <SwitcherIcon size={16} className="text-white" />
+              </span>
+              <span className={`min-w-0 flex-1 text-left text-sm font-medium text-white truncate ${isCollapsed ? "md:hidden" : ""}`}>
+                {switcherLabel}
+              </span>
+              <ChevronDown
+                size={16}
+                className={`flex-shrink-0 text-blue-200 transition-transform duration-200 ${isCollapsed ? "md:hidden" : ""} ${portalSwitcherOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+          </div>
+        )}
+
         <nav className="flex-1 overflow-y-auto py-4">
-          {/* Portal switcher — opened from the logo. Renders inline and pushes the menu
-              down, exactly like the nav group dropdowns (reuses renderLeaf). Negative
-              top margin cancels the nav's top padding so it sits right under the logo. */}
+          {/* Portal switcher — opened from the switcher pill above. Renders inline and
+              pushes the menu down, exactly like the nav group dropdowns (reuses
+              renderLeaf). Negative top margin cancels the nav's top padding so the list
+              sits right under the pill. */}
           {canOpenSwitcher && portalSwitcherOpen && (
             <div className="-mt-4">
+              {/* Every portal the user can switch to. Normally the portal you're in
+                  is hidden — but Stocks is a sub-page OF a portal, so on a stock
+                  route the base portal is NOT where you are and must stay listed,
+                  otherwise it looks like the portal vanished. */}
               {canSwitchPortal && portalOptions
-                .filter(({ path }) => !path.startsWith(`/${userRole.toLowerCase()}/`))
+                .filter(({ path }) => onStockRoute || !path.startsWith(`/${userRole.toLowerCase()}/`))
                 .map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
-              {stockModule.map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
+              {/* Stocks is the current destination on a stock route, so drop it there
+                  — unless it's the only thing the switcher can offer (a stock-only
+                  user who can't switch portals), where hiding it leaves an empty menu. */}
+              {(!onStockRoute || !canSwitchPortal) &&
+                stockModule.map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
             </div>
           )}
           {currentMenu
@@ -570,19 +661,27 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
         {/* ── Footer: everything that used to live in the topbar ──────────── */}
         <div>
-          {/* User identity */}
-          <div className={`flex items-center gap-3 px-4 pt-3 pb-2 ${isCollapsed ? "md:justify-center md:px-0" : ""}`}>
-            <div className="w-10 h-10 flex-shrink-0 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+          {/* Profile row — clicking it (chevron expanded, avatar in the collapsed
+              rail) reveals the action icons below. */}
+          <button
+            type="button"
+            onClick={() => setProfileOpen((o) => !o)}
+            aria-expanded={profileOpen}
+            aria-label="Profile menu"
+            className={`w-full flex items-center gap-2 px-4 pt-3 pb-2 text-left hover:bg-white/5 transition-colors ${isCollapsed ? "md:justify-center md:px-0" : ""}`}
+          >
+            <div className="w-9 h-9 flex-shrink-0 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
               {initials}
             </div>
             <div className={`min-w-0 flex-1 ${isCollapsed ? "md:hidden" : ""}`}>
               <p className="font-semibold text-sm text-white truncate">{displayName}</p>
               <p className="text-xs text-blue-200">{userRole} Portal</p>
             </div>
-          </div>
+            <ChevronDown className={`w-4 h-4 flex-shrink-0 text-blue-200 transition-transform ${profileOpen ? "rotate-180" : ""} ${isCollapsed ? "md:hidden" : ""}`} />
+          </button>
 
-          {/* Action icons — notifications + logout (or home for patients), lined up
-              horizontally below the avatar; stack as icons in the collapsed rail */}
+          {/* Action icons — revealed by the profile row; stack in the collapsed rail */}
+          {profileOpen && (
           <div className={`flex items-center gap-2 px-4 pb-3 ${isCollapsed ? "md:flex-col md:px-0" : ""}`}>
             <NotificationBell userRole={userRole} />
             {/* HMIS V3 — workspace switcher.
@@ -617,7 +716,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
                 aria-label="Home"
                 className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
               >
-                <Home className="w-6 h-6" />
+                <Home className="w-5 h-5" />
               </button>
             ) : (
               <button
@@ -626,10 +725,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
                 aria-label="Logout"
                 className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
               >
-                <LogOut className="w-6 h-6" />
+                <LogOut className="w-5 h-5" />
               </button>
             )}
           </div>
+          )}
 
           {/* Collapse toggle — desktop only */}
           <div className="hidden md:block">
@@ -655,7 +755,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
           content instead of shifting it */}
       <div
         className={`hidden md:block flex-shrink-0 transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          collapsed ? "w-[6.75rem]" : "w-[19.75rem]"
+          collapsed ? "w-[5.75rem]" : "w-[19.75rem]"
         }`}
       />
 
@@ -663,7 +763,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Slim mobile bar — desktop has no top bar at all now.
             Exists only to open the sidebar drawer on small screens. */}
-        <header className="md:hidden fixed top-3 left-4 right-4 z-20 h-14 bg-white shadow-lg border border-gray-200 rounded-2xl px-3 flex items-center justify-between">
+        <header className="md:hidden fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] right-[calc(1rem+env(safe-area-inset-right,0px))] z-20 h-14 bg-white shadow-lg border border-gray-200 rounded-2xl px-3 flex items-center justify-between">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="text-gray-700 hover:text-primary hover:bg-blue-50 p-2 rounded-lg transition"
@@ -679,7 +779,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto no-scrollbar overscroll-contain px-4 pb-4 pt-3 lg:px-8 lg:pb-8 lg:pt-4 bg-gray-50 mt-[4.75rem] md:mt-0">
+        {/* The app's ONLY scroll container. overflow-x-hidden: a single wide
+            table must scroll inside its own wrapper, never pan the whole app.
+            Top margin clears the fixed mobile bar (+notch); bottom padding
+            clears the home-indicator on installed iOS. */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar overscroll-contain px-4 pt-3 lg:px-8 lg:pt-4 bg-gray-50 mt-[calc(4.75rem+env(safe-area-inset-top,0px))] md:mt-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] lg:pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
           {pageTabs && <PageTabs tabs={pageTabs} />}
           <Outlet />
         </main>

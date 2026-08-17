@@ -69,6 +69,10 @@ export const queueService = {
    * @param {string} uhid
    */
   advisedReferrals: (uhid) => api.get('/queue/advised-referrals', { params: { uhid } }),
+
+  // A patient's visit workflow history — queue milestone timestamps (check-in,
+  // triage, doctor, completion). Feeds the Visit Timeline.
+  patientHistory: (uhid) => api.get(`/queue/patient/${uhid}`),
 };
 
 export default queueService;
