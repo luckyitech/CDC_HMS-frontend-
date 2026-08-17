@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
@@ -7,6 +7,7 @@ import VitalsGrid from "../shared/VitalsGrid";
 import { getBpColor, getTemperatureColor, getO2Color, getRbsColor, getHba1cColor, getKetonesColor } from "../../utils/clinicalColors";
 import patientService from "../../services/patientService";
 import { usePatientContext } from "../../contexts/PatientContext";
+import { useQueueContext } from "../../contexts/QueueContext";
 import api from "../../services/api";
 
 // "Last: <value> (<date>)" line shown under vitals and calculated values
@@ -77,11 +78,15 @@ const EMPTY_VITALS = {
  *
  * Props:
  *   patient    resolved patient object
- *   queueItem  the patient's active queue entry (moved to In Triage on open)
+ *   queueItem  the patient's active queue entry. Opening the vitals entry form
+ *              for an 'Awaiting Triage' patient moves it to 'In Triage' — that
+ *              transition is where the server stamps triageStartTime/triagedBy.
+ *              Saving vitals is what stamps triageEndTime (server side).
  *   onSaved    called after vitals are saved, so the host refetches the patient
  */
 const TriagePanel = ({ patient, queueItem, onSaved = () => {} }) => {
   const { updatePatientVitals } = usePatientContext();
+  const { updateQueueStatus } = useQueueContext();
 
   const [vitals, setVitals] = useState(EMPTY_VITALS);
   const [chiefComplaint, setChiefComplaint] = useState("");
@@ -132,6 +137,29 @@ const TriagePanel = ({ patient, queueItem, onSaved = () => {} }) => {
     localStorage.setItem(`triage_draft_${uhid}`, JSON.stringify({ vitals, chiefComplaint, allergies, timestamp: new Date().toISOString() }));
   }, [vitals, chiefComplaint, allergies, uhid]);
 
+  // Once triaged today, the recorded vitals stay on screen for the rest of the day
+  // instead of a blank form. A repeat is deliberate: "Log second triage" opens a
+  // fresh form and each save writes a new vitals row, so both readings are kept.
+  const recAt = patient?.vitals?.recordedAt;
+  const triagedToday = !!recAt && new Date(recAt).toDateString() === new Date().toDateString();
+  const entryFormOpen = !!patient && (!triagedToday || entryMode);
+
+  // Triage starts when the nurse opens the vitals form: move an 'Awaiting Triage'
+  // row to 'In Triage', where the server stamps triageStartTime + triagedBy (from
+  // the JWT). Only that status — 'Pending Injection' is left alone so injection
+  // visits stay countable, and anything past triage is not ours to touch. Once
+  // per queue row: the ref stops a second PUT before the status has come back
+  // (StrictMode's double effect in dev, or a re-render racing the response).
+  const queueStatus = queueItem?.status;
+  const triageStartedFor = useRef(null);
+  useEffect(() => {
+    if (!entryFormOpen || !queueItemId || queueStatus !== "Awaiting Triage") return;
+    if (triageStartedFor.current === queueItemId) return;
+    triageStartedFor.current = queueItemId;
+    updateQueueStatus(queueItemId, "In Triage");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entryFormOpen, queueItemId, queueStatus]);
+
   const bmi = (vitals.weight && vitals.height)
     ? (parseFloat(vitals.weight) / ((parseFloat(vitals.height) / 100) ** 2)).toFixed(1) : "";
   const waistHeightRatio = (vitals.waistCircumference && vitals.height)
@@ -178,13 +206,7 @@ const TriagePanel = ({ patient, queueItem, onSaved = () => {} }) => {
 
   if (!patient) return null;
 
-  // Once triaged today, the recorded vitals stay on screen for the rest of the day
-  // instead of a blank form. A repeat is deliberate: "Log second triage" opens a
-  // fresh form and each save writes a new vitals row, so both readings are kept.
-  const recAt = patient.vitals?.recordedAt;
-  const triagedToday = recAt && new Date(recAt).toDateString() === new Date().toDateString();
-
-  if (triagedToday && !entryMode) {
+  if (!entryFormOpen) {
     const startSecondTriage = () => {
       setVitals({ ...EMPTY_VITALS, height: String(patient.vitals?.height || "").replace(/[^\d.]/g, "") });
       setChiefComplaint("");
@@ -197,7 +219,8 @@ const TriagePanel = ({ patient, queueItem, onSaved = () => {} }) => {
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-gray-500">
               Recorded today
-              {recAt ? ` at ${new Date(recAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}.
+              {recAt ? ` at ${new Date(recAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}
+              {patient.vitals?.recordedBy ? ` by ${patient.vitals.recordedBy}` : ""}.
             </p>
             <Button variant="outline" onClick={startSecondTriage}>Log second triage</Button>
           </div>

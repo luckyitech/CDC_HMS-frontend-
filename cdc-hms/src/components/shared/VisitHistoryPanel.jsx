@@ -143,7 +143,9 @@ const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) =>
         {records.vitals.map((v, idx) => (
           <DocBox key={idx}>
             {v.recordedAt && (
-              <p className="text-xs text-gray-500 mb-1">Recorded {fmtTime(v.recordedAt)}</p>
+              <p className="text-xs text-gray-500 mb-1">
+                Recorded {fmtTime(v.recordedAt)}{v.recordedBy ? ` by ${v.recordedBy}` : ''}
+              </p>
             )}
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
               {[
@@ -707,8 +709,8 @@ const NursingKardexView = ({ records, patient, fullExamCache }) => {
 // queue/billing system and aren't fetched into Visit History yet; add a queue-
 // history source here to fold them in.) Add a record type below and it appears.
 // `by` pulls the author's display name off each record (field names vary by
-// type). Triage vitals carry no author yet — PatientVital has no recordedBy
-// column (logged in TASK-DEBT alongside the missing triage timestamps).
+// type). Triage vitals: `recordedBy` is the joined name of PatientVital.recordedById
+// (stamped from the JWT); null on rows recorded before that column existed.
 const VISIT_TIMELINE_KINDS = [
   { kind: 'note',          type: 'notes',          ts: 'date',             Icon: MessageSquare, title: "Doctor's note",     by: (r) => r.doctorName },
   { kind: 'assessment',    type: 'assessments',    ts: 'createdAt',        Icon: ClipboardList, title: 'Assessment',        by: (r) => r.doctorName },
@@ -767,7 +769,13 @@ const workflowFromVisits = (visits) => {
   (visits || []).forEach((v) => {
     const add = (suffix, ts, label) => { if (ts) events.push({ id: `${v.id}-${suffix}`, ts, label }); };
     add('in', v.checkedInAt, 'Checked in');
-    add('triage', v.triageEndTime, 'Triage completed');
+    // triageEndTime is stamped when vitals are saved for the visit; triagedBy is
+    // the nurse who opened triage (name snapshot). Null on visits before this
+    // was recorded — those show only the vitals record itself.
+    add('triage', v.triageEndTime, `Triage completed${v.triagedBy ? ` — ${v.triagedBy}` : ''}`);
+    // Nurse → doctor dispatch (the 'Awaiting Doctor' transition). The gap from
+    // triage completed to here is time spent with nursing after vitals.
+    add('sent', v.sentToDoctorAt, 'Sent to doctor');
     if (v.doctorSessions && v.doctorSessions.length > 0) {
       v.doctorSessions.forEach((s, i) => {
         if (s.startTime) events.push({ id: `${v.id}-doc${i}`, ts: s.startTime, label: s.doctorName ? `Seen by ${s.doctorName}` : 'Seen by doctor' });
