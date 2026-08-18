@@ -25,6 +25,7 @@ import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
+import UltrasoundTab from "../../components/shared/UltrasoundTab";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import NursingActionsTab from "../../components/nursing/NursingActionsTab";
 import TodaysConsultationTab from "../../components/doctor/TodaysConsultationTab";
@@ -51,7 +52,7 @@ const fmtDate = (d) => {
 // record (doctor's notes, doctor's actions, nursing history AND prescriptions).
 const REST_TABS = [
   { id: "visit-history", name: "Visit History", Icon: Calendar },
-  // Diagnostics hosts two sub-tabs: Medical Documents and Charts.
+  // Diagnostics hosts three sub-tabs: Medical Documents, Ultrasound and Charts.
   { id: "medical-documents", name: "Diagnostics", Icon: FileText },
   { id: "equipment", name: "Medical Equipment", Icon: Battery },
 ];
@@ -100,8 +101,9 @@ const ROLE_CONFIG = {
   },
 };
 
-// Diagnostics tab body — a Medical Documents / Charts sub-toggle, same pattern
-// as Visit History's Visits/Prescriptions.
+// Diagnostics tab body — a Medical Documents / Ultrasound / Charts sub-toggle,
+// same pattern as Visit History's Visits/Prescriptions. Ultrasound sits 2nd so
+// it's always available to every role that can see the patient file.
 const DiagnosticsTab = ({ patient }) => {
   const [sub, setSub] = useState("documents");
   return (
@@ -110,9 +112,15 @@ const DiagnosticsTab = ({ patient }) => {
         className="mb-4"
         active={sub}
         onChange={setSub}
-        tabs={[{ id: "documents", label: "Medical Documents" }, { id: "charts", label: "Charts" }]}
+        tabs={[
+          { id: "documents", label: "Medical Documents" },
+          { id: "ultrasound", label: "Ultrasound" },
+          { id: "charts", label: "Charts" },
+        ]}
       />
-      {sub === "documents" ? <MedicalDocumentsTab patient={patient} /> : <GlycemicChartPanel patient={patient} />}
+      {sub === "documents" && <MedicalDocumentsTab patient={patient} />}
+      {sub === "ultrasound" && <UltrasoundTab patient={patient} />}
+      {sub === "charts" && <GlycemicChartPanel patient={patient} />}
     </div>
   );
 };
