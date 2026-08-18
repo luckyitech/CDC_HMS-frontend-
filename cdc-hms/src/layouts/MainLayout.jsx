@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, hasPermission, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, hasPermission, passesAdminGate, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -105,6 +105,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
     PORTALS_WITH_INPATIENT_BOARD.includes(homeRole) &&
     (currentUser?.role === 'doctor' || hasPermission(currentUser, PERMISSIONS.INPATIENT_ACCESS));
 
+  // Hide any nav entry or tab this person cannot use. A real admin holds every
+  // capability implicitly, so hasPermission keeps the full menu for them.
+  // Untagged entries are open to anyone already inside the portal.
+  const allowedEntry = (item) => !item.permission || passesAdminGate(currentUser, item.permission);
+
   const dashboardTabs = [
     {
       label: canSeeInpatientTab ? 'Outpatient Dashboard' : 'Dashboard',
@@ -155,23 +160,23 @@ const MainLayout = ({ userRole = "Staff" }) => {
     {
       show: homeRole === 'admin',
       tabs: [
-        { label: 'Create Users', path: '/admin/create-users', Icon: UserPlus },
-        { label: 'Manage Users', path: '/admin/manage-users', Icon: UserCog },
-        { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy },
+        { label: 'Create Users', path: '/admin/create-users', Icon: UserPlus, permission: PERMISSIONS.USERS_WRITE },
+        { label: 'Manage Users', path: '/admin/manage-users', Icon: UserCog, permission: PERMISSIONS.USERS_VIEW },
+        { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy, permission: PERMISSIONS.USERS_WRITE },
       ],
     },
     {
       show: homeRole === 'admin',
       tabs: [
-        { label: 'Activity Log', path: '/admin/activity-log', Icon: ShieldAlert },
-        { label: 'Analytics', path: '/admin/analytics', Icon: TrendingUp },
-        { label: 'Patient Visits', path: '/admin/patient-visits', Icon: ClipboardList },
+        { label: 'Activity Log', path: '/admin/activity-log', Icon: ShieldAlert, permission: PERMISSIONS.MONITORING_VIEW },
+        { label: 'Analytics', path: '/admin/analytics', Icon: TrendingUp, permission: PERMISSIONS.MONITORING_VIEW },
+        { label: 'Patient Visits', path: '/admin/patient-visits', Icon: ClipboardList, permission: PERMISSIONS.MONITORING_VIEW },
       ],
     },
     {
       show: homeRole === 'admin',
       tabs: [
-        { label: 'System Settings', path: '/admin/settings', Icon: Settings },
+        { label: 'System Settings', path: '/admin/settings', Icon: Settings, permission: PERMISSIONS.CONFIG_WRITE },
         { label: 'Change Password', path: '/admin/change-password', Icon: KeyRound },
       ],
     },
@@ -180,8 +185,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // sub-routes like /admin/analytics/doctors still show the Monitoring tabs).
   const matchesTab = (t) =>
     location.pathname === t.path || location.pathname.startsWith(`${t.path}/`);
-  const pageTabs =
-    switcherGroups.find((g) => g.show && g.tabs.some(matchesTab))?.tabs ?? null;
+  const pageTabs = switcherGroups
+    .map((g) => ({ ...g, tabs: g.tabs.filter(allowedEntry) }))
+    .find((g) => g.show && g.tabs.length > 0 && g.tabs.some(matchesTab))?.tabs ?? null;
 
   // Session timeout — enabled for all roles except patient
   const sessionTimeoutEnabled = currentUser?.role !== 'patient';
@@ -386,26 +392,36 @@ const MainLayout = ({ userRole = "Staff" }) => {
     ],
     // An entry is a leaf ({ name, path, icon }) or a group
     // ({ name, icon, children: [...leaves] }) rendered as an expandable section.
+    // `permission` hides an entry the person cannot use. Entering the admin
+    // portal is now a separate grant from being able to run any given screen in
+    // it, so without this a user granted portal.admin plus one narrow capability
+    // sees the whole menu and gets a 403 on most of it. Untagged entries are
+    // open to anyone already in the portal.
     admin: [
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-      { name: "Users", path: "/admin/manage-users", icon: Users },
+      { name: "Users", path: "/admin/manage-users", icon: Users, permission: PERMISSIONS.USERS_VIEW },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
-      { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
-      { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble },
+      { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill, permission: PERMISSIONS.CONFIG_WRITE },
+      { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble, permission: PERMISSIONS.CONFIG_WRITE },
       {
         name: "Monitoring",
         path: "/admin/activity-log",
         icon: Activity,
+        permission: PERMISSIONS.MONITORING_VIEW,
       },
       {
         name: "Settings",
         path: "/admin/settings",
         icon: Settings,
+        permission: PERMISSIONS.CONFIG_WRITE,
       },
     ],
   };
 
-  const currentMenu = menuItems[userRole.toLowerCase()] || menuItems.staff;
+  const currentMenu = (menuItems[userRole.toLowerCase()] || menuItems.staff)
+    .filter(allowedEntry)
+    .map((item) => (item.children ? { ...item, children: item.children.filter(allowedEntry) } : item))
+    .filter((item) => !item.children || item.children.length > 0);
 
   // Expanded menu groups. Defaults to open for the group holding the current
   // page so the active item is visible on load; after that the user decides.

@@ -99,6 +99,28 @@ export const openablePortals = (user) =>
     .filter((p) => p.startsWith('portal.'))
     .filter((p) => canOpenPortal(user, p));
 
+/** Has this capability been explicitly withdrawn from this account? */
+export const isWithdrawn = (user, permission) => {
+  if (!user || user.role === 'admin') return false;   // never withdrawn from a real admin
+  return Array.isArray(user.deniedPermissions) && user.deniedPermissions.includes(permission);
+};
+
+/**
+ * Mirrors the backend's `authorize('admin', <capability>)` exactly.
+ *
+ * Those gates admit three kinds of caller: a real admin, anyone holding
+ * admin.access, and anyone holding the capability itself — unless the
+ * capability has been withdrawn, which authorize() checks first and which beats
+ * everything.
+ *
+ * The menu has to agree with this or it lies in one of two directions: hiding a
+ * screen from someone the API would let in, or offering one the API will refuse.
+ */
+export const passesAdminGate = (user, permission) => {
+  if (isWithdrawn(user, permission)) return false;
+  return hasPermission(user, PERMISSIONS.ADMIN_ACCESS) || hasPermission(user, permission);
+};
+
 /** Can this user use the admin portal — as the admin, or by grant? */
 export const canAccessAdmin = (user) => canOpenPortal(user, PERMISSIONS.PORTAL_ADMIN);
 
