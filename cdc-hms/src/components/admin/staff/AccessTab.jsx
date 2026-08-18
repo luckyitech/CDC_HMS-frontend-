@@ -314,6 +314,18 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           <p className="text-sm text-gray-500">
             A {staff.role} account cannot hold permissions.
           </p>
+        ) : !groups.length ? (
+          // An empty list here means the catalog request came back without one —
+          // in practice a frontend running ahead of the backend it is talking to.
+          // Rendering nothing at all just looks like a broken screen, so say so.
+          <div className="text-sm text-gray-500">
+            <p className="font-semibold text-gray-700">No permission list available.</p>
+            <p className="mt-1">
+              The server did not return one. This usually means the API is running an older
+              version than this screen — check that the backend is on the same branch and has
+              been restarted.
+            </p>
+          </div>
         ) : (
           <div className="space-y-6">
             {groups.map((group) => (
