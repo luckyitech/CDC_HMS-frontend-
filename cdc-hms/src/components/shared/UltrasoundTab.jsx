@@ -89,21 +89,27 @@ const UltrasoundTab = ({ patient }) => {
 
   // ================= data loading =================
   const loadBlobs = useCallback(async (list) => {
-    const urls = { ...blobUrlsRef.current };
+    // Fetch only images we don't already have, into a local `fresh` map, then
+    // MERGE into blobUrlsRef at write time. loadAttached() and loadInbox() call
+    // this concurrently; snapshotting the ref before the awaits and overwriting
+    // it after would let whichever finished last clobber the other's URLs (the
+    // "Image unavailable" bug on the inbox grid). Merging keeps both sets.
+    const fresh = {};
     await Promise.all(
       list.map(async (img) => {
-        if (urls[img.id]) return;
+        if (blobUrlsRef.current[img.id] || fresh[img.id]) return;
         try {
           const filename = ultrasoundService.filenameFromUrl(img.fileUrl);
           const res = await ultrasoundService.getFile(filename);
-          urls[img.id] = URL.createObjectURL(res.data ?? res);
+          fresh[img.id] = URL.createObjectURL(res.data ?? res);
         } catch {
           // placeholder shown
         }
       }),
     );
-    blobUrlsRef.current = urls;
-    setBlobUrls({ ...urls });
+    if (!Object.keys(fresh).length) return;
+    blobUrlsRef.current = { ...blobUrlsRef.current, ...fresh };
+    setBlobUrls({ ...blobUrlsRef.current });
   }, []);
 
   const loadAttached = useCallback(async () => {
