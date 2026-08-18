@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canAccessAdmin, hasPermission, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, hasPermission, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -189,16 +189,23 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
   // Portals reachable from the logo switcher. Every portal is listed; the one the
   // user is currently in is filtered out at render time.
+  // Each entry carries the capability that opens it, so the switcher offers
+  // exactly the portals this person may actually enter — previously it showed
+  // all four to anyone with admin access and none to anybody else.
   const portalOptions = [
-    { label: 'Admin Portal', path: '/admin/dashboard', icon: ShieldCheck },
-    { label: 'Doctor Portal', path: '/doctor/dashboard', icon: Stethoscope },
-    { label: 'Staff Portal', path: '/staff/dashboard', icon: Users },
-    { label: 'Lab Portal', path: '/lab/dashboard', icon: TestTube },
+    { label: 'Admin Portal', path: '/admin/dashboard', icon: ShieldCheck, portal: PERMISSIONS.PORTAL_ADMIN },
+    { label: 'Doctor Portal', path: '/doctor/dashboard', icon: Stethoscope, portal: PERMISSIONS.PORTAL_DOCTOR },
+    { label: 'Staff Portal', path: '/staff/dashboard', icon: Users, portal: PERMISSIONS.PORTAL_STAFF },
+    { label: 'Lab Portal', path: '/lab/dashboard', icon: TestTube, portal: PERMISSIONS.PORTAL_LAB },
   ];
 
-  // Capability gate for switching portals — backed by the real permission system:
-  // anyone with admin capability (role admin, or a granted user) can switch.
-  const canSwitchPortal = canAccessAdmin(currentUser);
+  // Portals this person may open, other than the one they are already in.
+  // Switching is offered when there is somewhere to switch TO — which is now a
+  // per-portal grant rather than "do they hold admin access".
+  const openablePortalOptions = portalOptions.filter(({ portal }) =>
+    canOpenPortal(currentUser, portal));
+  const canSwitchPortal = openablePortalOptions.some(({ path }) =>
+    !path.startsWith(`/${userRole.toLowerCase()}/`));
 
   // Stocks (to become Pharmacy) lives in the portal list, not the sidebar. Shown
   // to users granted stock access, pointing at the CURRENT portal's stock page so
@@ -644,7 +651,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
                   is hidden — but Stocks is a sub-page OF a portal, so on a stock
                   route the base portal is NOT where you are and must stay listed,
                   otherwise it looks like the portal vanished. */}
-              {canSwitchPortal && portalOptions
+              {openablePortalOptions
                 .filter(({ path }) => onStockRoute || !path.startsWith(`/${userRole.toLowerCase()}/`))
                 .map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
               {/* Stocks is the current destination on a stock route, so drop it there

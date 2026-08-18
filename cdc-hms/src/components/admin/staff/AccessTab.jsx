@@ -49,7 +49,7 @@ const TriState = ({ value, onChange, disabled, label }) => (
 );
 
 const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStatusChanged, busy }) => {
-  const [sections, setSections] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(null);
   const [acting, setActing]   = useState(null);
@@ -75,10 +75,10 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   useEffect(() => {
     let cancelled = false;
 
-    // The section list comes from the server so this screen cannot drift from
-    // the vocabulary the routes actually enforce.
+    // The group/area list comes from the server so this screen cannot drift
+    // from the vocabulary the routes actually enforce.
     staffService.getPermissionCatalog()
-      .then((res) => { if (!cancelled) setSections(res.data.sections || []); })
+      .then((res) => { if (!cancelled) setGroups(res.data.groups || []); })
       .catch(() => { if (!cancelled) toast.error('Failed to load the permission list'); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
@@ -96,14 +96,14 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   /**
    * Move one capability to a new state and save the whole picture.
    *
-   * Both lists are rebuilt from the current ones, so changing a single section
+   * Both lists are rebuilt from the current ones, so changing a single area
    * can never drop what the person holds elsewhere. The two coupling rules
    * mirror the server's sanitizers exactly — a write cannot outlive the access
    * it acts within — so the screen never shows a state the server would quietly
    * rewrite underneath it.
    */
-  const change = async (section, capability, next) => {
-    const isAccess = capability === section.access;
+  const change = async (area, capability, next) => {
+    const isAccess = capability === area.access;
     const nextGranted = new Set(granted);
     const nextDenied  = new Set(denied);
 
@@ -112,12 +112,12 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     if (next === GRANTED) nextGranted.add(capability);
     if (next === DENIED)  nextDenied.add(capability);
 
-    if (section.write) {
-      if (isAccess && next !== GRANTED) nextGranted.delete(section.write);
-      if (isAccess && next === DENIED)  nextDenied.add(section.write);
+    if (area.write && area.access) {
+      if (isAccess && next !== GRANTED) nextGranted.delete(area.write);
+      if (isAccess && next === DENIED)  nextDenied.add(area.write);
       if (!isAccess && next === GRANTED) {
-        nextGranted.add(section.access);
-        nextDenied.delete(section.access);
+        nextGranted.add(area.access);
+        nextDenied.delete(area.access);
       }
     }
 
@@ -128,7 +128,7 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           staff.employeeId, [...nextGranted], [...nextDenied]
         );
         onChanged(res.data);
-        toast.success(`${section.name} updated`);
+        toast.success(`${area.name} updated`);
       } catch (err) {
         toast.error(err.message || 'Failed to update permissions');
       } finally {
@@ -140,13 +140,13 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     // portal, and taking something away from someone whose role would normally
     // include it. Ordinary grants save straight away — a confirmation on every
     // toggle trains people to dismiss it without reading.
-    const label = capability === section.access ? section.accessLabel : section.writeLabel;
+    const label = capability === area.access ? area.accessLabel : area.writeLabel;
 
     if (next === DENIED) {
       setConfirmation({
-        title: `Withdraw ${section.name} access?`,
+        title: `Withdraw ${area.name}?`,
         message: `“${label}” will be refused for ${staff.name} even though their role would `
-          + 'otherwise allow it. They keep everything else they have.',
+          + 'otherwise allow it. Everything else they hold is unaffected.',
         confirmLabel: 'Withdraw',
         confirmVariant: 'danger',
         onConfirm: save,
@@ -154,10 +154,10 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
       return;
     }
 
-    if (next === GRANTED && section.warning) {
+    if (next === GRANTED && area.warning) {
       setConfirmation({
-        title: `Grant ${section.name} to ${staff.name}?`,
-        message: section.warning,
+        title: `Grant ${area.name} to ${staff.name}?`,
+        message: area.warning,
         confirmLabel: 'Grant',
         onConfirm: save,
       });
@@ -227,7 +227,7 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
 
   // One row per capability. Sections with no meaningful write action render a
   // single row — a write toggle is not added where it would mean nothing.
-  const renderRow = (section, capability, label) => (
+  const renderRow = (area, capability, label) => (
     <div key={capability} className="flex items-center justify-between gap-4 py-2.5">
       <p className="text-sm text-gray-700">{label}</p>
       {saving === capability
@@ -235,9 +235,9 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
         : (
           <TriState
             value={stateOf(capability)}
-            onChange={(next) => change(section, capability, next)}
+            onChange={(next) => change(area, capability, next)}
             disabled={locked}
-            label={`${section.name} — ${label}`}
+            label={`${area.name} — ${label}`}
           />
         )}
     </div>
@@ -299,10 +299,10 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           <ShieldCheck className="w-4 h-4 text-gray-400" />
           <h3 className="text-sm font-semibold text-gray-800">Portal access</h3>
         </div>
-        <p className="text-xs text-gray-400 mb-4">
-          Each part of the portal, and what this person can do in it. <b>Default</b> leaves it to
+        <p className="text-xs text-gray-400 mb-5">
+          Which portals this person can open, and what they can do. <b>Default</b> leaves it to
           their role — <b>Granted</b> adds it on top, <b>Withdrawn</b> refuses it even when their
-          role would allow.
+          role would allow. What they can do applies wherever it appears, not per portal.
         </p>
 
         {staff.isTrueAdmin ? (
@@ -315,24 +315,40 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             A {staff.role} account cannot hold permissions.
           </p>
         ) : (
-          <div className="space-y-3">
-            {sections.map((section) => (
-              <div key={section.key} className="border border-gray-200 rounded-lg px-4 py-3">
-                <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                  <p className="text-sm font-semibold text-gray-800">{section.name}</p>
-                  {section.roleDefault && (
-                    <span className="text-[11px] text-gray-400">
-                      By role: {section.roleDefault}
-                    </span>
-                  )}
-                </div>
-                {section.description && (
-                  <p className="text-xs text-gray-400 mt-0.5">{section.description}</p>
+          <div className="space-y-6">
+            {groups.map((group) => (
+              <div key={group.key}>
+                <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                  {group.name}
+                </h4>
+                {group.description && (
+                  <p className="text-xs text-gray-400 mt-0.5 mb-2">{group.description}</p>
                 )}
 
-                <div className="divide-y divide-gray-100 mt-2">
-                  {renderRow(section, section.access, section.accessLabel)}
-                  {section.write && renderRow(section, section.write, section.writeLabel)}
+                <div className="space-y-2 mt-2">
+                  {group.areas.map((area) => (
+                    <div key={area.key} className="border border-gray-200 rounded-lg px-4 py-3">
+                      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                        <p className="text-sm font-semibold text-gray-800">{area.name}</p>
+                        <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                          {/* Where this applies. A capability is global, so the
+                              same one can show up in several portals — naming
+                              them stops the grid reading as if it were per
+                              portal. */}
+                          {area.appliesIn && <span>In: {area.appliesIn}</span>}
+                          {area.roleDefault && <span>By role: {area.roleDefault}</span>}
+                        </div>
+                      </div>
+                      {area.description && (
+                        <p className="text-xs text-gray-400 mt-0.5">{area.description}</p>
+                      )}
+
+                      <div className="divide-y divide-gray-100 mt-2">
+                        {area.access && renderRow(area, area.access, area.accessLabel)}
+                        {area.write && renderRow(area, area.write, area.writeLabel)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
