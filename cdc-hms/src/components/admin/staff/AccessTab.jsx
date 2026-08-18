@@ -7,83 +7,127 @@ import { formatDateTime } from './staffFormat';
 
 const EMPLOYMENT_STATUSES = ['Active', 'On Leave', 'Suspended', 'Resigned', 'Terminated'];
 
-// Labels for the capability strings the API returns. A permission with no entry
-// here still renders — using the raw string — so a capability added on the
-// server is never silently invisible in the UI.
-const PERMISSION_LABELS = {
-  'admin.access': {
-    name: 'Admin access',
-    description: 'Everything an administrator can do, except granting permissions to others.',
-    warning: 'They will be able to do everything an administrator can, except grant permissions to others.',
-  },
-  'stock.manage': {
-    name: 'Stock management',
-    description: 'View and manage the stock module.',
-  },
-};
+// The three states a capability can be in for one person. "Default" is not a
+// stored value — it is the absence of both a grant and a withdrawal, which is
+// what almost every row is, and it means "whatever this person's role allows".
+const GRANTED = 'granted';
+const DENIED = 'denied';
+const DEFAULT = 'default';
 
-const Toggle = ({ on, onClick, disabled, label }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    role="switch"
-    aria-checked={on}
-    aria-label={label}
-    className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
-      on ? 'bg-blue-600' : 'bg-gray-300'
-    }`}
-  >
-    <span
-      className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-        on ? 'translate-x-5' : 'translate-x-0.5'
-      }`}
-    />
-  </button>
+const CHOICES = [
+  { value: DENIED, label: 'Withdrawn', tone: 'bg-red-600 text-white',   title: 'Refused even if their role would allow it' },
+  { value: DEFAULT, label: 'Default',  tone: 'bg-gray-500 text-white',  title: 'Whatever their role allows' },
+  { value: GRANTED, label: 'Granted',  tone: 'bg-blue-600 text-white',  title: 'Allowed on top of their role' },
+];
+
+// A three-way control rather than a switch, because a switch cannot say the
+// third thing. "Off" would have to mean both "their role decides" and "refused
+// even though their role allows it", and those are different instructions.
+const TriState = ({ value, onChange, disabled, label }) => (
+  <div role="radiogroup" aria-label={label} className="inline-flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
+    {CHOICES.map((choice) => {
+      const active = value === choice.value;
+      return (
+        <button
+          key={choice.value}
+          type="button"
+          role="radio"
+          aria-checked={active}
+          title={choice.title}
+          disabled={disabled}
+          onClick={() => !active && onChange(choice.value)}
+          className={`px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            active ? choice.tone : 'bg-white text-gray-500 hover:bg-blue-50'
+          }`}
+        >
+          {choice.label}
+        </button>
+      );
+    })}
+  </div>
 );
 
 const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStatusChanged, busy }) => {
-  const [catalog, setCatalog] = useState([]);
+  const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(null);
   const [acting, setActing]   = useState(null);
 
   // Granting is restricted server-side to a real admin ACCOUNT rather than
   // anyone holding admin.access, so that the capability cannot propagate on its
-  // own and become impossible to revoke. The toggles mirror that rule rather
+  // own and become impossible to revoke. The controls mirror that rule rather
   // than offering an action that would be refused.
   const canGrant = currentUser?.role === 'admin';
+  const locked = !canGrant || staff.isArchived;
 
   useEffect(() => {
     let cancelled = false;
 
+    // The section list comes from the server so this screen cannot drift from
+    // the vocabulary the routes actually enforce.
     staffService.getPermissionCatalog()
-      .then((res) => { if (!cancelled) setCatalog(res.data.permissions || []); })
+      .then((res) => { if (!cancelled) setSections(res.data.sections || []); })
       .catch(() => { if (!cancelled) toast.error('Failed to load the permission list'); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
   }, []);
 
-  const toggle = async (permission) => {
-    const held = (staff.permissions || []).includes(permission);
-    const meta = PERMISSION_LABELS[permission] || { name: permission };
+  const granted = staff.permissions || [];
+  const denied  = staff.deniedPermissions || [];
+  const stateOf = (capability) => {
+    if (denied.includes(capability)) return DENIED;
+    if (granted.includes(capability)) return GRANTED;
+    return DEFAULT;
+  };
 
-    const message = held
-      ? `Revoke ${meta.name} from ${staff.name}?`
-      : `Grant ${meta.name} to ${staff.name}?${meta.warning ? `\n\n${meta.warning}` : ''}`;
-    if (!window.confirm(message)) return;
+  /**
+   * Move one capability to a new state and save the whole picture.
+   *
+   * Both lists are rebuilt from the current ones, so changing a single section
+   * can never drop what the person holds elsewhere. The two coupling rules
+   * mirror the server's sanitizers exactly — a write cannot outlive the access
+   * it acts within — so the screen never shows a state the server would quietly
+   * rewrite underneath it.
+   */
+  const change = async (section, capability, next) => {
+    const isAccess = capability === section.access;
+    const nextGranted = new Set(granted);
+    const nextDenied  = new Set(denied);
 
-    // Built from the full current list, so granting one capability cannot drop
-    // the others the person already holds.
-    const next = held
-      ? (staff.permissions || []).filter((p) => p !== permission)
-      : [...(staff.permissions || []), permission];
+    nextGranted.delete(capability);
+    nextDenied.delete(capability);
+    if (next === GRANTED) nextGranted.add(capability);
+    if (next === DENIED)  nextDenied.add(capability);
 
-    setSaving(permission);
+    if (section.write) {
+      if (isAccess && next !== GRANTED) nextGranted.delete(section.write);
+      if (isAccess && next === DENIED)  nextDenied.add(section.write);
+      if (!isAccess && next === GRANTED) {
+        nextGranted.add(section.access);
+        nextDenied.delete(section.access);
+      }
+    }
+
+    // Confirm the two consequential directions: handing someone the admin
+    // portal, and taking something away from someone whose role would normally
+    // include it. Ordinary grants save straight away.
+    const label = capability === section.access ? section.accessLabel : section.writeLabel;
+    if (next === DENIED) {
+      const message = `Withdraw "${label}" for ${section.name} from ${staff.name}?\n\n`
+        + 'This refuses it even though their role would otherwise allow it.';
+      if (!window.confirm(message)) return;
+    } else if (next === GRANTED && section.warning) {
+      if (!window.confirm(`Grant ${section.name} to ${staff.name}?\n\n${section.warning}`)) return;
+    }
+
+    setSaving(capability);
     try {
-      const res = await staffService.updatePermissions(staff.employeeId, next);
+      const res = await staffService.updatePermissions(
+        staff.employeeId, [...nextGranted], [...nextDenied]
+      );
       onChanged(res.data);
-      toast.success(`${meta.name} ${held ? 'revoked' : 'granted'}`);
+      toast.success(`${section.name} updated`);
     } catch (err) {
       toast.error(err.message || 'Failed to update permissions');
     } finally {
@@ -134,6 +178,24 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   if (loading) {
     return <div className="flex justify-center py-10"><Loader className="w-6 h-6 animate-spin text-gray-400" /></div>;
   }
+
+  // One row per capability. Sections with no meaningful write action render a
+  // single row — a write toggle is not added where it would mean nothing.
+  const renderRow = (section, capability, label) => (
+    <div key={capability} className="flex items-center justify-between gap-4 py-2.5">
+      <p className="text-sm text-gray-700">{label}</p>
+      {saving === capability
+        ? <Loader className="w-4 h-4 animate-spin text-gray-400 mr-8" />
+        : (
+          <TriState
+            value={stateOf(capability)}
+            onChange={(next) => change(section, capability, next)}
+            disabled={locked}
+            label={`${section.name} — ${label}`}
+          />
+        )}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -189,43 +251,54 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center gap-2 mb-1">
           <ShieldCheck className="w-4 h-4 text-gray-400" />
-          <h3 className="text-sm font-semibold text-gray-800">Permissions</h3>
+          <h3 className="text-sm font-semibold text-gray-800">Portal access</h3>
         </div>
         <p className="text-xs text-gray-400 mb-4">
-          Granted on top of what their role already allows.
+          Each part of the portal, and what this person can do in it. <b>Default</b> leaves it to
+          their role — <b>Granted</b> adds it on top, <b>Withdrawn</b> refuses it even when their
+          role would allow.
         </p>
 
         {staff.isTrueAdmin ? (
           <p className="text-sm text-gray-500">
-            This is an administrator account. It holds every permission implicitly, so there is
-            nothing to grant.
+            This is an administrator account. It holds every permission implicitly and cannot be
+            withdrawn from, so there is nothing to set here.
           </p>
         ) : !staff.canHoldPermissions ? (
           <p className="text-sm text-gray-500">
             A {staff.role} account cannot hold permissions.
           </p>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {catalog.map((permission) => {
-              const meta = PERMISSION_LABELS[permission] || { name: permission, description: '' };
-              const held = (staff.permissions || []).includes(permission);
-
-              return (
-                <div key={permission} className="flex items-center justify-between gap-4 py-3">
-                  <div>
-                    <p className="text-sm text-gray-800">{meta.name}</p>
-                    {meta.description && <p className="text-xs text-gray-400">{meta.description}</p>}
-                  </div>
-                  {saving === permission
-                    ? <Loader className="w-4 h-4 animate-spin text-gray-400" />
-                    : <Toggle on={held} onClick={() => toggle(permission)} disabled={!canGrant || staff.isArchived} label={meta.name} />}
+          <div className="space-y-3">
+            {sections.map((section) => (
+              <div key={section.key} className="border border-gray-200 rounded-lg px-4 py-3">
+                <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                  <p className="text-sm font-semibold text-gray-800">{section.name}</p>
+                  {section.roleDefault && (
+                    <span className="text-[11px] text-gray-400">
+                      By role: {section.roleDefault}
+                    </span>
+                  )}
                 </div>
-              );
-            })}
+                {section.description && (
+                  <p className="text-xs text-gray-400 mt-0.5">{section.description}</p>
+                )}
+
+                <div className="divide-y divide-gray-100 mt-2">
+                  {renderRow(section, section.access, section.accessLabel)}
+                  {section.write && renderRow(section, section.write, section.writeLabel)}
+                </div>
+              </div>
+            ))}
 
             {!canGrant && (
-              <p className="text-xs text-gray-400 pt-3">
+              <p className="text-xs text-gray-400 pt-1">
                 Only an administrator account can change permissions.
+              </p>
+            )}
+            {staff.isArchived && (
+              <p className="text-xs text-gray-400 pt-1">
+                This account is archived. Restore it before changing what it can reach.
               </p>
             )}
           </div>
