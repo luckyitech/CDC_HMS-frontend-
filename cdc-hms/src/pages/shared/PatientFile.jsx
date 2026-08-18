@@ -26,6 +26,7 @@ import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import UltrasoundTab from "../../components/shared/UltrasoundTab";
+import ThyroidUsList from "../../components/doctor/thyroid/ThyroidUsList";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import NursingActionsTab from "../../components/nursing/NursingActionsTab";
 import TodaysConsultationTab from "../../components/doctor/TodaysConsultationTab";
@@ -130,7 +131,12 @@ const DiagnosticsTab = ({ patient }) => {
         ]}
       />
       {sub === "documents" && <MedicalDocumentsTab patient={patient} />}
-      {sub === "ultrasound" && <UltrasoundTab patient={patient} />}
+      {sub === "ultrasound" && (
+        <div className="space-y-6">
+          <ThyroidUsList patient={patient} />
+          <UltrasoundTab patient={patient} />
+        </div>
+      )}
       {sub === "charts" && <GlycemicChartPanel patient={patient} />}
     </div>
   );
