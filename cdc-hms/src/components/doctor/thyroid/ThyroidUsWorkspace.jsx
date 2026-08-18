@@ -6,6 +6,9 @@ import { ChipRow, Field, Num, DimTriplet } from './ui';
 import NoduleCard from './NoduleCard';
 import LiveResultsPanel from './LiveResultsPanel';
 import ThyroidUsReportPrint from './ThyroidUsReportPrint';
+import ThyroidImagePicker from './ThyroidImagePicker';
+import { exportThyroidReportPdf } from '../../../utils/thyroidRadiologyPdf';
+import { ultrasoundService } from '../../../services/ultrasoundService';
 
 export default function ThyroidUsWorkspace({ patient, onClose }) {
   const ctx = useThyroidUltrasound();
@@ -36,6 +39,20 @@ export default function ThyroidUsWorkspace({ patient, onClose }) {
     const arr = Array.isArray(report[field]) ? [...report[field]] : [];
     const i = arr.indexOf(code); i >= 0 ? arr.splice(i, 1) : arr.push(code);
     up({ [field]: arr });
+  };
+
+  const downloadCombinedPdf = async () => {
+    const imgs = active.images || [];
+    const descriptors = [];
+    for (const link of imgs) {
+      const ui = link.UltrasoundImage;
+      if (!ui) continue;
+      try {
+        const res = await ultrasoundService.getFile(ultrasoundService.filenameFromUrl(ui.fileUrl));
+        descriptors.push({ src: URL.createObjectURL(res.data), brightness: Number(link.brightness) || 1, scale: Number(link.scale) || 1, offsetX: Number(link.offsetX) || 0, offsetY: Number(link.offsetY) || 0, caption: ui.studyDescription || ui.fileName });
+      } catch { /* skip unavailable image */ }
+    }
+    await exportThyroidReportPdf(report, nodules, patient, descriptors, { output: 'save' });
   };
 
   const doSign = async () => {
@@ -174,6 +191,11 @@ export default function ThyroidUsWorkspace({ patient, onClose }) {
                       <input type="checkbox" checked={ackAblation} onChange={(e) => setAckAblation(e.target.checked)} /> I acknowledge the ablation safety warning.
                     </label>
                   )}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3">
+                    <ThyroidImagePicker patient={patient} disabled={ro}
+                      selectedIds={(active.images || []).map((im) => im.UltrasoundImageId)}
+                      onSave={(imgs) => ctx.setImages(imgs)} />
+                  </div>
                   <div className="bg-white border border-slate-200 rounded-xl p-4 text-sm">
                     <div className="font-bold text-center mb-1">THYROID ULTRASOUND REPORT</div>
                     <div className="text-center text-xs text-slate-500 mb-3">Comprehensive Diabetes Centre · Nairobi</div>
@@ -192,7 +214,10 @@ export default function ThyroidUsWorkspace({ patient, onClose }) {
                   {report.status === 'signed' && (
                     <div className="flex items-center justify-between">
                       <div className="text-emerald-700 text-sm font-medium">Signed by {report.signedName} · {new Date(report.signedAt).toLocaleString()}</div>
-                      <button onClick={() => setShowPrint(true)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium">Print report</button>
+                      <div className="flex gap-2">
+                        <button onClick={downloadCombinedPdf} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Combined radiology PDF</button>
+                        <button onClick={() => setShowPrint(true)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium">Print report</button>
+                      </div>
                     </div>
                   )}
                 </div>
