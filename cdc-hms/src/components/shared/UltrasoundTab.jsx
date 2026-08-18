@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import {
   Waves, Film, RefreshCw, Inbox, ChevronDown, ChevronRight, ChevronUp,
-  ArrowDown, ArrowLeft, X, Undo2, FileDown, UserPlus, LayoutGrid, Trash2,
-  Calendar, Clock, Archive,
+  ArrowDown, ArrowLeft, X, Undo2, FileDown, FileText, UserPlus, LayoutGrid, Trash2,
+  Calendar, Clock, Archive, Download,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from './Card';
@@ -64,6 +64,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
 
   // ---- data ----
   const [attached, setAttached] = useState([]);
+  const [reports, setReports] = useState([]); // imaging-report PDFs filed to this patient
   const [inboxImages, setInboxImages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [blobUrls, setBlobUrls] = useState({});
@@ -137,6 +138,21 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     }
   }, [patient?.uhid, loadBlobs]);
 
+  // Imaging-report PDFs filed to this patient (shown in the Radiology tab as
+  // well as in Medical Documents).
+  const loadReports = useCallback(async () => {
+    if (!patient?.uhid) { setReports([]); return; }
+    try {
+      const res = await documentService.getByPatient(patient.uhid, { category: 'Imaging Report' });
+      const list = res.data?.documents || res.data || [];
+      // Only the composed imaging-report PDFs (filed with this category) — not
+      // other documents that merely share the Ultrasound test type.
+      setReports(list.filter((d) => d.documentCategory === 'Imaging Report'));
+    } catch (err) {
+      console.error('Error loading radiology reports:', err);
+    }
+  }, [patient?.uhid]);
+
   const loadInbox = useCallback(async () => {
     // The inbox/worklist only exists in the Radiology Suite — the patient file
     // shows the image safe only, so there's nothing to fetch there.
@@ -157,11 +173,11 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     let isMounted = true;
     (async () => {
       setIsLoading(true);
-      await Promise.all([loadAttached(), loadInbox()]);
+      await Promise.all([loadAttached(), loadInbox(), loadReports()]);
       if (isMounted) setIsLoading(false);
     })();
     return () => { isMounted = false; };
-  }, [loadAttached, loadInbox]);
+  }, [loadAttached, loadInbox, loadReports]);
 
   useEffect(() => {
     const SSE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/sse`;
@@ -246,6 +262,15 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     }
     return [...map.values()].sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
   }, [attached]);
+
+  // Associate each report PDF with an image-safe session by date, so the report
+  // sits with the images from that examination. Reports that match no session
+  // (e.g. saved before this tagging existed) surface at the top of the safe.
+  const sessionDates = (s) => [s.examDate, (s.receivedAt || '').slice(0, 10)].filter(Boolean);
+  const reportDateOf = (r) => r.testDate || (r.createdAt || '').slice(0, 10);
+  const reportsForSession = (s) => reports.filter((r) => sessionDates(s).includes(reportDateOf(r)));
+  const matchedReportIds = new Set(attachedSessions.flatMap((s) => reportsForSession(s).map((r) => r.id)));
+  const unmatchedReports = reports.filter((r) => !matchedReportIds.has(r.id));
 
   // Open the newest session by default the first time sessions appear
   const sessionsInitRef = useRef(false);
@@ -489,6 +514,9 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       formData.append('uhid', attachedPatient.uhid);
       formData.append('documentCategory', 'Imaging Report');
       formData.append('testType', 'Ultrasound');
+      // Tag with the study date so the patient's Radiology tab can file the
+      // report next to that examination's images.
+      formData.append('testDate', pdfMeta().studyDate || '');
       formData.append('notes', `Ultrasound report — ${wsItems.length} image${wsItems.length > 1 ? 's' : ''}`);
       const res = await documentService.upload(formData);
       if (res.success === false) throw new Error(res.message);
@@ -499,6 +527,34 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to file the report.');
     } finally { setBusy(null); }
+  };
+
+  // View / download a saved imaging-report PDF from the patient's Radiology tab.
+  const reportFilename = (doc) => (doc.fileUrl || '').split('/').pop();
+
+  const openReport = async (doc) => {
+    if (!doc.fileUrl) return;
+    try {
+      const blob = await documentService.getFile(reportFilename(doc));
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch { toast.error('Could not open the report.'); }
+  };
+
+  const downloadReport = async (doc) => {
+    if (!doc.fileUrl) return;
+    try {
+      const blob = await documentService.getFile(reportFilename(doc));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.fileName || reportFilename(doc);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch { toast.error('Could not download the report.'); }
   };
 
   // ================= render =================
@@ -841,7 +897,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       </Card>
       )}
 
-      {/* ===== ZONE 3 — IMAGE SAFE — patient file (view-only): images attached to this patient ===== */}
+      {/* ===== ZONE 3 — IMAGE SAFE — patient file (view-only): each date's images + its report ===== */}
       {patient && (
       <Card className="!p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -857,6 +913,15 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
           </div>
         </div>
 
+        {unmatchedReports.length > 0 && (
+          <div className="mb-4 space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Reports</p>
+            {unmatchedReports.map((doc) => (
+              <ReportItem key={doc.id} doc={doc} onView={openReport} onDownload={downloadReport} />
+            ))}
+          </div>
+        )}
+
         {attached.length === 0 ? (
           <p className="text-sm text-gray-500">
             No images stored yet. Scans made with UHID <span className="font-mono font-semibold">{patient.uhid}</span> are archived here automatically; others can be attached from the Radiology Suite. Each examination is kept as a dated entry so follow-up scans stack up over time.
@@ -866,10 +931,16 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
             {attachedSessions.map((session) => {
               const dt = new Date(session.receivedAt);
               const label = dt.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+              const sessionReports = reportsForSession(session);
               const badge = (
                 <span className="inline-flex items-center gap-3 text-xs text-gray-500">
                   <span className="inline-flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
                   <span className="font-semibold text-gray-600">{session.images.length} image{session.images.length !== 1 && 's'}</span>
+                  {sessionReports.length > 0 && (
+                    <span className="inline-flex items-center gap-1 text-red-600 font-semibold">
+                      <FileText className="w-3.5 h-3.5" />{sessionReports.length} report{sessionReports.length !== 1 && 's'}
+                    </span>
+                  )}
                   {session.description && <span className="hidden sm:inline">· {session.description}</span>}
                 </span>
               );
@@ -883,6 +954,13 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
                   onToggle={() => toggleSession(session.key)}
                   padding="p-4"
                 >
+                  {sessionReports.length > 0 && (
+                    <div className="mb-3 space-y-2">
+                      {sessionReports.map((doc) => (
+                        <ReportItem key={doc.id} doc={doc} onView={openReport} onDownload={downloadReport} />
+                      ))}
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {session.images.map((img) => (
                       <div key={img.id} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-white">
@@ -959,6 +1037,29 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     </div>
   );
 };
+
+// A saved imaging-report PDF row shown inside the image safe (view / download).
+const ReportItem = ({ doc, onView, onDownload }) => (
+  <div className="flex items-center justify-between px-3 py-2 bg-red-50/50 border border-red-100 rounded-lg">
+    <div className="flex items-center gap-2.5 min-w-0">
+      <FileText className="w-5 h-5 text-red-500 flex-shrink-0" />
+      <div className="min-w-0">
+        <p className="font-semibold text-gray-800 text-sm truncate">{doc.fileName || 'Ultrasound report'}</p>
+        <p className="text-[11px] text-gray-500 truncate">
+          {(doc.testDate || doc.createdAt || '').slice(0, 10)}{doc.notes ? ` · ${doc.notes}` : ''}
+        </p>
+      </div>
+    </div>
+    <div className="flex items-center gap-1.5 flex-shrink-0">
+      <button onClick={() => onView(doc)} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900 px-2 py-1">
+        <FileText className="w-3.5 h-3.5" /> View
+      </button>
+      <button onClick={() => onDownload(doc)} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900 px-2 py-1">
+        <Download className="w-3.5 h-3.5" /> Download
+      </button>
+    </div>
+  </div>
+);
 
 const WsSlider = ({ label, min, max, step, value, display, onChange, wide = false }) => (
   <div className={wide ? 'min-w-[220px]' : ''}>
