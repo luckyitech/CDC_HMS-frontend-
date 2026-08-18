@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import {
   Waves, Film, RefreshCw, Inbox, ChevronDown, ChevronRight, ChevronUp,
-  ArrowDown, ArrowLeft, X, Undo2, Printer, FileDown, Save, Plus, LayoutGrid, Trash2,
+  ArrowDown, ArrowLeft, X, Undo2, FileDown, UserPlus, Plus, LayoutGrid, Trash2,
   Calendar, Clock, Archive,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -11,6 +11,8 @@ import Spinner from './Spinner';
 import UltrasoundPreview from './UltrasoundPreview';
 import AccordionPanel from './AccordionPanel';
 import ReasonModal from './ReasonModal';
+import AttachToPatientModal from './AttachToPatientModal';
+import PdfPreviewModal from './PdfPreviewModal';
 import { useUserContext } from '../../contexts/UserContext';
 import { canAccessAdmin } from '../../utils/permissions';
 import ultrasoundService from '../../services/ultrasoundService';
@@ -76,8 +78,9 @@ const UltrasoundTab = ({ patient = null }) => {
   const [wsRemoved, setWsRemoved] = useState([]);
   const [layoutId, setLayoutId] = useState('l32');
   const [applyAll, setApplyAll] = useState(false);
-  const [globalAdj, setGlobalAdj] = useState(DEFAULT_ADJ);
-  const [saveUhid, setSaveUhid] = useState(patient?.uhid || '');
+  const [attachedPatient, setAttachedPatient] = useState(patient); // report target (set by Attach to patient)
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [pdf, setPdf] = useState(null); // { url, filename, blob } while the preview modal is open
   const [busy, setBusy] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -87,9 +90,11 @@ const UltrasoundTab = ({ patient = null }) => {
 
   const layout = LAYOUTS.find((l) => l.id === layoutId);
   const cellRatio = cellRatioFor(layout);
-  const getAdj = (it) => (applyAll
-    ? globalAdj
-    : { brightness: it.brightness, scale: it.scale, offsetX: it.offsetX || 0, offsetY: it.offsetY || 0 });
+  // Each image always carries its own adjustments. "Apply to all" is a MODE that
+  // writes an edit into every image at once (see updateWsItem); it never overlays
+  // a separate global value, so turning it off keeps whatever was applied and you
+  // can then fine-tune images one at a time.
+  const getAdj = (it) => ({ brightness: it.brightness, scale: it.scale, offsetX: it.offsetX || 0, offsetY: it.offsetY || 0 });
   const dragRef = useRef(null);
 
   // ================= data loading =================
@@ -313,8 +318,8 @@ const UltrasoundTab = ({ patient = null }) => {
   };
 
   const updateWsItem = (id, patch) => {
-    if (applyAll) setGlobalAdj((p) => ({ ...p, ...patch }));
-    else setWsItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+    // applyAll writes the patch into every image; otherwise just the one.
+    setWsItems((prev) => prev.map((it) => (applyAll || it.id === id ? { ...it, ...patch } : it)));
   };
 
   const moveWsItem = (index, dir) => {
@@ -357,8 +362,7 @@ const UltrasoundTab = ({ patient = null }) => {
   };
 
   const resetWsItem = (id) => {
-    if (applyAll) setGlobalAdj(DEFAULT_ADJ);
-    else setWsItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...DEFAULT_ADJ } : it)));
+    setWsItems((prev) => prev.map((it) => (applyAll || it.id === id ? { ...it, ...DEFAULT_ADJ } : it)));
   };
 
   const removeWsItem = (id) => {
@@ -404,8 +408,8 @@ const UltrasoundTab = ({ patient = null }) => {
   });
 
   const pdfMeta = () => ({
-    patientName: patient?.name || null,
-    uhid: saveUhid.trim() || patient?.uhid || '',
+    patientName: attachedPatient?.name || null,
+    uhid: attachedPatient?.uhid || '',
     studyDate: wsItems[0]?.studyDate || null,
   });
 
@@ -416,51 +420,76 @@ const UltrasoundTab = ({ patient = null }) => {
 
   const layoutOpts = () => ({ orientation: layout.orientation, cols: layout.cols, rows: layout.rows });
 
-  const handleDownload = async () => {
+  // Attach to patient — saves the workspace images into a patient's ultrasound
+  // image safe (idempotent assign), and makes that patient the report target.
+  const handleAttach = async (selected) => {
+    if (!selected || !wsItems.length) return;
+    setBusy('attach');
+    try {
+      await Promise.all(wsItems.map((it) => ultrasoundService.assign(it.id, selected.uhid)));
+      setAttachedPatient(selected);
+      toast.success(`${wsItems.length} image${wsItems.length > 1 ? 's' : ''} saved to ${selected.name || selected.uhid}'s image safe.`);
+      setAttachOpen(false);
+      await Promise.all([loadAttached(), loadInbox()]);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to attach the images.');
+    } finally { setBusy(null); }
+  };
+
+  // Preview PDF — build the report and open the preview modal (Download / Print /
+  // Save to Medical Documents happen from there).
+  const openPdfPreview = async () => {
     if (!guard()) return;
     setBusy('pdf');
     try {
-      const { filename } = await exportUltrasoundPdf(pdfImages(), pdfMeta(), layoutOpts());
-      toast.success(`Downloaded ${filename}`);
-    } catch (err) { console.error(err); toast.error('PDF export failed.'); }
+      const { filename, blob } = await exportUltrasoundPdf(pdfImages(), pdfMeta(), { ...layoutOpts(), output: 'blob' });
+      setPdf({ url: URL.createObjectURL(blob), filename, blob });
+    } catch (err) { console.error(err); toast.error('Could not build the PDF preview.'); }
     finally { setBusy(null); }
   };
 
-  const handlePrint = async () => {
-    if (!guard()) return;
-    setBusy('print');
-    try {
-      const { blob } = await exportUltrasoundPdf(pdfImages(), pdfMeta(), { ...layoutOpts(), output: 'blob' });
-      const url = URL.createObjectURL(blob);
-      const win = window.open(url, '_blank');
-      if (!win) toast.error('Popup blocked — allow popups for this site to print.');
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch (err) { console.error(err); toast.error('Could not open the print view.'); }
-    finally { setBusy(null); }
+  const closePdf = () => {
+    if (pdf?.url) URL.revokeObjectURL(pdf.url);
+    setPdf(null);
   };
 
-  const handleSaveToRecord = async () => {
-    if (!guard()) return;
-    const uhid = saveUhid.trim();
-    if (!uhid) { toast.error('Enter the patient\'s UHID.'); return; }
+  const handlePdfDownload = () => {
+    if (!pdf) return;
+    const a = document.createElement('a');
+    a.href = pdf.url;
+    a.download = pdf.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast.success(`Downloaded ${pdf.filename}`);
+  };
+
+  const handlePdfPrint = () => {
+    if (!pdf) return;
+    const win = window.open(pdf.url, '_blank');
+    if (!win) toast.error('Popup blocked — allow popups for this site to print.');
+  };
+
+  const handlePdfSaveToDocs = async () => {
+    if (!pdf) return;
+    if (!attachedPatient) { toast.error('Attach the report to a patient first.'); return; }
     setBusy('save');
     try {
-      // Link every workspace image to the patient (idempotent for re-links)
-      await Promise.all(wsItems.map((it) => ultrasoundService.assign(it.id, uhid)));
-      const { filename, blob } = await exportUltrasoundPdf(pdfImages(), { ...pdfMeta(), uhid }, { ...layoutOpts(), output: 'blob' });
       const formData = new FormData();
-      formData.append('file', new File([blob], filename, { type: 'application/pdf' }));
-      formData.append('uhid', uhid);
+      formData.append('file', new File([pdf.blob], pdf.filename, { type: 'application/pdf' }));
+      formData.append('uhid', attachedPatient.uhid);
       formData.append('documentCategory', 'Imaging Report');
       formData.append('testType', 'Ultrasound');
       formData.append('notes', `Ultrasound report — ${wsItems.length} image${wsItems.length > 1 ? 's' : ''}`);
       const res = await documentService.upload(formData);
       if (res.success === false) throw new Error(res.message);
-      toast.success(`Report saved to ${uhid}'s Medical Documents. Inbox rows stay until you remove them.`);
-      await Promise.all([loadAttached(), loadInbox()]);
+      toast.success(`Report filed to ${attachedPatient.uhid}'s Medical Documents.`);
+      closePdf();
+      await loadAttached();
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to save the report.');
+      toast.error(err.response?.data?.message || 'Failed to file the report.');
     } finally { setBusy(null); }
   };
 
@@ -497,11 +526,11 @@ const UltrasoundTab = ({ patient = null }) => {
 
       {/* ================= ZONE 1 — MACHINE INBOX TABLE (worklist view) ================= */}
       {view === 'list' && (
-      <Card className="!p-6 border-2 border-amber-300">
+      <Card className="!p-6 border-2 border-blue-200">
         <div className="flex items-center gap-2 mb-4">
-          <Inbox className={`w-5 h-5 ${inboxStudies.length ? 'text-amber-600' : 'text-gray-400'}`} />
+          <Inbox className={`w-5 h-5 ${inboxStudies.length ? 'text-blue-600' : 'text-gray-400'}`} />
           <h3 className="font-bold text-gray-800">Machine inbox</h3>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${inboxStudies.length ? 'bg-amber-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${inboxStudies.length ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
             {inboxStudies.length}
           </span>
           <span className="text-xs text-gray-500 hidden sm:inline">
@@ -550,13 +579,13 @@ const UltrasoundTab = ({ patient = null }) => {
                     const picked = s.images.filter((img) => rowSelected.has(img.id)).length;
                     return (
                       <Fragment key={s.key}>
-                        <tr className={`border-b border-gray-100 ${picked ? 'bg-amber-50' : 'hover:bg-gray-50'}`}>
+                        <tr className={`border-b border-gray-100 ${picked ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
                           <td className="px-2 py-2.5">
                             <input
                               type="checkbox"
                               checked={allPicked}
                               onChange={() => toggleStudySelected(s)}
-                              className="w-4 h-4 accent-amber-500"
+                              className="w-4 h-4 accent-blue-600"
                               title="Select every image in this study"
                             />
                           </td>
@@ -571,7 +600,7 @@ const UltrasoundTab = ({ patient = null }) => {
                           <td className="px-3 py-2.5 text-gray-600">{s.dob || '—'}</td>
                           <td className="px-3 py-2.5 text-gray-600">{s.examDate || '—'}</td>
                           <td className="px-3 py-2.5 text-right font-semibold text-gray-700">
-                            {s.images.length}{picked > 0 && <span className="text-amber-600 font-normal"> · {picked} ✓</span>}
+                            {s.images.length}{picked > 0 && <span className="text-blue-600 font-normal"> · {picked} ✓</span>}
                           </td>
                           <td className="px-2 py-2.5">
                             <button
@@ -602,13 +631,13 @@ const UltrasoundTab = ({ patient = null }) => {
                                       key={img.id}
                                       onClick={() => toggleImageSelected(img.id)}
                                       className={`relative rounded-lg border-2 overflow-hidden cursor-pointer bg-black aspect-[4/3] flex items-center justify-center ${
-                                        isPicked ? 'border-amber-500 shadow-md' : 'border-gray-200 hover:border-amber-300'
+                                        isPicked ? 'border-blue-500 shadow-md' : 'border-gray-200 hover:border-blue-300'
                                       }`}
                                     >
                                       {blobUrls[img.id]
                                         ? <img src={blobUrls[img.id]} alt={img.fileName} className="max-w-full max-h-full object-contain" />
                                         : <span className="text-gray-500 text-[10px]">Image unavailable</span>}
-                                      <input type="checkbox" readOnly checked={isPicked} className="absolute top-1 left-1 w-4 h-4 accent-amber-500 pointer-events-none" />
+                                      <input type="checkbox" readOnly checked={isPicked} className="absolute top-1 left-1 w-4 h-4 accent-blue-600 pointer-events-none" />
                                       {img.isMultiframe && (
                                         <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] font-bold px-1 py-0.5 rounded">CLIP</span>
                                       )}
@@ -668,10 +697,10 @@ const UltrasoundTab = ({ patient = null }) => {
 
         {applyAll && (
           <div className="mb-4 p-3 bg-blue-50 rounded-lg flex flex-wrap gap-6">
-            <WsSlider label="Brightness (all)" min={0.2} max={2} step={0.05} value={globalAdj.brightness}
-              display={`${globalAdj.brightness.toFixed(2)}×`} onChange={(v) => setGlobalAdj((p) => ({ ...p, brightness: v }))} wide />
-            <WsSlider label="Zoom / size (all)" min={0.25} max={1.5} step={0.05} value={globalAdj.scale}
-              display={`${Math.round(globalAdj.scale * 100)}%`} onChange={(v) => setGlobalAdj((p) => ({ ...p, scale: v }))} wide />
+            <WsSlider label="Brightness (all)" min={0.2} max={2} step={0.05} value={wsItems[0]?.brightness ?? 1}
+              display={`${(wsItems[0]?.brightness ?? 1).toFixed(2)}×`} onChange={(v) => updateWsItem(null, { brightness: v })} wide />
+            <WsSlider label="Zoom / size (all)" min={0.25} max={1.5} step={0.05} value={wsItems[0]?.scale ?? 1}
+              display={`${Math.round((wsItems[0]?.scale ?? 1) * 100)}%`} onChange={(v) => updateWsItem(null, { scale: v })} wide />
           </div>
         )}
 
@@ -777,27 +806,26 @@ const UltrasoundTab = ({ patient = null }) => {
         )}
 
         {/* Actions */}
-        <div className="mt-5 pt-4 border-t flex flex-wrap items-center justify-end gap-2.5">
-          <Button onClick={handlePrint} disabled={!!busy} variant="outline" className="!px-4 !py-2 text-sm">
-            {busy === 'print' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />} Print
-          </Button>
-          <Button onClick={handleDownload} disabled={!!busy} variant="outline" className="!px-4 !py-2 text-sm">
-            {busy === 'pdf' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Download PDF
-          </Button>
-          <input
-            type="text"
-            value={saveUhid}
-            onChange={(e) => setSaveUhid(e.target.value)}
-            className="w-28 px-2.5 py-2 border-2 border-gray-200 rounded-lg text-sm font-mono focus:border-blue-500 focus:outline-none"
-            title="Patient UHID the report is saved to"
-          />
-          <Button onClick={handleSaveToRecord} disabled={!!busy} className="!px-4 !py-2 text-sm">
-            {busy === 'save' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save to record
-          </Button>
+        <div className="mt-5 pt-4 border-t flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-gray-500">
+            {attachedPatient
+              ? <>Attached to <span className="font-semibold text-gray-700">{attachedPatient.name || attachedPatient.uhid}</span> · images saved to their safe</>
+              : 'Attach the images to a patient to save them into the record.'}
+          </p>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              onClick={() => { if (!guard()) return; setAttachOpen(true); }}
+              disabled={!!busy}
+              variant="outline"
+              className="!px-4 !py-2 text-sm"
+            >
+              {busy === 'attach' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Attach to patient
+            </Button>
+            <Button onClick={openPdfPreview} disabled={!!busy} className="!px-4 !py-2 text-sm">
+              {busy === 'pdf' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Preview PDF
+            </Button>
+          </div>
         </div>
-        <p className="text-[11px] text-gray-500 mt-2 text-right">
-          Save to record links the images to the patient and files the PDF into their Medical Documents. Inbox rows are only removed when you remove them.
-        </p>
       </Card>
       )}
 
@@ -948,6 +976,26 @@ const UltrasoundTab = ({ patient = null }) => {
           onClose={() => setPreviewImage(null)}
         />
       )}
+
+      <AttachToPatientModal
+        isOpen={attachOpen}
+        onClose={() => setAttachOpen(false)}
+        fixedPatient={patient}
+        imageCount={wsItems.length}
+        busy={busy === 'attach'}
+        onConfirm={handleAttach}
+      />
+
+      <PdfPreviewModal
+        isOpen={!!pdf}
+        onClose={closePdf}
+        pdfUrl={pdf?.url}
+        patient={attachedPatient}
+        busy={busy}
+        onDownload={handlePdfDownload}
+        onPrint={handlePdfPrint}
+        onSaveToDocs={handlePdfSaveToDocs}
+      />
     </div>
   );
 };
