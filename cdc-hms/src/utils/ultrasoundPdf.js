@@ -124,8 +124,10 @@ export const exportUltrasoundPdf = async (images, patient, opts = {}) => {
     doc.rect(cellX, cellY, cellW, cellH);
   }
 
-  const yyyymmdd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const filename = `US_${patient.uhid || 'unassigned'}_${yyyymmdd}.pdf`;
+  // Filename: <ClinicNumber>_<Name>_<Imaging modality>.pdf
+  const safe = (s, fallback) =>
+    (String(s || '').replace(/[^A-Za-z0-9 _-]/g, '').replace(/\s+/g, ' ').trim() || fallback);
+  const filename = `${safe(patient.uhid, 'unassigned')}_${safe(patient.patientName, 'Patient')}_${safe(patient.modality, 'Ultrasound')}.pdf`;
 
   if (opts.output === 'blob') {
     return { filename, blob: doc.output('blob') };

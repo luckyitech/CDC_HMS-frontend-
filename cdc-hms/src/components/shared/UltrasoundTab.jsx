@@ -444,10 +444,25 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     };
   });
 
+  // Readable imaging-modality label for the filename, derived from the scan's
+  // study description (Thyroid → "Thyroid Ultrasound", etc.); defaults to
+  // "Ultrasound". Extend the map as CT / other modalities join the suite.
+  const deriveModality = () => {
+    const desc = (wsItems.find((it) => it.studyDescription)?.studyDescription || '').toLowerCase();
+    const map = [
+      ['thyroid', 'Thyroid'], ['carotid', 'Carotid'], ['neck', 'Neck'], ['breast', 'Breast'],
+      ['abdom', 'Abdominal'], ['pelvi', 'Pelvic'], ['renal', 'Renal'], ['scrot', 'Scrotal'],
+      ['testic', 'Testicular'], ['obstetr', 'Obstetric'], ['pregnan', 'Obstetric'],
+    ];
+    const hit = map.find(([k]) => desc.includes(k));
+    return hit ? `${hit[1]} Ultrasound` : 'Ultrasound';
+  };
+
   const pdfMeta = () => ({
     patientName: attachedPatient?.name || null,
     uhid: attachedPatient?.uhid || '',
     studyDate: wsItems[0]?.studyDate || null,
+    modality: deriveModality(),
   });
 
   const guard = () => {
@@ -517,15 +532,19 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     if (!pdf || !targetPatient) return;
     setBusy('save');
     try {
+      // Regenerate with the chosen patient so the report header AND the filename
+      // both carry their clinic number, name and imaging modality.
+      const meta = { ...pdfMeta(), patientName: targetPatient.name, uhid: targetPatient.uhid };
+      const { filename, blob } = await exportUltrasoundPdf(pdfImages(), meta, { ...layoutOpts(), output: 'blob' });
       const formData = new FormData();
-      formData.append('file', new File([pdf.blob], pdf.filename, { type: 'application/pdf' }));
+      formData.append('file', new File([blob], filename, { type: 'application/pdf' }));
       formData.append('uhid', targetPatient.uhid);
       formData.append('documentCategory', 'Imaging Report');
       formData.append('testType', 'Ultrasound');
-      // Tag with the study date so the patient's Radiology tab can file the
-      // report next to that examination's images.
-      formData.append('testDate', pdfMeta().studyDate || '');
-      formData.append('notes', `Ultrasound report — ${wsItems.length} image${wsItems.length > 1 ? 's' : ''}`);
+      // Study date lets the patient's Radiology tab file the report next to that
+      // examination's images.
+      formData.append('testDate', meta.studyDate || '');
+      formData.append('notes', `${meta.modality} — ${wsItems.length} image${wsItems.length > 1 ? 's' : ''}`);
       const res = await documentService.upload(formData);
       if (res.success === false) throw new Error(res.message);
       toast.success(`Report filed to ${targetPatient.uhid}'s Medical Documents.`);
