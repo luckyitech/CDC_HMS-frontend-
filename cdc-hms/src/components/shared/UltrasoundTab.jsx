@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import {
   Waves, Film, RefreshCw, Inbox, ChevronDown, ChevronRight, ChevronUp,
-  ArrowDown, X, Undo2, Printer, FileDown, Save, Plus, LayoutGrid, Trash2,
+  ArrowDown, ArrowLeft, X, Undo2, Printer, FileDown, Save, Plus, LayoutGrid, Trash2,
   Calendar, Clock, Archive,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -72,6 +72,7 @@ const UltrasoundTab = ({ patient = null }) => {
 
   // ---- workspace state ----
   const [wsItems, setWsItems] = useState([]);       // ordered, with adjustments
+  const [view, setView] = useState('list');         // 'list' worklist | 'workspace' — the workspace opens as its own screen
   const [wsRemoved, setWsRemoved] = useState([]);
   const [layoutId, setLayoutId] = useState('l32');
   const [applyAll, setApplyAll] = useState(false);
@@ -300,6 +301,7 @@ const UltrasoundTab = ({ patient = null }) => {
       return;
     }
     setWsItems((prev) => [...prev, ...added.filter((a) => !prev.some((p) => p.id === a.id))]);
+    setView('workspace'); // opening images takes you straight into the workspace screen
     toast.success(`${added.length} image${added.length > 1 ? 's' : ''} added to the workspace.`);
   };
 
@@ -481,7 +483,20 @@ const UltrasoundTab = ({ patient = null }) => {
 
   return (
     <div className="space-y-6">
-      {/* ================= ZONE 1 — MACHINE INBOX TABLE ================= */}
+      {view === 'workspace' && (
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setView('list')}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back to worklist
+          </button>
+          <span className="text-xs text-gray-500">{wsItems.length} image{wsItems.length !== 1 && 's'} in the report</span>
+        </div>
+      )}
+
+      {/* ================= ZONE 1 — MACHINE INBOX TABLE (worklist view) ================= */}
+      {view === 'list' && (
       <Card className="!p-6 border-2 border-amber-300">
         <div className="flex items-center gap-2 mb-4">
           <Inbox className={`w-5 h-5 ${inboxStudies.length ? 'text-amber-600' : 'text-gray-400'}`} />
@@ -499,6 +514,15 @@ const UltrasoundTab = ({ patient = null }) => {
           >
             <RefreshCw className="w-4 h-4" /> Refresh
           </button>
+          {wsItems.length > 0 && (
+            <button
+              onClick={() => setView('workspace')}
+              title="Open the report workspace"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900"
+            >
+              <LayoutGrid className="w-4 h-4" /> Open workspace ({wsItems.length})
+            </button>
+          )}
         </div>
 
         {inboxStudies.length === 0 ? (
@@ -609,8 +633,10 @@ const UltrasoundTab = ({ patient = null }) => {
           </>
         )}
       </Card>
+      )}
 
-      {/* ================= ZONE 2 — REPORT WORKSPACE ================= */}
+      {/* ================= ZONE 2 — REPORT WORKSPACE (its own screen) ================= */}
+      {view === 'workspace' && (
       <Card className="!p-6 border-2 border-blue-200">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
@@ -773,9 +799,10 @@ const UltrasoundTab = ({ patient = null }) => {
           Save to record links the images to the patient and files the PDF into their Medical Documents. Inbox rows are only removed when you remove them.
         </p>
       </Card>
+      )}
 
-      {/* ===== ZONE 3 — IMAGE SAFE (dated archive) — patient scope only ===== */}
-      {patient && (
+      {/* ===== ZONE 3 — IMAGE SAFE (worklist view, patient scope only) ===== */}
+      {view === 'list' && patient && (
       <Card className="!p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
