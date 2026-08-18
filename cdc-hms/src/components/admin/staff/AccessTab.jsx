@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import api from '../../../services/api';
+import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import { formatDateTime } from './staffFormat';
 
 const EMPLOYMENT_STATUSES = ['Active', 'On Leave', 'Suspended', 'Resigned', 'Terminated'];
@@ -52,6 +53,17 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(null);
   const [acting, setActing]   = useState(null);
+
+  // The pending confirmation, or null. One piece of state for every
+  // consequential action on this tab rather than a boolean each, so adding an
+  // action does not add a state variable.
+  //
+  // window.confirm was doing this job. It is unstyled, cannot be themed to the
+  // rest of the system, and blocks the whole browser tab while it is open —
+  // which also stalls anything driving the page. ConfirmActionModal already
+  // exists for exactly this ("replaces window.confirm / window.prompt") and is
+  // what SystemSettings and ClinicalCatalog already use.
+  const [confirmation, setConfirmation] = useState(null);
 
   // Granting is restricted server-side to a real admin ACCOUNT rather than
   // anyone holding admin.access, so that the capability cannot propagate on its
@@ -109,70 +121,104 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
       }
     }
 
+    const save = async () => {
+      setSaving(capability);
+      try {
+        const res = await staffService.updatePermissions(
+          staff.employeeId, [...nextGranted], [...nextDenied]
+        );
+        onChanged(res.data);
+        toast.success(`${section.name} updated`);
+      } catch (err) {
+        toast.error(err.message || 'Failed to update permissions');
+      } finally {
+        setSaving(null);
+      }
+    };
+
     // Confirm the two consequential directions: handing someone the admin
     // portal, and taking something away from someone whose role would normally
-    // include it. Ordinary grants save straight away.
+    // include it. Ordinary grants save straight away — a confirmation on every
+    // toggle trains people to dismiss it without reading.
     const label = capability === section.access ? section.accessLabel : section.writeLabel;
+
     if (next === DENIED) {
-      const message = `Withdraw "${label}" for ${section.name} from ${staff.name}?\n\n`
-        + 'This refuses it even though their role would otherwise allow it.';
-      if (!window.confirm(message)) return;
-    } else if (next === GRANTED && section.warning) {
-      if (!window.confirm(`Grant ${section.name} to ${staff.name}?\n\n${section.warning}`)) return;
+      setConfirmation({
+        title: `Withdraw ${section.name} access?`,
+        message: `“${label}” will be refused for ${staff.name} even though their role would `
+          + 'otherwise allow it. They keep everything else they have.',
+        confirmLabel: 'Withdraw',
+        confirmVariant: 'danger',
+        onConfirm: save,
+      });
+      return;
     }
 
-    setSaving(capability);
-    try {
-      const res = await staffService.updatePermissions(
-        staff.employeeId, [...nextGranted], [...nextDenied]
-      );
-      onChanged(res.data);
-      toast.success(`${section.name} updated`);
-    } catch (err) {
-      toast.error(err.message || 'Failed to update permissions');
-    } finally {
-      setSaving(null);
+    if (next === GRANTED && section.warning) {
+      setConfirmation({
+        title: `Grant ${section.name} to ${staff.name}?`,
+        message: section.warning,
+        confirmLabel: 'Grant',
+        onConfirm: save,
+      });
+      return;
     }
+
+    await save();
   };
 
-  const resetPassword = async () => {
+  const resetPassword = () => {
     if (!staff.email) {
       toast.error('No email on file — add one on the Overview first.');
       return;
     }
-    if (!window.confirm(`Send a password reset link to ${staff.email}?`)) return;
 
-    setActing('reset');
-    try {
-      await api.post('/auth/forgot-password', { email: staff.email });
-      toast.success(`Reset link sent to ${staff.email}`);
-    } catch (err) {
-      toast.error(err.message || 'Failed to send reset link');
-    } finally {
-      setActing(null);
-    }
+    setConfirmation({
+      title: 'Send a password reset link?',
+      message: `A reset link will be emailed to ${staff.email}. Their current password keeps `
+        + 'working until they use it.',
+      confirmLabel: 'Send link',
+      onConfirm: async () => {
+        setActing('reset');
+        try {
+          await api.post('/auth/forgot-password', { email: staff.email });
+          toast.success(`Reset link sent to ${staff.email}`);
+        } catch (err) {
+          toast.error(err.message || 'Failed to send reset link');
+        } finally {
+          setActing(null);
+        }
+      },
+    });
   };
 
-  const changeStatus = async (employmentStatus) => {
+  const changeStatus = (employmentStatus) => {
     if (employmentStatus === staff.employmentStatus) return;
 
     // Naming the consequence, because the two are not the same thing: 'On Leave'
     // still permits login, everything below it does not.
     const stillAllowsLogin = employmentStatus === 'Active' || employmentStatus === 'On Leave';
-    const message = `Set ${staff.name} to ${employmentStatus}?\n\n` +
-      (stillAllowsLogin ? 'They will still be able to log in.' : 'Their login will be disabled.');
-    if (!window.confirm(message)) return;
 
-    setActing('status');
-    try {
-      const res = await staffService.updateStatus(staff.employeeId, employmentStatus);
-      (onStatusChanged || onChanged)(res.data);
-      toast.success(`Status set to ${employmentStatus}`);
-    } catch (err) {
-      toast.error(err.message || 'Failed to update status');
-    } finally {
-      setActing(null);
-    }
+    setConfirmation({
+      title: `Set ${staff.name} to ${employmentStatus}?`,
+      message: stillAllowsLogin
+        ? 'They will still be able to log in.'
+        : 'Their login will be disabled immediately, and any signed-in session ends at their next request.',
+      confirmLabel: `Set ${employmentStatus}`,
+      confirmVariant: stillAllowsLogin ? 'primary' : 'danger',
+      onConfirm: async () => {
+        setActing('status');
+        try {
+          const res = await staffService.updateStatus(staff.employeeId, employmentStatus);
+          (onStatusChanged || onChanged)(res.data);
+          toast.success(`Status set to ${employmentStatus}`);
+        } catch (err) {
+          toast.error(err.message || 'Failed to update status');
+        } finally {
+          setActing(null);
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -326,6 +372,24 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             : <><Archive className="w-4 h-4" /> Archive</>}
         </button>
       </div>
+
+      {/* One modal for every confirmation on this tab. Rendered once at the end
+          rather than per action, so the markup does not grow with the number of
+          things that need confirming. Portaled by Modal, so the floating
+          sidebar cannot clip it. */}
+      <ConfirmActionModal
+        isOpen={!!confirmation}
+        onClose={() => setConfirmation(null)}
+        onConfirm={() => {
+          const action = confirmation?.onConfirm;
+          setConfirmation(null);   // close first, so the tab is responsive while the request runs
+          if (action) action();
+        }}
+        title={confirmation?.title || ''}
+        message={confirmation?.message || ''}
+        confirmLabel={confirmation?.confirmLabel || 'Confirm'}
+        confirmVariant={confirmation?.confirmVariant || 'primary'}
+      />
     </div>
   );
 };
