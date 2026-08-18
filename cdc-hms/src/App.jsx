@@ -99,6 +99,7 @@ const WardConfig             = lazy(() => import("./pages/admin/WardConfig"));
 // HMIS V4 — ultrasound (lazy)
 const UnassignedUltrasound   = lazy(() => import("./pages/admin/UnassignedUltrasound"));
 const UltrasoundStudio       = lazy(() => import("./pages/doctor/UltrasoundStudio"));
+const RadiologySuite         = lazy(() => import("./pages/radiology/RadiologySuite"));
 
 // HMIS V3 — inpatient (lazy)
 const WardBoard          = lazy(() => import("./pages/inpatient/WardBoard"));
@@ -270,6 +271,19 @@ function App() {
                   <Route path="reports" element={<Reports />} />
                   <Route path="settings" element={<SystemSettings />} />
                   <Route path="ward-config" element={<WardConfig />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
+
+                {/* Radiology Suite — top-level section (doctors + staff; admin
+                    implicit via canAccessAdmin). No new role or permissions. */}
+                <Route
+                  path="/radiology"
+                  element={<ProtectedRoute requiredRoles={["doctor", "staff"]}><MainLayout userRole="Radiology" /></ProtectedRoute>}
+                >
+                  <Route index element={<Navigate to="/radiology/suite" replace />} />
+                  <Route path="dashboard" element={<Navigate to="/radiology/suite" replace />} />
+                  <Route path="suite" element={<RadiologySuite />} />
+                  <Route path="unassigned" element={<UnassignedUltrasound />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

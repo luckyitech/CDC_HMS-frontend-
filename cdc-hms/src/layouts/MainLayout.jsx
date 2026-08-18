@@ -49,6 +49,8 @@ import {
   Package,
   KeyRound,
   Waves,
+  Scan,
+  ArrowLeft,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
@@ -195,6 +197,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     { label: 'Doctor Portal', path: '/doctor/dashboard', icon: Stethoscope },
     { label: 'Staff Portal', path: '/staff/dashboard', icon: Users },
     { label: 'Lab Portal', path: '/lab/dashboard', icon: TestTube },
+    { label: 'Radiology Suite', path: '/radiology/suite', icon: Scan },
   ];
 
   // Capability gate for switching portals — backed by the real permission system:
@@ -297,6 +300,18 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
 
   const menuItems = {
+    // Radiology is a top-level section, not a role. Entered from the doctor /
+    // staff / admin sidebars; this menu shows once inside it, with a link back
+    // to the user's real portal (there's no radiology login).
+    radiology: [
+      { name: "Radiology Suite", path: "/radiology/suite", icon: Scan },
+      { name: "Unassigned Queue", path: "/radiology/unassigned", icon: Waves },
+      {
+        name: `Back to ${((currentUser?.role || "doctor").charAt(0).toUpperCase() + (currentUser?.role || "doctor").slice(1))} Portal`,
+        path: `/${currentUser?.role || "doctor"}/dashboard`,
+        icon: ArrowLeft,
+      },
+    ],
     staff: [
       { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },
       // Front-desk group entry — Patient Search + Register Patient ride along as
@@ -327,7 +342,6 @@ const MainLayout = ({ userRole = "Staff" }) => {
       //   path: "/doctor/physical-exam",
       //   icon: Stethoscope,
       // },
-      { name: "Ultrasound Studio", path: "/doctor/ultrasound-studio", icon: Waves },
       { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
@@ -385,7 +399,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
       { name: "Users", path: "/admin/manage-users", icon: Users },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
-      { name: "Ultrasound Queue", path: "/admin/unassigned-ultrasound", icon: Waves },
+      { name: "Radiology Queue", path: "/admin/unassigned-ultrasound", icon: Waves },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill },
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble },
       {

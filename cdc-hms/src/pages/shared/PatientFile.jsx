@@ -114,7 +114,7 @@ const DiagnosticsTab = ({ patient }) => {
         onChange={setSub}
         tabs={[
           { id: "documents", label: "Medical Documents" },
-          { id: "ultrasound", label: "Ultrasound" },
+          { id: "ultrasound", label: "Radiology" },
           { id: "charts", label: "Charts" },
         ]}
       />

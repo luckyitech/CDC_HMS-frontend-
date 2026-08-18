@@ -49,7 +49,11 @@ const cellRatioFor = (layout) => {
   return cellW / cellH;
 };
 
-const UltrasoundTab = ({ patient }) => {
+// `patient` is optional. When set (patient file → Diagnostics → Radiology tab)
+// the component scopes to that patient: the "image safe" (Zone 3) shows and the
+// save UHID defaults to them. When null (Radiology Suite portal) it's the
+// standalone worklist: inbox table + workspace, save UHID typed by the user.
+const UltrasoundTab = ({ patient = null }) => {
   const { currentUser } = useUserContext();
   const isAdmin = canAccessAdmin(currentUser);
 
@@ -72,7 +76,7 @@ const UltrasoundTab = ({ patient }) => {
   const [layoutId, setLayoutId] = useState('l32');
   const [applyAll, setApplyAll] = useState(false);
   const [globalAdj, setGlobalAdj] = useState(DEFAULT_ADJ);
-  const [saveUhid, setSaveUhid] = useState(patient.uhid);
+  const [saveUhid, setSaveUhid] = useState(patient?.uhid || '');
   const [busy, setBusy] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -113,6 +117,7 @@ const UltrasoundTab = ({ patient }) => {
   }, []);
 
   const loadAttached = useCallback(async () => {
+    if (!patient?.uhid) { setAttached([]); return; }
     try {
       const res = await ultrasoundService.getByPatient(patient.uhid);
       const list = res.data || [];
@@ -121,7 +126,7 @@ const UltrasoundTab = ({ patient }) => {
     } catch (err) {
       console.error('Error loading attached ultrasound images:', err);
     }
-  }, [patient.uhid, loadBlobs]);
+  }, [patient?.uhid, loadBlobs]);
 
   const loadInbox = useCallback(async () => {
     try {
@@ -397,8 +402,8 @@ const UltrasoundTab = ({ patient }) => {
   });
 
   const pdfMeta = () => ({
-    patientName: patient.name,
-    uhid: saveUhid.trim() || patient.uhid,
+    patientName: patient?.name || null,
+    uhid: saveUhid.trim() || patient?.uhid || '',
     studyDate: wsItems[0]?.studyDate || null,
   });
 
@@ -487,6 +492,13 @@ const UltrasoundTab = ({ patient }) => {
           <span className="text-xs text-gray-500 hidden sm:inline">
             — rows stay listed until you remove them with <Trash2 className="w-3 h-3 inline" />
           </span>
+          <button
+            onClick={() => { loadInbox(); loadAttached(); }}
+            title="Refresh — pull any newly-arrived studies"
+            className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900"
+          >
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
         </div>
 
         {inboxStudies.length === 0 ? (
@@ -762,7 +774,8 @@ const UltrasoundTab = ({ patient }) => {
         </p>
       </Card>
 
-      {/* ================= ZONE 3 — IMAGE SAFE (dated archive) ================= */}
+      {/* ===== ZONE 3 — IMAGE SAFE (dated archive) — patient scope only ===== */}
+      {patient && (
       <Card className="!p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
@@ -887,6 +900,7 @@ const UltrasoundTab = ({ patient }) => {
           </div>
         )}
       </Card>
+      )}
 
       <ReasonModal
         isOpen={!!archiveTarget}
