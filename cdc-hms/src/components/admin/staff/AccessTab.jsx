@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound } from 'lucide-react';
+import {
+  Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound,
+  LayoutGrid, Users, Package,
+} from 'lucide-react';
 import staffService from '../../../services/staffService';
 import api from '../../../services/api';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
+import AccordionPanel from '../../shared/AccordionPanel';
 import { formatDateTime } from './staffFormat';
+
+// Keyed off the server's group keys. An unknown group still renders, with the
+// generic shield — a group added on the server is never invisible here.
+const GROUP_ICONS = {
+  portals: LayoutGrid,
+  'patient-admin': Users,
+  modules: Package,
+  administration: ShieldCheck,
+};
 
 const EMPLOYMENT_STATUSES = ['Active', 'On Leave', 'Suspended', 'Resigned', 'Terminated'];
 
@@ -64,6 +77,13 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   // exists for exactly this ("replaces window.confirm / window.prompt") and is
   // what SystemSettings and ClinicalCatalog already use.
   const [confirmation, setConfirmation] = useState(null);
+
+  // Which groups are expanded. Four groups of areas made this tab long enough
+  // that the Archive button sat below the fold; collapsed, the whole picture
+  // fits on one screen and the summary on each header says what is set inside
+  // without opening it.
+  const [openGroups, setOpenGroups] = useState({});
+  const toggleGroup = (key) => setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Granting is restricted server-side to a real admin ACCOUNT rather than
   // anyone holding admin.access, so that the capability cannot propagate on its
@@ -308,31 +328,31 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-center gap-2 mb-1">
+      <div>
+        <div className="flex items-center gap-2 mb-1 px-1">
           <ShieldCheck className="w-4 h-4 text-gray-400" />
           <h3 className="text-sm font-semibold text-gray-800">Portal access</h3>
         </div>
-        <p className="text-xs text-gray-400 mb-5">
+        <p className="text-xs text-gray-400 mb-3 px-1">
           Which portals this person can open, and what they can do. <b>Default</b> leaves it to
           their role — <b>Granted</b> adds it on top, <b>Withdrawn</b> refuses it even when their
           role would allow. What they can do applies wherever it appears, not per portal.
         </p>
 
         {staff.isTrueAdmin ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 bg-white rounded-xl border border-gray-200 p-5">
             This is an administrator account. It holds every permission implicitly and cannot be
             withdrawn from, so there is nothing to set here.
           </p>
         ) : !staff.canHoldPermissions ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 bg-white rounded-xl border border-gray-200 p-5">
             A {staff.role} account cannot hold permissions.
           </p>
         ) : !groups.length ? (
           // An empty list here means the catalog request came back without one —
           // in practice a frontend running ahead of the backend it is talking to.
           // Rendering nothing at all just looks like a broken screen, so say so.
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 bg-white rounded-xl border border-gray-200 p-5">
             <p className="font-semibold text-gray-700">No permission list available.</p>
             <p className="mt-1">
               The server did not return one. This usually means the API is running an older
@@ -341,56 +361,83 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {groups.map((group) => (
-              <div key={group.key}>
-                <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                  {group.name}
-                </h4>
-                {group.description && (
-                  <p className="text-xs text-gray-400 mt-0.5 mb-2">{group.description}</p>
-                )}
+          <div className="space-y-3">
+            {groups.map((group) => {
+              // A collapsed group still has to say whether anything is set
+              // inside it, or an admin has to open all four to find out.
+              const caps = group.areas.flatMap((a) => [a.access, a.write]).filter(Boolean);
+              const nGranted = caps.filter((c) => stateOf(c) === GRANTED).length;
+              const nDenied  = caps.filter((c) => stateOf(c) === DENIED).length;
 
-                <div className="space-y-2 mt-2">
-                  {group.areas.map((area) => (
-                    <div key={area.key} className="border border-gray-200 rounded-lg px-4 py-3">
-                      <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                        <p className="text-sm font-semibold text-gray-800">{area.name}</p>
-                        <div className="flex items-center gap-3 text-[11px] text-gray-400">
-                          {/* Where this applies. A capability is global, so the
-                              same one can show up in several portals — naming
-                              them stops the grid reading as if it were per
-                              portal. */}
-                          {area.appliesIn && <span>In: {area.appliesIn}</span>}
-                          {area.roleDefault && <span>By role: {area.roleDefault}</span>}
-                        </div>
-                      </div>
-                      {area.description && (
-                        <p className="text-xs text-gray-400 mt-0.5">{area.description}</p>
+              return (
+                <AccordionPanel
+                  key={group.key}
+                  icon={GROUP_ICONS[group.key] || ShieldCheck}
+                  label={group.name}
+                  isOpen={!!openGroups[group.key]}
+                  onToggle={() => toggleGroup(group.key)}
+                  badge={
+                    <span className="flex items-center gap-1.5">
+                      {nGranted > 0 && (
+                        <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-semibold">
+                          {nGranted} granted
+                        </span>
                       )}
-
-                      <div className="divide-y divide-gray-100 mt-2">
-                        {area.access && renderRow(area, area.access, area.accessLabel)}
-                        {area.write && renderRow(area, area.write, area.writeLabel)}
-                      </div>
-
-                      {/* A broad grant with withdrawals elsewhere is not a
-                          contradiction — the withdrawal wins, and the person
-                          really is refused those endpoints. But a card reading
-                          "can do everything an admin can" next to a red
-                          Withdrawn looks like the screen is lying, so name the
-                          exceptions here rather than leaving it to be inferred. */}
-                      {area.broad && stateOf(area.access) === GRANTED && withdrawnLabels.length > 0 && (
-                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
-                          Except {withdrawnLabels.join(', ')} — withdrawn below, and a withdrawal
-                          always overrides this.
-                        </p>
+                      {nDenied > 0 && (
+                        <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-700 text-xs font-semibold">
+                          {nDenied} withdrawn
+                        </span>
                       )}
+                      {nGranted === 0 && nDenied === 0 && (
+                        <span className="text-xs text-gray-400">Role defaults</span>
+                      )}
+                    </span>
+                  }
+                >
+                  {group.description && (
+                    <p className="text-xs text-gray-400 mb-3">{group.description}</p>
+                  )}
+                  <div className="space-y-2">
+                {group.areas.map((area) => (
+                  <div key={area.key} className="border border-gray-200 rounded-lg px-4 py-3">
+                    <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-800">{area.name}</p>
+                      <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                        {/* Where this applies. A capability is global, so the
+                            same one can show up in several portals — naming
+                            them stops the grid reading as if it were per
+                            portal. */}
+                        {area.appliesIn && <span>In: {area.appliesIn}</span>}
+                        {area.roleDefault && <span>By role: {area.roleDefault}</span>}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+                    {area.description && (
+                      <p className="text-xs text-gray-400 mt-0.5">{area.description}</p>
+                    )}
+
+                    <div className="divide-y divide-gray-100 mt-2">
+                      {area.access && renderRow(area, area.access, area.accessLabel)}
+                      {area.write && renderRow(area, area.write, area.writeLabel)}
+                    </div>
+
+                    {/* A broad grant with withdrawals elsewhere is not a
+                        contradiction — the withdrawal wins, and the person
+                        really is refused those endpoints. But a card reading
+                        "can do everything an admin can" next to a red
+                        Withdrawn looks like the screen is lying, so name the
+                        exceptions here rather than leaving it to be inferred. */}
+                    {area.broad && stateOf(area.access) === GRANTED && withdrawnLabels.length > 0 && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+                        Except {withdrawnLabels.join(', ')} — withdrawn below, and a withdrawal
+                        always overrides this.
+                      </p>
+                    )}
+                  </div>
+                ))}
+                  </div>
+                </AccordionPanel>
+              );
+            })}
 
             {!canGrant && (
               <p className="text-xs text-gray-400 pt-1">
