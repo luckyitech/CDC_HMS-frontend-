@@ -390,7 +390,10 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
 
   const onPanEnd = (it) => () => {
     const d = dragRef.current;
-    if (d && d.id === it.id && !d.moved) setPreviewImage(it); // plain click = preview
+    if (d && d.id === it.id && !d.moved) {
+      // plain click = preview, navigable across the whole workspace set
+      setPreviewImage({ images: wsItems, index: wsItems.findIndex((x) => x.id === it.id) });
+    }
     dragRef.current = null;
   };
 
@@ -962,11 +965,11 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
                     </div>
                   )}
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    {session.images.map((img) => (
+                    {session.images.map((img, imgIdx) => (
                       <div key={img.id} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-white">
                         <div
                           className="relative bg-black aspect-[4/3] flex items-center justify-center cursor-pointer"
-                          onClick={() => setPreviewImage(img)}
+                          onClick={() => setPreviewImage({ images: session.images, index: imgIdx })}
                         >
                           {blobUrls[img.id]
                             ? <img src={blobUrls[img.id]} alt={img.fileName} className="max-w-full max-h-full object-contain" />
@@ -1008,9 +1011,9 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
 
       {previewImage && (
         <UltrasoundPreview
-          image={previewImage}
-          src={blobUrls[previewImage.id]}
-          brightness={1}
+          images={previewImage.images}
+          startIndex={previewImage.index}
+          blobUrls={blobUrls}
           onClose={() => setPreviewImage(null)}
         />
       )}
