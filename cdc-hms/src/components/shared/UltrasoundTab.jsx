@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import {
   Waves, Film, RefreshCw, Inbox, ChevronDown, ChevronRight, ChevronUp,
-  ArrowDown, ArrowLeft, X, Undo2, FileDown, UserPlus, Plus, LayoutGrid, Trash2,
+  ArrowDown, ArrowLeft, X, Undo2, FileDown, UserPlus, LayoutGrid, Trash2,
   Calendar, Clock, Archive,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -138,6 +138,9 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
   }, [patient?.uhid, loadBlobs]);
 
   const loadInbox = useCallback(async () => {
+    // The inbox/worklist only exists in the Radiology Suite — the patient file
+    // shows the image safe only, so there's nothing to fetch there.
+    if (patient) { setInboxImages([]); return; }
     try {
       const res = unassignedOnly
         ? await ultrasoundService.getUnassigned()
@@ -148,7 +151,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     } catch (err) {
       console.error('Error loading ultrasound list:', err);
     }
-  }, [loadBlobs, unassignedOnly]);
+  }, [loadBlobs, unassignedOnly, patient]);
 
   useEffect(() => {
     let isMounted = true;
@@ -517,7 +520,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
 
   return (
     <div className="space-y-6">
-      {view === 'workspace' && (
+      {!patient && view === 'workspace' && (
         <div className="flex items-center justify-between">
           <button
             onClick={() => setView('list')}
@@ -529,8 +532,8 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
         </div>
       )}
 
-      {/* ================= ZONE 1 — MACHINE INBOX TABLE (worklist view) ================= */}
-      {view === 'list' && (
+      {/* ===== ZONE 1 — MACHINE INBOX — Radiology Suite only (hidden in the patient file) ===== */}
+      {!patient && view === 'list' && (
       <Card className="!p-6 border-2 border-blue-200">
         <div className="flex items-center gap-2 mb-4">
           <Inbox className={`w-5 h-5 ${inboxStudies.length ? 'text-blue-600' : 'text-gray-400'}`} />
@@ -674,7 +677,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       )}
 
       {/* ================= ZONE 2 — REPORT WORKSPACE (its own screen) ================= */}
-      {view === 'workspace' && (
+      {!patient && view === 'workspace' && (
       <Card className="!p-6 border-2 border-blue-200">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
@@ -838,8 +841,8 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       </Card>
       )}
 
-      {/* ===== ZONE 3 — IMAGE SAFE (worklist view, patient scope only) ===== */}
-      {view === 'list' && patient && (
+      {/* ===== ZONE 3 — IMAGE SAFE — patient file (view-only): images attached to this patient ===== */}
+      {patient && (
       <Card className="!p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
@@ -849,52 +852,14 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
               {attached.length} image{attached.length !== 1 && 's'} · {attachedSessions.length} session{attachedSessions.length !== 1 && 's'}
             </span>
             <span className="hidden md:inline text-[11px] text-gray-400 italic">
-              — permanent record; adding to the workspace never removes an image, only an admin can.
+              — permanent record; images are attached from the Radiology Suite, and only an admin can remove one.
             </span>
           </div>
-          {attached.length > 0 && (
-            <div className="relative" ref={addMenuRef}>
-              <button
-                onClick={() => setAddMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900"
-              >
-                <Plus className="w-4 h-4" /> Add to workspace <ChevronDown className="w-4 h-4" />
-              </button>
-              {addMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 max-h-80 overflow-y-auto">
-                  <button
-                    onClick={() => { addToWorkspace(attached); setAddMenuOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-blue-50 flex items-center justify-between"
-                  >
-                    <span>All images</span>
-                    <span className="text-xs text-gray-400">{attached.length}</span>
-                  </button>
-                  <div className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">By session</div>
-                  {attachedSessions.map((session) => {
-                    const dt = new Date(session.receivedAt);
-                    return (
-                      <button
-                        key={session.key}
-                        onClick={() => { addToWorkspace(session.images); setAddMenuOpen(false); }}
-                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50 flex items-center justify-between gap-2"
-                      >
-                        <span className="truncate">
-                          {dt.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
-                          <span className="text-gray-400"> · {dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
-                        </span>
-                        <span className="text-xs text-gray-400 flex-shrink-0">{session.images.length}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {attached.length === 0 ? (
           <p className="text-sm text-gray-500">
-            No images stored yet. Scans made with UHID <span className="font-mono font-semibold">{patient.uhid}</span> are archived here automatically; anything else can be moved from the inbox above. Each examination is kept as a dated entry so follow-up scans stack up over time.
+            No images stored yet. Scans made with UHID <span className="font-mono font-semibold">{patient.uhid}</span> are archived here automatically; others can be attached from the Radiology Suite. Each examination is kept as a dated entry so follow-up scans stack up over time.
           </p>
         ) : (
           <div className="space-y-3">
@@ -918,14 +883,6 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
                   onToggle={() => toggleSession(session.key)}
                   padding="p-4"
                 >
-                  <div className="flex justify-end mb-3">
-                    <button
-                      onClick={() => addToWorkspace(session.images)}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Add this session to workspace
-                    </button>
-                  </div>
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {session.images.map((img) => (
                       <div key={img.id} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-white">
@@ -949,12 +906,6 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
                             </button>
                           )}
                         </div>
-                        <button
-                          onClick={() => addToWorkspace([img])}
-                          className="w-full py-1.5 text-[11px] font-bold text-blue-700 hover:bg-blue-50 inline-flex items-center justify-center gap-1"
-                        >
-                          <Plus className="w-3 h-3" /> Workspace
-                        </button>
                       </div>
                     ))}
                   </div>
