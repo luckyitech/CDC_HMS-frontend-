@@ -5,6 +5,7 @@ import { OPT, STEPS } from '../../../constants/thyroidUs';
 import { ChipRow, Field, Num, DimTriplet } from './ui';
 import NoduleCard from './NoduleCard';
 import LiveResultsPanel from './LiveResultsPanel';
+import ThyroidUsReportPrint from './ThyroidUsReportPrint';
 
 export default function ThyroidUsWorkspace({ patient, onClose }) {
   const ctx = useThyroidUltrasound();
@@ -16,6 +17,7 @@ export default function ThyroidUsWorkspace({ patient, onClose }) {
   const [confirmWarnings, setConfirmWarnings] = useState(false);
   const [ackAblation, setAckAblation] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
 
   useEffect(() => {
     ctx.getCatalog('indication').then((d) => setCatalog((c) => ({ ...c, indication: d }))).catch(() => {});
@@ -187,7 +189,12 @@ export default function ThyroidUsWorkspace({ patient, onClose }) {
                       </button>
                     </div>
                   )}
-                  {report.status === 'signed' && <div className="text-emerald-700 text-sm font-medium">Signed by {report.signedName} · {new Date(report.signedAt).toLocaleString()}</div>}
+                  {report.status === 'signed' && (
+                    <div className="flex items-center justify-between">
+                      <div className="text-emerald-700 text-sm font-medium">Signed by {report.signedName} · {new Date(report.signedAt).toLocaleString()}</div>
+                      <button onClick={() => setShowPrint(true)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium">Print report</button>
+                    </div>
+                  )}
                 </div>
               )}
             </Panel>
@@ -204,6 +211,8 @@ export default function ThyroidUsWorkspace({ patient, onClose }) {
           <LiveResultsPanel report={report} nodules={nodules} />
         </aside>
       </div>
+
+      {showPrint && <ThyroidUsReportPrint report={report} nodules={nodules} patient={patient} onClose={() => setShowPrint(false)} />}
     </div>
   );
 }
