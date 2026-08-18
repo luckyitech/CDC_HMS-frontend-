@@ -93,6 +93,20 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     return DEFAULT;
   };
 
+  // Human names for whatever has been withdrawn, read off the same catalog the
+  // rows render from — so a capability added on the server is never described
+  // here by its raw string.
+  const withdrawnLabels = groups
+    .flatMap((g) => g.areas)
+    .filter((a) => !a.broad)
+    .flatMap((a) => [
+      denied.includes(a.access) ? a.name : null,
+      // A withdrawn write on an area whose access is still allowed is worth
+      // naming separately — "Users and staff files" alone would overstate it.
+      denied.includes(a.write) && !denied.includes(a.access) ? `${a.name} (editing)` : null,
+    ])
+    .filter(Boolean);
+
   /**
    * Move one capability to a new state and save the whole picture.
    *
@@ -359,6 +373,19 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
                         {area.access && renderRow(area, area.access, area.accessLabel)}
                         {area.write && renderRow(area, area.write, area.writeLabel)}
                       </div>
+
+                      {/* A broad grant with withdrawals elsewhere is not a
+                          contradiction — the withdrawal wins, and the person
+                          really is refused those endpoints. But a card reading
+                          "can do everything an admin can" next to a red
+                          Withdrawn looks like the screen is lying, so name the
+                          exceptions here rather than leaving it to be inferred. */}
+                      {area.broad && stateOf(area.access) === GRANTED && withdrawnLabels.length > 0 && (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
+                          Except {withdrawnLabels.join(', ')} — withdrawn below, and a withdrawal
+                          always overrides this.
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
