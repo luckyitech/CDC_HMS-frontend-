@@ -84,6 +84,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
   const [applyAll, setApplyAll] = useState(false);
   const [attachedPatient, setAttachedPatient] = useState(patient); // report target (set by Attach to patient)
   const [attachOpen, setAttachOpen] = useState(false);
+  const [savePending, setSavePending] = useState(false); // Save clicked in the preview before a patient was chosen
   const [pdf, setPdf] = useState(null); // { url, filename, blob } while the preview modal is open
   const [busy, setBusy] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
@@ -467,6 +468,9 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       toast.success(`${wsItems.length} image${wsItems.length > 1 ? 's' : ''} saved to ${selected.name || selected.uhid}'s image safe.`);
       setAttachOpen(false);
       await Promise.all([loadAttached(), loadInbox()]);
+      // If the user hit "Save to Medical Documents" before choosing a patient,
+      // finish that save now that we have one.
+      if (savePending) { setSavePending(false); await filePdfTo(selected); }
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to attach the images.');
@@ -507,14 +511,15 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     if (!win) toast.error('Popup blocked — allow popups for this site to print.');
   };
 
-  const handlePdfSaveToDocs = async () => {
-    if (!pdf) return;
-    if (!attachedPatient) { toast.error('Attach the report to a patient first.'); return; }
+  // File the composed PDF into a patient's Medical Documents (their Diagnostics
+  // file). Takes the target explicitly so it can run straight after an attach.
+  const filePdfTo = async (targetPatient) => {
+    if (!pdf || !targetPatient) return;
     setBusy('save');
     try {
       const formData = new FormData();
       formData.append('file', new File([pdf.blob], pdf.filename, { type: 'application/pdf' }));
-      formData.append('uhid', attachedPatient.uhid);
+      formData.append('uhid', targetPatient.uhid);
       formData.append('documentCategory', 'Imaging Report');
       formData.append('testType', 'Ultrasound');
       // Tag with the study date so the patient's Radiology tab can file the
@@ -523,13 +528,21 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       formData.append('notes', `Ultrasound report — ${wsItems.length} image${wsItems.length > 1 ? 's' : ''}`);
       const res = await documentService.upload(formData);
       if (res.success === false) throw new Error(res.message);
-      toast.success(`Report filed to ${attachedPatient.uhid}'s Medical Documents.`);
+      toast.success(`Report filed to ${targetPatient.uhid}'s Medical Documents.`);
       closePdf();
       await loadAttached();
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to file the report.');
     } finally { setBusy(null); }
+  };
+
+  // Save from the preview modal. If no patient is attached yet, pick one first
+  // (same attach flow — also files the images into their safe), then file.
+  const handlePdfSaveToDocs = () => {
+    if (!pdf) return;
+    if (!attachedPatient) { setSavePending(true); setAttachOpen(true); return; }
+    filePdfTo(attachedPatient);
   };
 
   // View / download a saved imaging-report PDF from the patient's Radiology tab.
@@ -1018,15 +1031,6 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
         />
       )}
 
-      <AttachToPatientModal
-        isOpen={attachOpen}
-        onClose={() => setAttachOpen(false)}
-        fixedPatient={patient}
-        imageCount={wsItems.length}
-        busy={busy === 'attach'}
-        onConfirm={handleAttach}
-      />
-
       <PdfPreviewModal
         isOpen={!!pdf}
         onClose={closePdf}
@@ -1036,6 +1040,16 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
         onDownload={handlePdfDownload}
         onPrint={handlePdfPrint}
         onSaveToDocs={handlePdfSaveToDocs}
+      />
+
+      {/* Rendered after the preview so the picker stacks on top when Save opens it. */}
+      <AttachToPatientModal
+        isOpen={attachOpen}
+        onClose={() => { setAttachOpen(false); setSavePending(false); }}
+        fixedPatient={patient}
+        imageCount={wsItems.length}
+        busy={busy === 'attach'}
+        onConfirm={handleAttach}
       />
     </div>
   );
