@@ -50,7 +50,6 @@ import {
   KeyRound,
   Waves,
   Scan,
-  ArrowLeft,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
@@ -300,17 +299,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
 
   const menuItems = {
-    // Radiology is a top-level section, not a role. Entered from the doctor /
-    // staff / admin sidebars; this menu shows once inside it, with a link back
-    // to the user's real portal (there's no radiology login).
+    // Radiology is a top-level section, not a role. Reached from the portal
+    // switcher; use the switcher to return to another portal.
     radiology: [
+      { name: "Patients", path: "/radiology/patients", icon: Users },
       { name: "Radiology Suite", path: "/radiology/suite", icon: Scan },
       { name: "Unassigned Queue", path: "/radiology/unassigned", icon: Waves },
-      {
-        name: `Back to ${((currentUser?.role || "doctor").charAt(0).toUpperCase() + (currentUser?.role || "doctor").slice(1))} Portal`,
-        path: `/${currentUser?.role || "doctor"}/dashboard`,
-        icon: ArrowLeft,
-      },
     ],
     staff: [
       { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },

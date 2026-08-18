@@ -55,7 +55,10 @@ const cellRatioFor = (layout) => {
 // the component scopes to that patient: the "image safe" (Zone 3) shows and the
 // save UHID defaults to them. When null (Radiology Suite portal) it's the
 // standalone worklist: inbox table + workspace, save UHID typed by the user.
-const UltrasoundTab = ({ patient = null }) => {
+const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
+  // source: 'inbox' = every received study (Radiology Suite / patient tab);
+  //         'unassigned' = only studies whose machine ID matched no patient.
+  const unassignedOnly = source === 'unassigned';
   const { currentUser } = useUserContext();
   const isAdmin = canAccessAdmin(currentUser);
 
@@ -136,14 +139,16 @@ const UltrasoundTab = ({ patient = null }) => {
 
   const loadInbox = useCallback(async () => {
     try {
-      const res = await ultrasoundService.getInbox();
+      const res = unassignedOnly
+        ? await ultrasoundService.getUnassigned()
+        : await ultrasoundService.getInbox();
       const list = res.data || [];
       setInboxImages(list);
       await loadBlobs(list);
     } catch (err) {
-      console.error('Error loading ultrasound inbox:', err);
+      console.error('Error loading ultrasound list:', err);
     }
-  }, [loadBlobs]);
+  }, [loadBlobs, unassignedOnly]);
 
   useEffect(() => {
     let isMounted = true;
@@ -529,7 +534,7 @@ const UltrasoundTab = ({ patient = null }) => {
       <Card className="!p-6 border-2 border-blue-200">
         <div className="flex items-center gap-2 mb-4">
           <Inbox className={`w-5 h-5 ${inboxStudies.length ? 'text-blue-600' : 'text-gray-400'}`} />
-          <h3 className="font-bold text-gray-800">Machine inbox</h3>
+          <h3 className="font-bold text-gray-800">{unassignedOnly ? 'Unassigned images' : 'Machine inbox'}</h3>
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${inboxStudies.length ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
             {inboxStudies.length}
           </span>
@@ -555,7 +560,11 @@ const UltrasoundTab = ({ patient = null }) => {
         </div>
 
         {inboxStudies.length === 0 ? (
-          <p className="text-sm text-gray-500 py-2">Nothing in the inbox — scans sent from the machine will appear here in real time.</p>
+          <p className="text-sm text-gray-500 py-2">
+            {unassignedOnly
+              ? 'No unassigned images — everything received has matched a patient.'
+              : 'Nothing in the inbox — scans sent from the machine will appear here in real time.'}
+          </p>
         ) : (
           <>
             <div className="overflow-x-auto">

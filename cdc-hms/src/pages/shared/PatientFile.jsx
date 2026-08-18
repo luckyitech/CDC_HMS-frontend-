@@ -99,6 +99,17 @@ const ROLE_CONFIG = {
     showRegistrationBanner: true,
     liveTab: null,
   },
+  // Radiology suite: review-only patient file (no live visit tab). Reaches the
+  // patient's Diagnostics → Radiology tab like everyone else; navigation stays
+  // in the Radiology portal.
+  radiology: {
+    patientsPath: "/radiology/patients",
+    patientsLabel: "Back to Patients",
+    canEditPatient: false,
+    canEditVitals: false,
+    showRegistrationBanner: false,
+    liveTab: null,
+  },
 };
 
 // Diagnostics tab body — a Medical Documents / Ultrasound / Charts sub-toggle,
@@ -255,6 +266,7 @@ const PatientFile = () => {
   // a doctor with admin access viewing /admin must get the admin file (Back to
   // Users), not be bounced to the doctor patient list.
   const portal = location.pathname.startsWith("/admin") ? "admin"
+    : location.pathname.startsWith("/radiology") ? "radiology"
     : location.pathname.startsWith("/doctor") ? "doctor"
     : location.pathname.startsWith("/nurse") ? "nurse"
     : "staff";

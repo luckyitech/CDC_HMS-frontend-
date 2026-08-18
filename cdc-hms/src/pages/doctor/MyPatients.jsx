@@ -8,7 +8,9 @@ import patientService from "../../services/patientService";
 
 const LIMIT = 20;
 
-const MyPatients = () => {
+// basePath keeps navigation inside the current portal — the doctor portal by
+// default, or "/radiology" when this same page is mounted in the Radiology suite.
+const MyPatients = ({ basePath = "/doctor" }) => {
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm]   = useState("");
@@ -76,7 +78,7 @@ const MyPatients = () => {
     <div>
       <PageHeader
         title="My Patients"
-        actions={<Button onClick={() => navigate("/doctor/dashboard")}>Back to Dashboard</Button>}
+        actions={<Button onClick={() => navigate(`${basePath}/dashboard`)}>Back to Dashboard</Button>}
       />
 
       {/* Statistics */}
@@ -160,7 +162,7 @@ const MyPatients = () => {
                     )}
                   </div>
                   <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-                    <Button variant="outline" className="w-full text-xs py-1.5" onClick={() => navigate(`/doctor/patient-profile/${patient.uhid}`)}>
+                    <Button variant="outline" className="w-full text-xs py-1.5" onClick={() => navigate(`${basePath}/patient-profile/${patient.uhid}`)}>
                       View Profile
                     </Button>
                   </div>
@@ -205,7 +207,7 @@ const MyPatients = () => {
                         }
                       </td>
                       <td className="px-6 py-4">
-                        <Button variant="outline" className="text-xs py-1 px-3" onClick={() => navigate(`/doctor/patient-profile/${patient.uhid}`)}>
+                        <Button variant="outline" className="text-xs py-1 px-3" onClick={() => navigate(`${basePath}/patient-profile/${patient.uhid}`)}>
                           View Profile
                         </Button>
                       </td>
