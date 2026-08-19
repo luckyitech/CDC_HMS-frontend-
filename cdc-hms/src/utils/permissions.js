@@ -89,8 +89,12 @@ export const canOpenPortal = (user, portalPermission) => {
 
   if (Array.isArray(user.portals)) return user.portals.includes(portalPermission);
 
+  // Fallback for a pre-feature session. Mirrors the backend: role's own portal,
+  // an explicit grant, or full administrator access (which carries the door).
   return ROLE_HOME_PORTAL[user.role] === portalPermission
-    || hasPermission(user, portalPermission);
+    || hasPermission(user, portalPermission)
+    || (portalPermission === PERMISSIONS.PORTAL_ADMIN
+        && hasPermission(user, PERMISSIONS.ADMIN_ACCESS));
 };
 
 /** Every portal this user may open — drives the portal switcher. */
