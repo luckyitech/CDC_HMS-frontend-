@@ -158,7 +158,7 @@ function App() {
                 {/* Staff Portal */}
                 <Route
                   path="/staff"
-                  element={<ProtectedRoute requiredRole="staff"><MainLayout userRole="Staff" /></ProtectedRoute>}
+                  element={<ProtectedRoute requiredRole="staff" requiredPortal="portal.staff"><MainLayout userRole="Staff" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<StaffDashboard />} />
                   <Route path="inpatient-board" element={<WardBoard />} />
@@ -179,7 +179,7 @@ function App() {
                 {/* Doctor Portal */}
                 <Route
                   path="/doctor"
-                  element={<ProtectedRoute requiredRole="doctor"><MainLayout userRole="Doctor" /></ProtectedRoute>}
+                  element={<ProtectedRoute requiredRole="doctor" requiredPortal="portal.doctor"><MainLayout userRole="Doctor" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<DoctorDashboard />} />
                   <Route path="inpatient-board" element={<WardBoard />} />
@@ -219,7 +219,7 @@ function App() {
                 {/* Lab Portal */}
                 <Route
                   path="/lab"
-                  element={<ProtectedRoute requiredRole="lab"><MainLayout userRole="Lab" /></ProtectedRoute>}
+                  element={<ProtectedRoute requiredRole="lab" requiredPortal="portal.lab"><MainLayout userRole="Lab" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<LabDashboard />} />
                   <Route path="inpatient-board" element={<WardBoard />} />
@@ -234,7 +234,7 @@ function App() {
                 {/* Admin Portal */}
                 <Route
                   path="/admin"
-                  element={<ProtectedRoute requiredRole="admin"><MainLayout userRole="Admin" /></ProtectedRoute>}
+                  element={<ProtectedRoute requiredRole="admin" requiredPortal="portal.admin"><MainLayout userRole="Admin" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<AdminDashboard />} />
                   <Route path="create-users" element={<CreateUsers />} />
@@ -270,7 +270,7 @@ function App() {
                 {/* Nurse Portal (HMIS V3) — inpatient home + OPD nursing work */}
                 <Route
                   path="/nurse"
-                  element={<ProtectedRoute requiredRole="nurse"><MainLayout userRole="Nurse" /></ProtectedRoute>}
+                  element={<ProtectedRoute requiredRole="nurse" requiredPortal="portal.inpatient"><MainLayout userRole="Nurse" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="queue" element={<QueueManagement />} />
@@ -282,7 +282,7 @@ function App() {
                 {/* Inpatient workspace (HMIS V3) — doctors + nurses switch in */}
                 <Route
                   path="/inpatient"
-                  element={<ProtectedRoute requiredRoles={["doctor", "nurse"]} requiredPermission="inpatient.access"><MainLayout userRole="Inpatient" /></ProtectedRoute>}
+                  element={<ProtectedRoute requiredPortal="portal.inpatient"><MainLayout userRole="Inpatient" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="board" element={<WardBoard />} />

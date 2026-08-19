@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useUserContext } from '../../contexts/UserContext';
-import { canAccessAdmin, hasPermission } from '../../utils/permissions';
+import { canOpenPortal, hasPermission, isTrueAdmin } from '../../utils/permissions';
 
 /**
  * Wraps a portal layout and ensures the logged-in user may be there.
@@ -10,10 +10,10 @@ import { canAccessAdmin, hasPermission } from '../../utils/permissions';
  * requiredRole must match the lowercase DB role value:
  *   'staff' | 'doctor' | 'patient' | 'lab' | 'admin'
  *
- * Admin access is a capability, not only a role: the real admin account has it
- * implicitly, and a doctor/staff/lab account can be granted it. Holding it also
- * carries the existing "admin can look at any portal" behaviour, since someone
- * trusted with the admin portal is trusted with the others.
+ * Portal entry is a capability per portal: the real admin account reaches every
+ * portal implicitly, and any other account is granted them one at a time.
+ * Holding the admin portal no longer implies the others — being trusted to
+ * manage users is not the same as being trusted to enter results in the lab.
  *
  * Also enforces scheduled password rotation: a user whose password has expired
  * is held on their portal's change-password page. That check runs BEFORE the
@@ -23,7 +23,7 @@ import { canAccessAdmin, hasPermission } from '../../utils/permissions';
  * This is UX. Every endpoint behind these screens is guarded server-side, so a
  * user who slipped past this would still be refused by the API.
  */
-const ProtectedRoute = ({ requiredRole, requiredRoles, requiredPermission, children }) => {
+const ProtectedRoute = ({ requiredRole, requiredRoles, requiredPermission, requiredPortal, children }) => {
   const { currentUser } = useUserContext();
   const location = useLocation();
 
@@ -40,7 +40,20 @@ const ProtectedRoute = ({ requiredRole, requiredRoles, requiredPermission, child
     return children;
   }
 
-  if (canAccessAdmin(currentUser)) return children;
+  // A real admin ACCOUNT still reaches everything — it holds every capability
+  // implicitly, and it is the escape hatch that keeps the system administrable.
+  if (isTrueAdmin(currentUser)) return children;
+
+  // Portal entry. This used to be `if (canAccessAdmin(...)) return children` —
+  // one capability that opened every portal at once, checked before the route
+  // was even looked at. Now each portal is granted separately, so a person can
+  // be given the Lab portal without being given the Admin portal.
+  //
+  // `portals` arrives resolved from the server (role's own portal + grants −
+  // withdrawals), so there is one answer rather than one per screen.
+  if (requiredPortal) {
+    return canOpenPortal(currentUser, requiredPortal) ? children : <Navigate to="/" replace />;
+  }
 
   // A route may also be reached by a granted capability, not only a role — e.g.
   // the inpatient workspace is open to doctors/nurses by role, plus anyone the

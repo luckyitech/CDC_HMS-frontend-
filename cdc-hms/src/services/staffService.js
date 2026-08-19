@@ -60,11 +60,19 @@ export const staffService = {
   getPermissionCatalog: () => api.get('/staff/permissions/catalog'),
 
   /**
-   * Replace the granted permission list. Server-side this requires a real admin
-   * account, not merely someone holding admin.access.
+   * Replace the granted permission list, and optionally the withdrawn one.
+   * Server-side this requires a real admin account, not merely someone holding
+   * admin.access.
+   *
+   * `deniedPermissions` is omitted rather than sent empty when a caller only
+   * means to change grants — the server leaves withdrawals untouched when the
+   * key is absent, so an older caller cannot silently clear them.
    */
-  updatePermissions: (employeeId, permissions) =>
-    api.patch(`/staff/${employeeId}/permissions`, { permissions }),
+  updatePermissions: (employeeId, permissions, deniedPermissions) =>
+    api.patch(`/staff/${employeeId}/permissions`,
+      deniedPermissions === undefined
+        ? { permissions }
+        : { permissions, deniedPermissions }),
 
   // ============================================
   // LEAVE

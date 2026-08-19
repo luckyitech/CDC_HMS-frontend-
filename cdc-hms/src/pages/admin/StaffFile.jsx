@@ -12,6 +12,7 @@ import StatusBadge from '../../components/shared/StatusBadge';
 import staffService from '../../services/staffService';
 import EditableSection from '../../components/admin/staff/EditableSection';
 import AccessTab from '../../components/admin/staff/AccessTab';
+import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
 import LeaveTab from '../../components/admin/staff/LeaveTab';
 import DocumentsTab from '../../components/admin/staff/DocumentsTab';
 import ActivityTab from '../../components/admin/staff/ActivityTab';
@@ -88,6 +89,7 @@ const StaffFile = () => {
   const [overviewOpen, setOverviewOpen] = useState(true);
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'credentials');
   const [busy, setBusy]           = useState(false);
+  const [confirmingArchive, setConfirmingArchive] = useState(false);
 
   // Read from the session rather than refetched: it decides whether the
   // permission toggles are offered. The server enforces the same rule
@@ -126,13 +128,14 @@ const StaffFile = () => {
     }
   };
 
-  const handleArchive = async () => {
-    const confirmed = window.confirm(
-      `Archive ${staff.name}?\n\nTheir login will be disabled and they will drop out of staff lists. ` +
-      'Their name stays on past prescriptions, notes and lab results. This can be undone.'
-    );
-    if (!confirmed) return;
+  // Asking happens in the modal below rather than window.confirm — the Archive
+  // button sits on the Permissions tab, whose other confirmations are already
+  // system-styled, and one native dialog on an otherwise themed screen reads as
+  // a bug.
+  const handleArchive = () => setConfirmingArchive(true);
 
+  const archive = async () => {
+    setConfirmingArchive(false);
     setBusy(true);
     try {
       await staffService.archive(employeeId);
@@ -325,6 +328,19 @@ const StaffFile = () => {
 
         {currentTab === 'activity' && <ActivityTab employeeId={employeeId} />}
       </div>
+
+      <ConfirmActionModal
+        isOpen={confirmingArchive}
+        onClose={() => setConfirmingArchive(false)}
+        onConfirm={archive}
+        title={`Archive ${staff.name}?`}
+        message={
+          'Their login will be disabled and they will drop out of staff lists. Their name stays '
+          + 'on past prescriptions, notes and lab results, and this can be undone.'
+        }
+        confirmLabel="Archive"
+        confirmVariant="danger"
+      />
     </div>
   );
 };

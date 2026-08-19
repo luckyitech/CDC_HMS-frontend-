@@ -1,4 +1,5 @@
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 // Get API URL from environment variable
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -52,6 +53,11 @@ api.interceptors.response.use(
     const message = error.response?.data?.message || 'An error occurred';
     const status = error.response?.status;
 
+    // authorize() says different things for "not granted" and "withdrawn from
+    // your account". Both are more useful than a generic refusal, so they are
+    // kept and only the bare fallback is replaced below.
+    const permissionMessage = error.response?.data?.message;
+
     // Handle 401 Unauthorized - token expired or invalid
     if (status === 401) {
       // Clear stored auth data
@@ -87,6 +93,29 @@ api.interceptors.response.use(
       } catch {
         // Unparseable session — the 401 path below/next request will clear it.
       }
+    }
+
+    // A refused action, as opposed to an expired session (401, handled above)
+    // or an expired password (the rotation branch above).
+    //
+    // Said here rather than left to each screen, because a screen that
+    // .catch()es quietly — and several do — would otherwise show nothing at
+    // all: the button appears to do nothing and the user retries. The fixed
+    // toast id means a burst of refused requests from one page collapses into
+    // a single message instead of a stack of identical ones.
+    if (status === 403) {
+      // authorize() already sends a whole sentence, and says more than anything
+      // generic could when a capability was explicitly withdrawn. Keep it, and
+      // add where to go next — which the API has no business knowing.
+      const base = permissionMessage && permissionMessage !== 'Access denied'
+        ? permissionMessage
+        : 'You do not have permission to do that.';
+      const shown = /administrator/i.test(base)
+        ? base
+        : `${base} Ask an administrator if you need access.`;
+
+      toast.error(shown, { id: 'permission-denied' });
+      return Promise.reject({ message: shown, status, data: error.response?.data });
     }
 
     // Reject with a clean error object. `data` carries the backend's full
