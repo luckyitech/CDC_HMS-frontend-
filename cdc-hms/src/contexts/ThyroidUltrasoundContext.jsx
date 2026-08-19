@@ -15,10 +15,12 @@ export function ThyroidUltrasoundProvider({ children }) {
   const saveTimer = useRef(null);
   const pending = useRef({});
 
+  // NOTE: services/api.js unwraps every response to `response.data` (the body),
+  // so a resolved value is already `{ success, data }`. We read `.data` once.
   const refresh = useCallback(async (id) => {
-    const { data } = await svc.getFull(id);
-    setActive(data.data);
-    return data.data;
+    const body = await svc.getFull(id);
+    setActive(body.data);
+    return body.data;
   }, []);
 
   const openReport = useCallback(async (id) => {
@@ -28,11 +30,12 @@ export function ThyroidUltrasoundProvider({ children }) {
   }, [refresh]);
 
   const createReport = useCallback(async (uhid, opts = {}) => {
-    const { data } = await svc.create({ uhid, ...opts });
-    return openReport(data.data.id);
+    const today = new Date().toISOString().slice(0, 10);   // autofill date of examination
+    const body = await svc.create({ uhid, examDate: today, ...opts });
+    return openReport(body.data.id);
   }, [openReport]);
 
-  const listReports = useCallback((uhid) => svc.list(uhid).then((r) => r.data.data), []);
+  const listReports = useCallback((uhid) => svc.list(uhid).then((body) => (Array.isArray(body?.data) ? body.data : [])), []);
 
   // debounced report-level autosave, with an offline mirror
   const flush = useCallback(async () => {
@@ -42,8 +45,8 @@ export function ThyroidUltrasoundProvider({ children }) {
     if (!Object.keys(patch).length) return;
     setSaving(true);
     try {
-      const { data } = await svc.patch(id, patch);
-      setActive((s) => (s && s.report.id === id ? { ...s, report: { ...s.report, ...data.data } } : s));
+      const body = await svc.patch(id, patch);
+      setActive((s) => (s && s.report.id === id ? { ...s, report: { ...s.report, ...body.data } } : s));
     } catch (e) {
       try { localStorage.setItem(`thyroid_us_draft_${id}`, JSON.stringify({ ...(JSON.parse(localStorage.getItem(`thyroid_us_draft_${id}`) || '{}')), ...patch })); } catch { /* ignore */ }
     } finally { setSaving(false); }
@@ -79,11 +82,11 @@ export function ThyroidUltrasoundProvider({ children }) {
   }, [active, refresh]);
 
   // ----- preview / sign / reopen -----
-  const preview = useCallback(() => svc.preview(active.report.id).then((r) => r.data.data), [active]);
+  const preview = useCallback(() => svc.preview(active.report.id).then((body) => body.data), [active]);
   const sign = useCallback(async (payload) => {
-    const { data } = await svc.sign(active.report.id, payload);
+    const body = await svc.sign(active.report.id, payload);
     await refresh(active.report.id);
-    return data;
+    return body;   // { success, data }
   }, [active, refresh]);
   const reopen = useCallback(async () => {
     await svc.reopen(active.report.id);
@@ -100,8 +103,8 @@ export function ThyroidUltrasoundProvider({ children }) {
     openReport, createReport, listReports,
     updateReport, addNodule, updateNodule, deleteNodule, saveFollicular,
     preview, sign, reopen, setImages,
-    getCatalog: (type) => svc.getCatalog(type).then((r) => r.data.data),
-    addCatalog: (type, lbl) => svc.addCatalog(type, lbl).then((r) => r.data.data),
+    getCatalog: (type) => svc.getCatalog(type).then((body) => (Array.isArray(body?.data) ? body.data : [])),
+    addCatalog: (type, lbl) => svc.addCatalog(type, lbl).then((body) => body.data),
     close: () => setActive(null),
   };
 

@@ -27,6 +27,18 @@ export const ultrasoundService = {
   /** Explicitly remove images from the inbox list (the only way rows leave it). */
   dismissInbox: (ids) => api.put('/ultrasound/inbox-dismiss', { ids }),
 
+  /** Save a clinician-edited still (brightness/zoom/crop baked in) into a
+   *  patient's image safe as a NEW image (original left untouched). */
+  saveEdited: (uhid, blob, caption) => {
+    const fd = new FormData();
+    fd.append('file', blob, 'edited.png');
+    fd.append('uhid', uhid);
+    if (caption) fd.append('caption', caption);
+    // The api instance defaults to application/json; for multipart we must set
+    // the type explicitly so axios adds the boundary (same as documentService).
+    return api.post('/ultrasound/edited', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+
   /**
    * Fetch an image as a Blob (files are served authenticated, so a plain
    * <img src> cannot carry the JWT — callers create an object URL instead).

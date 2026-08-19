@@ -3,8 +3,8 @@
 
 export function Chip({ selected, onClick, children, disabled }) {
   const base = 'border rounded-lg px-2.5 py-1.5 text-xs transition disabled:opacity-50';
-  const on = 'bg-teal-50 border-teal-300 text-teal-800 ring-2 ring-teal-300 ring-inset';
-  const off = 'bg-white border-slate-200 text-slate-600 hover:border-slate-300';
+  const on = 'bg-blue-50 border-primary text-primary ring-2 ring-primary ring-inset';
+  const off = 'bg-white border-gray-200 text-gray-600 hover:border-gray-300';
   return (
     <button type="button" disabled={disabled} onClick={onClick} className={`${base} ${selected ? on : off}`}>
       {children}
@@ -37,7 +37,7 @@ export function MultiRow({ options, isOn, onToggle, disabled }) {
 export function Field({ label, children }) {
   return (
     <div>
-      <label className="text-[11px] text-slate-400 block mb-1">{label}</label>
+      <label className="text-[11px] text-gray-400 block mb-1">{label}</label>
       {children}
     </div>
   );
@@ -48,7 +48,7 @@ export function Num({ value, onChange, disabled, step = 0.1, className = '' }) {
     <input
       type="number" step={step} value={value ?? ''} disabled={disabled}
       onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))}
-      className={`border border-slate-300 rounded-lg px-2 py-1.5 text-sm disabled:bg-slate-50 ${className}`}
+      className={`border border-gray-300 rounded-lg px-2 py-1.5 text-sm disabled:bg-gray-50 ${className}`}
     />
   );
 }
@@ -57,14 +57,14 @@ export function Num({ value, onChange, disabled, step = 0.1, className = '' }) {
 export function DimTriplet({ dims, onChange, disabled, volume, unit = 'mL' }) {
   const [L, H, W] = dims;
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {[['length', L], ['height', H], ['width', W]].map(([k, v], i) => (
-        <span key={k} className="flex items-center gap-2">
-          <Num value={v} disabled={disabled} onChange={(x) => onChange(k, x)} className="w-16" />
-          {i < 2 && <span className="text-slate-300">×</span>}
+        <span key={k} className="flex items-center gap-1.5">
+          <Num value={v} disabled={disabled} onChange={(x) => onChange(k, x)} className="w-14" />
+          {i < 2 && <span className="text-gray-300">×</span>}
         </span>
       ))}
-      <span className="ml-1 text-sm">{volume != null ? <b className="text-teal-700">{volume} {unit}</b> : <span className="text-slate-300">— {unit}</span>}</span>
+      <span className="ml-1 text-sm whitespace-nowrap">{volume != null ? <b className="text-primary">{volume} {unit}</b> : <span className="text-gray-300">— {unit}</span>}</span>
     </div>
   );
 }
@@ -72,7 +72,7 @@ export function DimTriplet({ dims, onChange, disabled, volume, unit = 'mL' }) {
 export function SectionTitle({ children, right }) {
   return (
     <div className="flex items-center justify-between mb-2">
-      <div className="text-xs font-bold text-slate-500 uppercase tracking-wide">{children}</div>
+      <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">{children}</div>
       {right}
     </div>
   );

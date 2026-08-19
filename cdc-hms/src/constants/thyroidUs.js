@@ -59,6 +59,76 @@ export const TR_COLOR = {
 };
 export const TR_LABEL = { TR1: 'Benign', TR2: 'Not suspicious', TR3: 'Mildly suspicious', TR4: 'Moderately suspicious', TR5: 'Highly suspicious' };
 
+// BTA U severity colours (U1 benign → U5 malignant), mirroring the TR scale.
+export const BTA_COLOR = {
+  U1: 'bg-emerald-500 text-white', U2: 'bg-lime-500 text-slate-900',
+  U3: 'bg-amber-400 text-slate-900', U4: 'bg-orange-500 text-white', U5: 'bg-red-600 text-white',
+};
+
+// ACR TI-RADS levels — computed from the additive points; shown as selectable
+// cards so the reporter confirms or overrides the final category.
+export const TR_TABLE = [
+  { code: 'TR1', label: 'Benign', points: '0 points', desc: 'Purely cystic or spongiform; no suspicious features.' },
+  { code: 'TR2', label: 'Not suspicious', points: '2 points', desc: 'Benign-appearing; minimal points.' },
+  { code: 'TR3', label: 'Mildly suspicious', points: '3 points', desc: 'Low-level suspicion.' },
+  { code: 'TR4', label: 'Moderately suspicious', points: '4–6 points', desc: 'Intermediate suspicion.' },
+  { code: 'TR5', label: 'Highly suspicious', points: '≥ 7 points', desc: 'Solid, hypoechoic, irregular/lobulated margins, punctate foci and/or taller-than-wide.' },
+];
+
+// BTA U (2014) classification — the defining sonographic features per category,
+// so the reporter selects the category from its features (as they do for ACR).
+export const BTA_U_TABLE = [
+  { code: 'U1', label: 'Normal', features: ['Normal thyroid gland', 'No focal abnormality'] },
+  { code: 'U2', label: 'Benign', features: [
+    'Halo, iso-echoic / mildly hyperechoic',
+    'Cystic change ± ring-down artefact (colloid)',
+    'Microcystic / spongiform',
+    'Peripheral eggshell calcification',
+    'Peripheral vascularity',
+  ] },
+  { code: 'U3', label: 'Indeterminate / equivocal', features: [
+    'Homogeneous, markedly hyperechoic (? follicular)',
+    'Hypoechoic, equivocal echogenic foci, cystic change',
+    'Mixed / central vascularity',
+  ] },
+  { code: 'U4', label: 'Suspicious', features: [
+    'Solid, hypoechoic (cf. thyroid tissue)',
+    'Hypoechoic with echogenic foci',
+    'Disrupted peripheral (eggshell) calcification',
+    'Lobulated outline',
+  ] },
+  { code: 'U5', label: 'Malignant', features: [
+    'Solid, hypoechoic, lobulated/irregular outline, microcalcification (? papillary)',
+    'Solid, hypoechoic, lobulated/irregular outline, globular calcification (? medullary)',
+    'Intranodular vascularity',
+    'Taller-than-wide (AP > transverse)',
+    'Characteristic associated lymphadenopathy',
+  ] },
+];
+
+// Cervical node levels (thyroid-relevant compartments) and the suspicious
+// sonographic features of metastatic nodes. Both drive the structured
+// lymph-node builder and appear in the report.
+export const LN_LEVELS = [
+  ['I', 'Submental / submandibular'],
+  ['II', 'Upper jugular'],
+  ['III', 'Mid jugular'],
+  ['IV', 'Lower jugular'],
+  ['V', 'Posterior triangle'],
+  ['VI', 'Central (pre-/para-tracheal)'],
+  ['VII', 'Superior mediastinal'],
+];
+export const LN_FEATURES = [
+  ['loss_of_hilum', 'Loss of fatty hilum'],
+  ['rounded', 'Rounded (S/L ≥ 0.5)'],
+  ['microcalcification', 'Microcalcification'],
+  ['cystic_necrosis', 'Cystic / necrotic change'],
+  ['hyperechoic', 'Hyperechoic (cf. muscle)'],
+  ['peripheral_vascularity', 'Peripheral / chaotic vascularity'],
+  ['increased_short_axis', 'Increased short-axis'],
+  ['matted', 'Matted / conglomerate'],
+];
+
 export const FOLL_COLOR = {
   low: { box: 'bg-emerald-50 border-emerald-200', txt: 'text-emerald-700', tag: 'bg-emerald-100 text-emerald-700' },
   intermediate: { box: 'bg-amber-50 border-amber-200', txt: 'text-amber-700', tag: 'bg-amber-100 text-amber-700' },
