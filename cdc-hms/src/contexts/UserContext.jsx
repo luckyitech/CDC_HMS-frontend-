@@ -36,6 +36,44 @@ export const UserProvider = ({ children }) => {
   const [admins] = useState(mockUsers.admins);
 
 
+  // Re-read the signed-in user from the server once on load.
+  //
+  // The cached copy is written at login and never again, so anything an admin
+  // changes afterwards — a portal granted, a capability withdrawn — stayed
+  // invisible until that person logged out. It was worse than stale: the cached
+  // `portals` list is authoritative in canOpenPortal, so a session predating a
+  // NEW portal could never see it at all, because the role-defaults fallback
+  // only runs when the key is missing entirely.
+  //
+  // The API has always enforced live (authenticate re-reads role and permissions
+  // from the database on every request), so this was never a hole — the screens
+  // simply disagreed with the server until the next login. One call on mount
+  // closes that, and a refresh is now enough to pick up a change.
+  useEffect(() => {
+    if (!currentUser || currentUser.mustChangePassword) return;
+    let cancelled = false;
+    authService.getMe()
+      .then((res) => {
+        if (cancelled || !res?.success || !res.data) return;
+        // Replace rather than merge: a withdrawn capability has to be able to
+        // disappear, and merging would keep it forever.
+        setCurrentUser((prev) => {
+          const next = { ...res.data, mustChangePassword: prev?.mustChangePassword ?? false };
+          sessionStorage.setItem('currentUser', JSON.stringify(next));
+          return next;
+        });
+      })
+      .catch(() => {
+        // A failure here is not worth acting on: a dead token is already handled
+        // by the 401 path in the api interceptor, and anything else leaves the
+        // cached user in place, which is exactly the old behaviour.
+      });
+    return () => { cancelled = true; };
+    // Deliberately once per mount, not on every currentUser change — this sets
+    // currentUser, so depending on it would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Fetch doctors whenever a user logs in (requires valid token).
   // Skipped while a password change is being forced — every API call except
   // change-password is rejected with 403 until then, so this would only make
