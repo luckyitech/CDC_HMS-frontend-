@@ -96,6 +96,12 @@ const StaffAnalytics         = lazy(() => import("./pages/admin/analytics/StaffA
 const ConsultationAnalytics  = lazy(() => import("./pages/admin/analytics/ConsultationAnalytics"));
 const WardConfig             = lazy(() => import("./pages/admin/WardConfig"));
 
+// HMIS V4 — ultrasound (lazy)
+const UnassignedUltrasound   = lazy(() => import("./pages/admin/UnassignedUltrasound"));
+const UltrasoundStudio       = lazy(() => import("./pages/doctor/UltrasoundStudio"));
+const RadiologySuite         = lazy(() => import("./pages/radiology/RadiologySuite"));
+const RadiologyUnassigned     = lazy(() => import("./pages/radiology/RadiologyUnassigned"));
+
 // HMIS V3 — inpatient (lazy)
 const WardBoard          = lazy(() => import("./pages/inpatient/WardBoard"));
 const AdmissionDetail    = lazy(() => import("./pages/inpatient/AdmissionDetail"));
@@ -195,6 +201,7 @@ function App() {
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="physical-exam" element={<PhysicalExamination />} />
                   <Route path="glycemic-charts" element={<GlycemicCharts />} />
+                  <Route path="ultrasound-studio" element={<UltrasoundStudio />} />
                   <Route path="appointments" element={<DoctorAppointmentsList />} />
                   <Route path="my-schedule" element={<MySchedule />} />
                   <Route path="stock" element={<Stocks />} />
@@ -256,6 +263,7 @@ function App() {
                   <Route path="catalog" element={<ClinicalCatalog />} />
                   <Route path="stock" element={<Stocks />} />
                   <Route path="duplicate-patients" element={<DuplicatePatients />} />
+                  <Route path="unassigned-ultrasound" element={<UnassignedUltrasound />} />
                   <Route path="activity-log" element={<ActivityLog />} />
                   <Route path="analytics" element={<AnalyticsOverview />} />
                   <Route path="analytics/doctors" element={<DoctorAnalytics />} />
@@ -264,6 +272,21 @@ function App() {
                   <Route path="reports" element={<Reports />} />
                   <Route path="settings" element={<SystemSettings />} />
                   <Route path="ward-config" element={<WardConfig />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
+
+                {/* Radiology Suite — top-level section (doctors + staff; admin
+                    implicit via canAccessAdmin). No new role or permissions. */}
+                <Route
+                  path="/radiology"
+                  element={<ProtectedRoute requiredPortal="portal.radiology"><MainLayout userRole="Radiology" /></ProtectedRoute>}
+                >
+                  <Route index element={<Navigate to="/radiology/suite" replace />} />
+                  <Route path="dashboard" element={<Navigate to="/radiology/suite" replace />} />
+                  <Route path="suite" element={<RadiologySuite />} />
+                  <Route path="patients" element={<MyPatients basePath="/radiology" />} />
+                  <Route path="patient-profile/:uhid" element={<PatientFile />} />
+                  <Route path="unassigned" element={<RadiologyUnassigned />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

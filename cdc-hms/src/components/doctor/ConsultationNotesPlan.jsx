@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { Save, Plus, ChevronUp, Stethoscope, Target, FileEdit } from "lucide-react";
 import Button from "../shared/Button";
@@ -8,14 +8,20 @@ import PhysicalExamList from "./PhysicalExamList";
 import InitialAssessment from "../../pages/doctor/InitialAssessment";
 import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
+import { localToday, findThisVisitsRecord } from "../../utils/dateUtils";
 
 /**
  * ConsultationNotesPlan — the merged "Consultation Notes & Treatment Plan"
  * section of Today's Consultation.
  *
  * One inline form, one Save:
- *   - notes (VoiceInput)   → creates/updates TODAY's consultation note
- *   - treatment plan       → creates/updates TODAY's treatment plan
+ *   - notes (VoiceInput)   → creates/updates THIS VISIT's consultation note
+ *   - treatment plan       → creates/updates THIS VISIT's treatment plan
+ * "This visit" = written by the signed-in doctor, today, at/after this queue
+ * row's check-in (visitStartedAt). It used to be "any note dated today", which
+ * meant a patient checked in twice in one day had the morning note opened in
+ * the afternoon editor and overwritten — and a referred-to doctor was handed
+ * the first doctor's note, whose update the API then refused.
  * Diagnoses are NOT entered here — the summary panel's Diagnoses card is their
  * single home. The patient's ACTIVE tracked diagnoses (activeDiagnoses prop)
  * are shown read-only and auto-attached to the plan on save (the backend
@@ -24,7 +30,7 @@ import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
  * onSuccess() fires when a treatment plan is saved — the parent uses it to mark
  * the required step complete.
  */
-const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onSuccess = () => {}, notesRef = null }) => {
+const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onSuccess = () => {}, notesRef = null, visitStartedAt = null }) => {
   const { getNotesByPatient, addNote, updateNote } = useConsultationNotesContext();
   const { getPlansByPatient, addTreatmentPlan, updateTreatmentPlan } = useTreatmentPlanContext();
 
@@ -32,8 +38,14 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
   // Expose the live (unsaved) note text to the parent so the Admit modal can
   // pre-fill the admission note without lifting this component's state.
   useEffect(() => { if (notesRef) notesRef.current = notesText; }, [notesText, notesRef]);
+  // Live mirror for the prefill effect below: it may re-run when the queue row
+  // arrives after mount, and must never replace text the doctor has typed.
+  const liveNotes = useRef("");
+  const livePlan  = useRef("");
+  useEffect(() => { liveNotes.current = notesText; }, [notesText]);
   const [todayNote, setTodayNote]   = useState(null);
   const [planText, setPlanText]     = useState("");
+  useEffect(() => { livePlan.current = planText; }, [planText]);
   const [todayPlan, setTodayPlan]   = useState(null);
   const [saving, setSaving]         = useState(false);
   // Optional blocks — single-open accordion: opening one collapses the other
@@ -57,9 +69,10 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
     description: d.diagnosis,
   }));
 
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = localToday(); // local calendar day, matching the API's clinic date
 
-  // Prefill from today's existing note + plan
+  // Prefill from THIS visit's existing note + plan (see header comment).
+  const scope = { today, doctorId: currentUser?.id, visitStartedAt };
   useEffect(() => {
     if (!patient?.uhid) return;
     let live = true;
@@ -67,29 +80,31 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
     (async () => {
       try {
         const { notes } = await getNotesByPatient(patient.uhid);
-        const note = (Array.isArray(notes) ? notes : []).find((n) => n.date === today);
+        const note = findThisVisitsRecord(notes, scope);
         if (live && note) {
           setTodayNote(note);
-          setNotesText(note.notes);
+          if (!liveNotes.current.trim()) setNotesText(note.notes);
+        } else if (live) {
+          setTodayNote(null);   // no note for this visit yet — Save will create one
         }
       } catch { /* empty editor */ }
 
       try {
         const plans = await getPlansByPatient(patient.uhid);
-        const plan = (Array.isArray(plans) ? plans : []).find(
-          (p) => (p.date || p.createdAt || "").slice(0, 10) === today
-        );
+        const plan = findThisVisitsRecord(plans, scope);
         if (live && plan) {
           setTodayPlan(plan);
-          setPlanText(plan.plan || "");
+          if (!livePlan.current.trim()) setPlanText(plan.plan || "");
           setOpenTool("plan");
+        } else if (live) {
+          setTodayPlan(null);
         }
       } catch { /* empty form */ }
     })();
 
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patient?.uhid]);
+  }, [patient?.uhid, visitStartedAt]);
 
   const handleSave = async () => {
     const hasNotes = notesText.trim().length > 0;
@@ -266,7 +281,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
       <div className="flex items-center justify-between gap-3 pt-1">
         {(todayNote || todayPlan) ? (
           <p className="text-xs text-gray-400">
-            {todayPlan ? "Plan" : ""}{todayPlan && todayNote ? " & " : ""}{todayNote ? "note" : ""} saved today — saving again updates them.
+            {todayPlan ? "Plan" : ""}{todayPlan && todayNote ? " & " : ""}{todayNote ? "note" : ""} saved this visit — saving again updates them.
           </p>
         ) : <span />}
         <Button onClick={handleSave} disabled={saving} className="flex items-center gap-2">

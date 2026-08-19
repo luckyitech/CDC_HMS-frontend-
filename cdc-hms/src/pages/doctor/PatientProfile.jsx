@@ -9,7 +9,7 @@ import {
   Phone, Mail, Microscope, ArrowLeft,
   ClipboardList, Zap, TrendingUp, Pill, Calendar,
   FileText, AlertTriangle,
-  AlertCircle, CheckCircle, Radio, Printer,
+  AlertCircle, CheckCircle, Radio, Printer, Waves,
 } from "lucide-react";
 import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
@@ -26,6 +26,7 @@ import LabTestPrint from "../../components/lab/LabTestPrint";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
+import UltrasoundTab from '../../components/shared/UltrasoundTab';
 import PatientSummaryCard from '../../components/shared/PatientSummaryCard';
 import BarcodeActions from "../../components/shared/BarcodeActions";
 import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
@@ -108,6 +109,7 @@ const PatientProfile = () => {
     { id: "visit-history",     name: "Visit History",     Icon: Calendar },
     { id: "glycemic-charts",   name: "Glycemic Charts",   Icon: TrendingUp },
     { id: "medical-documents", name: "Medical Documents", Icon: FileText },
+    { id: "ultrasound",        name: "Ultrasound",        Icon: Waves },
   ];
 
   return (
@@ -245,6 +247,7 @@ const PatientProfile = () => {
         {activeTab === "visit-history"     && <><VisitHistoryPanel patient={patient} /><StockDispenseHistory uhid={uhid} /></>}
         {activeTab === "glycemic-charts"   && <GlycemicCharts />}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}
+        {activeTab === "ultrasound"        && <UltrasoundTab patient={patient} />}
       </div>
 
       {/* Order Lab Test Modal */}

@@ -303,6 +303,45 @@ export const QueueProvider = ({ children }) => {
     }
   };
 
+  // Add charges to a visit WITHOUT changing its status — the nurse billing an
+  // injection or a dressing while the patient is already with the doctor, or
+  // waiting for billing. Same merge as sendToBilling, no status field at all,
+  // so the server's transition stamps (triage / dispatch / consultation) are
+  // never touched. Every stage merges onto the same two fields, so the bill
+  // keeps building until reception finalises it.
+  const addChargesToVisit = async (queueId, selectedCharges = [], selectedProcedures = []) => {
+    setLoading(true);
+    try {
+      const currentItem = queue.find(q => q.id === queueId);
+      const payload = {
+        selectedCharges:    [...new Set([...(currentItem?.selectedCharges    || []), ...selectedCharges])],
+        selectedProcedures: [...new Set([...(currentItem?.selectedProcedures || []), ...selectedProcedures])],
+      };
+      const response = await queueService.update(queueId, payload);
+      if (response.success) {
+        setQueue(prev =>
+          prev.map(item =>
+            item.id === queueId
+              ? { ...item, ...response.data.queue || response.data }
+              : item
+          )
+        );
+        return { success: true };
+      }
+      return { success: false, message: response.message };
+    } catch (err) {
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // The patient's live visit — any queue row not yet Completed/Removed. The
+  // Nursing tab keys off this so a nurse can log a second triage, an injection
+  // or a note while the patient is with the doctor or waiting for billing.
+  const getOpenQueueItem = (uhid) =>
+    queue.find(item => item.uhid === uhid && item.status !== 'Completed' && item.status !== 'Removed') || null;
+
   // Get queue by doctor (local filter)
   const getQueueByDoctor = (doctorId) => {
     return queue.filter(item => item.assignedDoctorId === doctorId);
@@ -330,6 +369,8 @@ export const QueueProvider = ({ children }) => {
     assignDoctorToQueue,
     getQueueByDoctor,
     sendToBilling,
+    addChargesToVisit,
+    getOpenQueueItem,
     referPatient,
   };
 

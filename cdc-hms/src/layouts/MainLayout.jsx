@@ -48,6 +48,8 @@ import {
   FileStack,
   Package,
   KeyRound,
+  Waves,
+  Scan,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
@@ -203,6 +205,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     { label: 'Doctor Portal', path: '/doctor/dashboard', icon: Stethoscope, portal: PERMISSIONS.PORTAL_DOCTOR },
     { label: 'Staff Portal', path: '/staff/dashboard', icon: Users, portal: PERMISSIONS.PORTAL_STAFF },
     { label: 'Lab Portal', path: '/lab/dashboard', icon: TestTube, portal: PERMISSIONS.PORTAL_LAB },
+    { label: 'Radiology Suite', path: '/radiology/suite', icon: Scan, portal: PERMISSIONS.PORTAL_RADIOLOGY },
   ];
 
   // Portals this person may open, other than the one they are already in.
@@ -309,6 +312,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
 
   const menuItems = {
+    // Radiology is a top-level section, not a role. Reached from the portal
+    // switcher; use the switcher to return to another portal.
+    radiology: [
+      { name: "Patients", path: "/radiology/patients", icon: Users },
+      { name: "Radiology Suite", path: "/radiology/suite", icon: Scan },
+      { name: "Unassigned Queue", path: "/radiology/unassigned", icon: Waves },
+    ],
     staff: [
       { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },
       // Front-desk group entry — Patient Search + Register Patient ride along as
@@ -401,6 +411,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
       { name: "Users", path: "/admin/manage-users", icon: Users, permission: PERMISSIONS.USERS_VIEW },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
+      { name: "Radiology Queue", path: "/admin/unassigned-ultrasound", icon: Waves },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill, permission: PERMISSIONS.CONFIG_WRITE },
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble, permission: PERMISSIONS.CONFIG_WRITE },
       {

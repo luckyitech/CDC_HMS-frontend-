@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   PORTAL_STAFF:     'portal.staff',
   PORTAL_LAB:       'portal.lab',
   PORTAL_INPATIENT: 'portal.inpatient',
+  PORTAL_RADIOLOGY: 'portal.radiology',
 
   ADMIN_ACCESS:    'admin.access',
   USERS_VIEW:      'users.view',
@@ -43,14 +44,16 @@ export const PERMISSIONS = {
   LAB_WRITE:        'lab.write',
 };
 
-// The portal each role reaches without anything being granted. Mirrors the
-// backend's ROLE_HOME_PORTAL and is only used by the fallback below.
-const ROLE_HOME_PORTAL = {
-  admin:  PERMISSIONS.PORTAL_ADMIN,
-  doctor: PERMISSIONS.PORTAL_DOCTOR,
-  staff:  PERMISSIONS.PORTAL_STAFF,
-  lab:    PERMISSIONS.PORTAL_LAB,
-  nurse:  PERMISSIONS.PORTAL_INPATIENT,
+// Portals each role reaches without anything being granted. Mirrors the
+// backend's ROLE_DEFAULT_PORTALS and is only used by the fallback below.
+// A list per role: a doctor reaches their own portal, the ward and the
+// Radiology Suite, so one "home" portal was never enough.
+const ROLE_DEFAULT_PORTALS = {
+  admin:  [PERMISSIONS.PORTAL_ADMIN],
+  doctor: [PERMISSIONS.PORTAL_DOCTOR, PERMISSIONS.PORTAL_INPATIENT, PERMISSIONS.PORTAL_RADIOLOGY],
+  staff:  [PERMISSIONS.PORTAL_STAFF,  PERMISSIONS.PORTAL_RADIOLOGY],
+  lab:    [PERMISSIONS.PORTAL_LAB],
+  nurse:  [PERMISSIONS.PORTAL_INPATIENT],
 };
 
 /**
@@ -91,7 +94,7 @@ export const canOpenPortal = (user, portalPermission) => {
 
   // Fallback for a pre-feature session. Mirrors the backend: role's own portal,
   // an explicit grant, or full administrator access (which carries the door).
-  return ROLE_HOME_PORTAL[user.role] === portalPermission
+  return (ROLE_DEFAULT_PORTALS[user.role] || []).includes(portalPermission)
     || hasPermission(user, portalPermission)
     || (portalPermission === PERMISSIONS.PORTAL_ADMIN
         && hasPermission(user, PERMISSIONS.ADMIN_ACCESS));
