@@ -29,7 +29,7 @@ export default function ThyroidUsList({ patient, seed = null, onSeedConsumed = n
   // Seed from the imaging worklist: reuse an open draft if there is one, else
   // create a report, then jump straight into the wizard with the images to apply.
   useEffect(() => {
-    if (!seed?.imageIds?.length || seedConsumed.current || !patient?.uhid) return;
+    if (!seed?.images?.length || seedConsumed.current || !patient?.uhid) return;
     seedConsumed.current = true;
     (async () => {
       setBusy(true);
@@ -37,7 +37,7 @@ export default function ThyroidUsList({ patient, seed = null, onSeedConsumed = n
         const list = await ctx.listReports(patient.uhid).catch(() => []);
         const draft = (Array.isArray(list) ? list : []).find((r) => r.status === 'draft');
         if (draft) await ctx.openReport(draft.id); else await ctx.createReport(patient.uhid);
-        setPendingSeed({ imageIds: seed.imageIds, layoutId: seed.layoutId });
+        setPendingSeed({ images: seed.images, layoutId: seed.layoutId });
         setOpenWorkspace(true);
       } finally { setBusy(false); if (onSeedConsumed) onSeedConsumed(); }
     })();

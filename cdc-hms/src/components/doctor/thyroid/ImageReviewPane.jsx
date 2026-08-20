@@ -57,6 +57,20 @@ export default function ImageReviewPane({ patient, reportImages = [], onSetImage
 
   useEffect(() => { load(); }, [load]);
 
+  // Reflect the workspace brightness/zoom (stored on the report link) in the
+  // viewer, so the review pane matches what the PDF will render — without any
+  // baked copy. (Pan is stored as a fraction and re-applied by the PDF, not here.)
+  useEffect(() => {
+    const seeded = {};
+    reportImages.forEach((l) => {
+      if (l?.UltrasoundImageId != null) {
+        seeded[l.UltrasoundImageId] = { brightness: Number(l.brightness) || 1, scale: Number(l.scale) || 1, offsetX: 0, offsetY: 0 };
+      }
+    });
+    if (Object.keys(seeded).length) setEdits((e) => ({ ...seeded, ...e }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportKey]);
+
   if (!images.length) {
     return (
       <div className="h-full grid place-items-center text-center p-6 text-sm text-gray-400">
