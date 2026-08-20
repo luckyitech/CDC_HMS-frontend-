@@ -348,10 +348,26 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
   };
 
   const moveSelectedToWorkspace = () => {
-    const imgs = inboxImages.filter((img) => rowSelected.has(img.id));
+    // The inbox is newest-first; move images into the workspace in ACQUISITION
+    // order (oldest → newest) so the layout / PDF read frame 1, 2, 3 …
+    const imgs = inboxImages
+      .filter((img) => rowSelected.has(img.id))
+      .slice()
+      .sort((a, b) => (new Date(a.receivedAt) - new Date(b.receivedAt)) || String(a.fileName || '').localeCompare(String(b.fileName || '')));
     if (!imgs.length) { toast.error('Tick at least one study or image first.'); return; }
     addToWorkspace(imgs);
     setRowSelected(new Set());
+  };
+
+  // Empty the workspace and return to the worklist. Removes images from the
+  // layout only — nothing is deleted from any patient's safe. In worklist mode
+  // this also drops the attach/PDF target (via the sync effect) so the next
+  // patient starts clean.
+  const clearWorkspace = () => {
+    setWsItems([]);
+    setWsRemoved([]);
+    setView('list');
+    toast.success('Workspace cleared.');
   };
 
   const updateWsItem = (id, patch) => {
@@ -521,6 +537,20 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
       return list.find((p) => p.uhid === uhid) || (list.length === 1 ? list[0] : null);
     } catch { return null; }
   };
+
+  // Lock the attach / PDF / report target to the workspace's actual patient.
+  // In worklist mode (no fixed patient prop) the target must NEVER carry over
+  // from a previous patient: if the workspace now holds one matched patient's
+  // images, that patient is the target; if it's emptied, drop the target.
+  useEffect(() => {
+    if (patient) return; // patient-file context: target is fixed to that patient
+    const uhids = [...new Set(wsItems.map((it) => it.uhid).filter(Boolean))];
+    if (uhids.length === 1 && attachedPatient?.uhid !== uhids[0]) {
+      resolvePatientByUhid(uhids[0]).then((p) => { if (p) setAttachedPatient(p); });
+    }
+    if (wsItems.length === 0 && attachedPatient) setAttachedPatient(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsItems, patient]);
 
   const openThyroid = async () => {
     const chosen = chosenForReport();
@@ -864,10 +894,16 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
               {wsItems.length} image{wsItems.length !== 1 && 's'} · {Math.max(1, Math.ceil(wsItems.length / (layout.cols * layout.rows)))} page{Math.ceil(wsItems.length / (layout.cols * layout.rows)) > 1 && 's'} · boxes show the exact printed cell — drag an image to reposition, zoom to fill
             </span>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
-            <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} className="w-4 h-4 accent-blue-600" />
-            Apply adjustments to all
-          </label>
+          <div className="flex items-center gap-3">
+            <label className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} className="w-4 h-4 accent-blue-600" />
+              Apply adjustments to all
+            </label>
+            <button onClick={clearWorkspace}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:text-red-700 border border-red-200 hover:border-red-300 rounded-lg px-3 py-1.5">
+              <Trash2 className="w-4 h-4" /> Clear workspace
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 mb-4">
