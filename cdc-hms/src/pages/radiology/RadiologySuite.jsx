@@ -1,21 +1,19 @@
 import PageHeader from '../../components/shared/PageHeader';
-import ImagingThyroidBoard from '../../components/radiology/ImagingThyroidBoard';
+import UltrasoundTab from '../../components/shared/UltrasoundTab';
 
 /**
- * Radiology Suite — top-level portal.
- *
- * The machine worklist and workspace. Structured reporting (thyroid, and later
- * others) is launched from the workspace via "Open thyroid reporting tool", so
- * there is no separate reports tab. Named "Radiology" (not "Ultrasound") so
- * CT / X-ray can join the same portal.
+ * Radiology Suite — the machine worklist and image workspace. Studies are moved
+ * to the workspace, edited, attached to a patient, and a final report PDF is
+ * uploaded into the patient's image safe (in the Radiology tab of their file).
+ * Named "Radiology" (not "Ultrasound") so CT / X-ray can join the same portal.
  */
 const RadiologySuite = () => (
   <div>
     <PageHeader
       title="Radiology Suite"
-      subtitle="Machine studies and structured reports — build and save to a patient's record"
+      subtitle="Machine studies — build and save to a patient's record"
     />
-    <ImagingThyroidBoard source="inbox" />
+    <UltrasoundTab />
   </div>
 );
 
