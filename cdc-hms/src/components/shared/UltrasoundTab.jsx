@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'rea
 import {
   Waves, Film, RefreshCw, Inbox, ChevronDown, ChevronRight, ChevronUp,
   ArrowDown, ArrowLeft, X, Undo2, FileDown, FileText, UserPlus, LayoutGrid, Trash2,
-  Calendar, Clock, Archive, Download,
+  Calendar, Clock, Archive, Download, Upload,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from './Card';
@@ -56,7 +56,7 @@ const cellRatioFor = (layout) => {
 // the component scopes to that patient: the "image safe" (Zone 3) shows and the
 // save UHID defaults to them. When null (Radiology Suite portal) it's the
 // standalone worklist: inbox table + workspace, save UHID typed by the user.
-const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null }) => {
+const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
   // source: 'inbox' = every received study (Radiology Suite / patient tab);
   //         'unassigned' = only studies whose machine ID matched no patient.
   const unassignedOnly = source === 'unassigned';
@@ -337,7 +337,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
   // ================= workspace =================
   const addToWorkspace = (imgs) => {
     const have = new Set([...wsItems.map((it) => it.id), ...wsRemoved.map((it) => it.id)]);
-    const added = imgs.filter((img) => !have.has(img.id)).map((img) => ({ ...img, ...DEFAULT_ADJ, useInReport: true }));
+    const added = imgs.filter((img) => !have.has(img.id)).map((img) => ({ ...img, ...DEFAULT_ADJ }));
     if (!added.length) {
       toast('Already in the workspace.');
       return;
@@ -374,8 +374,6 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
     // applyAll writes the patch into every image; otherwise just the one.
     setWsItems((prev) => prev.map((it) => (applyAll || it.id === id ? { ...it, ...patch } : it)));
   };
-  // "Use in report" is always per-image (never swept by applyAll).
-  const setWsUse = (id, val) => setWsItems((prev) => prev.map((it) => (it.id === id ? { ...it, useInReport: val } : it)));
 
   const moveWsItem = (index, dir) => {
     setWsItems((prev) => {
@@ -491,20 +489,6 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
     return true;
   };
 
-  // Open thyroid reporting tool — reference the ticked images (originals) into the
-  // patient's image safe, then hand the new image ids + chosen layout to the
-  // thyroid workspace (which seeds them onto a fresh report and jumps into the
-  // wizard). Requires the images to be attached to a patient first.
-  // A study already matched to a patient (green ✓ in the worklist) carries its
-  // UHID on every image. If the ticked images all share one matched UHID we can
-  // report on it directly — no need to attach again.
-  const chosenForReport = () => wsItems.filter((it) => it.useInReport !== false && blobUrls[it.id]);
-  const matchedUhid = (() => {
-    const set = new Set(chosenForReport().map((it) => it.uhid).filter(Boolean));
-    return set.size === 1 ? [...set][0] : null;
-  })();
-  const canOpenThyroid = !!(attachedPatient?.uhid || matchedUhid);
-
   const resolvePatientByUhid = async (uhid) => {
     try {
       const body = await patientService.getAll({ search: uhid, limit: 5 });
@@ -532,38 +516,6 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
     if (wsItems.length === 0 && attachedPatient) setAttachedPatient(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsItems, patient]);
-
-  const openThyroid = async () => {
-    const chosen = chosenForReport();
-    if (!chosen.length) { toast.error('Tick at least one image to use in the report.'); return; }
-    setBusy('thyroid');
-    try {
-      // Prefer an explicitly attached patient; otherwise use the study's match.
-      let target = attachedPatient;
-      if (!target?.uhid && matchedUhid) {
-        target = await resolvePatientByUhid(matchedUhid);
-        if (target) setAttachedPatient(target);
-      }
-      if (!target?.uhid) { toast.error('Attach the images to a patient first.'); return; }
-
-      // Reference the ORIGINAL machine images (already in the safe) and carry the
-      // brightness / zoom / pan as metadata — the report + PDF re-apply them. No
-      // new files are written, so re-opening the tool never duplicates the safe.
-      const images = chosen.map((it, i) => ({
-        UltrasoundImageId: it.id,
-        orderIndex: i,
-        brightness: Number(it.brightness) || 1,
-        scale: Number(it.scale) || 1,
-        offsetX: Number(it.offsetX) || 0,
-        offsetY: Number(it.offsetY) || 0,
-      }));
-      if (onOpenThyroid) onOpenThyroid({ patient: target, images, layoutId });
-      else toast.error('Thyroid reporting is not available here.');
-    } catch (err) {
-      console.error(err);
-      toast.error('Could not open the thyroid reporting tool.');
-    } finally { setBusy(null); }
-  };
 
   const layoutOpts = () => ({ orientation: layout.orientation, cols: layout.cols, rows: layout.rows });
 
@@ -649,6 +601,44 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to file the report.');
     } finally { setBusy(null); }
+  };
+
+  // ================= upload a final report PDF to an examination =================
+  // The clinician writes the report elsewhere, then uploads the PDF against the
+  // examination date. It files as an 'Imaging Report' document (surfaces in the
+  // image safe next to that date's images AND in Documents).
+  const reportInputRef = useRef(null);
+  const [reportUploadSession, setReportUploadSession] = useState(null);
+  const [uploadingReport, setUploadingReport] = useState(false);
+
+  const pickReportForSession = (session) => {
+    if (!patient?.uhid) return;
+    setReportUploadSession(session);
+    if (reportInputRef.current) { reportInputRef.current.value = ''; reportInputRef.current.click(); }
+  };
+
+  const onReportFileChosen = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { toast.error('Please choose a PDF report.'); return; }
+    const session = reportUploadSession;
+    setUploadingReport(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('uhid', patient.uhid);
+      fd.append('documentCategory', 'Imaging Report');
+      fd.append('testType', 'Ultrasound');
+      fd.append('testDate', session?.examDate || '');   // files it next to that examination's images
+      fd.append('notes', `Report — ${session?.examDate || 'ultrasound examination'}`);
+      const res = await documentService.upload(fd);
+      if (res.success === false) throw new Error(res.message);
+      toast.success('Report uploaded to this examination.');
+      await loadReports();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to upload the report.');
+    } finally { setUploadingReport(false); setReportUploadSession(null); }
   };
 
   // Save from the preview modal. If no patient is attached yet, pick one first
@@ -990,10 +980,6 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </div>
-                    <label className={`flex items-center gap-1.5 text-[11px] font-medium pt-1 border-t border-gray-100 cursor-pointer ${it.useInReport === false ? 'text-gray-400' : 'text-blue-700'}`}>
-                      <input type="checkbox" checked={it.useInReport !== false} onChange={(e) => setWsUse(it.id, e.target.checked)} />
-                      Use in thyroid report
-                    </label>
                   </div>
                 </div>
               );
@@ -1032,16 +1018,9 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
             >
               {busy === 'attach' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Attach to patient
             </Button>
-            <Button onClick={openPdfPreview} disabled={!!busy} variant="outline" className="!px-4 !py-2 text-sm">
+            <Button onClick={openPdfPreview} disabled={!!busy} className="!px-4 !py-2 text-sm">
               {busy === 'pdf' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Preview PDF
             </Button>
-            {onOpenThyroid && (
-              <Button onClick={openThyroid} disabled={!!busy || !canOpenThyroid}
-                title={canOpenThyroid ? 'Report on the ticked images' : 'Attach the images to a patient first'}
-                className="!px-4 !py-2 text-sm">
-                {busy === 'thyroid' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} Open thyroid reporting tool
-              </Button>
-            )}
           </div>
         </div>
       </Card>
@@ -1111,6 +1090,16 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
                       ))}
                     </div>
                   )}
+                  <div className="mb-3">
+                    <button
+                      onClick={() => pickReportForSession(session)}
+                      disabled={uploadingReport}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/40 hover:bg-blue-50 disabled:opacity-50 rounded-lg px-3 py-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      {uploadingReport && reportUploadSession?.key === session.key ? 'Uploading…' : (sessionReports.length ? 'Upload another report' : 'Upload report (PDF)')}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {session.images.map((img, imgIdx) => (
                       <div key={img.id} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-white">
@@ -1144,6 +1133,8 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
         )}
       </Card>
       )}
+
+      <input ref={reportInputRef} type="file" accept="application/pdf" className="hidden" onChange={onReportFileChosen} />
 
       <ReasonModal
         isOpen={!!archiveTarget}

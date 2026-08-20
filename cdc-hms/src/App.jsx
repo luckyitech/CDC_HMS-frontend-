@@ -19,7 +19,6 @@ import { ConsultationNotesProvider } from './contexts/ConsultationNotesContext';
 import { Glp1Provider } from './contexts/Glp1Context';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { StockProvider } from './contexts/StockContext';
-import { ThyroidUltrasoundProvider } from './contexts/ThyroidUltrasoundContext';
 
 // Layouts & shared (always needed — keep eager)
 import MainLayout from "./layouts/MainLayout";
@@ -131,9 +130,7 @@ const AuthenticatedLayout = () => (
                     <TreatmentPlanProvider>
                       <Glp1Provider>
                         <StockProvider>
-                          <ThyroidUltrasoundProvider>
-                            <Outlet />
-                          </ThyroidUltrasoundProvider>
+                          <Outlet />
                         </StockProvider>
                       </Glp1Provider>
                     </TreatmentPlanProvider>

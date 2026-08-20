@@ -1,12 +1,10 @@
 import PageHeader from '../../components/shared/PageHeader';
-import ImagingThyroidBoard from '../../components/radiology/ImagingThyroidBoard';
+import UltrasoundTab from '../../components/shared/UltrasoundTab';
 
 /**
- * Radiology — Unassigned Queue.
- *
- * Same board as the Radiology Suite (DRY), scoped to studies whose machine
- * patient ID matched no UHID. Preview, move to the workspace, attach to a
- * patient, then — once attached — launch the thyroid reporting tool.
+ * Radiology — Unassigned Queue. Same component and workspace as the Radiology
+ * Suite (DRY), scoped to studies whose machine patient ID matched no UHID.
+ * Preview, move to the workspace, and attach each to the correct patient.
  */
 const RadiologyUnassigned = () => (
   <div>
@@ -14,7 +12,7 @@ const RadiologyUnassigned = () => (
       title="Unassigned Ultrasound Images"
       subtitle="Images from imaging machines whose patient ID matched no UHID — attach each to the correct patient"
     />
-    <ImagingThyroidBoard source="unassigned" />
+    <UltrasoundTab source="unassigned" />
   </div>
 );
 
