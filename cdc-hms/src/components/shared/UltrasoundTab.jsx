@@ -544,9 +544,15 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
   // images, that patient is the target; if it's emptied, drop the target.
   useEffect(() => {
     if (patient) return; // patient-file context: target is fixed to that patient
-    const uhids = [...new Set(wsItems.map((it) => it.uhid).filter(Boolean))];
+    const matched = wsItems.filter((it) => it.uhid);
+    const uhids = [...new Set(matched.map((it) => it.uhid))];
     if (uhids.length === 1 && attachedPatient?.uhid !== uhids[0]) {
-      resolvePatientByUhid(uhids[0]).then((p) => { if (p) setAttachedPatient(p); });
+      // The study is already matched to a patient (DICOM auto-linked). Adopt that
+      // patient immediately — no need to "Attach" again — using the name already
+      // on the study, then enrich with the full record (DOB/age) in the background.
+      const only = uhids[0];
+      setAttachedPatient({ uhid: only, name: matched.find((it) => it.uhid === only)?.patientName || only });
+      resolvePatientByUhid(only).then((p) => { if (p) setAttachedPatient(p); });
     }
     if (wsItems.length === 0 && attachedPatient) setAttachedPatient(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
