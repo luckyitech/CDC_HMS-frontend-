@@ -89,11 +89,11 @@ export default function ThyroidUsWorkspace({ patient, onClose, seed = null }) {
   // report and store the chosen montage layout. Runs once when the report loads.
   const activeReportId = active?.report?.id;
   useEffect(() => {
-    if (!activeReportId || !seed?.imageIds?.length || seedAppliedRef.current) return;
+    if (!activeReportId || !seed?.images?.length || seedAppliedRef.current) return;
     seedAppliedRef.current = true;
     (async () => {
       try {
-        await ctx.setImages(seed.imageIds.map((UltrasoundImageId, i) => ({ UltrasoundImageId, orderIndex: i })));
+        await ctx.setImages(seed.images);   // originals + brightness/scale/offset — idempotent, no duplication
         if (seed.layoutId) await ctx.updateReport({ imageLayout: seed.layoutId });
       } catch (e) { console.error('Seed apply failed', e); }
     })();

@@ -491,32 +491,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
     return true;
   };
 
-  // Bake a workspace image (brightness + zoom + pan) into a flattened PNG blob,
-  // at the source resolution. This is the edited still saved into the image safe.
-  const bakeItemBlob = (it) => new Promise((resolve, reject) => {
-    const src = blobUrls[it.id];
-    if (!src) { reject(new Error('image not loaded')); return; }
-    const im = new Image();
-    im.onload = () => {
-      try {
-        const adj = getAdj(it);
-        const canvas = document.createElement('canvas');
-        canvas.width = im.naturalWidth; canvas.height = im.naturalHeight;
-        const c = canvas.getContext('2d');
-        c.fillStyle = '#000'; c.fillRect(0, 0, canvas.width, canvas.height);
-        c.filter = `brightness(${adj.brightness ?? 1})`;
-        const dw = canvas.width * (adj.scale ?? 1), dh = canvas.height * (adj.scale ?? 1);
-        const dx = (canvas.width - dw) / 2 + (adj.offsetX || 0) * canvas.width;
-        const dy = (canvas.height - dh) / 2 + (adj.offsetY || 0) * canvas.height;
-        c.drawImage(im, dx, dy, dw, dh);
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('bake failed'))), 'image/png');
-      } catch (e) { reject(e); }
-    };
-    im.onerror = () => reject(new Error('image load failed'));
-    im.src = src;
-  });
-
-  // Open thyroid reporting tool — save the ticked, edited images into the
+  // Open thyroid reporting tool — reference the ticked images (originals) into the
   // patient's image safe, then hand the new image ids + chosen layout to the
   // thyroid workspace (which seeds them onto a fresh report and jumps into the
   // wizard). Requires the images to be attached to a patient first.
@@ -571,17 +546,18 @@ const UltrasoundTab = ({ patient = null, source = 'inbox', onOpenThyroid = null 
       }
       if (!target?.uhid) { toast.error('Attach the images to a patient first.'); return; }
 
-      const imageIds = [];
-      for (const it of chosen) {
-        try {
-          const blob = await bakeItemBlob(it);
-          const res = await ultrasoundService.saveEdited(target.uhid, blob, it.studyDescription || it.fileName || 'Thyroid');
-          const img = res?.data ?? res;
-          if (img?.id) imageIds.push(img.id);
-        } catch (e) { console.error('Bake/save failed for image', it.id, e); }
-      }
-      if (!imageIds.length) { toast.error('Could not prepare the selected images.'); return; }
-      if (onOpenThyroid) onOpenThyroid({ patient: target, imageIds, layoutId });
+      // Reference the ORIGINAL machine images (already in the safe) and carry the
+      // brightness / zoom / pan as metadata — the report + PDF re-apply them. No
+      // new files are written, so re-opening the tool never duplicates the safe.
+      const images = chosen.map((it, i) => ({
+        UltrasoundImageId: it.id,
+        orderIndex: i,
+        brightness: Number(it.brightness) || 1,
+        scale: Number(it.scale) || 1,
+        offsetX: Number(it.offsetX) || 0,
+        offsetY: Number(it.offsetY) || 0,
+      }));
+      if (onOpenThyroid) onOpenThyroid({ patient: target, images, layoutId });
       else toast.error('Thyroid reporting is not available here.');
     } catch (err) {
       console.error(err);
