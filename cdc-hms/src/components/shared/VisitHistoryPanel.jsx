@@ -19,6 +19,8 @@ import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
 import { usePrescriptionContext } from '../../contexts/PrescriptionContext';
 import { useConsultationNotesContext } from '../../contexts/ConsultationNotesContext';
+import { useUserContext } from '../../contexts/UserContext';
+import { isTrueAdmin } from '../../utils/permissions';
 import { physicalExamSections, generateFindingsProse } from '../../pages/doctor/physicalExamData';
 import { parseDiagnoses } from './DiagnosisInput';
 
@@ -971,6 +973,17 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
 
   const { getAssessmentsByPatient }                      = useInitialAssessmentContext();
   const { getExaminationsByPatient, getExaminationById } = usePhysicalExamContext();
+  const { currentUser } = useUserContext();
+
+  // Initial Assessments and Physical Examinations are doctor-only, and have
+  // been since they were reverted on 2026-08-17 — the doctor's own working
+  // record, not something the rest of the clinic reads. Everyone else was
+  // requesting them anyway: four guaranteed 403s on every patient file open,
+  // swallowed into [] so the panel looked fine while the API kept refusing.
+  //
+  // Asking only when the answer can be yes costs nothing and removes the two
+  // sections that silently rendered empty for nurses with no explanation.
+  const canReadDoctorRecord = currentUser?.role === 'doctor' || isTrueAdmin(currentUser);
   const { getPlansByPatient }                            = useTreatmentPlanContext();
   const { getPrescriptionsByPatient }                    = usePrescriptionContext();
   const { getNotesByPatient }                            = useConsultationNotesContext();
@@ -1006,8 +1019,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       setHistoryLoading(true);
       try {
         const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes] = await Promise.all([
-          getAssessmentsByPatient(uhid),
-          getExaminationsByPatient(uhid),
+          // Not requested unless they can be read — see canReadDoctorRecord.
+          canReadDoctorRecord ? getAssessmentsByPatient(uhid) : [],
+          canReadDoctorRecord ? getExaminationsByPatient(uhid) : [],
           getPlansByPatient(uhid),
           getPrescriptionsByPatient(uhid),
           fetchAllNotes(uhid, getNotesByPatient),
@@ -1054,7 +1068,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     return () => { isMounted = false; };
   }, [
     uhid,
-    getAssessmentsByPatient, getExaminationsByPatient,
+    getAssessmentsByPatient, getExaminationsByPatient, canReadDoctorRecord,
     getPlansByPatient, getPrescriptionsByPatient, getNotesByPatient,
   ]);
 
