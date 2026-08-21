@@ -86,6 +86,8 @@ const Tick = ({ checked, onChange, disabled, label, busy }) => (
 
 const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStatusChanged, busy }) => {
   const [groups, setGroups] = useState([]);
+  // Served with the catalog: what full administrator access carries.
+  const [catalog, setCatalog] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(null);
   const [acting, setActing]   = useState(null);
@@ -121,7 +123,11 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     // The group/area list comes from the server so this screen cannot drift
     // from the vocabulary the routes actually enforce.
     staffService.getPermissionCatalog()
-      .then((res) => { if (!cancelled) setGroups(res.data.groups || []); })
+      .then((res) => {
+        if (cancelled) return;
+        setGroups(res.data.groups || []);
+        setCatalog(res.data || {});
+      })
       .catch(() => { if (!cancelled) toast.error('Failed to load the permission list'); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
@@ -245,6 +251,27 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     if (area.write && area.access) {
       if (isAccess && !ticked) set(area.write, false);       // no read, no write
       if (!isAccess && ticked) set(area.access, true);        // writing implies reading
+    }
+
+    // A broad capability is a claim about everything beneath it, so unticking
+    // any one child has to untick the parent: someone refused the activity log
+    // cannot still be described as able to do everything an administrator can.
+    //
+    // The children they DO still have are written out individually, so nothing
+    // is lost in the process — untick one of six and you keep five, each now
+    // ticked in its own right.
+    //
+    // This only works because the parent is exactly the sum of what is shown
+    // beneath it. Ten admin-only routes previously had no box at all, so
+    // dropping the parent would have removed ten powers nothing on screen
+    // mentioned; they now have boxes of their own (Merge and delete patient
+    // records, Beds/catalog/stock setup) and are carried across like the rest.
+    const broad = groups.flatMap((g) => g.areas).find((a) => a.broad);
+    const broadCap = broad?.access || broad?.write;
+    if (!ticked && broadCap && capability !== broadCap && effective.includes(broadCap)) {
+      const covered = (catalog.adminAccessCovers || []).filter((c) => c !== capability);
+      set(broadCap, false);
+      covered.forEach((c) => set(c, true));
     }
 
     const label = isAccess ? area.accessLabel : area.writeLabel;
