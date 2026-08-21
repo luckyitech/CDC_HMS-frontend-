@@ -339,7 +339,13 @@ const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) =>
             )}
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
               {[
-                ['Weight', rev.weight && `${rev.weight} kg`], ['BMI', rev.bmi],
+                ['Weight', rev.weight != null && (
+                  <>{rev.weight} kg{rev.weightChange != null && (
+                    <span className={rev.weightChange <= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {' '}({rev.weightChange <= 0 ? '▼' : '▲'} {Math.abs(rev.weightChange).toFixed(1)} kg)
+                    </span>
+                  )}</>
+                )], ['BMI', rev.bmi],
                 ['BP', rev.bp], ['HbA1c', rev.hba1c && `${rev.hba1c}%`],
                 ['FBS', rev.fpg], ['Adherence', rev.adherence],
               ].filter(([, val]) => val).map(([label, val]) => (
@@ -1025,6 +1031,18 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
           const glp1Injections = adminsRes?.data?.administrations  || [];
           const glp1Reviews    = reviewsRes?.data?.reviews         || [];
+          // Per-visit weight change: the delta from the previous review that
+          // carried a weight, computed across the whole ordered series so each
+          // record can show how the patient moved since they were last weighed.
+          {
+            let prevWeight = null;
+            [...glp1Reviews]
+              .sort((a, b) => (a.reviewDate || '').localeCompare(b.reviewDate || '') || (a.id - b.id))
+              .forEach(r => {
+                if (r.weight != null && prevWeight != null) r.weightChange = Number(r.weight) - prevWeight;
+                if (r.weight != null) prevWeight = Number(r.weight);
+              });
+          }
           const admissions     = advisedRes?.data?.admissions      || [];
           const referrals      = referralsRes?.data?.referrals     || [];
           const glp1WeekNotes  = weekNotesRes?.data?.notes          || [];

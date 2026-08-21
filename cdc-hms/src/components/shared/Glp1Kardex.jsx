@@ -111,6 +111,17 @@ const Glp1Kardex = ({ patient, onDirtyChange }) => {
     [entries]
   );
 
+  // Weight change per entry — the delta from the previous entry that had a weight.
+  const weightChangeById = useMemo(() => {
+    const m = new Map();
+    let prev = null;
+    sortedEntries.forEach((e) => {
+      if (e.weight != null && prev != null) m.set(e.id, Number(e.weight) - prev);
+      if (e.weight != null) prev = Number(e.weight);
+    });
+    return m;
+  }, [sortedEntries]);
+
   // --- progressive summary --------------------------------------------------
   const summary = useMemo(() => {
     const live = therapies.find((t) => ["Active", "Paused"].includes(t.status));
@@ -236,6 +247,11 @@ const Glp1Kardex = ({ patient, onDirtyChange }) => {
                     <td className="px-4 py-3 whitespace-nowrap text-gray-700">
                       {e.weight != null ? `${e.weight} kg` : "—"}
                       {e.bmi != null && <span className="text-gray-400"> ({e.bmi})</span>}
+                      {weightChangeById.has(e.id) && (
+                        <span className={`block text-[11px] font-semibold ${weightChangeById.get(e.id) <= 0 ? "text-green-600" : "text-red-600"}`}>
+                          {weightChangeById.get(e.id) <= 0 ? "▼" : "▲"} {Math.abs(weightChangeById.get(e.id)).toFixed(1)} kg
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-gray-700">
                       {e.bp || "—"}{e.heartRate != null ? ` · ${e.heartRate}` : ""}
