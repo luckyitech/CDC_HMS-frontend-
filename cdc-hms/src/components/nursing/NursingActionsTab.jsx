@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { Search, Stethoscope, ClipboardList, Syringe, ChevronDown, Receipt, ClipboardPlus, FileText } from "lucide-react";
 import TriagePanel from "./TriagePanel";
 import NursingKardex from "./NursingKardex";
-import Glp1InjectionCard from "../shared/Glp1InjectionCard";
+import Glp1Kardex from "../shared/Glp1Kardex";
 import SendToDoctorModal from "./SendToDoctorModal";
 import BillingModal from "../shared/BillingModal";
 import RecordUseModal from "../stock/RecordUseModal";
@@ -17,24 +17,6 @@ const isToday = (d) => {
   if (!d) return false;
   const dt = new Date(d);
   return !Number.isNaN(dt) && dt.toDateString() === new Date().toDateString();
-};
-
-// GLP-1 injection recording — the nurse's dose-ladder card. It renders nothing
-// when the patient has no live course, so this wrapper shows a note instead of an
-// empty pane in that case.
-const Glp1InjectionAction = ({ patient }) => {
-  const [hasCourse, setHasCourse] = useState(null);
-  return (
-    <div>
-      <Glp1InjectionCard patient={patient} onTherapyChange={(therapy) => setHasCourse(!!therapy)} />
-      {hasCourse === false && (
-        <div className="p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-500">
-          {patient?.name || "This patient"} has no active GLP-1 course. A doctor starts a
-          course from the consultation before injections can be recorded here.
-        </div>
-      )}
-    </div>
-  );
 };
 
 /**
@@ -56,11 +38,11 @@ const NURSING_ACTIONS = [
   },
   {
     id: "glp1",
-    name: "GLP-1 injection",
+    name: "GLP-1 monitoring",
     Icon: Syringe,
-    // Uses this visit's vitals (weight for dosing), so triage must be done first.
-    requiresTriage: true,
-    render: ({ patient }) => <Glp1InjectionAction patient={patient} />,
+    // Open entry — a nurse can log an injection or a review here. Vitals prefill
+    // the form when triage has run today, but are not required to add an entry.
+    render: ({ patient }) => <Glp1Kardex patient={patient} />,
   },
   {
     id: "kardex",

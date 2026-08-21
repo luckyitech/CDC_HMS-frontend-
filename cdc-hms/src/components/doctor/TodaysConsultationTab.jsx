@@ -33,7 +33,7 @@ import inpatientService from "../../services/inpatientService";
 import ConsultationNotesPlan from "./ConsultationNotesPlan";
 import PrescriptionManagement from "./PrescriptionManagement";
 import AccordionPanel from "../shared/AccordionPanel";
-import Glp1Tracker from "./Glp1Tracker";
+import Glp1Kardex from "../shared/Glp1Kardex";
 import ConsultationSummaryContainer from "./ConsultationSummaryContainer";
 import { isToday } from "../../utils/dateUtils";
 
@@ -659,7 +659,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
               </button>
               {openTool === 'glp1' && (
                 <div className="border-t border-gray-100 p-4">
-                  <Glp1Tracker
+                  <Glp1Kardex
                     patient={patient}
                     onDirtyChange={setToolsDirty}
                   />
