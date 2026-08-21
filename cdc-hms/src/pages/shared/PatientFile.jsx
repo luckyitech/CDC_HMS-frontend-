@@ -10,6 +10,8 @@ import { formatDOB } from "../../utils/dateUtils";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useQueueContext } from "../../contexts/QueueContext";
+import { useUserContext } from "../../contexts/UserContext";
+import { hasPermission, PERMISSIONS } from "../../utils/permissions";
 import { patientService } from "../../services/patientService";
 import api from "../../services/api";
 
@@ -290,14 +292,31 @@ const PatientFile = () => {
   const { fetchPatientByUHID } = usePatientContext();
   const { getPrescriptionsByPatient } = usePrescriptionContext();
   const { isInQueue } = useQueueContext();
+  const { currentUser } = useUserContext();
 
   // The live tab is the "today's visit" workspace — like the doctor's Today's
   // Consultation, it only exists while the patient is in the queue. When they're
   // not, it's hidden; the past record is always under Visit History.
   const inQueue = isInQueue(uhid);
-  const tabs = (liveTabDef && !inQueue)
+  const visibleTabs = (liveTabDef && !inQueue)
     ? allTabs.filter((t) => t.id !== liveTabDef.id)
     : allTabs;
+
+  // Tabs that read the CLINICAL record rather than the patient's identity and
+  // administration. A non-clinical account — reception, accounts, records — is
+  // refused these by the API, so offering them would mean a tab that opens onto
+  // a blank panel. Reception keeps everything they actually work with:
+  // registration, the queue, appointments, Diagnostics (they upload most of the
+  // documents) and User Management.
+  //
+  // This is the half that has to accompany the api.js change suppressing the
+  // toast on a refused read. Suppressing the message without also hiding the
+  // section would trade a confusing warning for a confusing emptiness.
+  const CLINICAL_TABS = ["nursing", "visit-history", "equipment"];
+  const canReadClinical = hasPermission(currentUser, PERMISSIONS.CLINICAL_VIEW);
+  const tabs = canReadClinical
+    ? visibleTabs
+    : visibleTabs.filter((t) => !CLINICAL_TABS.includes(t.id));
 
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -305,7 +324,11 @@ const PatientFile = () => {
   // On the consultation route the doctor should land on Today's Consultation
   // even before the queue finishes loading; elsewhere, the first visible tab.
   const onConsultationRoute = location.pathname.includes("/consultation/");
-  const initialTab = location.state?.activeTab || (onConsultationRoute ? "consultation" : tabs[0].id);
+  // tabs[0] is optional-chained because the list is now filtered by capability
+  // as well as by queue state, so an account with neither clinical access nor
+  // the Diagnostics tab could in principle reach here with nothing left. Line
+  // below already guarded it; this one did not.
+  const initialTab = location.state?.activeTab || (onConsultationRoute ? "consultation" : tabs[0]?.id);
   const { activeTab, selectTab, overviewOpen, setOverviewOpen } = useCollapsibleOverview(initialTab);
   // Guard the active tab: if it isn't currently visible (e.g. Nursing after the
   // patient leaves the queue), fall back to the first visible tab.

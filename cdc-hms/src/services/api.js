@@ -114,8 +114,28 @@ api.interceptors.response.use(
         ? base
         : `${base} Ask an administrator if you need access.`;
 
-      toast.error(shown, { id: 'permission-denied' });
-      return Promise.reject({ message: shown, status, data: error.response?.data });
+      // Only ACTIONS are announced.
+      //
+      // A refused write is something the person just tried to do: they pressed
+      // a button and it has to say why nothing happened. A refused GET is
+      // usually a screen loading a section this account does not have — it was
+      // never an action, and shouting about it produces a permission warning
+      // for simply opening a page. Opening a patient file fires several reads
+      // at once, so a non-clinical account got a scary toast for doing nothing
+      // but clicking View.
+      //
+      // The screen is responsible for the other half: it must not offer a
+      // section it cannot load, or a silent 403 becomes a blank panel with no
+      // explanation. Suppressing the toast without hiding the section would
+      // trade a confusing message for a confusing emptiness.
+      //
+      // A read that IS an action — pressing Export, opening a report — can opt
+      // back in with { announce403: true } on the request config.
+      const isRead = (error.config?.method || 'get').toLowerCase() === 'get';
+      const announce = error.config?.announce403 === true || !isRead;
+
+      if (announce) toast.error(shown, { id: 'permission-denied' });
+      return Promise.reject({ message: shown, status, data: error.response?.data, isPermissionDenied: true });
     }
 
     // Reject with a clean error object. `data` carries the backend's full
