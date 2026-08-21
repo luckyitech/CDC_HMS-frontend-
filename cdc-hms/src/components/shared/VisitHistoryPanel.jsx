@@ -1044,6 +1044,10 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             glp1WeekNotes:   Array.isArray(glp1WeekNotes)   ? glp1WeekNotes   : [],
             nursingNotes:    Array.isArray(nursingNotes)    ? nursingNotes    : [],
             workflow:        Array.isArray(workflow)        ? workflow        : [],
+            // Raw queue visit rows (with status + dischargedAt) — used to tell an
+            // ongoing, un-checked-out episode from closed dated visits. Not a
+            // clinical record type, so it stays out of DATE_FIELD_MAP.
+            visits:          Array.isArray(queueRes?.data?.visits) ? queueRes.data.visits : [],
           });
         }
       } finally {
@@ -1091,6 +1095,45 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     ),
   [historyData]);
 
+  // The current OPEN episode. A queue visit still in progress has a status other
+  // than Completed/Removed — and the queue allows only one at a time. Legacy
+  // visits predate the discharge stamp but were Completed, so they are correctly
+  // NOT treated as open. Its check-in day anchors the ongoing group.
+  const openStartDay = useMemo(() => {
+    const open = (historyData?.visits || []).find(
+      v => v.status && !['Completed', 'Removed'].includes(v.status)
+    );
+    return open?.checkedInAt ? String(open.checkedInAt).slice(0, 10) : null;
+  }, [historyData]);
+
+  // Display groups. When the patient has not been checked out, every record date
+  // on/after that visit's check-in collapses into ONE ongoing card instead of a
+  // card per day — a patient sitting in the queue for days is one ongoing visit,
+  // not several. Closed/legacy dated visits are left exactly as they were.
+  const visitGroups = useMemo(() => {
+    if (!openStartDay) return visitDates.map(d => ({ key: d, dates: [d], ongoing: false }));
+    const ongoingDates = visitDates.filter(d => d >= openStartDay);
+    const legacyDates  = visitDates.filter(d => d <  openStartDay);
+    const groups = [];
+    if (ongoingDates.length) {
+      groups.push({ key: '__ongoing__', dates: ongoingDates, ongoing: true, since: openStartDay });
+    }
+    legacyDates.forEach(d => groups.push({ key: d, dates: [d], ongoing: false }));
+    return groups;
+  }, [visitDates, openStartDay]);
+
+  // Merge one or more days into a single record bucket. A normal day is itself;
+  // the ongoing episode spans every day since check-in.
+  const getRecordsForGroup = useCallback((dates) => {
+    if (dates.length === 1) return getRecordsForDate(dates[0]);
+    const merged = Object.fromEntries(Object.keys(DATE_FIELD_MAP).map(k => [k, []]));
+    dates.forEach(d => {
+      const recs = getRecordsForDate(d);
+      Object.keys(merged).forEach(k => { merged[k] = merged[k].concat(recs[k] || []); });
+    });
+    return merged;
+  }, [getRecordsForDate]);
+
   // Lazily fetch full exam data for a date's exams (used on expand and print)
   const fetchExamsForDate = useCallback((date) => {
     if (!historyDataRef.current) return [];
@@ -1105,12 +1148,13 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   }, [getExaminationById]);
 
   // Open/close a date accordion — only one open at a time
-  const toggleHistoryDate = useCallback((date) => {
-    setDayTab(defaultDayTab); // newly-opened day starts on the default tab
+  // Open/close a display group (a single day, or the ongoing multi-day episode).
+  const toggleHistoryGroup = useCallback((group) => {
+    setDayTab(defaultDayTab); // newly-opened group starts on the default tab
     setOpenHistoryDate(prev => {
-      const isOpening = prev !== date;
-      if (isOpening) fetchExamsForDate(date);
-      return isOpening ? date : null;
+      const isOpening = prev !== group.key;
+      if (isOpening) group.dates.forEach(d => fetchExamsForDate(d));
+      return isOpening ? group.key : null;
     });
   }, [fetchExamsForDate]);
 
@@ -1143,8 +1187,8 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-  const totalPages     = Math.ceil(visitDates.length / HISTORY_PAGE_SIZE);
-  const paginatedDates = visitDates.slice(
+  const totalPages      = Math.ceil(visitGroups.length / HISTORY_PAGE_SIZE);
+  const paginatedGroups = visitGroups.slice(
     (historyPage - 1) * HISTORY_PAGE_SIZE,
     historyPage * HISTORY_PAGE_SIZE
   );
@@ -1250,12 +1294,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
               className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
               <Printer className="w-4 h-4" />
-              {printing ? 'Preparing…' : `Print ${visitDates.length} visit${visitDates.length !== 1 ? 's' : ''}`}
+              {printing ? 'Preparing…' : `Print ${visitGroups.length} visit${visitGroups.length !== 1 ? 's' : ''}`}
             </button>
           )}
           {historyData && (
             <p className="text-xs text-gray-400 ml-auto self-center">
-              {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''} found
+              {visitGroups.length} visit{visitGroups.length !== 1 ? 's' : ''} found
             </p>
           )}
         </div>
@@ -1312,10 +1356,10 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
         </div>
       )}
 
-      {/* Tab mode: visit date accordions */}
-      {!singleDate && !historyLoading && paginatedDates.map(date => {
-        const records = getRecordsForDate(date);
-        const isOpen  = openHistoryDate === date;
+      {/* Tab mode: visit accordions — one per closed day, one for the ongoing episode */}
+      {!singleDate && !historyLoading && paginatedGroups.map(group => {
+        const records = getRecordsForGroup(group.dates);
+        const isOpen  = openHistoryDate === group.key;
         // Workflow milestones are visit events, not saved records — excluded from
         // the "N records" count (they still appear on the Visit Timeline).
         const total   = Object.entries(records).reduce((sum, [k, arr]) => sum + (k === 'workflow' ? 0 : arr.length), 0);
@@ -1332,20 +1376,26 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           rxCount   && `${rxCount} prescription${rxCount !== 1 ? 's' : ''}`,
         ].filter(Boolean);
         const summary = parts.length ? parts.join(' · ') : `${total} record${total !== 1 ? 's' : ''}`;
+        const HeaderIcon = group.ongoing ? Clock : Calendar;
 
         return (
-          <div key={date} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div key={group.key} className={`bg-white border rounded-xl overflow-hidden shadow-sm ${group.ongoing ? 'border-amber-300' : 'border-gray-200'}`}>
 
-            {/* Date header row */}
+            {/* Header row */}
             <button
-              onClick={() => toggleHistoryDate(date)}
+              onClick={() => toggleHistoryGroup(group)}
               className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <Calendar className={`w-5 h-5 flex-shrink-0 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
+                <HeaderIcon className={`w-5 h-5 flex-shrink-0 ${group.ongoing ? 'text-amber-500' : isOpen ? 'text-primary' : 'text-gray-400'}`} />
                 <span className={`font-semibold ${isOpen ? 'text-primary' : 'text-gray-800'}`}>
-                  {formatDateLong(date)}
+                  {group.ongoing ? 'Current visit — ongoing' : formatDateLong(group.dates[0])}
                 </span>
+                {group.ongoing && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-300 whitespace-nowrap font-semibold">
+                    Not checked out
+                  </span>
+                )}
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
                   {summary}
                 </span>
@@ -1355,6 +1405,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
                 : <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               }
             </button>
+
+            {group.ongoing && (
+              <p className="px-5 -mt-2 pb-2 text-xs text-gray-400">
+                Checked in {formatDateLong(group.since)} · still in the clinic, not yet checked out
+              </p>
+            )}
 
             {/* Expanded — Doctor's Notes | Actions (Actions tab only when there are any) */}
             {isOpen && (
@@ -1370,7 +1426,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       {!singleDate && !historyLoading && totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-sm text-gray-500">
-            Page {historyPage} of {totalPages} · {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
+            Page {historyPage} of {totalPages} · {visitGroups.length} visit{visitGroups.length !== 1 ? 's' : ''}
           </p>
           <div className="flex items-center gap-1">
             <button
@@ -1405,17 +1461,19 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             </p>
             <p className="text-xs text-gray-500">
               Printed {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-              {' · '}{visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
+              {' · '}{visitGroups.length} visit{visitGroups.length !== 1 ? 's' : ''}
               {(historyFromDate || historyToDate) && ` · ${historyFromDate || '…'} → ${historyToDate || '…'}`}
             </p>
           </div>
-          {visitDates.map(date => {
-            const recs = getRecordsForDate(date);
+          {visitGroups.map(group => {
+            const recs = getRecordsForGroup(group.dates);
             const kardexTasks = printInclude.kardex ? nursingTasks(recs) : [];
             return (
-              <div key={date} className="mb-6" style={{ breakInside: 'avoid' }}>
+              <div key={group.key} className="mb-6" style={{ breakInside: 'avoid' }}>
                 <h2 className="text-base font-bold text-gray-800 border-b border-gray-300 pb-1 mb-3">
-                  {formatDateLong(date)}
+                  {group.ongoing
+                    ? `Current visit — ongoing (checked in ${formatDateLong(group.since)}, not checked out)`
+                    : formatDateLong(group.dates[0])}
                 </h2>
                 {printInclude.notes && (
                   <div className="mb-4">
@@ -1457,7 +1515,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             </div>
             <div className="px-5 py-4 space-y-2">
               <p className="text-sm text-gray-500 mb-2">
-                Include for {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
+                Include for {visitGroups.length} visit{visitGroups.length !== 1 ? 's' : ''}
                 {(historyFromDate || historyToDate) ? ' in the filtered range' : ''}:
               </p>
               {[
