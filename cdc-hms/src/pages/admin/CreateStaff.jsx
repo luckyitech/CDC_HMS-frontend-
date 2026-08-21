@@ -170,11 +170,6 @@ const CreateStaff = ({ embedded = false }) => {
       {!embedded && (
         <PageHeader
           title="Create Staff Account"
-          actions={
-            <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-              ← Back to Dashboard
-            </Button>
-          }
         />
       )}
 

@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Clock, CheckCircle, ClipboardList } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import PageHeader from '../../components/shared/PageHeader';
-import StatCard from '../../components/shared/StatCard';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { QUEUE_STATUS_TONES } from '../../utils/statusStyles';
 import { useUserContext } from '../../contexts/UserContext';
@@ -103,23 +102,6 @@ const DoctorDashboard = () => {
     queuePage * QUEUE_PER_PAGE
   );
 
-  // ── Clinic-wide stats (all doctors) ─────────────────────────────────────
-  // These give the doctor a full picture of how the clinic is running today.
-  // Personal view is already available via the "My Patients Today" queue tab.
-  const clinicWithDoctor      = todayActive.filter(q => q.status === 'With Doctor');
-  // Consultation done = the doctor has finished, whether the patient is waiting
-  // on the cashier, the nurse's injection, or already discharged
-  const clinicConsultDone     = todayActive.filter(isConsultationDone);
-  const clinicCompleted       = todayCompleted.length + clinicConsultDone.length;
-  const clinicActiveTotal     = todayActive.length;
-
-  const stats = [
-    { title: 'Today\'s Patients', value: todayQueue.length,    Icon: Users,         gradient: 'from-blue-500 to-blue-600'   },
-    { title: 'With Doctor',       value: clinicWithDoctor.length, Icon: Clock,       gradient: 'from-cyan-500 to-cyan-600'   },
-    { title: 'Completed',         value: clinicCompleted,       Icon: CheckCircle,   gradient: 'from-green-500 to-green-600' },
-    { title: 'Active Queue',      value: clinicActiveTotal,     Icon: ClipboardList, gradient: 'from-purple-500 to-purple-600'},
-  ].map(s => ({ ...s, value: s.value.toString() }));
-
   // Status colours and labels live in utils/queueStatus so the doctor's queue,
   // the badges and the action column all agree on what a status means.
 
@@ -139,19 +121,6 @@ const DoctorDashboard = () => {
         title="Doctor Dashboard"
         subtitle={`Welcome back, ${currentUser?.name || 'Doctor'}`}
       />
-
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-        {stats.map((stat) => (
-          <StatCard
-            key={stat.title}
-            title={stat.title}
-            value={stat.value}
-            icon={stat.Icon}
-            gradient={stat.gradient}
-          />
-        ))}
-      </div>
 
       {/* Today's Queue - All Patients */}
       <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5" />Today's Queue</span>}>

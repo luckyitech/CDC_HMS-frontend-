@@ -48,7 +48,6 @@ const AppointmentsListView = ({ mode }) => {
   const [searchInput, setSearchInput] = useState(''); // raw input — debounced before hitting API
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
-  const [stats, setStats] = useState({ total: 0, scheduled: 0, checkedIn: 0, completed: 0, cancelled: 0 });
   const debounceRef = useRef(null);
 
   // Debounce search input — only commit to filters after 500ms of no typing
@@ -67,35 +66,6 @@ const AppointmentsListView = ({ mode }) => {
 
   // Reset to page 1 whenever filters change
   useEffect(() => { setPage(1); }, [filters.status, filters.date, filters.search]);
-
-  // Fetch accurate stats across ALL pages (ignores status filter, respects doctor + date)
-  const fetchStats = useCallback(async () => {
-    if (isDoctor && !currentUser?.id) return;
-    try {
-      const base = { limit: 1 };
-      if (isDoctor)        base.doctor = currentUser.id;
-      if (filters.date)    base.date   = filters.date;
-      if (filters.search)  base.search = filters.search;
-
-      const [total, scheduled, checkedIn, completed, cancelled] = await Promise.all([
-        appointmentService.getAll({ ...base }),
-        appointmentService.getAll({ ...base, status: 'scheduled' }),
-        appointmentService.getAll({ ...base, status: 'checked-in' }),
-        appointmentService.getAll({ ...base, status: 'completed' }),
-        appointmentService.getAll({ ...base, status: 'cancelled' }),
-      ]);
-
-      setStats({
-        total:     total.data?.pagination?.total     || 0,
-        scheduled: scheduled.data?.pagination?.total || 0,
-        checkedIn: checkedIn.data?.pagination?.total || 0,
-        completed: completed.data?.pagination?.total || 0,
-        cancelled: cancelled.data?.pagination?.total || 0,
-      });
-    } catch { /* non-blocking */ }
-  }, [isDoctor, currentUser?.id, filters.date, filters.search]);
-
-  useEffect(() => { fetchStats(); }, [fetchStats]);
 
   const fetchAppointments = useCallback(async () => {
     if (isDoctor && !currentUser?.id) return;
@@ -134,14 +104,6 @@ const AppointmentsListView = ({ mode }) => {
     }
   };
 
-  const counts = {
-    total:     stats.total,
-    scheduled: stats.scheduled,
-    checkedIn: stats.checkedIn,
-    completed: stats.completed,
-    cancelled: stats.cancelled,
-  };
-
   const startItem = (page - 1) * PAGE_LIMIT + 1;
   const endItem   = Math.min(page * PAGE_LIMIT, pagination.total);
 
@@ -171,22 +133,6 @@ const AppointmentsListView = ({ mode }) => {
           <RefreshCw className="w-4 h-4" />
           <span className="hidden sm:inline">Refresh</span>
         </button>
-      </div>
-
-      {/* Stats — Total spans full width on mobile so 4 remaining fit as 2×2 */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
-        {[
-          { label: 'Total',      value: counts.total,     color: 'bg-blue-50 border-blue-200 text-blue-700',     span: 'col-span-2 lg:col-span-1' },
-          { label: 'Scheduled',  value: counts.scheduled, color: 'bg-blue-50 border-blue-200 text-blue-700',     span: '' },
-          { label: 'Checked In', value: counts.checkedIn, color: 'bg-yellow-50 border-yellow-200 text-yellow-700', span: '' },
-          { label: 'Completed',  value: counts.completed, color: 'bg-green-50 border-green-200 text-green-700',  span: '' },
-          { label: 'Cancelled',  value: counts.cancelled, color: 'bg-red-50 border-red-200 text-red-700',        span: '' },
-        ].map(s => (
-          <div key={s.label} className={`p-3 lg:p-4 rounded-xl border-2 ${s.color} ${s.span}`}>
-            <p className="text-xs font-medium opacity-70">{s.label}</p>
-            <p className="text-2xl font-bold mt-1">{s.value}</p>
-          </div>
-        ))}
       </div>
 
       {/* Filters */}

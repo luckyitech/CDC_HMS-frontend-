@@ -5,13 +5,11 @@ import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import StatusBadge from "../../components/shared/StatusBadge";
 import { LAB_RESULT_TONES } from "../../utils/statusStyles";
-import { useNavigate } from "react-router-dom";
 import { useLabContext } from "../../contexts/LabContext";
 import LabTestDetailsModal from "../../components/lab/LabTestDetailsModal";
 import LabTestPrint from "../../components/lab/LabTestPrint";
 
 const TestHistory = () => {
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTest, setFilterTest] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -66,11 +64,6 @@ const TestHistory = () => {
     <div>
       <PageHeader
         title="Test History"
-        actions={
-          <Button variant="outline" onClick={() => navigate("/lab/dashboard")}>
-            ← Back to Dashboard
-          </Button>
-        }
       />
 
       {/* Statistics */}

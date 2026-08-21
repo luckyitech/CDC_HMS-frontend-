@@ -3,10 +3,8 @@ import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
-import { useNavigate } from 'react-router-dom';
 
 const GenerateReports = () => {
-  const navigate = useNavigate();
   const [selectedPatient, setSelectedPatient] = useState('');
   const [reportType, setReportType] = useState('');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
@@ -147,11 +145,6 @@ const GenerateReports = () => {
     <div>
       <PageHeader
         title="Generate Reports"
-        actions={
-          <Button variant="outline" onClick={() => navigate('/lab/dashboard')}>
-            ← Back to Dashboard
-          </Button>
-        }
       />
 
       {/* Report Generation Form */}

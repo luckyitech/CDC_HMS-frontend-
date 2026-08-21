@@ -129,12 +129,6 @@ const ManageUsers = () => {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <button
-          onClick={() => navigate('/admin/dashboard')}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-2 transition"
-        >
-          <ArrowLeft size={14} /> Back to Dashboard
-        </button>
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <Users size={22} className="text-gray-600" /> Manage Users
         </h1>
