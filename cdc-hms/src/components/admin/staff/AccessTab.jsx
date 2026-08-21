@@ -2,22 +2,45 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import {
   Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound,
-  LayoutGrid, Users, Package,
+  LayoutGrid, Users, Package, Stethoscope, Briefcase,
 } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import api from '../../../services/api';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import AccordionPanel from '../../shared/AccordionPanel';
 import { formatDateTime } from './staffFormat';
+import { STAFF_TYPES } from '../../../utils/permissions';
 
 // Keyed off the server's group keys. An unknown group still renders, with the
 // generic shield — a group added on the server is never invisible here.
 const GROUP_ICONS = {
   portals: LayoutGrid,
   'patient-admin': Users,
+  clinical: Stethoscope,
   modules: Package,
   administration: ShieldCheck,
 };
+
+// The two halves of the staff bin, and what each one means in practice.
+// Phrased as what the person DOES rather than as a category, because the admin
+// setting this is thinking about a job, not about a data model.
+const STAFF_TYPE_CHOICES = [
+  {
+    value: STAFF_TYPES.CLINICAL,
+    label: 'Clinical',
+    icon: Stethoscope,
+    blurb: 'Sees and writes the clinical record — consultation notes, vitals, nursing notes.',
+    examples: 'Doctors, nurses, clinical officers',
+  },
+  {
+    value: STAFF_TYPES.NON_CLINICAL,
+    label: 'Non-clinical',
+    icon: Briefcase,
+    blurb: 'Registration, queue, appointments, documents and billing. Cannot open the '
+      + 'clinical record.',
+    examples: 'Reception, accounts, records, administration',
+  },
+];
 
 const EMPLOYMENT_STATUSES = ['Active', 'On Leave', 'Suspended', 'Resigned', 'Terminated'];
 
@@ -126,6 +149,54 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
       denied.includes(a.write) && !denied.includes(a.access) ? `${a.name} (editing)` : null,
     ])
     .filter(Boolean);
+
+  /**
+   * Reclassify someone clinical or non-clinical.
+   *
+   * This is the control that does most of the work on this tab. Almost nobody
+   * needs a single checkbox ticked — they need to be the right kind of staff,
+   * and the capabilities follow. The groups below are for the exceptions.
+   *
+   * The current grants are sent unchanged so a reclassification cannot disturb
+   * what has been granted or withdrawn separately.
+   */
+  const changeStaffType = async (next) => {
+    if (next === (staff.staffType || STAFF_TYPES.CLINICAL)) return;
+
+    const run = async () => {
+      setSaving('staffType');
+      try {
+        const res = await staffService.updateStaffType(staff.employeeId, granted, next);
+        onChanged(res.data);
+        toast.success(next === STAFF_TYPES.CLINICAL
+          ? `${staff.firstName} is now clinical staff`
+          : `${staff.firstName} is now non-clinical`);
+      } catch (err) {
+        toast.error(err.message || 'Failed to change this');
+      } finally {
+        setSaving(null);
+      }
+    };
+
+    // Only the removing direction is confirmed. Making someone clinical gives
+    // them access they can be talked through; making them non-clinical takes
+    // away the screens they may have been using this morning, and the admin
+    // should see that spelled out before it happens rather than after.
+    if (next === STAFF_TYPES.NON_CLINICAL) {
+      setConfirmation({
+        title: `Make ${staff.firstName} non-clinical?`,
+        message: 'They will no longer be able to open consultation notes, treatment plans, '
+          + 'nursing notes, vitals or blood-sugar records for any patient, and will lose the '
+          + 'ability to record vitals and nursing notes. Registration, the queue, appointments '
+          + 'and documents are unaffected. This can be changed back at any time.',
+        confirmLabel: 'Make non-clinical',
+        confirmVariant: 'danger',
+        onConfirm: run,
+      });
+      return;
+    }
+    run();
+  };
 
   /**
    * Move one capability to a new state and save the whole picture.
@@ -327,6 +398,67 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           </select>
         </div>
       </div>
+
+      {/* Clinical or non-clinical.
+          Above the permission groups on purpose: for almost everyone this is
+          the only control that needs touching, and the groups below exist for
+          the exceptions. Putting it underneath would invite an admin to tick
+          six boxes to reproduce what one choice already does. */}
+      {staff.canHoldPermissions && !staff.isTrueAdmin && (
+        <div>
+          <div className="flex items-center gap-2 mb-1 px-1">
+            <Stethoscope className="w-4 h-4 text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-800">Kind of staff</h3>
+          </div>
+          <p className="text-xs text-gray-400 mb-3 px-1">
+            Whether this person works with patients. This sets most of what they can do —
+            the groups below are only for exceptions.
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {STAFF_TYPE_CHOICES.map((choice) => {
+              const active = (staff.staffType || STAFF_TYPES.CLINICAL) === choice.value;
+              const Icon = choice.icon;
+              return (
+                <button
+                  key={choice.value}
+                  type="button"
+                  onClick={() => changeStaffType(choice.value)}
+                  disabled={locked || saving === 'staffType'}
+                  aria-pressed={active}
+                  className={[
+                    'text-left rounded-xl border p-4 transition',
+                    active
+                      ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                      : 'border-gray-200 bg-white hover:border-gray-300',
+                    (locked || saving === 'staffType') ? 'opacity-60 cursor-not-allowed' : '',
+                  ].join(' ')}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className={`w-4 h-4 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <span className={`text-sm font-semibold ${active ? 'text-blue-900' : 'text-gray-800'}`}>
+                      {choice.label}
+                    </span>
+                    {active && saving === 'staffType' && (
+                      <Loader className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-600">{choice.blurb}</p>
+                  <p className="text-[11px] text-gray-400 mt-1">{choice.examples}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {locked && (
+            <p className="text-[11px] text-gray-400 mt-2 px-1">
+              {staff.isArchived
+                ? 'This staff file is archived.'
+                : 'Only an administrator account can change this.'}
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <div className="flex items-center gap-2 mb-1 px-1">

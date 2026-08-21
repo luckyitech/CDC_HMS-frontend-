@@ -68,11 +68,27 @@ export const staffService = {
    * means to change grants — the server leaves withdrawals untouched when the
    * key is absent, so an older caller cannot silently clear them.
    */
-  updatePermissions: (employeeId, permissions, deniedPermissions) =>
-    api.patch(`/staff/${employeeId}/permissions`,
-      deniedPermissions === undefined
-        ? { permissions }
-        : { permissions, deniedPermissions }),
+  updatePermissions: (employeeId, permissions, deniedPermissions, staffType) => {
+    const body = { permissions };
+    if (deniedPermissions !== undefined) body.deniedPermissions = deniedPermissions;
+    if (staffType !== undefined) body.staffType = staffType;
+    return api.patch(`/staff/${employeeId}/permissions`, body);
+  },
+
+  /**
+   * Classify someone clinical or non-clinical.
+   *
+   * Goes through the permissions route because it IS an access decision — it
+   * decides whether this person can read a consultation note — so it belongs on
+   * the same real-admin-only, audited path as the grants rather than on the
+   * general profile update.
+   *
+   * `permissions` is sent unchanged rather than omitted: the endpoint requires
+   * the field, and sending the current list means the classification cannot
+   * disturb what has been granted.
+   */
+  updateStaffType: (employeeId, permissions, staffType) =>
+    api.patch(`/staff/${employeeId}/permissions`, { permissions, staffType }),
 
   // ============================================
   // LEAVE

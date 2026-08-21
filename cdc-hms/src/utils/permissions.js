@@ -42,7 +42,50 @@ export const PERMISSIONS = {
   STOCK_WRITE:      'stock.write',
   LAB_VIEW:         'lab.view',
   LAB_WRITE:        'lab.write',
+
+  // The clinical record, as opposed to the patient's identity and
+  // administration. Reception needs to know who a patient is, where they are in
+  // the queue and what they owe; they have no reason to read the consultation
+  // note. Most staff hold these by being marked clinical rather than by an
+  // explicit grant — see STAFF_TYPES below.
+  CLINICAL_VIEW:    'clinical.view',
+  CLINICAL_RECORD:  'clinical.record',
+
+  GLP1_WRITE:       'glp1.write',
+  EQUIPMENT_WRITE:  'equipment.write',
+  STOCK_DISPENSE:   'stock.dispense',
+
+  // Off by default and granted per person: which member of staff signs a scan
+  // or runs a drug round differs between clinics.
+  RADIOLOGY_WRITE:  'radiology.write',
+  MAR_ADMINISTER:   'mar.administer',
 };
+
+// Clinical or non-clinical, mirroring the backend's STAFF_TYPES.
+//
+// The bundle each type carries is resolved SERVER-SIDE and arrives already
+// folded into `permissions`, so nothing here recomputes it — the frontend gets
+// the answer, not the inputs, exactly as it does for withdrawals. These values
+// exist so the Staff File can display and edit the classification, and so a
+// screen can say WHY something is missing rather than only that it is.
+export const STAFF_TYPES = {
+  CLINICAL:     'clinical',
+  NON_CLINICAL: 'non_clinical',
+};
+
+export const STAFF_TYPE_LABELS = {
+  [STAFF_TYPES.CLINICAL]:     'Clinical',
+  [STAFF_TYPES.NON_CLINICAL]: 'Non-clinical',
+};
+
+/**
+ * Does this person do clinical work?
+ *
+ * Treats an unset value as clinical, matching the backend: every row predates
+ * the column, and access is removed by classifying people deliberately rather
+ * than by a missing value.
+ */
+export const isClinical = (user) => user?.staffType !== STAFF_TYPES.NON_CLINICAL;
 
 // Portals each role reaches without anything being granted. Mirrors the
 // backend's ROLE_DEFAULT_PORTALS and is only used by the fallback below.
