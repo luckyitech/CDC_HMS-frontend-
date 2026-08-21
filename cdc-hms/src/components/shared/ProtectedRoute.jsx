@@ -1,6 +1,32 @@
 import { Navigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useUserContext } from '../../contexts/UserContext';
 import { canOpenPortal, hasPermission, isTrueAdmin } from '../../utils/permissions';
+import { landingFor } from '../../utils/landing';
+import { portalDeniedMessage, PORTAL_LABELS, NO_PORTAL_MESSAGE } from '../../constants/accessMessages';
+import NoAccess from './NoAccess';
+
+/**
+ * Send a signed-in user somewhere they can actually be, and say why.
+ *
+ * The old behaviour was <Navigate to="/" replace /> — and "/" is the LOGIN
+ * page, so a signed-in person who reached a portal they could not open was
+ * dropped back onto a login form with no explanation at all. The API already
+ * raises a "you do not have permission" toast on a 403; a portal refusal is the
+ * same event and had nothing.
+ *
+ * The toast id is fixed so a redirect that re-renders cannot stack duplicates.
+ */
+const refuse = (user, requiredPortal) => {
+  const destination = landingFor(user);
+  if (!destination) {
+    // They can open nothing at all. Redirecting would loop, so this is a real
+    // screen rather than a navigation.
+    return <NoAccess message={NO_PORTAL_MESSAGE} />;
+  }
+  toast.error(portalDeniedMessage(PORTAL_LABELS[requiredPortal]), { id: 'portal-denied' });
+  return <Navigate to={destination} replace />;
+};
 
 /**
  * Wraps a portal layout and ensures the logged-in user may be there.
@@ -52,7 +78,8 @@ const ProtectedRoute = ({ requiredRole, requiredRoles, requiredPermission, requi
   // `portals` arrives resolved from the server (role's own portal + grants −
   // withdrawals), so there is one answer rather than one per screen.
   if (requiredPortal) {
-    return canOpenPortal(currentUser, requiredPortal) ? children : <Navigate to="/" replace />;
+    if (canOpenPortal(currentUser, requiredPortal)) return children;
+    return refuse(currentUser, requiredPortal);
   }
 
   // A route may also be reached by a granted capability, not only a role — e.g.
@@ -66,7 +93,7 @@ const ProtectedRoute = ({ requiredRole, requiredRoles, requiredPermission, requi
   // the single requiredRole prop for existing routes. Admin access is handled
   // above via the permissions-aware canAccessAdmin (V2), not a raw role check.
   const allowed = requiredRoles ?? [requiredRole];
-  if (!allowed.includes(currentUser.role)) return <Navigate to="/" replace />;
+  if (!allowed.includes(currentUser.role)) return refuse(currentUser, null);
 
   return children;
 };

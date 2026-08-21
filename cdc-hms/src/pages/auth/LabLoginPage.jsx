@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserContext } from '../../contexts/UserContext';
+import { landingFor } from '../../utils/landing';
+import { NO_PORTAL_MESSAGE } from '../../constants/accessMessages';
 import LoginLayout from "../../layouts/LoginLayout";
 import Card from '../../components/shared/Card';
 import Input from '../../components/shared/Input';
@@ -23,7 +25,16 @@ const LabLoginPage = () => {
       const result = await login(formData.email, formData.password, 'Lab');
 
       if (result.success) {
-        navigate('/lab/dashboard');
+        // Where they land is decided by what they can actually open, not by
+        // which login page they used. Hardcoding a destination here sent
+        // anyone whose own portal had been withdrawn to a door the route
+        // guard then refused, bouncing them back to this very form.
+        const destination = landingFor(result.user);
+        if (destination) {
+          navigate(destination);
+        } else {
+          setError(NO_PORTAL_MESSAGE);
+        }
       } else {
         setError(result.message);
       }

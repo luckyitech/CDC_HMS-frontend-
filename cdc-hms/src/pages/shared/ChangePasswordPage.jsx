@@ -9,7 +9,7 @@ import Button from '../../components/shared/Button';
 import Input from '../../components/shared/Input';
 import authService from '../../services/authService';
 import { useUserContext } from '../../contexts/UserContext';
-import { dashboardFor } from '../../constants/roleDashboards';
+import { landingFor } from '../../utils/landing';
 
 // 'YYYY-MM-DD' → 'Monday, 10 August'. Split rather than new Date(str) so a
 // plain date string is never shifted a day by the browser's timezone.
@@ -91,7 +91,10 @@ const ChangePasswordPage = () => {
         passwordPolicyLabel: res?.data?.passwordPolicyLabel ?? policyLabel,
       });
 
-      if (isForced) navigate(dashboardFor(currentUser.role));
+      // Same rule as login: where they go is decided by what they can open.
+      // dashboardFor() would send someone whose own portal has been withdrawn
+      // to a door the route guard then refuses.
+      if (isForced) navigate(landingFor(currentUser) || '/');
     } catch (err) {
       toast.error(err.message || 'Failed to change password. Please try again.', {
         duration: 5000, position: 'top-right',

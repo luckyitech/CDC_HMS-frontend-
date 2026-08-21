@@ -5,7 +5,8 @@ import LoginLayout from '../../layouts/LoginLayout';
 import Card from '../../components/shared/Card';
 import Input from '../../components/shared/Input';
 import Button from '../../components/shared/Button';
-import { ROLE_DASHBOARDS } from '../../constants/roleDashboards';
+import { landingFor } from '../../utils/landing';
+import { NO_PORTAL_MESSAGE } from '../../constants/accessMessages';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -31,11 +32,17 @@ const LoginPage = () => {
           return;
         }
 
-        const destination = ROLE_DASHBOARDS[result.user.role];
+        // Decided by what this account can actually open, not by its role.
+        // ROLE_DASHBOARDS maps a role to ONE dashboard, which is the same
+        // "one home portal per role" assumption already removed from
+        // ROLE_DEFAULT_PORTALS when it locked doctors out of the ward — it
+        // just survived here. It is still the right key for the
+        // change-password redirect above, where the role genuinely decides.
+        const destination = landingFor(result.user);
         if (destination) {
           navigate(destination);
         } else {
-          setError('Your account role is not recognised. Please contact the administrator.');
+          setError(NO_PORTAL_MESSAGE);
         }
       } else {
         setError(result.message);
