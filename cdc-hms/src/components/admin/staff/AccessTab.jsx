@@ -51,10 +51,17 @@ const GRANTED = 'granted';
 const DENIED = 'denied';
 const DEFAULT = 'default';
 
+// Labels are written as instructions to the system, not as adjectives. "Default"
+// told an admin nothing — it named a mechanism rather than an outcome, and the
+// outcome is the only thing they are actually deciding. Each button now says
+// what it DOES; the row above it says what the result currently IS.
 const CHOICES = [
-  { value: DENIED, label: 'Withdrawn', tone: 'bg-red-600 text-white',   title: 'Refused even if their role would allow it' },
-  { value: DEFAULT, label: 'Default',  tone: 'bg-gray-500 text-white',  title: 'Whatever their role allows' },
-  { value: GRANTED, label: 'Granted',  tone: 'bg-blue-600 text-white',  title: 'Allowed on top of their role' },
+  { value: DENIED,  label: 'Never',    tone: 'bg-red-600 text-white',
+    title: 'Refuse this, even if their job would normally allow it' },
+  { value: DEFAULT, label: 'Normal',   tone: 'bg-gray-500 text-white',
+    title: 'Whatever their job normally allows — no exception either way' },
+  { value: GRANTED, label: 'Always',   tone: 'bg-blue-600 text-white',
+    title: 'Allow this, even if their job would not normally include it' },
 ];
 
 // A three-way control rather than a switch, because a switch cannot say the
@@ -130,6 +137,13 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
 
   const granted = staff.permissions || [];
   const denied  = staff.deniedPermissions || [];
+
+  // What this person can ACTUALLY do — resolved by the server, not recomputed
+  // here. The two lists above are the inputs an admin sets; this is the result,
+  // and it is what every row leads with.
+  const effective = staff.effectivePermissions || [];
+  const typeWord = (staff.staffType || STAFF_TYPES.CLINICAL) === STAFF_TYPES.CLINICAL
+    ? 'clinical' : 'non-clinical';
   const stateOf = (capability) => {
     if (denied.includes(capability)) return DENIED;
     if (granted.includes(capability)) return GRANTED;
@@ -332,21 +346,50 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
 
   // One row per capability. Sections with no meaningful write action render a
   // single row — a write toggle is not added where it would mean nothing.
-  const renderRow = (area, capability, label) => (
-    <div key={capability} className="flex items-center justify-between gap-4 py-2.5">
-      <p className="text-sm text-gray-700">{label}</p>
-      {saving === capability
-        ? <Loader className="w-4 h-4 animate-spin text-gray-400 mr-8" />
-        : (
-          <TriState
-            value={stateOf(capability)}
-            onChange={(next) => change(area, capability, next)}
-            disabled={locked}
-            label={`${area.name} — ${label}`}
-          />
-        )}
-    </div>
-  );
+  //
+  // Each row leads with the ANSWER — can this person do this, yes or no — and
+  // where that answer comes from. The three buttons only say how to change it.
+  //
+  // This was the tab's real problem. It showed the inputs (granted, withdrawn)
+  // and never the outcome, so an admin asking "can Rahma record vitals?" saw
+  // "Default" and was none the wiser: the default depends on whether she is
+  // clinical, which is set on a different card. Two people with identical
+  // settings could have opposite access and the screen looked the same for both.
+  const renderRow = (area, capability, label) => {
+    const state = stateOf(capability);
+    const allowed = effective.includes(capability);
+
+    // Why it resolved that way, in the admin's words rather than the model's.
+    const because =
+      state === GRANTED ? 'turned on for this person'
+      : state === DENIED ? 'turned off for this person'
+      : allowed ? `comes with being ${typeWord} staff`
+      : `not part of being ${typeWord} staff`;
+
+    return (
+      <div key={capability} className="flex items-start justify-between gap-4 py-3">
+        <div className="min-w-0">
+          <p className="text-sm text-gray-700">{label}</p>
+          <p className="text-xs mt-0.5">
+            <span className={allowed ? 'font-semibold text-green-700' : 'font-semibold text-gray-400'}>
+              {allowed ? 'Yes' : 'No'}
+            </span>
+            <span className="text-gray-400"> — {because}</span>
+          </p>
+        </div>
+        {saving === capability
+          ? <Loader className="w-4 h-4 animate-spin text-gray-400 mr-8" />
+          : (
+            <TriState
+              value={state}
+              onChange={(next) => change(area, capability, next)}
+              disabled={locked}
+              label={`${area.name} — ${label}`}
+            />
+          )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -465,11 +508,24 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           <ShieldCheck className="w-4 h-4 text-gray-400" />
           <h3 className="text-sm font-semibold text-gray-800">Portal access</h3>
         </div>
-        <p className="text-xs text-gray-400 mb-3 px-1">
-          Which portals this person can open, and what they can do. <b>Default</b> leaves it to
-          their role — <b>Granted</b> adds it on top, <b>Withdrawn</b> refuses it even when their
-          role would allow. What they can do applies wherever it appears, not per portal.
-        </p>
+        {/* Written as a worked example rather than as definitions. The previous
+            version defined three words an admin had never met and left them to
+            apply the definitions themselves; this says what they will see and
+            what to press, which is the same information in the order it is
+            actually needed. */}
+        <div className="text-xs text-gray-500 mb-3 px-1 space-y-1">
+          <p>
+            Every line says whether {staff.firstName} can do that thing right now, and why.
+            Most lines will say <b>Normal</b> — that means nothing special has been set and
+            their job decides.
+          </p>
+          <p>
+            Press <b className="text-blue-700">Always</b> to let them do something their job
+            would not normally include — a receptionist who also does triage.
+            Press <b className="text-red-700">Never</b> to stop them doing something their job
+            normally would — a nurse who should not be signing reports.
+          </p>
+        </div>
 
         {staff.isTrueAdmin ? (
           <p className="text-sm text-gray-500 bg-white rounded-xl border border-gray-200 p-5">
