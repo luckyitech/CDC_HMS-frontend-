@@ -47,48 +47,41 @@ const EMPLOYMENT_STATUSES = ['Active', 'On Leave', 'Suspended', 'Resigned', 'Ter
 // The three states a capability can be in for one person. "Default" is not a
 // stored value — it is the absence of both a grant and a withdrawal, which is
 // what almost every row is, and it means "whatever this person's role allows".
-const GRANTED = 'granted';
-const DENIED = 'denied';
-const DEFAULT = 'default';
 
-// Labels are written as instructions to the system, not as adjectives. "Default"
-// told an admin nothing — it named a mechanism rather than an outcome, and the
-// outcome is the only thing they are actually deciding. Each button now says
-// what it DOES; the row above it says what the result currently IS.
-const CHOICES = [
-  { value: DENIED,  label: 'Never',    tone: 'bg-red-600 text-white',
-    title: 'Refuse this, even if their job would normally allow it' },
-  { value: DEFAULT, label: 'Normal',   tone: 'bg-gray-500 text-white',
-    title: 'Whatever their job normally allows — no exception either way' },
-  { value: GRANTED, label: 'Always',   tone: 'bg-blue-600 text-white',
-    title: 'Allow this, even if their job would not normally include it' },
-];
-
-// A three-way control rather than a switch, because a switch cannot say the
-// third thing. "Off" would have to mean both "their role decides" and "refused
-// even though their role allows it", and those are different instructions.
-const TriState = ({ value, onChange, disabled, label }) => (
-  <div role="radiogroup" aria-label={label} className="inline-flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
-    {CHOICES.map((choice) => {
-      const active = value === choice.value;
-      return (
-        <button
-          key={choice.value}
-          type="button"
-          role="radio"
-          aria-checked={active}
-          title={choice.title}
+// The tab is a list of checkboxes: ticked means this person can do it, empty
+// means they cannot. That is the only question an admin has.
+//
+// It replaced a three-way control — Withdrawn / Default / Granted — which was
+// accurate about the model and useless at the sink. "Default" named a mechanism
+// rather than an outcome, and the outcome depended on a setting made on a
+// different card, so two people with identical rows could have opposite access
+// and the screen looked the same for both.
+//
+// Nothing is lost. The three stored states still exist; the screen just works
+// out which one to write. See stateForTick below — unticking something a person
+// would have anyway must record a REFUSAL, while unticking something they only
+// had because it was ticked just removes the tick. The admin never needs to
+// know the difference, and previously had to.
+const Tick = ({ checked, onChange, disabled, label, busy }) => (
+  <label
+    className={`flex items-center gap-3 py-2.5 rounded-lg px-2 -mx-2 ${
+      disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-50'
+    }`}
+  >
+    {busy
+      ? <Loader className="w-4 h-4 animate-spin text-gray-400 flex-shrink-0" />
+      : (
+        <input
+          type="checkbox"
+          checked={checked}
           disabled={disabled}
-          onClick={() => !active && onChange(choice.value)}
-          className={`px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-            active ? choice.tone : 'bg-white text-gray-500 hover:bg-blue-50'
-          }`}
-        >
-          {choice.label}
-        </button>
-      );
-    })}
-  </div>
+          onChange={(e) => onChange(e.target.checked)}
+          className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0
+                     disabled:cursor-not-allowed"
+        />
+      )}
+    <span className={`text-sm ${checked ? 'text-gray-800' : 'text-gray-500'}`}>{label}</span>
+  </label>
 );
 
 const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStatusChanged, busy }) => {
@@ -142,14 +135,9 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   // here. The two lists above are the inputs an admin sets; this is the result,
   // and it is what every row leads with.
   const effective = staff.effectivePermissions || [];
-  const typeWord = (staff.staffType || STAFF_TYPES.CLINICAL) === STAFF_TYPES.CLINICAL
-    ? 'clinical' : 'non-clinical';
-  const stateOf = (capability) => {
-    if (denied.includes(capability)) return DENIED;
-    if (granted.includes(capability)) return GRANTED;
-    return DEFAULT;
-  };
-
+  // What they would hold with nothing ticked either way. Only used to work out
+  // what a tick has to STORE — see change() — never shown.
+  const byDefault = staff.defaultPermissions || [];
   // Human names for whatever has been withdrawn, read off the same catalog the
   // rows render from — so a capability added on the server is never described
   // here by its raw string.
@@ -221,24 +209,45 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
    * it acts within — so the screen never shows a state the server would quietly
    * rewrite underneath it.
    */
-  const change = async (area, capability, next) => {
+  const change = async (area, capability, ticked) => {
     const isAccess = capability === area.access;
     const nextGranted = new Set(granted);
     const nextDenied  = new Set(denied);
 
-    nextGranted.delete(capability);
-    nextDenied.delete(capability);
-    if (next === GRANTED) nextGranted.add(capability);
-    if (next === DENIED)  nextDenied.add(capability);
+    /**
+     * Turn "can they do this, yes or no" into what has to be STORED.
+     *
+     * Three stored states, one checkbox. The rule is that a tick only needs
+     * recording when it disagrees with what this person would have anyway:
+     *
+     *   ticked   + would have it anyway -> store nothing (it is their normal)
+     *   ticked   + would NOT have it    -> store a grant
+     *   unticked + would have it anyway -> store a refusal
+     *   unticked + would NOT have it    -> store nothing
+     *
+     * Without the middle two the checkbox could not express a receptionist who
+     * also does triage, or a nurse held out of one thing — the two cases the
+     * whole tab exists for.
+     */
+    const set = (cap, on) => {
+      const normallyHas = byDefault.includes(cap);
+      nextGranted.delete(cap);
+      nextDenied.delete(cap);
+      if (on && !normallyHas) nextGranted.add(cap);
+      if (!on && normallyHas) nextDenied.add(cap);
+    };
 
+    set(capability, ticked);
+
+    // A write cannot outlive the access it acts within, mirroring the server's
+    // sanitizers — so the screen never shows a state the server would quietly
+    // rewrite underneath it.
     if (area.write && area.access) {
-      if (isAccess && next !== GRANTED) nextGranted.delete(area.write);
-      if (isAccess && next === DENIED)  nextDenied.add(area.write);
-      if (!isAccess && next === GRANTED) {
-        nextGranted.add(area.access);
-        nextDenied.delete(area.access);
-      }
+      if (isAccess && !ticked) set(area.write, false);       // no read, no write
+      if (!isAccess && ticked) set(area.access, true);        // writing implies reading
     }
+
+    const label = isAccess ? area.accessLabel : area.writeLabel;
 
     const save = async () => {
       setSaving(capability);
@@ -255,29 +264,28 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
       }
     };
 
-    // Confirm the two consequential directions: handing someone the admin
-    // portal, and taking something away from someone whose role would normally
-    // include it. Ordinary grants save straight away — a confirmation on every
-    // toggle trains people to dismiss it without reading.
-    const label = capability === area.access ? area.accessLabel : area.writeLabel;
-
-    if (next === DENIED) {
+    // Confirm only the two consequential directions: taking away something this
+    // person would normally have, and handing over something flagged as
+    // consequential. An ordinary tick saves straight away — a confirmation on
+    // every click trains people to dismiss it without reading.
+    if (!ticked && byDefault.includes(capability)) {
       setConfirmation({
-        title: `Withdraw ${area.name}?`,
-        message: `“${label}” will be refused for ${staff.name} even though their role would `
-          + 'otherwise allow it. Everything else they hold is unaffected.',
-        confirmLabel: 'Withdraw',
+        title: `Stop ${staff.firstName} doing this?`,
+        message: `“${label}” normally comes with their job. Unticking it refuses it for `
+          + `${staff.name} specifically. Everything else they hold is unaffected, and you `
+          + 'can tick it again at any time.',
+        confirmLabel: 'Stop it',
         confirmVariant: 'danger',
         onConfirm: save,
       });
       return;
     }
 
-    if (next === GRANTED && area.warning) {
+    if (ticked && area.warning) {
       setConfirmation({
-        title: `Grant ${area.name} to ${staff.name}?`,
+        title: `Allow ${staff.firstName} to do this?`,
         message: area.warning,
-        confirmLabel: 'Grant',
+        confirmLabel: 'Allow',
         onConfirm: save,
       });
       return;
@@ -355,41 +363,16 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   // "Default" and was none the wiser: the default depends on whether she is
   // clinical, which is set on a different card. Two people with identical
   // settings could have opposite access and the screen looked the same for both.
-  const renderRow = (area, capability, label) => {
-    const state = stateOf(capability);
-    const allowed = effective.includes(capability);
-
-    // Why it resolved that way, in the admin's words rather than the model's.
-    const because =
-      state === GRANTED ? 'turned on for this person'
-      : state === DENIED ? 'turned off for this person'
-      : allowed ? `comes with being ${typeWord} staff`
-      : `not part of being ${typeWord} staff`;
-
-    return (
-      <div key={capability} className="flex items-start justify-between gap-4 py-3">
-        <div className="min-w-0">
-          <p className="text-sm text-gray-700">{label}</p>
-          <p className="text-xs mt-0.5">
-            <span className={allowed ? 'font-semibold text-green-700' : 'font-semibold text-gray-400'}>
-              {allowed ? 'Yes' : 'No'}
-            </span>
-            <span className="text-gray-400"> — {because}</span>
-          </p>
-        </div>
-        {saving === capability
-          ? <Loader className="w-4 h-4 animate-spin text-gray-400 mr-8" />
-          : (
-            <TriState
-              value={state}
-              onChange={(next) => change(area, capability, next)}
-              disabled={locked}
-              label={`${area.name} — ${label}`}
-            />
-          )}
-      </div>
-    );
-  };
+  const renderRow = (area, capability, label) => (
+    <Tick
+      key={capability}
+      checked={effective.includes(capability)}
+      busy={saving === capability}
+      disabled={locked}
+      label={label}
+      onChange={(ticked) => change(area, capability, ticked)}
+    />
+  );
 
   return (
     <div className="space-y-4">
@@ -513,19 +496,10 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             apply the definitions themselves; this says what they will see and
             what to press, which is the same information in the order it is
             actually needed. */}
-        <div className="text-xs text-gray-500 mb-3 px-1 space-y-1">
-          <p>
-            Every line says whether {staff.firstName} can do that thing right now, and why.
-            Most lines will say <b>Normal</b> — that means nothing special has been set and
-            their job decides.
-          </p>
-          <p>
-            Press <b className="text-blue-700">Always</b> to let them do something their job
-            would not normally include — a receptionist who also does triage.
-            Press <b className="text-red-700">Never</b> to stop them doing something their job
-            normally would — a nurse who should not be signing reports.
-          </p>
-        </div>
+        <p className="text-xs text-gray-500 mb-3 px-1">
+          Ticked means {staff.firstName} can do it. Untick to stop them, tick to allow them —
+          a receptionist who also does triage, a nurse who should not sign reports.
+        </p>
 
         {staff.isTrueAdmin ? (
           <p className="text-sm text-gray-500 bg-white rounded-xl border border-gray-200 p-5">
@@ -553,9 +527,12 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             {groups.map((group) => {
               // A collapsed group still has to say whether anything is set
               // inside it, or an admin has to open all four to find out.
+              // A collapsed group counts what is ticked out of what is there,
+              // which is the same thing the checkboxes inside say. It used to
+              // report "granted" and "withdrawn" — storage words the admin
+              // never sees any more.
               const caps = group.areas.flatMap((a) => [a.access, a.write]).filter(Boolean);
-              const nGranted = caps.filter((c) => stateOf(c) === GRANTED).length;
-              const nDenied  = caps.filter((c) => stateOf(c) === DENIED).length;
+              const nOn = caps.filter((c) => effective.includes(c)).length;
 
               return (
                 <AccordionPanel
@@ -566,19 +543,11 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
                   onToggle={() => toggleGroup(group.key)}
                   badge={
                     <span className="flex items-center gap-1.5">
-                      {nGranted > 0 && (
-                        <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs font-semibold">
-                          {nGranted} granted
-                        </span>
-                      )}
-                      {nDenied > 0 && (
-                        <span className="px-2 py-0.5 rounded-md bg-red-100 text-red-700 text-xs font-semibold">
-                          {nDenied} withdrawn
-                        </span>
-                      )}
-                      {nGranted === 0 && nDenied === 0 && (
-                        <span className="text-xs text-gray-400">Role defaults</span>
-                      )}
+                      <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${
+                        nOn > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {nOn} of {caps.length}
+                      </span>
                     </span>
                   }
                 >
@@ -614,10 +583,9 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
                         "can do everything an admin can" next to a red
                         Withdrawn looks like the screen is lying, so name the
                         exceptions here rather than leaving it to be inferred. */}
-                    {area.broad && stateOf(area.access) === GRANTED && withdrawnLabels.length > 0 && (
+                    {area.broad && effective.includes(area.access) && withdrawnLabels.length > 0 && (
                       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-2">
-                        Except {withdrawnLabels.join(', ')} — withdrawn below, and a withdrawal
-                        always overrides this.
+                        Except {withdrawnLabels.join(', ')} — unticked below, and that wins.
                       </p>
                     )}
                   </div>
