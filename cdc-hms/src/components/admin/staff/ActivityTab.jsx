@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Loader } from 'lucide-react';
+import Pagination from '../../shared/Pagination';
 import staffService from '../../../services/staffService';
 import { formatDateTime } from './staffFormat';
 
@@ -29,29 +30,47 @@ const ActivityTab = ({ employeeId }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // One page number per list. They grow at very different rates — an account
+  // with 1,020 logins has five edits — so sharing a page number would mean
+  // paging through forty pages of logins to reach the second page of edits.
+  const [loginPage, setLoginPage] = useState(1);
+  const [editPage, setEditPage]   = useState(1);
+
+  // Back to the first page when the admin opens a different staff member,
+  // or page 3 of the last person's logins is requested for someone who has one.
+  useEffect(() => { setLoginPage(1); setEditPage(1); }, [employeeId]);
+
   useEffect(() => {
     let cancelled = false;
 
-    staffService.getActivity(employeeId)
+    staffService.getActivity(employeeId, { loginPage, editPage })
       .then((res) => { if (!cancelled) setData(res.data); })
       .catch(() => { if (!cancelled) toast.error('Failed to load activity'); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     // Guards against setting state after the admin has navigated away.
     return () => { cancelled = true; };
-  }, [employeeId]);
+  }, [employeeId, loginPage, editPage]);
 
-  if (loading) {
+  if (loading && !data) {
     return <div className="flex justify-center py-10"><Loader className="w-6 h-6 animate-spin text-gray-400" /></div>;
   }
 
   const logins = data?.logins || [];
   const edits  = data?.edits || [];
+  const loginPages = data?.loginPagination?.totalPages || 0;
+  const editPages  = data?.editPagination?.totalPages || 0;
+  const loginTotal = data?.loginPagination?.total ?? logins.length;
+  const editTotal  = data?.editPagination?.total ?? edits.length;
+
+  // The count belongs in the heading, not only in the pager: "Recent logins"
+  // over a list of 25 gives no hint that 995 more exist.
+  const heading = (label, total) => (total ? `${label} (${total})` : label);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-800 mb-3">Recent logins</h3>
+        <h3 className="text-sm font-semibold text-gray-800 mb-3">{heading('Logins', loginTotal)}</h3>
         {logins.length === 0 ? (
           <p className="text-sm text-gray-400 py-8 text-center">No logins recorded.</p>
         ) : (
@@ -64,10 +83,13 @@ const ActivityTab = ({ employeeId }) => {
             ))}
           </ul>
         )}
+        {/* Renders nothing at one page, so a quiet account looks exactly as
+            it did before. */}
+        <Pagination currentPage={loginPage} totalPages={loginPages} onPageChange={setLoginPage} />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-800 mb-3">Edit history</h3>
+        <h3 className="text-sm font-semibold text-gray-800 mb-3">{heading('Edit history', editTotal)}</h3>
         {edits.length === 0 ? (
           <p className="text-sm text-gray-400 py-8 text-center">No edits recorded.</p>
         ) : (
@@ -107,6 +129,7 @@ const ActivityTab = ({ employeeId }) => {
             ))}
           </ul>
         )}
+        <Pagination currentPage={editPage} totalPages={editPages} onPageChange={setEditPage} />
       </div>
     </div>
   );
