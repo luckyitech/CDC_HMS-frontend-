@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'rea
 import {
   Waves, Film, RefreshCw, Inbox, ChevronDown, ChevronRight, ChevronUp,
   ArrowDown, ArrowLeft, X, Undo2, FileDown, FileText, UserPlus, LayoutGrid, Trash2,
-  Calendar, Clock, Archive, Download, Upload,
+  Calendar, Clock, Archive, Download, Upload, Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from './Card';
@@ -210,7 +210,13 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
   const inboxStudies = useMemo(() => {
     const map = new Map();
     for (const img of inboxImages) {
-      const key = img.studyInstanceUid || `${img.dicomPatientId}|${img.studyDate || ''}`;
+      // One row per examination. A DICOM study is atomic, so its StudyInstanceUID
+      // groups all its frames. When the machine omits it, fall back to
+      // patient + study date — and if the date is missing too, to the day the
+      // images arrived — so a REPEAT scan (same patient, later date/day) always
+      // lands on its own row instead of collapsing into the earlier study.
+      const key = img.studyInstanceUid
+        || `${img.dicomPatientId}|${img.studyDate || (img.receivedAt || '').slice(0, 10)}`;
       if (!map.has(key)) {
         map.set(key, {
           key,
@@ -527,6 +533,9 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     try {
       await Promise.all(wsItems.map((it) => ultrasoundService.assign(it.id, selected.uhid)));
       setAttachedPatient(selected);
+      // Stamp the workspace copies as now-attached so the actions bar settles to
+      // "saved" and never asks to attach these images again this session.
+      setWsItems((prev) => prev.map((it) => ({ ...it, uhid: selected.uhid, patientName: selected.name || it.patientName })));
       toast.success(`${wsItems.length} image${wsItems.length > 1 ? 's' : ''} saved to ${selected.name || selected.uhid}'s image safe.`);
       setAttachOpen(false);
       await Promise.all([loadAttached(), loadInbox()]);
@@ -676,6 +685,15 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       URL.revokeObjectURL(url);
     } catch { toast.error('Could not download the report.'); }
   };
+
+  // Images already living in a patient's safe (matched at ingest, or attached
+  // earlier this session) carry a uhid. When EVERY workspace image already has
+  // one, there is nothing left to attach — the actions bar shows a settled
+  // "saved" state instead of asking the user to attach the same images again.
+  const unattachedWsItems = wsItems.filter((it) => !it.uhid);
+  const allAttached = wsItems.length > 0 && unattachedWsItems.length === 0;
+  const attachedName = attachedPatient?.name || attachedPatient?.uhid
+    || (allAttached && (wsItems[0]?.patientName || wsItems[0]?.uhid)) || 'the patient';
 
   // ================= render =================
   if (isLoading) {
@@ -1005,19 +1023,28 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
         {/* Actions */}
         <div className="mt-5 pt-4 border-t flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-gray-500">
-            {attachedPatient
-              ? <>Attached to <span className="font-semibold text-gray-700">{attachedPatient.name || attachedPatient.uhid}</span> · images saved to their safe</>
-              : 'Attach the images to a patient to save them into the record.'}
+            {allAttached
+              ? <>Already saved to <span className="font-semibold text-gray-700">{attachedName}</span>&rsquo;s image safe — no need to attach again.</>
+              : attachedPatient
+                ? <>Attached to <span className="font-semibold text-gray-700">{attachedPatient.name || attachedPatient.uhid}</span> · {unattachedWsItems.length} new image{unattachedWsItems.length !== 1 && 's'} to save</>
+                : 'Attach the images to a patient to save them into the record.'}
           </p>
           <div className="flex flex-wrap items-center gap-2.5">
-            <Button
-              onClick={() => { if (!guard()) return; setAttachOpen(true); }}
-              disabled={!!busy}
-              variant="outline"
-              className="!px-4 !py-2 text-sm"
-            >
-              {busy === 'attach' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Attach to patient
-            </Button>
+            {allAttached ? (
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 border border-green-200 bg-green-50 rounded-lg !px-4 !py-2">
+                <Check className="w-4 h-4" /> Saved to {attachedName}&rsquo;s safe
+              </span>
+            ) : (
+              <Button
+                onClick={() => { if (!guard()) return; setAttachOpen(true); }}
+                disabled={!!busy}
+                variant="outline"
+                className="!px-4 !py-2 text-sm"
+              >
+                {busy === 'attach' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                {attachedPatient ? ' Attach new images' : ' Attach to patient'}
+              </Button>
+            )}
             <Button onClick={openPdfPreview} disabled={!!busy} className="!px-4 !py-2 text-sm">
               {busy === 'pdf' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Preview PDF
             </Button>
