@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Search, Stethoscope, ClipboardList, Syringe, ChevronDown, Receipt, ClipboardPlus, FileText } from "lucide-react";
+import { Search, Stethoscope, ClipboardList, Syringe, ChevronDown, Receipt, ClipboardPlus, FileText, FlaskConical } from "lucide-react";
 import TriagePanel from "./TriagePanel";
 import NursingKardex from "./NursingKardex";
 import Glp1Kardex from "../shared/Glp1Kardex";
+import LabRequest from "../shared/LabRequest";
 import SendToDoctorModal from "./SendToDoctorModal";
 import BillingModal from "../shared/BillingModal";
 import RecordUseModal from "../stock/RecordUseModal";
@@ -43,6 +44,14 @@ const NURSING_ACTIONS = [
     // Open entry — a nurse can log an injection or a review here. Vitals prefill
     // the form when triage has run today, but are not required to add an entry.
     render: ({ patient }) => <Glp1Kardex patient={patient} />,
+  },
+  {
+    id: "labs",
+    name: "Lab requests",
+    Icon: FlaskConical,
+    // Nurse raises a lab request on behalf of a doctor (picked in the form).
+    // Same shared component the doctor uses in the consultation.
+    render: ({ patient }) => <LabRequest patient={patient} />,
   },
   {
     id: "kardex",

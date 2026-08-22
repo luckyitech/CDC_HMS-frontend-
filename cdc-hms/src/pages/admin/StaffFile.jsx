@@ -326,7 +326,7 @@ const StaffFile = () => {
           />
         )}
 
-        {currentTab === 'activity' && <ActivityTab employeeId={employeeId} />}
+        {currentTab === 'activity' && <ActivityTab employeeId={employeeId} staffName={staff.name} />}
       </div>
 
       <ConfirmActionModal

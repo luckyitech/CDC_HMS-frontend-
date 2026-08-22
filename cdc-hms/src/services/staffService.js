@@ -48,9 +48,9 @@ export const staffService = {
   /** Licences expired or expiring within 60 days. */
   getExpiringLicences: () => api.get('/staff/expiring-licences'),
 
-  /** Login and edit history for the Activity tab. */
-  getActivity: (employeeId, limit = 25) =>
-    api.get(`/staff/${employeeId}/activity`, { params: { limit } }),
+  /** Unified activity timeline for the Activity tab (logins + edits + clinical). */
+  getActivity: (employeeId, params = {}) =>
+    api.get(`/staff/${employeeId}/activity`, { params: { limit: 200, ...params } }),
 
   // ============================================
   // ACCESS

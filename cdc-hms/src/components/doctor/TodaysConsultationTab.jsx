@@ -14,6 +14,7 @@ import {
   Menu as MenuIcon,
   Package,
   BedDouble,
+  FlaskConical,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
@@ -33,7 +34,9 @@ import inpatientService from "../../services/inpatientService";
 import ConsultationNotesPlan from "./ConsultationNotesPlan";
 import PrescriptionManagement from "./PrescriptionManagement";
 import AccordionPanel from "../shared/AccordionPanel";
+import SwitcherTabs from "../shared/SwitcherTabs";
 import Glp1Kardex from "../shared/Glp1Kardex";
+import LabRequest from "../shared/LabRequest";
 import ConsultationSummaryContainer from "./ConsultationSummaryContainer";
 import { isToday } from "../../utils/dateUtils";
 
@@ -46,7 +49,10 @@ const ACCORDION_SECTIONS = [
   // inside it. Keeps the id 'diagnosis' so completion gating, drafts and jumps
   // are unchanged.
   { id: 'diagnosis',     label: 'Notes',          icon: MessageSquare, required: true  },
-  { id: 'prescriptions', label: 'Prescriptions',  icon: Pill,          required: false },
+  // 'prescriptions' is the Orders panel — a Prescriptions / Laboratory switcher.
+  // Keeps the id so completion gating, the summary panel's "open meds" jump and
+  // drafts are unchanged.
+  { id: 'prescriptions', label: 'Orders',         icon: Pill,          required: false },
 ];
 
 // NOTE: 'tools' is deliberately NOT in ACCORDION_SECTIONS — it renders as its
@@ -154,6 +160,8 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
 
   // Which tool inside the Tools card is open. GLP-1 is the only one so far.
   const [openTool, setOpenTool] = useState(null);
+  // Orders panel switcher — Prescriptions | Laboratory.
+  const [ordersTab, setOrdersTab] = useState('prescriptions');
   // How many GLP-1 week notes were written for this patient today — drives the
   // count on the collapsed tool header
   const [notesToday, setNotesToday] = useState(0);
@@ -668,7 +676,9 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
             </div>
           </AccordionPanel>
 
-          {/* Prescriptions — full width at the bottom */}
+          {/* Orders — full width at the bottom. A Prescriptions / Laboratory
+              switcher in one panel (keeps the 'prescriptions' section id so
+              completion gating and the summary panel's jump are unchanged). */}
           {(() => {
             const section = ACCORDION_SECTIONS.find(s => s.id === 'prescriptions');
             const isCompleted = !!tabsCompleted['prescriptions'];
@@ -676,7 +686,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
               <AccordionPanel
                 icon={section.icon}
                 label={section.label}
-                badge={isCompleted && (
+                badge={isCompleted && ordersTab === 'prescriptions' && (
                   <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
                     <Check className="w-3.5 h-3.5" /> Done
                   </span>
@@ -684,14 +694,28 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
                 isOpen={openSections === 'prescriptions'}
                 onToggle={() => toggleSection('prescriptions')}
               >
-                <PrescriptionManagement
-                  patient={patient}
-                  patientPrescriptions={patientPrescriptions}
-                  addPrescription={addPrescription}
-                  currentUser={currentUser}
-                  onSuccess={handlePrescriptionSuccess}
-                  hideCurrentStrip
-                />
+                <div className="mb-4">
+                  <SwitcherTabs
+                    active={ordersTab}
+                    onChange={setOrdersTab}
+                    tabs={[
+                      { id: 'prescriptions', label: 'Prescriptions', Icon: Pill },
+                      { id: 'labs',          label: 'Laboratory',    Icon: FlaskConical },
+                    ]}
+                  />
+                </div>
+                {ordersTab === 'prescriptions' ? (
+                  <PrescriptionManagement
+                    patient={patient}
+                    patientPrescriptions={patientPrescriptions}
+                    addPrescription={addPrescription}
+                    currentUser={currentUser}
+                    onSuccess={handlePrescriptionSuccess}
+                    hideCurrentStrip
+                  />
+                ) : (
+                  <LabRequest patient={patient} />
+                )}
               </AccordionPanel>
             );
           })()}
