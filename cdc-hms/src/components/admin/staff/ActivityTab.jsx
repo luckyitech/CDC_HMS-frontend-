@@ -12,6 +12,19 @@ import { formatDateTime } from './staffFormat';
  * this list is expected to be empty for those two until that is fixed. The edit
  * history is complete for everyone.
  */
+// The server sends a list of described changes, not a raw diff. Object.keys()
+// used to be called on it — and on MariaDB the column comes back as a STRING, so
+// that rendered "0, 1, 2, 3, 4, …" for every entry: character indices of the
+// JSON text. It looked like data and was noise.
+const FIELD_LABELS = {
+  permissions: 'Permissions',
+  deniedPermissions: 'Refusals',
+  staffType: 'Kind of staff',
+  role: 'Role',
+  isActive: 'Login',
+  employmentStatus: 'Employment status',
+};
+
 const ActivityTab = ({ employeeId }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -65,9 +78,31 @@ const ActivityTab = ({ employeeId }) => {
                   <span className="text-gray-800">{e.editedByName}</span>
                   <span className="text-gray-400 text-xs">{formatDateTime(e.editedAt)}</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {Object.keys(e.changes || {}).join(', ') || 'No fields recorded'}
-                </p>
+                <div className="text-xs text-gray-500 mt-0.5 space-y-0.5">
+                  {(e.changes || []).length === 0 && <p>No fields recorded</p>}
+                  {(e.changes || []).map((c, i) => (
+                    <p key={i}>
+                      <span className="text-gray-400">{FIELD_LABELS[c.field] || c.field}</span>
+                      {' — '}
+                      {c.added || c.removed ? (
+                        <>
+                          {c.added?.length > 0 && (
+                            <span className="text-green-700">gained {c.added.join(', ')}</span>
+                          )}
+                          {c.added?.length > 0 && c.removed?.length > 0 && '; '}
+                          {c.removed?.length > 0 && (
+                            <span className="text-red-700">lost {c.removed.join(', ')}</span>
+                          )}
+                          {!c.added?.length && !c.removed?.length && 'no change'}
+                        </>
+                      ) : (
+                        <span className="text-gray-700">
+                          {String(c.from ?? '—')} → {String(c.to ?? '—')}
+                        </span>
+                      )}
+                    </p>
+                  ))}
+                </div>
               </li>
             ))}
           </ul>
