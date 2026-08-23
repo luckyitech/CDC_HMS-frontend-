@@ -157,11 +157,6 @@ const CreateDoctor = ({ embedded = false }) => {
       {!embedded && (
         <PageHeader
           title="Create Doctor Account"
-          actions={
-            <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-              ← Back to Dashboard
-            </Button>
-          }
         />
       )}
 

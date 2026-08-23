@@ -1,4 +1,4 @@
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HeartPulse, Users, TestTube, UserPlus, BedDouble } from 'lucide-react';
 import Card from '../../components/shared/Card';
@@ -33,7 +33,6 @@ const FormError = ({ resetErrorBoundary }) => (
 );
 
 const CreateUsers = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Role comes from ?role= so tabs are deep-linkable (old routes redirect
@@ -47,11 +46,6 @@ const CreateUsers = () => {
     <div>
       <PageHeader
         title="Create Users"
-        actions={
-          <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-            ← Back to Dashboard
-          </Button>
-        }
       />
 
       <SwitcherTabs

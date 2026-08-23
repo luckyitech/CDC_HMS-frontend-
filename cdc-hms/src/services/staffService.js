@@ -48,16 +48,9 @@ export const staffService = {
   /** Licences expired or expiring within 60 days. */
   getExpiringLicences: () => api.get('/staff/expiring-licences'),
 
-  /**
-   * Login and edit history for the Activity tab.
-   *
-   * The two lists page independently. They grow at very different rates — one
-   * production account has 1,020 logins and five edits — so a shared page
-   * number would mean paging through forty pages of logins to reach the second
-   * page of edits.
-   */
-  getActivity: (employeeId, { loginPage = 1, editPage = 1, limit = 25 } = {}) =>
-    api.get(`/staff/${employeeId}/activity`, { params: { loginPage, editPage, limit } }),
+  /** Unified activity timeline for the Activity tab (logins + edits + clinical). */
+  getActivity: (employeeId, params = {}) =>
+    api.get(`/staff/${employeeId}/activity`, { params: { limit: 200, ...params } }),
 
   // ============================================
   // ACCESS

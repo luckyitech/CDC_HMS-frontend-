@@ -4,11 +4,9 @@ import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
 import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
-import { useNavigate } from "react-router-dom";
 import { useLabContext } from "../../contexts/LabContext";
 
 const CriticalAlerts = () => {
-  const navigate = useNavigate();
   const [filter, setFilter] = useState("all"); // all, unnotified, notified
 
   // Mock critical results data
@@ -58,11 +56,6 @@ const CriticalAlerts = () => {
     <div>
       <PageHeader
         title="Critical Results Alerts"
-        actions={
-          <Button variant="outline" onClick={() => navigate("/lab/dashboard")}>
-            ← Back to Dashboard
-          </Button>
-        }
       />
 
       {/* Alert Banner */}

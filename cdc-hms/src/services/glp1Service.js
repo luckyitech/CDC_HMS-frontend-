@@ -76,6 +76,14 @@ export const glp1Service = {
    */
   startTherapy: (data) => api.post('/glp1-therapies', data),
 
+  /**
+   * Find-or-create a bare course for an agent — the Kardex entry point. No safety
+   * screen and no dose ladder; an entry is recorded against the course this
+   * returns. Open to doctors and nurses.
+   * @param {Object} data - { uhid, medicationName, medicationBrand?, indication?, startDate? }
+   */
+  ensureCourse: (data) => api.post('/glp1-therapies/ensure', data),
+
   updateTherapy: (id, data) => api.put(`/glp1-therapies/${id}`, data),
 
   /**

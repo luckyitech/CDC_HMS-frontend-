@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Printer } from 'lucide-react';
 import Card from '../../components/shared/Card';
+import PrintRoot from '../../components/shared/PrintRoot';
+import usePrint from '../../hooks/usePrint';
 import activityService from '../../services/activityService';
 
 const PAGE_SIZE = 100;
@@ -22,6 +24,7 @@ const ACTION_TYPES = [
   { value: 'equipment_replaced',   label: 'Replaced Equipment' },
   { value: 'prescription_created', label: 'Wrote Prescription' },
   { value: 'lab_test_ordered',     label: 'Ordered Lab Test' },
+  { value: 'lab_test_cancelled',   label: 'Cancelled Lab Test' },
   { value: 'treatment_plan_created',label: 'Created Treatment Plan' },
   { value: 'consultation_note',         label: 'Wrote Consultation Note' },
   { value: 'consultation_note_edited',  label: 'Edited Consultation Note' },
@@ -52,6 +55,7 @@ const ACTION_STYLE = {
   equipment_replaced:    { color: 'bg-slate-100 text-slate-700',   icon: RefreshCcw },
   prescription_created:  { color: 'bg-pink-100 text-pink-700',     icon: Pill },
   lab_test_ordered:      { color: 'bg-cyan-100 text-cyan-700',     icon: FlaskConical },
+  lab_test_cancelled:    { color: 'bg-red-100 text-red-700',       icon: FlaskConical },
   treatment_plan_created:{ color: 'bg-emerald-100 text-emerald-700',icon: BookOpen },
   consultation_note:         { color: 'bg-violet-100 text-violet-700', icon: Stethoscope },
   consultation_note_edited:  { color: 'bg-orange-100 text-orange-700', icon: Pencil },
@@ -82,6 +86,7 @@ const SUMMARY_FIELDS = [
   { key: 'equipmentReplaced',    label: 'Equip. Replaced',       color: 'text-slate-600' },
   { key: 'prescriptionCreated',  label: 'Prescriptions',         color: 'text-pink-600' },
   { key: 'labTestOrdered',       label: 'Lab Tests Ordered',     color: 'text-cyan-600' },
+  { key: 'labTestCancelled',     label: 'Lab Tests Cancelled',   color: 'text-red-600' },
   { key: 'treatmentPlanCreated', label: 'Treatment Plans',       color: 'text-emerald-600' },
   { key: 'consultationNote',       label: 'Consultation Notes',    color: 'text-violet-600' },
   { key: 'consultationNoteEdited', label: 'Notes Edited',          color: 'text-orange-600' },
@@ -122,6 +127,7 @@ const ActivityLog = () => {
   const [staffSearch, setStaffSearch] = useState('');
   const [role, setRole]               = useState('all');
   const [actionType, setActionType]   = useState('all');
+  const { printRef, handlePrint }     = usePrint();
 
   // Derived: filter events by the performer's actual role (set by backend)
   const visibleEvents = events.filter(e => role === 'all' || e.role === role);
@@ -257,7 +263,16 @@ const ActivityLog = () => {
       <Card className="overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-bold text-gray-700">Activity Events</h2>
-          <span className="text-xs text-gray-400">{visibleEvents.length} record{visibleEvents.length !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400">{visibleEvents.length} record{visibleEvents.length !== 1 ? 's' : ''}</span>
+            <button
+              onClick={handlePrint}
+              disabled={loading || visibleEvents.length === 0}
+              className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -286,10 +301,17 @@ const ActivityLog = () => {
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDateTime(e.timestamp)}</td>
                       <td className="px-4 py-3 font-semibold text-gray-800">{e.staff}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${style.color}`}>
+                        {/* Clickable tag → filter to this activity type (keeps the
+                            current date range). Click the active one again to clear. */}
+                        <button
+                          type="button"
+                          onClick={() => setActionType((prev) => (prev === e.type ? 'all' : e.type))}
+                          title={actionType === e.type ? 'Clear filter' : `Show only ${e.label}`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 ${style.color} ${actionType === e.type ? 'ring-2 ring-offset-1 ring-gray-400' : ''}`}
+                        >
                           <Icon className="w-3 h-3" />
                           {e.label}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-gray-700">{e.patient}</td>
                       <td className="px-4 py-3 text-gray-500 font-mono text-xs">{e.uhid}</td>
@@ -322,6 +344,41 @@ const ActivityLog = () => {
           </div>
         )}
       </Card>
+
+      {/* Print target — every filtered event (not just the current page) on the
+          clinic letterhead. */}
+      <PrintRoot printRef={printRef}>
+        <div className="border-b border-gray-300 pb-3 mb-4">
+          <p className="text-sm text-gray-700"><b>Activity log</b></p>
+          <p className="text-xs text-gray-500">
+            {[
+              (startDate || endDate) ? `${startDate || '…'} to ${endDate || '…'}` : 'All dates',
+              staffSearch.trim() ? `Staff: ${staffSearch.trim()}` : null,
+              role !== 'all' ? `Role: ${role}` : null,
+              actionType !== 'all' ? `Action: ${ACTION_TYPES.find(t => t.value === actionType)?.label || actionType}` : null,
+            ].filter(Boolean).join(' · ')} · {visibleEvents.length} record{visibleEvents.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left border-b border-gray-300">
+              <th className="py-1 pr-3">Time</th><th className="py-1 pr-3">Staff</th><th className="py-1 pr-3">Activity</th><th className="py-1 pr-3">Patient</th><th className="py-1 pr-3">UHID</th><th className="py-1">Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleEvents.map((e, i) => (
+              <tr key={i} className="border-b border-gray-100 align-top">
+                <td className="py-1 pr-3 whitespace-nowrap text-gray-500">{formatDateTime(e.timestamp)}</td>
+                <td className="py-1 pr-3">{e.staff}</td>
+                <td className="py-1 pr-3 font-semibold">{e.label}</td>
+                <td className="py-1 pr-3">{e.patient || ''}</td>
+                <td className="py-1 pr-3 text-gray-500">{e.uhid || ''}</td>
+                <td className="py-1 text-gray-600">{e.detail || ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </PrintRoot>
     </div>
   );
 };

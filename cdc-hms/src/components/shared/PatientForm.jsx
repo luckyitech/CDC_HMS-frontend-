@@ -200,11 +200,6 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
         <PageHeader
           title="Create Patient Account"
           subtitle="Register new patient in the system"
-          actions={
-            <Button variant="outline" onClick={() => navigate(backPath)}>
-              ← Back to Dashboard
-            </Button>
-          }
         />
       )}
 

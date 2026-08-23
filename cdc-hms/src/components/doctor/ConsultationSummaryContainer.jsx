@@ -259,7 +259,7 @@ const ConsultationSummaryContainer = ({ patient, medications = [], onOpenMeds = 
       {visitDay && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0 sm:items-stretch sm:justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={() => setVisitDay(null)} />
-          <div className="relative w-full max-w-2xl bg-white rounded-[20px] shadow-2xl flex flex-col overflow-hidden max-h-[85vh] sm:max-h-none sm:my-4 sm:mr-4">
+          <div className="relative w-full max-w-2xl sm:max-w-[75vw] bg-white rounded-[20px] shadow-2xl flex flex-col overflow-hidden max-h-[85vh] sm:max-h-none sm:my-4 sm:mr-4">
             <div className="flex items-center gap-2 px-5 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 text-white">
               <Calendar className="w-5 h-5" />
               <h3 className="font-bold">{fmtDay(visitDay.date)}</h3>
@@ -285,7 +285,7 @@ const ConsultationSummaryContainer = ({ patient, medications = [], onOpenMeds = 
       {pdfDoc && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0 sm:items-stretch sm:justify-end">
           <div className="absolute inset-0 bg-black/40" onClick={closePdf} />
-          <div className="relative w-full max-w-3xl bg-white rounded-[20px] shadow-2xl flex flex-col overflow-hidden h-[85vh] sm:h-auto sm:my-4 sm:mr-4">
+          <div className="relative w-full max-w-3xl sm:max-w-[75vw] bg-white rounded-[20px] shadow-2xl flex flex-col overflow-hidden h-[85vh] sm:h-auto sm:my-4 sm:mr-4">
             <div className="flex items-center gap-2 px-5 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700 text-white">
               <FileText className="w-5 h-5" />
               <h3 className="font-bold truncate">{pdfDoc.name}</h3>

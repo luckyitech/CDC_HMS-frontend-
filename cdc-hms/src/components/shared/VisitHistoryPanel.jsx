@@ -2,18 +2,20 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
-  BedDouble, Share2, FileText, Clock,
+  BedDouble, Share2, FileText, Clock, FlaskConical,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
 import PrintRoot from './PrintRoot';
 import PrescriptionPrint from '../doctor/PrescriptionPrint';
+import LabRequestPrint from './LabRequestPrint';
 import SwitcherTabs from './SwitcherTabs';
 import patientService from '../../services/patientService';
 import inpatientService from '../../services/inpatientService';
 import glp1Service from '../../services/glp1Service';
 import queueService from '../../services/queueService';
 import nursingNoteService from '../../services/nursingNoteService';
+import labService from '../../services/labService';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
 import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
@@ -57,6 +59,10 @@ const DATE_FIELD_MAP = {
   referrals:       'savedAt',
   // Nursing notes — the DAR-format Kardex. Each entry is dated by its own day.
   nursingNotes:    'date',
+  // Lab requests — one grouped record per requisition (see groupLabRequests).
+  // Doctor-raised ones surface in the Actions tab; nurse-raised ones on the
+  // Nursing Kardex timeline. Dated by the order day.
+  labRequests:     'orderedDate',
   // Workflow milestones from the queue (check-in, triage done, seen by doctor,
   // completed). Timeline-only — the clinical tabs and the "N records" count
   // ignore them; they're visit events, not saved clinical records.
@@ -65,6 +71,40 @@ const DATE_FIELD_MAP = {
 
 const fmtDay = (d) =>
   d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+// Collapse the patient's flat lab-test rows into one record per requisition, so
+// a multi-test request reads as a single "Lab request" on the chart. authorRole
+// (from the row that raised it) routes it: doctor-raised → Actions tab,
+// nurse-raised → Nursing Kardex.
+const groupLabRequests = (rows) => {
+  const map = new Map();
+  (rows || []).forEach((r) => {
+    const key = r.requisitionNumber || `single-${r.id}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(r);
+  });
+  return [...map.entries()].map(([reqNo, list]) => {
+    const first = list[0] || {};
+    return {
+      id: reqNo,
+      requisitionNumber: first.requisitionNumber || null,
+      orderedDate: first.orderedDate,
+      orderedTime: first.orderedTime,
+      createdAt: first.createdAt,
+      time: first.orderedTime,
+      priority: first.priority,
+      notes: first.notes,
+      orderedBy: first.orderedBy,
+      orderedByRole: first.orderedByRole,
+      authorRole: first.orderedByRole,
+      onBehalfOfDoctor: first.onBehalfOfDoctor,
+      supersedesRequisition: first.supersedesRequisition,
+      tests: list.map((t) => ({
+        testType: t.testType, sampleType: t.sampleType, status: t.status, packageName: t.packageName,
+      })),
+    };
+  });
+};
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -341,7 +381,13 @@ const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) =>
             )}
             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
               {[
-                ['Weight', rev.weight && `${rev.weight} kg`], ['BMI', rev.bmi],
+                ['Weight', rev.weight != null && (
+                  <>{rev.weight} kg{rev.weightChange != null && (
+                    <span className={rev.weightChange <= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {' '}({rev.weightChange <= 0 ? '▼' : '▲'} {Math.abs(rev.weightChange).toFixed(1)} kg)
+                    </span>
+                  )}</>
+                )], ['BMI', rev.bmi],
                 ['BP', rev.bp], ['HbA1c', rev.hba1c && `${rev.hba1c}%`],
                 ['FBS', rev.fpg], ['Adherence', rev.adherence],
               ].filter(([, val]) => val).map(([label, val]) => (
@@ -384,6 +430,30 @@ const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) =>
               {n.action && <p><b className="font-semibold text-gray-800">A:</b> {n.action}</p>}
               {n.response && <p><b className="font-semibold text-gray-800">R:</b> {n.response}</p>}
             </div>
+          </DocBox>
+        ))}
+      </div>
+    )}
+
+    {/* Laboratory requests — one block per requisition */}
+    {records.labRequests?.length > 0 && (
+      <div>
+        <SectionHeader icon={<FlaskConical className="w-3.5 h-3.5" />} label="Laboratory Request" />
+        {records.labRequests.map((req) => (
+          <DocBox key={req.id}>
+            <p className="text-xs text-gray-500 mb-1">
+              {req.requisitionNumber || 'Request'} · {req.priority}
+              {req.orderedBy ? ` · ${req.orderedBy}${req.orderedByRole && req.orderedByRole !== 'doctor' ? ' (Nurse)' : ''}` : ''}
+              {req.onBehalfOfDoctor ? ` · on behalf of ${req.onBehalfOfDoctor}` : ''}
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+              {req.tests.map((t, i) => (
+                <span key={i} className={t.status === 'Cancelled' ? 'line-through text-gray-400' : ''}>
+                  {t.testType}{t.packageName ? ` · ${t.packageName}` : ''}{t.status && t.status !== 'Pending' ? ` (${t.status})` : ''}
+                </span>
+              ))}
+            </div>
+            {req.notes && <p className="mt-1"><span className="text-gray-500">Instructions:</span> {req.notes}</p>}
           </DocBox>
         ))}
       </div>
@@ -536,8 +606,17 @@ const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
   </button>
 );
 
-const ActionsList = ({ records, onView }) => (
+const ActionsList = ({ records, onView, onViewLab = () => {} }) => (
   <div className="space-y-2.5">
+    {/* Doctor-raised lab requests are actions (nurse-raised ones live on the
+        Nursing Kardex tab instead). */}
+    {(records.labRequests || []).filter((r) => r.authorRole === 'doctor').map((req) => (
+      <ActionRow key={`lab-${req.id}`}
+        icon={<FlaskConical className="w-4 h-4" />} iconCls="bg-cyan-50 text-cyan-600"
+        title={`Lab request${req.requisitionNumber ? ` · ${req.requisitionNumber}` : ''}`}
+        sub={`${req.tests.length} test${req.tests.length !== 1 ? 's' : ''} · ${req.priority}${req.orderedBy ? ` · ${req.orderedBy}` : ''} · view / reprint`}
+        onClick={() => onViewLab(req)} />
+    ))}
     {records.admissions.map((a) => (
       <ActionRow key={`adm-${a.id}`}
         icon={<BedDouble className="w-4 h-4" />} iconCls="bg-indigo-50 text-indigo-600"
@@ -622,6 +701,7 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
 const NURSING_BLANK = {
   vitals: [], plans: [], assessments: [], exams: [], notes: [], prescriptions: [],
   glp1Injections: [], glp1Reviews: [], glp1WeekNotes: [], nursingNotes: [], admissions: [], referrals: [],
+  labRequests: [],
 };
 
 const nursingTasks = (records) => {
@@ -657,6 +737,15 @@ const nursingTasks = (records) => {
     Icon: FileText,
     title: 'Nursing note',
     records: { ...NURSING_BLANK, nursingNotes: [note] },
+  }));
+  // Nurse-raised lab requests are a point on the Kardex timeline (doctor-raised
+  // ones live in the Actions tab instead).
+  (records.labRequests || []).filter((r) => r.authorRole !== 'doctor').forEach((req, i) => tasks.push({
+    key: `lab-${req.id ?? i}`,
+    ts: req.createdAt || req.orderedDate,
+    Icon: FlaskConical,
+    title: 'Lab request',
+    records: { ...NURSING_BLANK, labRequests: [req] },
   }));
   // Newest action first — the most recent thing the nurse did sits at the top.
   return tasks.sort((a, b) => new Date(b.ts || 0) - new Date(a.ts || 0));
@@ -734,6 +823,7 @@ const VISIT_TIMELINE_KINDS = [
   { kind: 'glp1Injection', type: 'glp1Injections', ts: 'administeredDate', Icon: Syringe,       title: 'GLP-1 injection',   by: (r) => r.clinicianName || r.doctorName },
   { kind: 'glp1Review',    type: 'glp1Reviews',    ts: 'date',             Icon: ClipboardList, title: 'GLP-1 review',      by: (r) => r.clinicianName || r.doctorName },
   { kind: 'glp1WeekNote',  type: 'glp1WeekNotes',  ts: 'createdAt',        Icon: MessageSquare, title: 'GLP-1 note',        by: (r) => r.authorName },
+  { kind: 'labRequest',    type: 'labRequests',    ts: 'orderedDate',      Icon: FlaskConical,  title: 'Lab request',       by: (r) => r.orderedBy },
 ];
 
 const visitTimelineTasks = (records) => {
@@ -872,7 +962,7 @@ const TimelinePrintList = ({ records }) => {
 // The whole-visit timeline: every action as a dot on one connected line. Clicking
 // a clinical/nursing entry opens its detail; dispositions (prescription, admission,
 // referral) reuse the shared action viewers so nothing is rendered twice.
-const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact }) => {
+const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact, onViewLab = () => {} }) => {
   const { printRef, handlePrint } = usePrint();
   const items = visitTimelineTasks(records);
   if (items.length === 0) return <p className="text-sm text-gray-500">No recorded actions on this day.</p>;
@@ -910,6 +1000,8 @@ const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact }) => {
                 onClick={() => {
                   if (t.kind === 'prescription' || t.kind === 'admission' || t.kind === 'referral') {
                     onViewArtifact({ type: t.kind, data: t.raw });
+                  } else if (t.kind === 'labRequest') {
+                    onViewLab(t.raw);
                   } else {
                     onViewRecord(t);
                   }
@@ -999,6 +1091,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   const [dayTab, setDayTab]                      = useState(defaultDayTab); // 'notes' | 'actions' | 'nursing'
   const [viewArtifact, setViewArtifact]         = useState(null);       // { type, data }
   const [viewRecord, setViewRecord]             = useState(null);       // one visit-timeline entry → detail
+  const [viewLabReq, setViewLabReq]             = useState(null);       // a grouped lab request → print preview
   // Master print: which sections to include for the filtered visits
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [printInclude, setPrintInclude]         = useState({ notes: true, kardex: false, timeline: false });
@@ -1018,7 +1111,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes, labRes] = await Promise.all([
           // Not requested unless they can be read — see canReadDoctorRecord.
           canReadDoctorRecord ? getAssessmentsByPatient(uhid) : [],
           canReadDoctorRecord ? getExaminationsByPatient(uhid) : [],
@@ -1034,15 +1127,29 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           glp1Service.getWeekNotes({ uhid }).catch(() => ({ data: { notes: [] } })),
           nursingNoteService.getByPatient(uhid).catch(() => ({ data: { nursingNotes: [] } })),
           queueService.patientHistory(uhid).catch(() => ({ data: { visits: [] } })),
+          labService.getByPatient(uhid).catch(() => ({ success: false, data: { labTests: [] } })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
           const glp1Injections = adminsRes?.data?.administrations  || [];
           const glp1Reviews    = reviewsRes?.data?.reviews         || [];
+          // Per-visit weight change: the delta from the previous review that
+          // carried a weight, computed across the whole ordered series so each
+          // record can show how the patient moved since they were last weighed.
+          {
+            let prevWeight = null;
+            [...glp1Reviews]
+              .sort((a, b) => (a.reviewDate || '').localeCompare(b.reviewDate || '') || (a.id - b.id))
+              .forEach(r => {
+                if (r.weight != null && prevWeight != null) r.weightChange = Number(r.weight) - prevWeight;
+                if (r.weight != null) prevWeight = Number(r.weight);
+              });
+          }
           const admissions     = advisedRes?.data?.admissions      || [];
           const referrals      = referralsRes?.data?.referrals     || [];
           const glp1WeekNotes  = weekNotesRes?.data?.notes          || [];
           const nursingNotes   = nursingRes?.data?.nursingNotes     || [];
+          const labRequests    = groupLabRequests(labRes?.data?.labTests || labRes?.data || []);
           const workflow       = workflowFromVisits(queueRes?.data?.visits);
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
@@ -1057,7 +1164,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             referrals:       Array.isArray(referrals)       ? referrals       : [],
             glp1WeekNotes:   Array.isArray(glp1WeekNotes)   ? glp1WeekNotes   : [],
             nursingNotes:    Array.isArray(nursingNotes)    ? nursingNotes    : [],
+            labRequests:     Array.isArray(labRequests)     ? labRequests     : [],
             workflow:        Array.isArray(workflow)        ? workflow        : [],
+            // Raw queue visit rows (with status + dischargedAt) — used to tell an
+            // ongoing, un-checked-out episode from closed dated visits. Not a
+            // clinical record type, so it stays out of DATE_FIELD_MAP.
+            visits:          Array.isArray(queueRes?.data?.visits) ? queueRes.data.visits : [],
           });
         }
       } finally {
@@ -1075,6 +1187,27 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   // Reset to page 1 when filters change
   useEffect(() => { setHistoryPage(1); }, [historyFromDate, historyToDate]);
 
+  // Single-date mode: which day is shown. Starts at the singleDate prop; the date
+  // rail (rendered only in single-date mode) can switch it in place so a doctor
+  // can move between visits without leaving. Re-syncs if the prop changes.
+  const [activeDate, setActiveDate] = useState(singleDate);
+  useEffect(() => { setActiveDate(singleDate); }, [singleDate]);
+
+  // Every visit day for this patient (ignores the single-date lock and the range
+  // filter) — powers the date rail in single-date mode.
+  const allDates = useMemo(() => {
+    if (!historyData) return [];
+    const today = new Date().toISOString().slice(0, 10);
+    const set = new Set();
+    Object.entries(DATE_FIELD_MAP).forEach(([key, field]) => {
+      (historyData[key] || []).forEach(r => {
+        const day = (r[field] || r.createdAt || '').slice(0, 10);
+        if (day && !(excludeToday && day === today)) set.add(day);
+      });
+    });
+    return [...set].sort((a, b) => b.localeCompare(a));
+  }, [historyData, excludeToday]);
+
   // Collect unique visit dates — driven by DATE_FIELD_MAP so adding a new type
   // only requires one config entry, not a change here
   const visitDates = useMemo(() => {
@@ -1089,9 +1222,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     });
     return [...dateSet]
       .sort((a, b) => b.localeCompare(a))
-      .filter(d => (!singleDate || d === singleDate))
+      .filter(d => (!singleDate || d === activeDate))
       .filter(d => (!historyFromDate || d >= historyFromDate) && (!historyToDate || d <= historyToDate));
-  }, [historyData, historyFromDate, historyToDate, excludeToday, singleDate]);
+  }, [historyData, historyFromDate, historyToDate, excludeToday, singleDate, activeDate]);
 
   // Get all records belonging to a specific date — also config-driven
   const getRecordsForDate = useCallback((date) =>
@@ -1104,6 +1237,45 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       ])
     ),
   [historyData]);
+
+  // The current OPEN episode. A queue visit still in progress has a status other
+  // than Completed/Removed — and the queue allows only one at a time. Legacy
+  // visits predate the discharge stamp but were Completed, so they are correctly
+  // NOT treated as open. Its check-in day anchors the ongoing group.
+  const openStartDay = useMemo(() => {
+    const open = (historyData?.visits || []).find(
+      v => v.status && !['Completed', 'Removed'].includes(v.status)
+    );
+    return open?.checkedInAt ? String(open.checkedInAt).slice(0, 10) : null;
+  }, [historyData]);
+
+  // Display groups. When the patient has not been checked out, every record date
+  // on/after that visit's check-in collapses into ONE ongoing card instead of a
+  // card per day — a patient sitting in the queue for days is one ongoing visit,
+  // not several. Closed/legacy dated visits are left exactly as they were.
+  const visitGroups = useMemo(() => {
+    if (!openStartDay) return visitDates.map(d => ({ key: d, dates: [d], ongoing: false }));
+    const ongoingDates = visitDates.filter(d => d >= openStartDay);
+    const legacyDates  = visitDates.filter(d => d <  openStartDay);
+    const groups = [];
+    if (ongoingDates.length) {
+      groups.push({ key: '__ongoing__', dates: ongoingDates, ongoing: true, since: openStartDay });
+    }
+    legacyDates.forEach(d => groups.push({ key: d, dates: [d], ongoing: false }));
+    return groups;
+  }, [visitDates, openStartDay]);
+
+  // Merge one or more days into a single record bucket. A normal day is itself;
+  // the ongoing episode spans every day since check-in.
+  const getRecordsForGroup = useCallback((dates) => {
+    if (dates.length === 1) return getRecordsForDate(dates[0]);
+    const merged = Object.fromEntries(Object.keys(DATE_FIELD_MAP).map(k => [k, []]));
+    dates.forEach(d => {
+      const recs = getRecordsForDate(d);
+      Object.keys(merged).forEach(k => { merged[k] = merged[k].concat(recs[k] || []); });
+    });
+    return merged;
+  }, [getRecordsForDate]);
 
   // Lazily fetch full exam data for a date's exams (used on expand and print)
   const fetchExamsForDate = useCallback((date) => {
@@ -1119,23 +1291,21 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   }, [getExaminationById]);
 
   // Open/close a date accordion — only one open at a time
-  const toggleHistoryDate = useCallback((date) => {
-    setDayTab(defaultDayTab); // newly-opened day starts on the default tab
+  // Open/close a display group (a single day, or the ongoing multi-day episode).
+  const toggleHistoryGroup = useCallback((group) => {
+    setDayTab(defaultDayTab); // newly-opened group starts on the default tab
     setOpenHistoryDate(prev => {
-      const isOpening = prev !== date;
-      if (isOpening) fetchExamsForDate(date);
-      return isOpening ? date : null;
+      const isOpening = prev !== group.key;
+      if (isOpening) group.dates.forEach(d => fetchExamsForDate(d));
+      return isOpening ? group.key : null;
     });
   }, [fetchExamsForDate]);
 
-  // Single-date mode: prefetch that day's exams once data arrives
-  const didAutoOpen = useRef(false);
+  // Single-date mode: prefetch the shown day's exams whenever it changes (initial
+  // open, or the doctor picking another date from the rail).
   useEffect(() => {
-    if (singleDate && historyData && !didAutoOpen.current) {
-      didAutoOpen.current = true;
-      fetchExamsForDate(singleDate);
-    }
-  }, [singleDate, historyData, fetchExamsForDate]);
+    if (activeDate && historyData) fetchExamsForDate(activeDate);
+  }, [activeDate, historyData, fetchExamsForDate]);
 
   // Print the current scope: the single visit, or all filtered visits.
   // Exam details are fetched for every printed date first so nothing prints
@@ -1157,8 +1327,8 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-  const totalPages     = Math.ceil(visitDates.length / HISTORY_PAGE_SIZE);
-  const paginatedDates = visitDates.slice(
+  const totalPages      = Math.ceil(visitGroups.length / HISTORY_PAGE_SIZE);
+  const paginatedGroups = visitGroups.slice(
     (historyPage - 1) * HISTORY_PAGE_SIZE,
     historyPage * HISTORY_PAGE_SIZE
   );
@@ -1168,11 +1338,13 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   // single-day slide-over (singleDate mode) so the two never drift: opening a day
   // from the summary is identical to expanding it in the Visit History tab.
   const renderDayBody = (records) => {
+    const docLabCount   = (records.labRequests || []).filter((r) => r.authorRole === 'doctor').length;
+    const nurseLabCount = (records.labRequests || []).filter((r) => r.authorRole !== 'doctor').length;
     const actionCount =
-      records.admissions.length + (records.referrals || []).length + records.prescriptions.length;
+      records.admissions.length + (records.referrals || []).length + records.prescriptions.length + docLabCount;
     const nursingCount = (records.vitals?.length || 0) + (records.glp1Injections?.length || 0)
       + (records.glp1WeekNotes?.length || 0) + (records.glp1Reviews?.length || 0)
-      + (records.nursingNotes?.length || 0);
+      + (records.nursingNotes?.length || 0) + nurseLabCount;
     const clinicalCount =
       records.notes.length + records.assessments.length + records.exams.length + records.plans.length;
     const workflowCount = records.workflow?.length || 0;
@@ -1199,6 +1371,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
         {showTabs && (
           <div className="hidden sm:block mb-4">
             <SwitcherTabs
+              className="!flex-nowrap"
               active={dayTab}
               onChange={setDayTab}
               tabs={[
@@ -1211,9 +1384,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           </div>
         )}
         {dayTab === 'timeline' && timelineCount > 0 ? (
-          <VisitTimeline records={records} patient={patient} onViewRecord={setViewRecord} onViewArtifact={setViewArtifact} />
+          <VisitTimeline records={records} patient={patient} onViewRecord={setViewRecord} onViewArtifact={setViewArtifact} onViewLab={setViewLabReq} />
         ) : dayTab === 'actions' && actionCount > 0 ? (
-          <ActionsList records={records} onView={setViewArtifact} />
+          <ActionsList records={records} onView={setViewArtifact} onViewLab={setViewLabReq} />
         ) : dayTab === 'nursing' && nursingCount > 0 ? (
           <NursingKardexView records={records} patient={patient} fullExamCache={fullExamCache} />
         ) : (
@@ -1264,30 +1437,16 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
               className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
               <Printer className="w-4 h-4" />
-              {printing ? 'Preparing…' : `Print ${visitDates.length} visit${visitDates.length !== 1 ? 's' : ''}`}
+              {printing ? 'Preparing…' : `Print ${visitGroups.length} visit${visitGroups.length !== 1 ? 's' : ''}`}
             </button>
           )}
           {historyData && (
             <p className="text-xs text-gray-400 ml-auto self-center">
-              {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''} found
+              {visitGroups.length} visit{visitGroups.length !== 1 ? 's' : ''} found
             </p>
           )}
         </div>
       </div>
-
-      {/* Single-date mode: print action for this visit */}
-      {singleDate && !historyLoading && historyData && visitDates.length > 0 && (
-        <div className="flex justify-end">
-          <button
-            onClick={printVisits}
-            disabled={printing}
-            className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-          >
-            <Printer className="w-4 h-4" />
-            {printing ? 'Preparing…' : 'Print visit'}
-          </button>
-        </div>
-      )}
 
       {/* Loading */}
       {historyLoading && (
@@ -1318,18 +1477,76 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
         </div>
       )}
 
-      {/* Single-date mode: one day, open — the same body as an expanded day in the
-          tab (Notes/Actions and all), just without the accordion chrome. */}
+      {/* Single-date mode: left date rail + the open day, side by side. The rail
+          is a vertical extension panel (not a top strip) so a long visit list
+          scrolls down its own column instead of pushing the whole panel wide.
+          Clicking a date switches which day this same panel renders (DRY). */}
       {singleDate && !historyLoading && historyData && visitDates.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-          {renderDayBody(getRecordsForDate(singleDate))}
+        <div className="flex gap-4 items-start">
+          {/* Left rail (≥sm only) — every visit date, newest first, jump in
+              place. Sticky + its own scroll: it stays in view and scrolls
+              independently of the (often much taller) visit document beside it.
+              On mobile it would squeeze the content, so it's replaced by the
+              dropdown below. */}
+          {allDates.length > 1 && (
+            <div className="hidden sm:block flex-shrink-0 w-36 sticky top-0 self-start">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-1.5 px-1">All visits</p>
+              <div className="flex flex-col gap-1.5 max-h-[80vh] overflow-y-auto pr-1 no-scrollbar">
+                {allDates.map((d) => {
+                  const on = d === activeDate;
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setActiveDate(d)}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap border transition ${
+                        on ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-primary'
+                      }`}
+                    >
+                      {fmtDay(d)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Right — print action + the open day (same body as an expanded day in
+              the tab, just without the accordion chrome) */}
+          <div className="flex-1 min-w-0 space-y-3">
+            {/* Mobile-only visit picker — the left rail is hidden below sm so it
+                doesn't squeeze the record. Same dropdown component as the day
+                tabs. */}
+            {allDates.length > 1 && (
+              <div className="sm:hidden">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">All visits</p>
+                <DayTabSelect
+                  value={activeDate}
+                  onChange={setActiveDate}
+                  options={allDates.map((d) => ({ id: d, label: fmtDay(d) }))}
+                />
+              </div>
+            )}
+            <div className="flex justify-end">
+              <button
+                onClick={printVisits}
+                disabled={printing}
+                className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Printer className="w-4 h-4" />
+                {printing ? 'Preparing…' : 'Print visit'}
+              </button>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+              {renderDayBody(getRecordsForDate(activeDate))}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Tab mode: visit date accordions */}
-      {!singleDate && !historyLoading && paginatedDates.map(date => {
-        const records = getRecordsForDate(date);
-        const isOpen  = openHistoryDate === date;
+      {/* Tab mode: visit accordions — one per closed day, one for the ongoing episode */}
+      {!singleDate && !historyLoading && paginatedGroups.map(group => {
+        const records = getRecordsForGroup(group.dates);
+        const isOpen  = openHistoryDate === group.key;
         // Workflow milestones are visit events, not saved records — excluded from
         // the "N records" count (they still appear on the Visit Timeline).
         const total   = Object.entries(records).reduce((sum, [k, arr]) => sum + (k === 'workflow' ? 0 : arr.length), 0);
@@ -1339,27 +1556,41 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
         const admCount  = records.admissions.length;
         const refCount  = (records.referrals || []).length;
         const rxCount   = records.prescriptions.length;
+        const labCount  = (records.labRequests || []).length;
         const parts = [
           noteCount && `${noteCount} doctor's note${noteCount !== 1 ? 's' : ''}`,
           admCount  && `${admCount} admission${admCount !== 1 ? 's' : ''}`,
           refCount  && `${refCount} referral${refCount !== 1 ? 's' : ''}`,
           rxCount   && `${rxCount} prescription${rxCount !== 1 ? 's' : ''}`,
+          labCount  && `${labCount} lab request${labCount !== 1 ? 's' : ''}`,
         ].filter(Boolean);
         const summary = parts.length ? parts.join(' · ') : `${total} record${total !== 1 ? 's' : ''}`;
+        const HeaderIcon = group.ongoing ? Clock : Calendar;
 
         return (
-          <div key={date} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div key={group.key} className={`bg-white border rounded-xl overflow-hidden shadow-sm ${group.ongoing ? 'border-amber-300' : 'border-gray-200'}`}>
 
-            {/* Date header row */}
+            {/* Header row */}
             <button
-              onClick={() => toggleHistoryDate(date)}
+              onClick={() => toggleHistoryGroup(group)}
               className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <Calendar className={`w-5 h-5 flex-shrink-0 ${isOpen ? 'text-primary' : 'text-gray-400'}`} />
+                <HeaderIcon className={`w-5 h-5 flex-shrink-0 ${group.ongoing ? 'text-amber-500' : isOpen ? 'text-primary' : 'text-gray-400'}`} />
                 <span className={`font-semibold ${isOpen ? 'text-primary' : 'text-gray-800'}`}>
-                  {formatDateLong(date)}
+                  {group.ongoing ? 'Current visit — ongoing' : formatDateLong(group.dates[0])}
                 </span>
+                {group.ongoing && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-300 whitespace-nowrap font-semibold">
+                    Not checked out
+                  </span>
+                )}
+                {rxCount > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 whitespace-nowrap">Rx</span>
+                )}
+                {labCount > 0 && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-50 text-cyan-700 border border-cyan-200 whitespace-nowrap">Lab</span>
+                )}
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
                   {summary}
                 </span>
@@ -1369,6 +1600,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
                 : <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               }
             </button>
+
+            {group.ongoing && (
+              <p className="px-5 -mt-2 pb-2 text-xs text-gray-400">
+                Checked in {formatDateLong(group.since)} · still in the clinic, not yet checked out
+              </p>
+            )}
 
             {/* Expanded — Doctor's Notes | Actions (Actions tab only when there are any) */}
             {isOpen && (
@@ -1384,7 +1621,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       {!singleDate && !historyLoading && totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-sm text-gray-500">
-            Page {historyPage} of {totalPages} · {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
+            Page {historyPage} of {totalPages} · {visitGroups.length} visit{visitGroups.length !== 1 ? 's' : ''}
           </p>
           <div className="flex items-center gap-1">
             <button
@@ -1419,17 +1656,19 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             </p>
             <p className="text-xs text-gray-500">
               Printed {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-              {' · '}{visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
+              {' · '}{visitGroups.length} visit{visitGroups.length !== 1 ? 's' : ''}
               {(historyFromDate || historyToDate) && ` · ${historyFromDate || '…'} → ${historyToDate || '…'}`}
             </p>
           </div>
-          {visitDates.map(date => {
-            const recs = getRecordsForDate(date);
+          {visitGroups.map(group => {
+            const recs = getRecordsForGroup(group.dates);
             const kardexTasks = printInclude.kardex ? nursingTasks(recs) : [];
             return (
-              <div key={date} className="mb-6" style={{ breakInside: 'avoid' }}>
+              <div key={group.key} className="mb-6" style={{ breakInside: 'avoid' }}>
                 <h2 className="text-base font-bold text-gray-800 border-b border-gray-300 pb-1 mb-3">
-                  {formatDateLong(date)}
+                  {group.ongoing
+                    ? `Current visit — ongoing (checked in ${formatDateLong(group.since)}, not checked out)`
+                    : formatDateLong(group.dates[0])}
                 </h2>
                 {printInclude.notes && (
                   <div className="mb-4">
@@ -1471,7 +1710,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             </div>
             <div className="px-5 py-4 space-y-2">
               <p className="text-sm text-gray-500 mb-2">
-                Include for {visitDates.length} visit{visitDates.length !== 1 ? 's' : ''}
+                Include for {visitGroups.length} visit{visitGroups.length !== 1 ? 's' : ''}
                 {(historyFromDate || historyToDate) ? ' in the filtered range' : ''}:
               </p>
               {[
@@ -1516,6 +1755,24 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
 
       {/* Nursing task viewer — one task, full detail, in the shared document style */}
       <RecordDetailModal item={viewRecord} fullExamCache={fullExamCache} onClose={() => setViewRecord(null)} />
+
+      {/* Lab request viewer — view / reprint the requisition on the clinic letterhead */}
+      {viewLabReq && (
+        <LabRequestPrint
+          request={{
+            requisitionNumber: viewLabReq.requisitionNumber,
+            orderedDate: viewLabReq.orderedDate,
+            orderedTime: viewLabReq.orderedTime,
+            priority: viewLabReq.priority,
+            notes: viewLabReq.notes,
+            requestedBy: viewLabReq.orderedBy,
+            onBehalfOfDoctor: viewLabReq.onBehalfOfDoctor,
+            tests: (viewLabReq.tests || []).filter((t) => t.status !== 'Cancelled'),
+          }}
+          patient={{ name: patient?.name, uhid: patient?.uhid, age: patient?.age, gender: patient?.gender }}
+          onClose={() => setViewLabReq(null)}
+        />
+      )}
 
     </div>
   );

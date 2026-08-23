@@ -4,12 +4,10 @@ import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
-import { useNavigate } from 'react-router-dom';
 import { useLabContext } from '../../contexts/LabContext';
 import { useUserContext } from '../../contexts/UserContext';
 
 const EnterResults = () => {
-  const navigate = useNavigate();
   const { getPendingTests, addLabTest, removePendingTest } = useLabContext();
   const { currentUser } = useUserContext();
   
@@ -197,11 +195,6 @@ const EnterResults = () => {
     <div>
       <PageHeader
         title="Enter Test Results"
-        actions={
-          <Button variant="outline" onClick={() => navigate('/lab/dashboard')}>
-            ← Back to Dashboard
-          </Button>
-        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

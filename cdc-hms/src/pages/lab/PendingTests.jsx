@@ -157,11 +157,6 @@ const PendingTests = () => {
     <div>
       <PageHeader
         title="Pending Tests Queue"
-        actions={
-          <Button onClick={() => navigate('/lab/dashboard')}>
-            ← Back to Dashboard
-          </Button>
-        }
       />
 
       {/* Statistics */}

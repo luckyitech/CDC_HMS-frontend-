@@ -60,6 +60,25 @@ export const labService = {
   order: (data) => api.post('/lab-tests', data),
 
   /**
+   * Create a multi-test lab REQUEST (one requisition). Used by the shared lab
+   * request form (doctor consultation + nursing tab).
+   * @param {Object} data
+   *   - uhid, priority, notes
+   *   - onBehalfOfDoctorId (required for nurse authors)
+   *   - supersedesRequisition (when reissuing)
+   *   - tests: [{ testType, sampleType, price?, packageName?, packageRate? }]
+   */
+  createRequest: (data) => api.post('/lab-tests/request', data),
+
+  /** Edit a request in place (only while every row is still Pending). */
+  updateRequest: (requisitionNumber, data) =>
+    api.put(`/lab-tests/request/${encodeURIComponent(requisitionNumber)}`, data),
+
+  /** Soft-cancel a request (status → Cancelled; record kept). */
+  cancelRequest: (requisitionNumber, data) =>
+    api.put(`/lab-tests/request/${encodeURIComponent(requisitionNumber)}/cancel`, data),
+
+  /**
    * Update lab test (use for entering results AND status changes)
    * @param {number} id - Lab test ID
    * @param {Object} data - Fields to update:

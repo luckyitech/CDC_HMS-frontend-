@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Users, ArrowLeft } from 'lucide-react';
 import api from '../../services/api';
 import StatusBadge from '../../components/shared/StatusBadge';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import Pagination from '../../components/shared/Pagination';
 import useDebounce from '../../hooks/useDebounce';
 import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statusStyles';
@@ -75,6 +76,9 @@ const ManageUsers = () => {
   const [filterRole, setFilterRole]     = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortBy, setSortBy]             = useState('newest');
+  // Top-level view: everyone, patients only, or staff files only (non-patient
+  // roles — the accounts that have a Staff File).
+  const [view, setView]                 = useState('all'); // 'all' | 'patients' | 'staff'
 
   useEffect(() => {
     api.get('/users')
@@ -96,11 +100,15 @@ const ManageUsers = () => {
         (user.uhid   || '').toLowerCase().includes(q);
       const matchesRole   = filterRole   === 'all' || user.role   === filterRole;
       const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-      return matchesSearch && matchesRole && matchesStatus;
+      const matchesView =
+        view === 'all' ? true
+        : view === 'patients' ? user.role === 'patient'
+        : user.role !== 'patient'; // 'staff' — staff files only
+      return matchesSearch && matchesRole && matchesStatus && matchesView;
     });
     const { compare } = SORT_OPTIONS[sortBy] || SORT_OPTIONS.newest;
     return matched.sort(compare);
-  }, [users, debouncedSearch, filterRole, filterStatus, sortBy]);
+  }, [users, debouncedSearch, filterRole, filterStatus, sortBy, view]);
 
   // Pagination — only the current page is rendered
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,7 +121,7 @@ const ManageUsers = () => {
   // Filters changing can shrink the list past the current page
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, filterRole, filterStatus, sortBy]);
+  }, [debouncedSearch, filterRole, filterStatus, sortBy, view]);
 
   const stats = {
     total:    users.length,
@@ -129,17 +137,22 @@ const ManageUsers = () => {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <button
-          onClick={() => navigate('/admin/dashboard')}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-2 transition"
-        >
-          <ArrowLeft size={14} /> Back to Dashboard
-        </button>
         <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <Users size={22} className="text-gray-600" /> Manage Users
         </h1>
         <p className="text-sm text-gray-500 mt-1">View accounts and open a patient or staff file to manage them</p>
       </div>
+
+      {/* View tabs — All / Patients / Staff files (non-patient roles) */}
+      <SwitcherTabs
+        active={view}
+        onChange={setView}
+        tabs={[
+          { id: 'all',      label: 'All Users', count: users.length },
+          { id: 'patients', label: 'Patients',  count: users.filter(u => u.role === 'patient').length },
+          { id: 'staff',    label: 'Staff Files', count: users.filter(u => u.role !== 'patient').length },
+        ]}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">

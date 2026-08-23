@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
-import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import patientService from "../../services/patientService";
 
@@ -19,7 +18,6 @@ const MyPatients = ({ basePath = "/doctor" }) => {
   const [patients, setPatients]       = useState([]);
   const [pagination, setPagination]   = useState({ total: 0, totalPages: 1 });
   const [loading, setLoading]         = useState(true);
-  const [stats, setStats]             = useState({ total: 0, lowRisk: 0, mediumRisk: 0, highRisk: 0 });
 
   // Debounced search term — waits 400ms after user stops typing before hitting API
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -55,21 +53,6 @@ const MyPatients = ({ basePath = "/doctor" }) => {
     fetchPatients();
   }, [fetchPatients]);
 
-  // Fetch stats once on mount
-  useEffect(() => {
-    patientService.getStats().then(res => {
-      if (res.success) {
-        const d = res.data;
-        setStats({
-          total:      d.total      ?? 0,
-          lowRisk:    d.lowRisk    ?? 0,
-          mediumRisk: d.mediumRisk ?? 0,
-          highRisk:   d.highRisk   ?? 0,
-        });
-      }
-    }).catch(() => {});
-  }, []);
-
   const { total, totalPages } = pagination;
   const from = total === 0 ? 0 : (page - 1) * LIMIT + 1;
   const to   = Math.min(page * LIMIT, total);
@@ -78,16 +61,7 @@ const MyPatients = ({ basePath = "/doctor" }) => {
     <div>
       <PageHeader
         title="My Patients"
-        actions={<Button onClick={() => navigate(`${basePath}/dashboard`)}>Back to Dashboard</Button>}
       />
-
-      {/* Statistics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-        <StatCard title="Total Patients" value={stats.total} gradient="from-blue-500 to-blue-600" />
-        <StatCard title="Low Risk" value={stats.lowRisk} gradient="from-green-500 to-green-600" />
-        <StatCard title="Medium Risk" value={stats.mediumRisk} gradient="from-yellow-500 to-yellow-600" />
-        <StatCard title="High Risk" value={stats.highRisk} gradient="from-red-500 to-red-600" />
-      </div>
 
       {/* Search and Filter */}
       <Card className="mb-6">
