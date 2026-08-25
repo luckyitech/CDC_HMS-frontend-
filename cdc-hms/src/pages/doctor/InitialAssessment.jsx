@@ -611,10 +611,13 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                 </div>
               </Card>
 
-            {/* Print-only content — wrapper hides it on screen; printRef inner div renders in print iframe */}
+            {/* Print-only content — wrapper hides it on screen; `print-target` is
+                what usePrint()'s `is-printing` toggle and index.css's
+                `@media print` block key off to show this and hide the rest of
+                the app when printed (see PrintRoot.jsx for the full mechanism) */}
               {viewMode && (
                 <div className="overflow-hidden h-0" aria-hidden="true">
-                <div ref={printRef} id="ia-print-content">
+                <div ref={printRef} id="ia-print-content" className="print-target bg-white">
                   {/* Clinic letterhead — print only (DRY §4e) */}
                   <PrintLetterhead />
                   {/* Hospital Header */}

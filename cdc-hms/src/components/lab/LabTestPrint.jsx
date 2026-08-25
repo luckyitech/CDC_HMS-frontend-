@@ -36,7 +36,7 @@ const LabTestPrint = ({ test, onClose }) => {
       </div>
 
       {/* Print Content */}
-      <div ref={printRef} id="print-content" className="max-w-4xl mx-auto p-8 bg-white">
+      <div ref={printRef} id="print-content" className="print-target max-w-4xl mx-auto p-8 bg-white">
         {/* Hospital letterhead — shared component (DRY §4e) */}
         <PrintLetterhead show />
         <div className="text-right -mt-2 mb-6">

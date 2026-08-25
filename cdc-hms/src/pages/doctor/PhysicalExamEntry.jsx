@@ -319,7 +319,7 @@ const PhysicalExamEntry = ({
   };
 
   return (
-    <div ref={printRef} className="space-y-6">
+    <div ref={printRef} className="print-target space-y-6 bg-white">
       {/* Clinic letterhead — print only (DRY §4e) */}
       <PrintLetterhead />
       {/* Read-Only Banner */}

@@ -79,7 +79,13 @@ html, body {
     visibility: visible;
   }
   .print-target.is-printing {
-    position: absolute !important;
+    /* fixed, not absolute: several print targets live inside an
+       overflow-y-auto modal body, and `absolute` would still be clipped by
+       that ancestor's overflow. `fixed` positions against the page itself,
+       ignoring every ancestor's overflow/scroll — the one thing that reliably
+       escapes all of them (short of an ancestor using a CSS transform, which
+       none of these do). */
+    position: fixed !important;
     top: 0;
     left: 0;
     width: 210mm;

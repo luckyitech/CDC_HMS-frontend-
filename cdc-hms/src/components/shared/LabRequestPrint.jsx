@@ -56,7 +56,7 @@ const LabRequestPrint = ({ request, patient, onClose, onBackToEdit }) => {
         </div>
 
         {/* Printed content */}
-        <div ref={printRef} className="p-8">
+        <div ref={printRef} className="print-target p-8 bg-white">
           <PrintLetterhead show />
 
         <div className="flex justify-between items-baseline -mt-2 mb-5">

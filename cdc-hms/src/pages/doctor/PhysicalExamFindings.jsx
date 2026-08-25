@@ -89,7 +89,7 @@ const PhysicalExamFindings = ({
   };
 
   return (
-    <div ref={printRef} className="space-y-6 px-2">
+    <div ref={printRef} className="print-target space-y-6 px-2 bg-white">
       {/* Clinic letterhead — print only (DRY §4e) */}
       <PrintLetterhead />
       {/* Header - Screen View */}

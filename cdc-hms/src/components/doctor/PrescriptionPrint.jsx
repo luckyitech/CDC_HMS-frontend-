@@ -30,7 +30,7 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
         </div>
 
         {/* Printable Prescription Content */}
-        <div ref={printRef} className="print-prescription p-8">
+        <div ref={printRef} className="print-target print-prescription p-8 bg-white">
           {/* Hospital letterhead — shared component (DRY §4e) */}
           <PrintLetterhead show />
 
