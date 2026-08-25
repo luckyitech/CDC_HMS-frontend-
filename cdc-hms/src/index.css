@@ -49,84 +49,12 @@ html, body {
   input, select, textarea { font-size: 16px; }
 }
 
-/* ── Printing ───────────────────────────────────────────────────────────────
-   usePrint() calls window.print() directly on this document (no iframe —
-   iOS Safari silently drops print() unless it fires right at the tap that
-   triggered it, and building/loading an iframe first breaks that). Which
-   print button was pressed marks its own target with `is-printing` (and its
-   ancestors with `is-printing-ancestor`); everything else, including any
-   other print target mounted elsewhere on the same page, stays hidden. The
-   app-shell rules above lock html/body to the viewport height with overflow
-   hidden so the screen UI never scrolls as a whole — printing the real
-   document means that has to be undone here or the printed page comes out
-   empty/cut off. */
-@media print {
-  @page {
-    size: A4;
-    margin: 14mm 0;
-  }
-  html, body {
-    height: auto !important;
-    overflow: visible !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-  }
-  /* Plain Cmd+P / File > Print — no print button involved, so nothing is
-     marked. Print the page as it stands; only drop the off-screen print
-     scaffolding (PrintRoot renders 10000px to the left, aria-hidden) so it
-     can't inject blank pages. Without this branch every Cmd+P in the app
-     produces a blank sheet. */
-  body:not(.is-printing-active) .print-target[aria-hidden="true"] {
-    display: none !important;
-  }
-
-  /* A print button ran: that one target takes over the page entirely.
-     Scoped to the body class so the rules above stay in charge otherwise. */
-  body.is-printing-active * {
-    visibility: hidden;
-  }
-  body.is-printing-active .print-target.is-printing,
-  body.is-printing-active .print-target.is-printing * {
-    visibility: visible;
-  }
-  /* Every ancestor between <body> and the print target, marked by usePrint().
-     Print targets live inside modal overlays and scroll containers whose
-     fixed/absolute positioning, overflow and max-height would otherwise clip
-     the document to one screenful. Neutralising them is what lets the target
-     sit in normal flow and paginate across as many pages as it needs. */
-  body.is-printing-active .is-printing-ancestor {
-    position: static !important;
-    overflow: visible !important;
-    max-height: none !important;
-    height: auto !important;
-    width: auto !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    transform: none !important;
-    background: none !important;
-    box-shadow: none !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    display: block !important;
-  }
-  body.is-printing-active .print-target.is-printing {
-    /* Deliberately NOT position:fixed. WebKit/Safari does not paint
-       position:fixed elements into print output at all (Chrome does), so a
-       fixed print target prints a blank document there. Static flow prints
-       correctly in both, and `.is-printing-ancestor` above removes the
-       clipping that made escaping the ancestors seem necessary. */
-    position: static !important;
-    width: auto !important;
-    max-width: none !important;
-    margin: 0 !important;
-  }
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
+/* Force full color printing across all browsers and devices (including Safari/iOS).
+   react-to-print copies this stylesheet into the print iframe automatically. */
+* {
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
 }
 /* Hidden-but-working scrollbar — the floating design signals overflow by
    content peeking below; a visible bar is noise. Pair with overscroll-contain

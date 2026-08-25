@@ -8,15 +8,12 @@ import PrintLetterhead from './PrintLetterhead';
  *   <button onClick={handlePrint}>Print</button>
  *   <PrintRoot printRef={printRef}>…document body…</PrintRoot>
  *
- * Positioned off-screen (NOT display:none — a display:none element is never
- * rendered at all, so print CSS could never bring it back). The
- * `print-target` class is what index.css's `@media print` block and
- * usePrint's `is-printing` toggle key off to show this and hide everything
- * else in the app when this specific instance is the one being printed.
+ * Positioned off-screen (NOT display:none — react-to-print needs it rendered;
+ * a 0-height ancestor makes Chrome emit a blank first page).
  */
 const PrintRoot = ({ printRef, children }) => (
-  <div ref={printRef} className="print-target fixed top-0 -left-[10000px] w-[210mm] bg-white" aria-hidden="true">
-    <div className="p-8 bg-white">
+  <div className="fixed top-0 -left-[10000px] w-[210mm] bg-white" aria-hidden="true">
+    <div ref={printRef} className="p-8 bg-white">
       <PrintLetterhead show />
       {children}
       <div className="mt-8">

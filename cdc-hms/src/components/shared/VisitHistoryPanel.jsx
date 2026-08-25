@@ -1644,11 +1644,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
 
       {/* ── Hidden print layout — letterhead + patient meta + visits in scope.
              Positioned off-screen (NOT zero-height: a 0-height ancestor makes
-             Chrome emit a blank first page). `print-target` is what usePrint's
-             `is-printing` toggle and index.css's `@media print` block key off
-             to show this and hide the rest of the app when printed. ────────── */}
-      <div ref={printRef} className="print-target fixed top-0 -left-[10000px] w-[210mm] bg-white" aria-hidden="true">
-        <div className="p-8 bg-white">
+             Chrome emit a blank first page via react-to-print). ────────────── */}
+      <div className="fixed top-0 -left-[10000px] w-[210mm] bg-white" aria-hidden="true">
+        <div ref={printRef} className="p-8 bg-white">
           <PrintLetterhead show />
           <div className="border-b border-gray-300 pb-3 mb-5">
             <p className="text-sm text-gray-700">

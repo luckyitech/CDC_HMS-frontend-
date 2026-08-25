@@ -28,7 +28,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
         </div>
 
         {/* Print Content */}
-        <div ref={printRef} id="treatment-plan-print-content" className="print-target p-8 bg-white">
+        <div ref={printRef} id="treatment-plan-print-content" className="p-8">
           {/* Hospital letterhead — shared component (DRY §4e) */}
           <PrintLetterhead show />
 
