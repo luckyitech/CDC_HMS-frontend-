@@ -32,6 +32,15 @@ const usePrint = ({ pageSize = "A4" } = {}) => {
         padding: 0 !important;
         width: 100% !important;
       }
+      /* Multi-page hygiene. Without these a long table splits mid-row and the
+         column headings never reappear, so page 2 is a wall of unlabelled
+         values — for a medication list that is a dispensing hazard, not just
+         untidy. */
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+      tr, img { break-inside: avoid; page-break-inside: avoid; }
+      /* Never leave a heading stranded as the last line of a page. */
+      h1, h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
       * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;

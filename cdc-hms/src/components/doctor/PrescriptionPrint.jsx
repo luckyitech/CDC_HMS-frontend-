@@ -1,4 +1,4 @@
-import { Printer, Stethoscope, Pill, AlertTriangle, FileText } from "lucide-react";
+import { Printer } from "lucide-react";
 import PrintLetterhead from "../shared/PrintLetterhead";
 import usePrint from "../../hooks/usePrint";
 
@@ -30,79 +30,57 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
         </div>
 
         {/* Printable Prescription Content */}
-        <div ref={printRef} className="print-prescription p-8">
+        <div ref={printRef} className="print-prescription p-6">
           {/* Hospital letterhead — shared component (DRY §4e) */}
           <PrintLetterhead show />
 
-          {/* Prescription Header */}
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-4xl font-bold text-primary">℞</span>
-                <div>
-                  <p className="text-xs text-gray-600 uppercase tracking-wide">Prescription No.</p>
-                  <p className="text-lg font-bold text-gray-800">{prescription.prescriptionNumber}</p>
-                </div>
+          {/* Prescription Header — prescriber details deliberately live only in
+              the signature block below, not here as well. */}
+          <div className="mb-4 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-primary">℞</span>
+              <div>
+                <p className="text-xs text-gray-600 uppercase tracking-wide">Prescription No.</p>
+                <p className="text-lg font-bold text-gray-800">{prescription.prescriptionNumber}</p>
               </div>
-              <p className="text-sm text-gray-600">
-                <strong>Date:</strong> {prescription.date}
-              </p>
             </div>
+            {/* Date sits opposite the number rather than on its own line — it
+                fills the space the prescriber block used to occupy. */}
             <div className="text-right">
-              <p className="font-bold text-gray-800">{prescription.doctorName}</p>
-              <p className="text-sm text-gray-600">{prescription.doctorSpecialty}</p>
-              {prescription.doctorLicenseNumber && (
-                <p className="text-xs text-gray-500 mt-1">Reg. No: {prescription.doctorLicenseNumber}</p>
-              )}
+              <p className="text-xs text-gray-600 uppercase tracking-wide">Date</p>
+              <p className="text-lg font-bold text-gray-800">{prescription.date}</p>
             </div>
           </div>
 
-          {/* Patient Information */}
-          <div className="bg-blue-50 rounded-lg p-4 mb-6 border-l-4 border-primary">
-            <h3 className="font-bold text-gray-800 mb-2">Patient Information</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-600">Name:</p>
-                <p className="font-semibold text-gray-800">{prescription.patientName}</p>
-              </div>
-              <div>
-                <p className="text-gray-600">Patient ID:</p>
-                <p className="font-semibold text-gray-800">{prescription.patientUhid || prescription.uhid}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Diagnosis */}
-          <div className="mb-6">
-            <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-              <Stethoscope className="w-4 h-4 text-red-600" /> Diagnosis
-            </h3>
-            <p className="text-gray-700 bg-gray-50 p-3 rounded">{prescription.diagnosis}</p>
+          {/* Patient — one line, no section heading. */}
+          <div className="mb-4 text-sm">
+            <p>
+              <span className="text-gray-600">Patient:</span>{" "}
+              <span className="font-semibold text-gray-800">{prescription.patientName}</span>
+            </p>
           </div>
 
           {/* Medications Table */}
-          <div className="mb-6">
-            <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <Pill className="w-4 h-4 text-green-600" /> Medications Prescribed
-            </h3>
+          <div className="mb-4">
+            <h3 className="font-bold text-gray-800 mb-2">Medications Prescribed</h3>
             <table className="w-full border-collapse border-2 border-gray-300">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-bold">No.</th>
-                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-bold">Medication Name</th>
-                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-bold">Dosage</th>
-                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-bold">Frequency</th>
-                  <th className="border border-gray-300 px-4 py-3 text-left text-sm font-bold">Duration</th>
+                <tr>
+                  <th className="border border-gray-300 px-3 py-1.5 text-left text-sm font-bold">No.</th>
+                  <th className="border border-gray-300 px-3 py-1.5 text-left text-sm font-bold">Medication Name</th>
+                  <th className="border border-gray-300 px-3 py-1.5 text-left text-sm font-bold">Dosage</th>
+                  <th className="border border-gray-300 px-3 py-1.5 text-left text-sm font-bold">Frequency</th>
+                  <th className="border border-gray-300 px-3 py-1.5 text-left text-sm font-bold">Duration</th>
                 </tr>
               </thead>
               <tbody>
                 {prescription.medications.map((med, index) => (
-                  <tr key={index} className="hover:bg-blue-50">
-                    <td className="border border-gray-300 px-4 py-3 text-sm">{index + 1}</td>
-                    <td className="border border-gray-300 px-4 py-3 text-sm font-semibold">{med.name}</td>
-                    <td className="border border-gray-300 px-4 py-3 text-sm">{med.dosage}</td>
-                    <td className="border border-gray-300 px-4 py-3 text-sm">{med.frequency}</td>
-                    <td className="border border-gray-300 px-4 py-3 text-sm">{med.duration}</td>
+                  <tr key={index}>
+                    <td className="border border-gray-300 px-3 py-1.5 text-sm">{index + 1}</td>
+                    <td className="border border-gray-300 px-3 py-1.5 text-sm font-semibold">{med.name}</td>
+                    <td className="border border-gray-300 px-3 py-1.5 text-sm">{med.dosage}</td>
+                    <td className="border border-gray-300 px-3 py-1.5 text-sm">{med.frequency}</td>
+                    <td className="border border-gray-300 px-3 py-1.5 text-sm">{med.duration}</td>
                   </tr>
                 ))}
               </tbody>
@@ -111,9 +89,9 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
 
           {/* Special Instructions */}
           {prescription.medications.some(med => med.instructions) && (
-            <div className="mb-6 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
-              <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-yellow-600" /> Special Instructions</h3>
-              <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+            <div className="mb-4">
+              <h3 className="font-bold text-gray-800 mb-1.5">Special Instructions</h3>
+              <ul className="list-disc list-inside space-y-0.5 text-sm text-gray-700">
                 {prescription.medications.filter(med => med.instructions).map((med, index) => (
                   <li key={index}>
                     <strong>{med.name}:</strong> {med.instructions}
@@ -125,33 +103,35 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
 
           {/* Additional Notes */}
           {prescription.notes && (
-            <div className="mb-6">
-              <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-600" /> Additional Notes</h3>
-              <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded">{prescription.notes}</p>
+            <div className="mb-4">
+              <h3 className="font-bold text-gray-800 mb-1.5">Additional Notes</h3>
+              <p className="text-sm text-gray-700">{prescription.notes}</p>
             </div>
           )}
 
           {/* Important Notice */}
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-6">
-            <p className="text-xs text-red-800 font-semibold flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <div className="mb-4">
+            <p className="text-xs text-gray-700">
               This prescription is valid for 30 days from the date of issue. Do not share medications with others. Complete the full course as prescribed.
             </p>
           </div>
 
           {/* Doctor Signature */}
-          <div className="flex justify-between items-end pt-8 border-t-2 border-gray-300">
+          {/* No "Printed on" timestamp: it changed on every reprint, so a
+              re-printed copy appeared to carry a later date than the one it was
+              issued on. The issue date is in the header and is the only date
+              that means anything here. */}
+          <div className="pt-4 border-t-2 border-gray-300 break-inside-avoid">
             <div>
               <p className="text-xs text-gray-600 mb-1">Prescribed by:</p>
-              <div className="border-b-2 border-gray-400 w-64 h-16 mb-2"></div>
+              {/* Signature space — enough room to sign, without the empty half-page
+                  the old h-16 left on a short prescription. */}
+              <div className="border-b-2 border-gray-400 w-56 h-9 mb-1.5"></div>
               <p className="font-bold text-gray-800">{prescription.doctorName}</p>
               <p className="text-xs text-gray-600">{prescription.doctorSpecialty}</p>
               {prescription.doctorLicenseNumber && (
                 <p className="text-xs text-gray-500 mt-1">Reg. No: {prescription.doctorLicenseNumber}</p>
               )}
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-500">Printed on: {new Date().toLocaleString()}</p>
             </div>
           </div>
         </div>

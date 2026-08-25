@@ -10,9 +10,9 @@ import cdcLogo from "../../assets/cdc_web_logo1.svg";
  */
 const PrintLetterhead = ({ show = false }) => (
   <div className={show ? "" : "hidden print:block"}>
-    <div className="flex justify-between items-center border-b-4 border-primary pb-6 mb-6">
+    <div className="flex justify-between items-center border-b-4 border-primary pb-4 mb-4">
       <div>
-        <h1 className="text-3xl font-bold text-primary mb-2">COMPREHENSIVE DIABETES CENTRE</h1>
+        <h1 className="text-2xl font-bold text-primary mb-1">COMPREHENSIVE DIABETES CENTRE</h1>
         <p className="text-gray-600">Center for Diabetes Care &amp; Management</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mt-1">
           <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> 3rd Floor, Doctors Park, Third Avenue, Nairobi</span>
@@ -22,7 +22,9 @@ const PrintLetterhead = ({ show = false }) => (
           <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> info@comprehensivediabetescentre.com</span>
         </div>
       </div>
-      <img src={cdcLogo} alt="CDC Logo" className="w-40 h-40 object-contain py-4" />
+      {/* Sized to sit level with the address block rather than tower over it —
+          at w-40 the logo alone took roughly a fifth of an A4 page. */}
+      <img src={cdcLogo} alt="CDC Logo" className="w-24 h-24 object-contain shrink-0" />
     </div>
   </div>
 );
