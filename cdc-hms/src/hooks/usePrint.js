@@ -40,6 +40,10 @@ const usePrint = () => {
     }
 
     node.classList.add("is-printing");
+    // Tells the print stylesheet that a specific target is taking over the
+    // page. Without it, the stylesheet leaves a plain Cmd+P alone rather than
+    // blanking the whole document.
+    document.body.classList.add("is-printing-active");
 
     // Mark every ancestor up to <body> so the print stylesheet can undo the
     // modal overlays / scroll containers wrapping this content. Without it the
@@ -57,6 +61,7 @@ const usePrint = () => {
       if (cleaned) return;
       cleaned = true;
       node.classList.remove("is-printing");
+      document.body.classList.remove("is-printing-active");
       ancestors.forEach((el) => el.classList.remove("is-printing-ancestor"));
       window.removeEventListener("afterprint", cleanup);
       clearTimeout(fallback);

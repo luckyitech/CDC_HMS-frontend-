@@ -72,11 +72,22 @@ html, body {
     padding: 0 !important;
     width: 100% !important;
   }
-  body * {
+  /* Plain Cmd+P / File > Print — no print button involved, so nothing is
+     marked. Print the page as it stands; only drop the off-screen print
+     scaffolding (PrintRoot renders 10000px to the left, aria-hidden) so it
+     can't inject blank pages. Without this branch every Cmd+P in the app
+     produces a blank sheet. */
+  body:not(.is-printing-active) .print-target[aria-hidden="true"] {
+    display: none !important;
+  }
+
+  /* A print button ran: that one target takes over the page entirely.
+     Scoped to the body class so the rules above stay in charge otherwise. */
+  body.is-printing-active * {
     visibility: hidden;
   }
-  .print-target.is-printing,
-  .print-target.is-printing * {
+  body.is-printing-active .print-target.is-printing,
+  body.is-printing-active .print-target.is-printing * {
     visibility: visible;
   }
   /* Every ancestor between <body> and the print target, marked by usePrint().
@@ -84,7 +95,7 @@ html, body {
      fixed/absolute positioning, overflow and max-height would otherwise clip
      the document to one screenful. Neutralising them is what lets the target
      sit in normal flow and paginate across as many pages as it needs. */
-  .is-printing-ancestor {
+  body.is-printing-active .is-printing-ancestor {
     position: static !important;
     overflow: visible !important;
     max-height: none !important;
@@ -100,7 +111,7 @@ html, body {
     border-radius: 0 !important;
     display: block !important;
   }
-  .print-target.is-printing {
+  body.is-printing-active .print-target.is-printing {
     /* Deliberately NOT position:fixed. WebKit/Safari does not paint
        position:fixed elements into print output at all (Chrome does), so a
        fixed print target prints a blank document there. Static flow prints
