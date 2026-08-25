@@ -29,7 +29,15 @@ const usePrint = () => {
 
   const handlePrint = useCallback(() => {
     const node = printRef.current;
-    if (!node) return;
+
+    // Never bail out silently. A missing ref means the page prints unstyled
+    // rather than the button appearing dead — a wrong printout is diagnosable,
+    // a button that does nothing at all is not.
+    if (!node) {
+      console.warn("usePrint: printRef is not attached to any element; printing the page as-is.");
+      window.print();
+      return;
+    }
 
     node.classList.add("is-printing");
 
@@ -44,6 +52,7 @@ const usePrint = () => {
     }
 
     let cleaned = false;
+    let fallback;
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
@@ -56,9 +65,16 @@ const usePrint = () => {
     // Safety net: some mobile browsers don't reliably fire `afterprint`,
     // which would otherwise leave this node marked as the print target
     // indefinitely and bleed into the next, unrelated print action.
-    const fallback = setTimeout(cleanup, 3000);
+    fallback = setTimeout(cleanup, 3000);
 
-    window.print();
+    // Wrapped so a throw here can never leave the app stuck mid-print with
+    // the screen UI hidden by the print stylesheet.
+    try {
+      window.print();
+    } catch (err) {
+      console.error("usePrint: window.print() failed", err);
+      cleanup();
+    }
   }, []);
 
   return { printRef, handlePrint };
