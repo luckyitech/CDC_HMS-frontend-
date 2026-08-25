@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, Filter, RefreshCw, ChevronLeft, ChevronRight, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Printer } from 'lucide-react';
+import { Activity, Filter, RefreshCw, ChevronLeft, ChevronRight, ChevronDown, Printer } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PrintRoot from '../../components/shared/PrintRoot';
+import ActivityDrilldownModal from '../../components/admin/ActivityDrilldownModal';
 import usePrint from '../../hooks/usePrint';
 import activityService from '../../services/activityService';
+import { ACTION_STYLE, formatDateTime } from './activityLogShared';
 
 const PAGE_SIZE = 100;
 
@@ -41,76 +43,50 @@ const ACTION_TYPES = [
   { value: 'barcode_generated',     label: 'Generated Barcode' },
 ];
 
-const ACTION_STYLE = {
-  registered:            { color: 'bg-blue-100 text-blue-700',     icon: UserPlus },
-  added_to_queue:        { color: 'bg-yellow-100 text-yellow-800', icon: ClipboardList },
-  triaged:               { color: 'bg-purple-100 text-purple-700', icon: Activity },
-  discharged:            { color: 'bg-green-100 text-green-700',   icon: UserCheck },
-  removed:               { color: 'bg-red-100 text-red-700',       icon: UserX },
-  referred:              { color: 'bg-fuchsia-100 text-fuchsia-700', icon: Share2 },
-  document_uploaded:     { color: 'bg-indigo-100 text-indigo-700', icon: FileText },
-  document_reviewed:     { color: 'bg-green-100 text-green-700',   icon: FileCheck },
-  equipment_added:       { color: 'bg-teal-100 text-teal-700',     icon: Cpu },
-  equipment_updated:     { color: 'bg-orange-100 text-orange-700', icon: Settings },
-  equipment_replaced:    { color: 'bg-slate-100 text-slate-700',   icon: RefreshCcw },
-  prescription_created:  { color: 'bg-pink-100 text-pink-700',     icon: Pill },
-  lab_test_ordered:      { color: 'bg-cyan-100 text-cyan-700',     icon: FlaskConical },
-  lab_test_cancelled:    { color: 'bg-red-100 text-red-700',       icon: FlaskConical },
-  treatment_plan_created:{ color: 'bg-emerald-100 text-emerald-700',icon: BookOpen },
-  consultation_note:         { color: 'bg-violet-100 text-violet-700', icon: Stethoscope },
-  consultation_note_edited:  { color: 'bg-orange-100 text-orange-700', icon: Pencil },
-  consultation_started:      { color: 'bg-blue-100 text-blue-700',     icon: Activity },
-  consultation_completed:{ color: 'bg-green-100 text-green-700',   icon: UserCheck },
-  physical_exam:         { color: 'bg-rose-100 text-rose-700',     icon: Activity },
-  initial_assessment:    { color: 'bg-amber-100 text-amber-700',   icon: ClipboardList },
-  account_created:       { color: 'bg-purple-100 text-purple-700', icon: UserCog },
-  user_login:            { color: 'bg-lime-100 text-lime-700',     icon: LogIn },
-  appointment_booked:    { color: 'bg-sky-100 text-sky-700',       icon: CalendarPlus },
-  appointment_cancelled: { color: 'bg-orange-100 text-orange-700', icon: UserX },
-  slot_blocked:          { color: 'bg-red-100 text-red-700',       icon: Lock },
-  barcode_scanned:       { color: 'bg-blue-100 text-blue-700',     icon: ScanLine },
-  barcode_generated:     { color: 'bg-teal-100 text-teal-700',     icon: QrCode },
-};
-
+// `type` is the underlying event type (matches ACTION_STYLE / ACTION_TYPES and
+// the backend's event `type` field) — it's what a click on this stat drills
+// into, so it has to be the exact slug, not just a display key.
 const SUMMARY_FIELDS = [
-  { key: 'registered',           label: 'Registered',            color: 'text-blue-600' },
-  { key: 'addedToQueue',         label: 'Added to Queue',        color: 'text-yellow-600' },
-  { key: 'triaged',              label: 'Triaged',               color: 'text-purple-600' },
-  { key: 'discharged',           label: 'Discharged',            color: 'text-green-600' },
-  { key: 'removed',              label: 'Removed',               color: 'text-red-600' },
-  { key: 'referred',             label: 'Referred',              color: 'text-fuchsia-600' },
-  { key: 'documentUploaded',     label: 'Doc Uploaded',          color: 'text-indigo-600' },
-  { key: 'documentReviewed',     label: 'Doc Reviewed',          color: 'text-green-600' },
-  { key: 'equipmentAdded',       label: 'Equip. Added',          color: 'text-teal-600' },
-  { key: 'equipmentUpdated',     label: 'Equip. Updated',        color: 'text-orange-600' },
-  { key: 'equipmentReplaced',    label: 'Equip. Replaced',       color: 'text-slate-600' },
-  { key: 'prescriptionCreated',  label: 'Prescriptions',         color: 'text-pink-600' },
-  { key: 'labTestOrdered',       label: 'Lab Tests Ordered',     color: 'text-cyan-600' },
-  { key: 'labTestCancelled',     label: 'Lab Tests Cancelled',   color: 'text-red-600' },
-  { key: 'treatmentPlanCreated', label: 'Treatment Plans',       color: 'text-emerald-600' },
-  { key: 'consultationNote',       label: 'Consultation Notes',    color: 'text-violet-600' },
-  { key: 'consultationNoteEdited', label: 'Notes Edited',          color: 'text-orange-600' },
-  { key: 'consultationStarted',    label: 'Consultations Started', color: 'text-blue-600' },
-  { key: 'consultationCompleted',label: 'Consultations Done',    color: 'text-green-600' },
-  { key: 'physicalExam',         label: 'Physical Exams',        color: 'text-rose-600' },
-  { key: 'initialAssessment',    label: 'Assessments',           color: 'text-amber-600' },
-  { key: 'accountCreated',       label: 'Accounts Created',      color: 'text-purple-600' },
-  { key: 'userLogin',            label: 'Logins',                color: 'text-lime-600' },
-  { key: 'appointmentBooked',    label: 'Appointments Booked',    color: 'text-sky-600' },
-  { key: 'appointmentCancelled', label: 'Appointments Cancelled', color: 'text-orange-600' },
-  { key: 'slotBlocked',          label: 'Slots Blocked',          color: 'text-red-600' },
-  { key: 'barcodeScanned',       label: 'Barcodes Scanned',       color: 'text-blue-600' },
-  { key: 'barcodeGenerated',     label: 'Barcodes Generated',     color: 'text-teal-600' },
+  { key: 'registered',           type: 'registered',              label: 'Registered',            color: 'text-blue-600' },
+  { key: 'addedToQueue',         type: 'added_to_queue',          label: 'Added to Queue',        color: 'text-yellow-600' },
+  { key: 'triaged',              type: 'triaged',                 label: 'Triaged',               color: 'text-purple-600' },
+  { key: 'discharged',           type: 'discharged',              label: 'Discharged',            color: 'text-green-600' },
+  { key: 'removed',              type: 'removed',                 label: 'Removed',               color: 'text-red-600' },
+  { key: 'referred',             type: 'referred',                label: 'Referred',              color: 'text-fuchsia-600' },
+  { key: 'documentUploaded',     type: 'document_uploaded',       label: 'Doc Uploaded',          color: 'text-indigo-600' },
+  { key: 'documentReviewed',     type: 'document_reviewed',       label: 'Doc Reviewed',          color: 'text-green-600' },
+  { key: 'equipmentAdded',       type: 'equipment_added',         label: 'Equip. Added',          color: 'text-teal-600' },
+  { key: 'equipmentUpdated',     type: 'equipment_updated',       label: 'Equip. Updated',        color: 'text-orange-600' },
+  { key: 'equipmentReplaced',    type: 'equipment_replaced',      label: 'Equip. Replaced',       color: 'text-slate-600' },
+  { key: 'prescriptionCreated',  type: 'prescription_created',    label: 'Prescriptions',         color: 'text-pink-600' },
+  { key: 'labTestOrdered',       type: 'lab_test_ordered',        label: 'Lab Tests Ordered',     color: 'text-cyan-600' },
+  { key: 'labTestCancelled',     type: 'lab_test_cancelled',      label: 'Lab Tests Cancelled',   color: 'text-red-600' },
+  { key: 'treatmentPlanCreated', type: 'treatment_plan_created',  label: 'Treatment Plans',       color: 'text-emerald-600' },
+  { key: 'consultationNote',       type: 'consultation_note',         label: 'Consultation Notes',    color: 'text-violet-600' },
+  { key: 'consultationNoteEdited', type: 'consultation_note_edited',  label: 'Notes Edited',          color: 'text-orange-600' },
+  { key: 'consultationStarted',    type: 'consultation_started',      label: 'Consultations Started', color: 'text-blue-600' },
+  { key: 'consultationCompleted',type: 'consultation_completed',  label: 'Consultations Done',    color: 'text-green-600' },
+  { key: 'physicalExam',         type: 'physical_exam',           label: 'Physical Exams',        color: 'text-rose-600' },
+  { key: 'initialAssessment',    type: 'initial_assessment',      label: 'Assessments',           color: 'text-amber-600' },
+  { key: 'accountCreated',       type: 'account_created',         label: 'Accounts Created',      color: 'text-purple-600' },
+  { key: 'userLogin',            type: 'user_login',              label: 'Logins',                color: 'text-lime-600' },
+  { key: 'appointmentBooked',    type: 'appointment_booked',      label: 'Appointments Booked',    color: 'text-sky-600' },
+  { key: 'appointmentCancelled', type: 'appointment_cancelled',   label: 'Appointments Cancelled', color: 'text-orange-600' },
+  { key: 'slotBlocked',          type: 'slot_blocked',            label: 'Slots Blocked',          color: 'text-red-600' },
+  { key: 'barcodeScanned',       type: 'barcode_scanned',         label: 'Barcodes Scanned',       color: 'text-blue-600' },
+  { key: 'barcodeGenerated',     type: 'barcode_generated',       label: 'Barcodes Generated',     color: 'text-teal-600' },
 ];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Matches the sm/lg Tailwind breakpoints the rest of the page uses. Columns
+// are assigned by list position (below), not left to the browser to balance
+// by rendered height — that's what made cards visibly relocate when one
+// expanded. Widest match wins; narrower than both falls back to 1 column.
+const COLUMN_BREAKPOINTS = [[1024, 3], [640, 2]];
 
-const formatDateTime = (iso) => {
-  if (!iso) return '-';
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', hour12: true,
-  });
+const getColumnCount = () => {
+  if (typeof window === 'undefined') return 1;
+  const match = COLUMN_BREAKPOINTS.find(([minWidth]) => window.innerWidth >= minWidth);
+  return match ? match[1] : 1;
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -120,14 +96,43 @@ const ActivityLog = () => {
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage]       = useState(1);
+  const [columnCount, setColumnCount] = useState(getColumnCount);
 
   // Filters
   const [startDate, setStartDate]     = useState('');
   const [endDate, setEndDate]         = useState('');
+  // No dates picked defaults to the last 30 days server-side — this opts back
+  // into the full history instead. Picking a date always wins over it.
+  const [allTime, setAllTime]         = useState(false);
   const [staffSearch, setStaffSearch] = useState('');
   const [role, setRole]               = useState('all');
   const [actionType, setActionType]   = useState('all');
+  // Which staff summary cards are expanded — collapsed (name + total only) by
+  // default so the summary section doesn't dominate the page; each card toggles
+  // independently rather than as an accordion.
+  const [expandedStaff, setExpandedStaff] = useState(() => new Set());
+  // The whole Summary section starts collapsed too — a hospital with 100+ staff
+  // would otherwise render that many cards before the filters/table are even
+  // reachable without scrolling.
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  // A stat clicked on a summary card — { staff, type, label } | null. Drives
+  // the drilldown modal showing the actual events behind that count.
+  const [drilldown, setDrilldown] = useState(null);
   const { printRef, handlePrint }     = usePrint();
+
+  const toggleStaffCard = (staff) => setExpandedStaff((prev) => {
+    const next = new Set(prev);
+    if (next.has(staff)) next.delete(staff); else next.add(staff);
+    return next;
+  });
+
+  const pickStartDate = (v) => { setStartDate(v); if (v) setAllTime(false); };
+  const pickEndDate   = (v) => { setEndDate(v);   if (v) setAllTime(false); };
+  const toggleAllTime = () => setAllTime((prev) => {
+    const next = !prev;
+    if (next) { setStartDate(''); setEndDate(''); }
+    return next;
+  });
 
   // Derived: filter events by the performer's actual role (set by backend)
   const visibleEvents = events.filter(e => role === 'all' || e.role === role);
@@ -140,12 +145,20 @@ const ActivityLog = () => {
   // Derived: show summary cards whose performer role matches the filter
   const visibleSummary = summary.filter(s => role === 'all' || s.role === role);
 
+  // Round-robin into fixed columns — card #4 is always in column 0, #5 always
+  // in column 1, and so on, regardless of any card's expanded height. Expanding
+  // a card can only push cards below it within its own column; it can never
+  // cause a card to move to a different column.
+  const summaryColumns = Array.from({ length: columnCount }, () => []);
+  visibleSummary.forEach((s, i) => summaryColumns[i % columnCount].push(s));
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
       if (startDate)        params.startDate = startDate;
       if (endDate)          params.endDate   = endDate;
+      if (!startDate && allTime) params.allTime = 'true';
       if (staffSearch.trim()) params.staff   = staffSearch.trim();
       if (actionType !== 'all') params.action = actionType;
 
@@ -160,7 +173,7 @@ const ActivityLog = () => {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, staffSearch, actionType]);
+  }, [startDate, endDate, allTime, staffSearch, actionType]);
 
   const handleRoleChange = (newRole) => {
     setRole(newRole);
@@ -168,6 +181,12 @@ const ActivityLog = () => {
   };
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    const onResize = () => setColumnCount(getColumnCount());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const roleLabel = { all: 'Summary', staff: 'Staff Summary', doctor: 'Doctor Summary', lab: 'Lab Summary', admin: 'Admin Summary' }[role];
 
@@ -187,34 +206,8 @@ const ActivityLog = () => {
         </button>
       </div>
 
-      {/* Summary Cards */}
-      {visibleSummary.length > 0 && (
-        <div>
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">{roleLabel}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleSummary.map((s) => (
-              <Card key={s.staff} className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="font-bold text-gray-800 text-base">{s.staff}</span>
-                  <span className="text-xs bg-primary text-white px-2 py-1 rounded-full font-semibold">
-                    {s.total} actions
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                  {SUMMARY_FIELDS.filter(f => s[f.key] > 0).map(f => (
-                    <span key={f.key} className="flex justify-between">
-                      <span>{f.label}</span>
-                      <span className={`font-bold ${f.color}`}>{s[f.key]}</span>
-                    </span>
-                  ))}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
+      {/* Filters — kept above the Summary section so they're reachable without
+          scrolling past a potentially long staff list first. */}
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <Filter className="w-4 h-4 text-gray-500" />
@@ -223,13 +216,13 @@ const ActivityLog = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">From Date</label>
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+            <input type="date" value={startDate} disabled={allTime} onChange={e => pickStartDate(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary disabled:bg-gray-50 disabled:text-gray-400" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">To Date</label>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary" />
+            <input type="date" value={endDate} disabled={allTime} onChange={e => pickEndDate(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary disabled:bg-gray-50 disabled:text-gray-400" />
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Search by Name</label>
@@ -257,7 +250,80 @@ const ActivityLog = () => {
             </select>
           </div>
         </div>
+        <label className="flex items-center gap-2 mt-3 text-xs text-gray-600 cursor-pointer w-fit">
+          <input type="checkbox" checked={allTime} onChange={toggleAllTime} className="rounded border-gray-300" />
+          All time — without this, no date range shown above means the last 30 days
+        </label>
       </Card>
+
+      {/* Summary Cards — collapsed by default at the section level (not just per
+          card): a hospital with 100+ staff would otherwise render that many
+          cards on every page load, before anyone has asked to see them. */}
+      {visibleSummary.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setSummaryOpen((v) => !v)}
+            aria-expanded={summaryOpen}
+            className="flex items-center gap-1.5 mb-3 text-sm font-bold text-gray-500 uppercase tracking-wide"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform ${summaryOpen ? '' : '-rotate-90'}`} />
+            {roleLabel} ({visibleSummary.length})
+          </button>
+          {summaryOpen && (
+            /* Each card is pre-assigned to a fixed column (summaryColumns,
+               computed above by list position) rather than laid out by a grid
+               or CSS-columns that rebalances by rendered height — that
+               rebalancing was what made cards visibly relocate elsewhere on
+               screen the moment one expanded. Here, expanding a card can only
+               push the cards below IT within its own column; every other
+               column is completely unaffected. */
+            <div className="flex gap-4 items-start">
+              {summaryColumns.map((col, ci) => (
+                <div key={ci} className="flex-1 min-w-0 flex flex-col gap-3">
+                  {col.map((s) => {
+                    const isOpen = expandedStaff.has(s.staff);
+                    return (
+                      <Card key={s.staff} className="p-4">
+                        <button
+                          type="button"
+                          onClick={() => toggleStaffCard(s.staff)}
+                          aria-expanded={isOpen}
+                          className="w-full flex items-center justify-between gap-2 text-left"
+                        >
+                          <span className="flex items-center gap-2 min-w-0">
+                            <ChevronDown className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                            <span className="font-bold text-gray-800 text-base truncate">{s.staff}</span>
+                          </span>
+                          <span className="text-xs bg-primary text-white px-2 py-1 rounded-full font-semibold flex-shrink-0">
+                            {s.total} actions
+                          </span>
+                        </button>
+                        {isOpen && (
+                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mt-3 pt-3 border-t border-gray-100">
+                            {SUMMARY_FIELDS.filter(f => s[f.key] > 0).map(f => (
+                              <button
+                                key={f.key}
+                                type="button"
+                                onClick={() => setDrilldown({ staff: s.staff, type: f.type, label: f.label })}
+                                title={`Show ${s.staff}'s ${f.label.toLowerCase()} events`}
+                                className="flex justify-between text-left rounded px-1 -mx-1 hover:bg-gray-50"
+                              >
+                                <span>{f.label}</span>
+                                <span className={`font-bold ${f.color} underline decoration-dotted underline-offset-2`}>{s[f.key]}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Events Log */}
       <Card className="overflow-hidden">
@@ -352,7 +418,7 @@ const ActivityLog = () => {
           <p className="text-sm text-gray-700"><b>Activity log</b></p>
           <p className="text-xs text-gray-500">
             {[
-              (startDate || endDate) ? `${startDate || '…'} to ${endDate || '…'}` : 'All dates',
+              (startDate || endDate) ? `${startDate || '…'} to ${endDate || '…'}` : allTime ? 'All time' : 'Last 30 days',
               staffSearch.trim() ? `Staff: ${staffSearch.trim()}` : null,
               role !== 'all' ? `Role: ${role}` : null,
               actionType !== 'all' ? `Action: ${ACTION_TYPES.find(t => t.value === actionType)?.label || actionType}` : null,
@@ -379,6 +445,17 @@ const ActivityLog = () => {
           </tbody>
         </table>
       </PrintRoot>
+
+      <ActivityDrilldownModal
+        isOpen={!!drilldown}
+        onClose={() => setDrilldown(null)}
+        staff={drilldown?.staff}
+        type={drilldown?.type}
+        label={drilldown?.label}
+        startDate={startDate}
+        endDate={endDate}
+        allTime={allTime}
+      />
     </div>
   );
 };

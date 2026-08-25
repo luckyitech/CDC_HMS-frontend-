@@ -164,7 +164,7 @@ const ActivityTab = ({ employeeId, staffName }) => {
           <p className="text-sm text-gray-700"><b>Staff activity{staffName ? ` — ${staffName}` : ''}</b></p>
           <p className="text-xs text-gray-500">
             {typeFilter ? `Filter: ${typeFilter.label} · ` : ''}
-            {(fromDate || toDate) ? `${fromDate || '…'} to ${toDate || '…'}` : 'All dates'} · {shown.length} record{shown.length !== 1 ? 's' : ''}
+            {(fromDate || toDate) ? `${fromDate || '…'} to ${toDate || '…'}` : 'Last 30 days'} · {shown.length} record{shown.length !== 1 ? 's' : ''}
           </p>
         </div>
         <table className="w-full text-sm">
