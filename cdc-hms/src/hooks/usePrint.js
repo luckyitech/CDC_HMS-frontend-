@@ -17,6 +17,12 @@ import { useRef, useCallback } from "react";
  * can silently drop the call with no dialog and no error, which is why
  * printing from an iPad went nowhere. See index.css's `@media print` block
  * for what actually controls what becomes visible during printing.
+ *
+ * Note for anyone tempted to position the print target with `position: fixed`
+ * to escape a modal's overflow: WebKit/Safari does not paint fixed-position
+ * elements into print output at all, so that prints a blank document there
+ * while looking fine in Chrome. The target stays in static flow and the
+ * clipping ancestors are neutralised instead.
  */
 const usePrint = () => {
   const printRef = useRef(null);
@@ -26,11 +32,23 @@ const usePrint = () => {
     if (!node) return;
 
     node.classList.add("is-printing");
+
+    // Mark every ancestor up to <body> so the print stylesheet can undo the
+    // modal overlays / scroll containers wrapping this content. Without it the
+    // printed document is clipped to whatever one screenful of that container
+    // showed. See the `.is-printing-ancestor` rules in index.css.
+    const ancestors = [];
+    for (let el = node.parentElement; el && el !== document.body; el = el.parentElement) {
+      el.classList.add("is-printing-ancestor");
+      ancestors.push(el);
+    }
+
     let cleaned = false;
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
       node.classList.remove("is-printing");
+      ancestors.forEach((el) => el.classList.remove("is-printing-ancestor"));
       window.removeEventListener("afterprint", cleanup);
       clearTimeout(fallback);
     };

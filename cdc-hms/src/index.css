@@ -53,12 +53,13 @@ html, body {
    usePrint() calls window.print() directly on this document (no iframe —
    iOS Safari silently drops print() unless it fires right at the tap that
    triggered it, and building/loading an iframe first breaks that). Which
-   print button was pressed marks its own PrintRoot with `is-printing`;
-   everything else, including any other PrintRoot mounted elsewhere on the
-   same page, stays hidden. The app-shell rules above lock html/body to the
-   viewport height with overflow hidden so the screen UI never scrolls as a
-   whole — printing the real document means that has to be undone here or
-   the printed page comes out empty/cut off. */
+   print button was pressed marks its own target with `is-printing` (and its
+   ancestors with `is-printing-ancestor`); everything else, including any
+   other print target mounted elsewhere on the same page, stays hidden. The
+   app-shell rules above lock html/body to the viewport height with overflow
+   hidden so the screen UI never scrolls as a whole — printing the real
+   document means that has to be undone here or the printed page comes out
+   empty/cut off. */
 @media print {
   @page {
     size: A4;
@@ -78,17 +79,37 @@ html, body {
   .print-target.is-printing * {
     visibility: visible;
   }
+  /* Every ancestor between <body> and the print target, marked by usePrint().
+     Print targets live inside modal overlays and scroll containers whose
+     fixed/absolute positioning, overflow and max-height would otherwise clip
+     the document to one screenful. Neutralising them is what lets the target
+     sit in normal flow and paginate across as many pages as it needs. */
+  .is-printing-ancestor {
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    background: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    display: block !important;
+  }
   .print-target.is-printing {
-    /* fixed, not absolute: several print targets live inside an
-       overflow-y-auto modal body, and `absolute` would still be clipped by
-       that ancestor's overflow. `fixed` positions against the page itself,
-       ignoring every ancestor's overflow/scroll — the one thing that reliably
-       escapes all of them (short of an ancestor using a CSS transform, which
-       none of these do). */
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    width: 210mm;
+    /* Deliberately NOT position:fixed. WebKit/Safari does not paint
+       position:fixed elements into print output at all (Chrome does), so a
+       fixed print target prints a blank document there. Static flow prints
+       correctly in both, and `.is-printing-ancestor` above removes the
+       clipping that made escaping the ancestors seem necessary. */
+    position: static !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
   }
   * {
     -webkit-print-color-adjust: exact !important;
