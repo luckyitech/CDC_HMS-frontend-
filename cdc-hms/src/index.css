@@ -49,12 +49,46 @@ html, body {
   input, select, textarea { font-size: 16px; }
 }
 
-/* Force full color printing across all browsers and devices (including Safari/iOS).
-   react-to-print copies this stylesheet into the print iframe automatically. */
-* {
-  -webkit-print-color-adjust: exact !important;
-  print-color-adjust: exact !important;
-  color-adjust: exact !important;
+/* ── Printing ───────────────────────────────────────────────────────────────
+   usePrint() calls window.print() directly on this document (no iframe —
+   iOS Safari silently drops print() unless it fires right at the tap that
+   triggered it, and building/loading an iframe first breaks that). Which
+   print button was pressed marks its own PrintRoot with `is-printing`;
+   everything else, including any other PrintRoot mounted elsewhere on the
+   same page, stays hidden. The app-shell rules above lock html/body to the
+   viewport height with overflow hidden so the screen UI never scrolls as a
+   whole — printing the real document means that has to be undone here or
+   the printed page comes out empty/cut off. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 0;
+  }
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-target.is-printing,
+  .print-target.is-printing * {
+    visibility: visible;
+  }
+  .print-target.is-printing {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 210mm;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
 }
 /* Hidden-but-working scrollbar — the floating design signals overflow by
    content peeking below; a visible bar is noise. Pair with overscroll-contain
