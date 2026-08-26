@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Users, ArrowLeft } from 'lucide-react';
 import api from '../../services/api';
 import StatusBadge from '../../components/shared/StatusBadge';
@@ -8,23 +8,9 @@ import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import Pagination from '../../components/shared/Pagination';
 import useDebounce from '../../hooks/useDebounce';
 import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statusStyles';
-
-// Roles that have a Staff File (clicking the name opens /admin/staff/:id).
-const STAFF_FILE_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
-
-// The file a row opens when its name is clicked. Staff-type accounts open their
-// Staff File; patients open the shared patient profile — the SAME component and
-// route the staff portal uses (/…/patient-profile/:uhid) so a patient file is
-// opened the same way in every portal. Returns null when there's nothing to open.
-// Staff resolve on employeeId (EMP014) rather than the database PK, mirroring
-// how patients resolve on uhid — the same reason neither URL exposes a row id.
-// A staff account with no employeeId yet (a legacy row the backfill has not
-// reached) returns null and renders as plain text rather than a dead link.
-const fileHref = (user) =>
-  STAFF_FILE_ROLES.includes(user.role)
-    ? (user.employeeId ? `/admin/staff/${user.employeeId}` : null)
-    : user.uhid ? `/admin/patient-profile/${user.uhid}`
-    : null;
+// Shared with the Admin Dashboard's recent-accounts list so a user row opens
+// the same file wherever it is clicked.
+import { fileHref } from '../../utils/userLinks';
 
 // The clinic has hundreds of patient records; rendering them all at once
 // makes the page unusable, so the list is paged.
@@ -70,15 +56,20 @@ const avatarColor = (id) => {
 
 const ManageUsers = () => {
   const navigate = useNavigate();
+  // ?role= and ?status= seed the filters so the Admin Dashboard's tiles can
+  // link straight to "the doctors" or "the inactive accounts" rather than
+  // dropping the admin on an unfiltered list to re-select what they clicked.
+  // Read once as initial state — the dropdowns own them from then on.
+  const [searchParams] = useSearchParams();
   const [users, setUsers]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [searchTerm, setSearchTerm]     = useState('');
-  const [filterRole, setFilterRole]     = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterRole, setFilterRole]     = useState(() => searchParams.get('role') || 'all');
+  const [filterStatus, setFilterStatus] = useState(() => searchParams.get('status') || 'all');
   const [sortBy, setSortBy]             = useState('newest');
   // Top-level view: everyone, patients only, or staff files only (non-patient
   // roles — the accounts that have a Staff File).
-  const [view, setView]                 = useState('all'); // 'all' | 'patients' | 'staff'
+  const [view, setView]                 = useState(() => searchParams.get('view') || 'all'); // 'all' | 'patients' | 'staff'
 
   useEffect(() => {
     api.get('/users')

@@ -1,13 +1,34 @@
 import { useState, useEffect } from "react";
+import {
+  Activity,
+  Stethoscope,
+  UserCog,
+  FlaskConical,
+  UserPlus,
+  Users,
+  UserX,
+  ClipboardList,
+  AlertTriangle,
+  Copy,
+  Waves,
+  LogIn,
+  ChevronRight,
+} from "lucide-react";
 import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
-import StatCard from "../../components/shared/StatCard";
 import Button from "../../components/shared/Button";
 import StatusBadge from "../../components/shared/StatusBadge";
 import { ROLE_TONES } from "../../utils/statusStyles";
+// Shared with Manage Users so a user row opens the same file from either page.
+import { fileHref } from "../../utils/userLinks";
 import { useNavigate } from "react-router-dom";
 import { usePatientContext } from "../../contexts/PatientContext";
 import api from "../../services/api";
+import patientService from "../../services/patientService";
+import ultrasoundService from "../../services/ultrasoundService";
+import activityService from "../../services/activityService";
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -16,6 +37,12 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalPatients, setTotalPatients] = useState(0);
+  // Work waiting on an admin. Each is a count the admin can act on, not a
+  // headcount — the old gradient tiles counted things that change monthly.
+  const [duplicateGroups, setDuplicateGroups] = useState(null);
+  const [unassignedScans, setUnassignedScans] = useState(null);
+  // Today's activity, derived from the activity log filtered to today.
+  const [todayEvents, setTodayEvents] = useState(null);
 
   useEffect(() => {
     api.get('/users')
@@ -26,6 +53,20 @@ const AdminDashboard = () => {
     getPatientStats().then(data => {
       if (data) setTotalPatients(data.total);
     });
+
+    // Each of these is independent and non-critical: a failure leaves its tile
+    // showing "—" rather than taking the whole dashboard down.
+    patientService.getDuplicates()
+      .then(res => { if (res.success) setDuplicateGroups(res.data?.length ?? 0); })
+      .catch(() => {});
+
+    ultrasoundService.getUnassigned()
+      .then(res => { if (res.success) setUnassignedScans(res.data?.length ?? 0); })
+      .catch(() => {});
+
+    activityService.getLog({ startDate: todayISO() })
+      .then(res => { if (res.success) setTodayEvents(res.data?.events ?? []); })
+      .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentDate = new Date();
@@ -57,6 +98,50 @@ const AdminDashboard = () => {
   // Most recently created accounts (API returns DESC order)
   const recentAccounts = users.slice(0, 5);
 
+  // Today's counts, by activity type. null while loading → tiles show "—".
+  const countToday = (type) =>
+    todayEvents === null ? null : todayEvents.filter(e => e.type === type).length;
+
+  const today = {
+    logins:        countToday('user_login'),
+    registrations: countToday('registered'),
+    consultations: countToday('consultation_completed'),
+    total:         todayEvents === null ? null : todayEvents.length,
+  };
+
+  // Anything with a non-zero count is work outstanding; zero reads as "clear".
+  const attention = [
+    {
+      label: 'Inactive accounts',
+      count: loading ? null : stats.inactiveUsers,
+      icon: UserX,
+      to: '/admin/manage-users?status=Inactive',
+    },
+    {
+      label: 'Possible duplicate patients',
+      count: duplicateGroups,
+      icon: Copy,
+      to: '/admin/duplicate-patients',
+    },
+    {
+      label: 'Unassigned scans',
+      count: unassignedScans,
+      icon: Waves,
+      to: '/admin/unassigned-ultrasound',
+    },
+  ];
+
+  const roster = [
+    { label: 'Doctors',       count: loading ? null : stats.totalDoctors,  to: '/admin/manage-users?role=doctor' },
+    { label: 'Staff',         count: loading ? null : stats.totalStaff,    to: '/admin/manage-users?role=staff' },
+    { label: 'Lab Techs',     count: loading ? null : stats.totalLabTechs, to: '/admin/manage-users?role=lab' },
+    { label: 'Patients',      count: totalPatients || null,                to: '/admin/manage-users?view=patients' },
+    { label: 'Active',        count: loading ? null : stats.activeUsers,   to: '/admin/manage-users?status=Active' },
+    { label: 'Inactive',      count: loading ? null : stats.inactiveUsers, to: '/admin/manage-users?status=Inactive' },
+  ];
+
+  const show = (n) => (n === null || n === undefined ? '—' : n);
+
   const formatRole = (role) => {
     const map = { doctor: 'Doctor', staff: 'Staff', lab: 'Lab Tech', patient: 'Patient', admin: 'Admin' };
     return map[role] || role;
@@ -66,57 +151,190 @@ const AdminDashboard = () => {
     <div>
       <PageHeader title="Admin Dashboard" subtitle="System Overview & User Management" />
 
-      {/* Statistics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-        <StatCard title="Total Doctors" value={loading ? '...' : stats.totalDoctors} gradient="from-blue-500 to-blue-600" sub={`+${stats.newThisMonth.doctors} this month`} />
-        <StatCard title="Total Staff" value={loading ? '...' : stats.totalStaff} gradient="from-green-500 to-green-600" sub={`+${stats.newThisMonth.staff} this month`} />
-        <StatCard title="Lab Technicians" value={loading ? '...' : stats.totalLabTechs} gradient="from-purple-500 to-purple-600" sub={`+${stats.newThisMonth.labTechs} this month`} />
-        <StatCard title="Total Patients" value={totalPatients} gradient="from-cyan-500 to-cyan-600" sub="Registered patients" />
-      </div>
+      {/* Today — what has actually happened in the clinic since midnight. Leads
+          the page because it is the only thing here that changes daily; the
+          headcounts it replaced move maybe once a month. Four counts alone left
+          most of the width empty, so the recent events run alongside them: the
+          numbers say how much, the feed says what. */}
+      <div className="mb-6">
+        <Card title={
+          <span className="flex items-center justify-between w-full">
+            <span className="flex items-center gap-2">
+              <Activity className="w-5 h-5" />
+              Today
+            </span>
+            <button
+              onClick={() => navigate('/admin/activity-log')}
+              className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
+            >
+              Activity log <ChevronRight className="w-4 h-4" />
+            </button>
+          </span>
+        }>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Each tile opens today's activity log filtered to its own type —
+                the whole band used to be one big link, so leaving the numbers
+                inert made them look broken. */}
+            <div className="grid grid-cols-2 gap-3 content-start">
+              {[
+                { label: 'Logins',        value: today.logins,        icon: LogIn,        action: 'user_login' },
+                { label: 'Registrations', value: today.registrations, icon: UserPlus,     action: 'registered' },
+                { label: 'Consultations', value: today.consultations, icon: Stethoscope,  action: 'consultation_completed' },
+                { label: 'Total actions', value: today.total,         icon: Activity,     action: null },
+              ].map(({ label, value, icon: Icon, action }) => (
+                <button
+                  key={label}
+                  onClick={() => navigate(
+                    `/admin/activity-log?startDate=${todayISO()}${action ? `&action=${action}` : ''}`
+                  )}
+                  className="bg-gray-50 hover:bg-gray-100 rounded-lg px-3 py-2.5 text-left transition"
+                >
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <Icon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <p className="text-xs text-gray-500 truncate">{label}</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-800 leading-tight">{show(value)}</p>
+                </button>
+              ))}
+            </div>
 
-      {/* System Status + Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card title="System Status">
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-              <span className="text-sm font-semibold text-gray-700">Active Users</span>
-              <span className="text-lg font-bold text-green-600">{loading ? '...' : stats.activeUsers}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm font-semibold text-gray-700">Inactive Users</span>
-              <span className="text-lg font-bold text-gray-600">{loading ? '...' : stats.inactiveUsers}</span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-              <span className="text-sm font-semibold text-gray-700">Total Users</span>
-              <span className="text-lg font-bold text-blue-600">{loading ? '...' : users.length}</span>
+            <div className="lg:col-span-2 lg:border-l lg:border-gray-100 lg:pl-6">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Latest</p>
+              {todayEvents === null ? (
+                <p className="text-sm text-gray-400 py-4">Loading…</p>
+              ) : todayEvents.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4">Nothing recorded yet today.</p>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {todayEvents.slice(0, 5).map((e, i) => (
+                    <li key={i}>
+                      {/* Opens today's log filtered to this person, so a row is a
+                          way into "what else have they done today". */}
+                      <button
+                        onClick={() => navigate(
+                          `/admin/activity-log?startDate=${todayISO()}&staff=${encodeURIComponent(e.staff)}`
+                        )}
+                        className="w-full py-2 px-1 -mx-1 rounded flex items-baseline gap-3 text-sm text-left hover:bg-gray-50 transition"
+                      >
+                        <span className="text-xs text-gray-400 tabular-nums shrink-0 w-11">
+                          {new Date(e.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="font-semibold text-gray-800 shrink-0">{e.staff}</span>
+                        <span className="text-gray-500 truncate">
+                          {e.label}{e.patient ? ` · ${e.patient}` : ''}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </Card>
+      </div>
 
-        <Card title="Quick Actions" className="md:col-span-2">
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => navigate('/admin/create-doctor')} className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500 text-left">
-              <p className="font-semibold text-blue-700">Create Doctor</p>
-              <p className="text-xs text-blue-600 mt-1">Add new medical practitioner</p>
+      {/* Quick Actions + Needs Attention + Roster — three equal columns, the
+          icon-led card style shared with the staff and doctor dashboards. */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <Card title={
+          <span className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Quick Actions
+          </span>
+        }>
+          <div className="space-y-3">
+            <button
+              onClick={() => navigate('/admin/create-doctor')}
+              className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center gap-3"
+            >
+              <Stethoscope className="w-5 h-5 text-primary" />
+              <p className="font-semibold text-gray-800">Create Doctor</p>
             </button>
-            <button onClick={() => navigate('/admin/create-staff')} className="p-4 bg-green-50 hover:bg-green-100 rounded-lg transition border-l-4 border-green-500 text-left">
-              <p className="font-semibold text-green-700">Create Staff</p>
-              <p className="text-xs text-green-600 mt-1">Add administrative staff</p>
+            <button
+              onClick={() => navigate('/admin/create-staff')}
+              className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center gap-3"
+            >
+              <UserCog className="w-5 h-5 text-primary" />
+              <p className="font-semibold text-gray-800">Create Staff</p>
             </button>
-            <button onClick={() => navigate('/admin/create-lab')} className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition border-l-4 border-purple-500 text-left">
-              <p className="font-semibold text-purple-700">Create Lab Tech</p>
-              <p className="text-xs text-purple-600 mt-1">Add lab technician</p>
+            <button
+              onClick={() => navigate('/admin/create-lab')}
+              className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center gap-3"
+            >
+              <FlaskConical className="w-5 h-5 text-primary" />
+              <p className="font-semibold text-gray-800">Create Lab Tech</p>
             </button>
-            <button onClick={() => navigate('/admin/create-patient')} className="p-4 bg-cyan-50 hover:bg-cyan-100 rounded-lg transition border-l-4 border-cyan-500 text-left">
-              <p className="font-semibold text-cyan-700">Create Patient</p>
-              <p className="text-xs text-cyan-600 mt-1">Register new patient</p>
+            <button
+              onClick={() => navigate('/admin/create-patient')}
+              className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center gap-3"
+            >
+              <UserPlus className="w-5 h-5 text-primary" />
+              <p className="font-semibold text-gray-800">Create Patient</p>
             </button>
+          </div>
+        </Card>
+
+        {/* Needs Attention — outstanding work, each row a way straight into the
+            page that clears it. A zero count reads as "clear" rather than being
+            hidden, so the admin can see it was checked. */}
+        <Card title={
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            Needs Attention
+          </span>
+        }>
+          <div className="space-y-3">
+            {attention.map(({ label, count, icon: Icon, to }) => {
+              const outstanding = count > 0;
+              return (
+                <button
+                  key={label}
+                  onClick={() => navigate(to)}
+                  className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition flex items-center justify-between gap-3"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <Icon className={`w-5 h-5 shrink-0 ${outstanding ? 'text-amber-600' : 'text-gray-400'}`} />
+                    <span className="text-sm text-gray-700 truncate">{label}</span>
+                  </span>
+                  <span className={`font-bold shrink-0 ${outstanding ? 'text-gray-800' : 'text-gray-400'}`}>
+                    {show(count)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Roster — the headcounts, demoted from the top of the page to a
+            compact reference list. Each row filters Manage Users. */}
+        <Card title={
+          <span className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Roster
+          </span>
+        }>
+          <div className="divide-y divide-gray-100">
+            {roster.map(({ label, count, to }) => (
+              <button
+                key={label}
+                onClick={() => navigate(to)}
+                className="w-full flex items-center justify-between py-2.5 px-1 hover:bg-gray-50 rounded transition text-left"
+              >
+                <span className="text-sm text-gray-600">{label}</span>
+                <span className="text-sm font-bold text-gray-800">{show(count)}</span>
+              </button>
+            ))}
           </div>
         </Card>
       </div>
 
       {/* Recent Account Creations */}
-      <Card title="Recent Account Creations">
+      <Card title={
+        <span className="flex items-center gap-2">
+          <ClipboardList className="w-5 h-5" />
+          Recent Account Creations
+        </span>
+      }>
         {loading ? (
           <div className="text-center py-8 text-gray-500">Loading recent accounts...</div>
         ) : recentAccounts.length === 0 ? (
@@ -135,10 +353,18 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {recentAccounts.map((account) => (
-                    <tr key={account.id} className="hover:bg-blue-50">
+                  {recentAccounts.map((account) => {
+                    // Null for a staff account with no employeeId yet — that row
+                    // stays plain text rather than becoming a dead link.
+                    const href = fileHref(account);
+                    return (
+                    <tr
+                      key={account.id}
+                      onClick={href ? () => navigate(href) : undefined}
+                      className={`hover:bg-blue-50 ${href ? 'cursor-pointer' : ''}`}
+                    >
                       <td className="px-6 py-4">
-                        <p className="font-semibold text-gray-800">{account.name}</p>
+                        <p className={`font-semibold ${href ? 'text-primary hover:underline' : 'text-gray-800'}`}>{account.name}</p>
                         <p className="text-xs text-gray-500">{account.email}</p>
                       </td>
                       <td className="px-6 py-4">
@@ -160,7 +386,8 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

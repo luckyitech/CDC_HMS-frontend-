@@ -74,28 +74,28 @@ const StaffDashboard = () => {
           <div className="space-y-3">
             <button
               onClick={() => navigate('/staff/create-patient')}
-              className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition border-l-4 border-blue-500 flex items-center gap-3"
+              className="w-full text-left px-4 py-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition flex items-center gap-3"
             >
               <UserPlus className="w-5 h-5 text-blue-600" />
               <p className="font-semibold text-blue-700">Register New Patient</p>
             </button>
             <button
               onClick={() => navigate('/staff/patients')}
-              className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition border-l-4 border-green-500 flex items-center gap-3"
+              className="w-full text-left px-4 py-3 bg-green-50 hover:bg-green-100 rounded-lg transition flex items-center gap-3"
             >
               <Search className="w-5 h-5 text-green-600" />
               <p className="font-semibold text-green-700">Search Patient</p>
             </button>
             <button
               onClick={() => navigate('/staff/queue')}
-              className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition border-l-4 border-purple-500 flex items-center gap-3"
+              className="w-full text-left px-4 py-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition flex items-center gap-3"
             >
               <ClipboardList className="w-5 h-5 text-purple-600" />
               <p className="font-semibold text-purple-700">Manage Queue</p>
             </button>
             <button
               onClick={() => setShowRecordUse(true)}
-              className="w-full text-left px-4 py-3 bg-amber-50 hover:bg-amber-100 rounded-lg transition border-l-4 border-amber-500 flex items-center gap-3"
+              className="w-full text-left px-4 py-3 bg-amber-50 hover:bg-amber-100 rounded-lg transition flex items-center gap-3"
             >
               <Package className="w-5 h-5 text-amber-600" />
               <p className="font-semibold text-amber-700">Record Stock Use</p>

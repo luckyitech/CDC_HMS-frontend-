@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Activity, Filter, RefreshCw, ChevronLeft, ChevronRight, ChevronDown, Printer } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PrintRoot from '../../components/shared/PrintRoot';
@@ -98,15 +99,21 @@ const ActivityLog = () => {
   const [page, setPage]       = useState(1);
   const [columnCount, setColumnCount] = useState(getColumnCount);
 
+  // ?action= and ?staff= seed the filters, so the Admin Dashboard's Today tiles
+  // can link straight to "today's logins" rather than dropping the admin on the
+  // full log to re-pick what they just clicked. Read once as initial state —
+  // the filter controls own them from then on.
+  const [searchParams] = useSearchParams();
+
   // Filters
-  const [startDate, setStartDate]     = useState('');
-  const [endDate, setEndDate]         = useState('');
+  const [startDate, setStartDate]     = useState(() => searchParams.get('startDate') || '');
+  const [endDate, setEndDate]         = useState(() => searchParams.get('endDate') || '');
   // No dates picked defaults to the last 30 days server-side — this opts back
   // into the full history instead. Picking a date always wins over it.
   const [allTime, setAllTime]         = useState(false);
-  const [staffSearch, setStaffSearch] = useState('');
+  const [staffSearch, setStaffSearch] = useState(() => searchParams.get('staff') || '');
   const [role, setRole]               = useState('all');
-  const [actionType, setActionType]   = useState('all');
+  const [actionType, setActionType]   = useState(() => searchParams.get('action') || 'all');
   // Which staff summary cards are expanded — collapsed (name + total only) by
   // default so the summary section doesn't dominate the page; each card toggles
   // independently rather than as an accordion.

@@ -278,7 +278,7 @@ const PatientDashboard = () => {
           <div className="space-y-2.5">
             <button
               onClick={() => navigate('/patient/log-blood-sugar')}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-lg transition border-l-4 border-blue-500"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-lg transition"
             >
               <Droplet className="w-5 h-5 text-blue-600 flex-shrink-0" />
               <div className="flex-1 text-left">
@@ -288,7 +288,7 @@ const PatientDashboard = () => {
             </button>
             <button
               onClick={() => navigate('/patient/book-appointment')}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-green-50 hover:bg-green-100 active:bg-green-200 rounded-lg transition border-l-4 border-green-500"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-green-50 hover:bg-green-100 active:bg-green-200 rounded-lg transition"
             >
               <CalendarCheck className="w-5 h-5 text-green-600 flex-shrink-0" />
               <div className="flex-1 text-left">
@@ -298,7 +298,7 @@ const PatientDashboard = () => {
             </button>
             <button
               onClick={() => navigate('/patient/trends')}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-purple-50 hover:bg-purple-100 active:bg-purple-200 rounded-lg transition border-l-4 border-purple-500"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-purple-50 hover:bg-purple-100 active:bg-purple-200 rounded-lg transition"
             >
               <TrendingUp className="w-5 h-5 text-purple-600 flex-shrink-0" />
               <div className="flex-1 text-left">
@@ -308,7 +308,7 @@ const PatientDashboard = () => {
             </button>
             <button
               onClick={() => navigate('/patient/upload-results')}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 rounded-lg transition border-l-4 border-orange-500"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-orange-50 hover:bg-orange-100 active:bg-orange-200 rounded-lg transition"
             >
               <Activity className="w-5 h-5 text-orange-600 flex-shrink-0" />
               <div className="flex-1 text-left">
@@ -322,21 +322,21 @@ const PatientDashboard = () => {
         {/* Health Tips */}
         <Card title="Health Tips" className="md:col-span-2">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3 sm:p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+            <div className="p-3 sm:p-4 bg-blue-50 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Droplets className="w-4 h-4 text-blue-600 flex-shrink-0" />
                 <p className="font-semibold text-blue-700 text-sm">Stay Hydrated</p>
               </div>
               <p className="text-xs text-blue-600">Drink at least 8 glasses of water daily</p>
             </div>
-            <div className="p-3 sm:p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
+            <div className="p-3 sm:p-4 bg-green-50 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Activity className="w-4 h-4 text-green-600 flex-shrink-0" />
                 <p className="font-semibold text-green-700 text-sm">Regular Exercise</p>
               </div>
               <p className="text-xs text-green-600">30 minutes of walking can help control blood sugar</p>
             </div>
-            <div className="p-3 sm:p-4 bg-purple-50 border-l-4 border-purple-500 rounded-lg">
+            <div className="p-3 sm:p-4 bg-purple-50 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Pill className="w-4 h-4 text-purple-600 flex-shrink-0" />
                 <p className="font-semibold text-purple-700 text-sm">Medication</p>
