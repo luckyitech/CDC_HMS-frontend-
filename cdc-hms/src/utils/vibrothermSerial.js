@@ -48,8 +48,17 @@ const B_CLOSE_VPT = 0x3e; // '>'
 const B_OPEN_TH = 0x5b;   // '['
 const B_CLOSE_TH = 0x5d;  // ']'
 
-// R-counts that land the machine on each screen (from the decompile / live run).
-const RCOUNT = { vpt: 7, thermal: 3 };
+// Exact mode-select sequences, decompiled from the vendor app
+// (VibrothermDx.exe: btnNEXTvpt / btnNEXTcold / btnNEXThot). The device does
+// NOT switch modes on the frame bracket — the PC drives it here. The long gap
+// after 'T' is essential: the unit needs ~1-2 s to change mode before it will
+// accept the 'R' navigation; short gaps silently fail (the machine then looks
+// "stuck" in whatever mode it was in). 'I' count and 'R' count both matter.
+const SCREENS = {
+  vpt:  { inits: 4, postT: 2000, rcount: 7 }, // IIII · T · (2 s) · R×7
+  hot:  { inits: 4, postT: 2000, rcount: 3 }, // IIII · T · (2 s) · R×3
+  cold: { inits: 3, postT: 1000, rcount: 3 }, // III  · T · (1 s) · R×3
+};
 
 /**
  * Connect to the probe and stream parsed readings by actively driving it.
@@ -87,6 +96,8 @@ export const connectVibrotherm = async ({
   let running = true;
   let heartbeat = null;
   let activeReader = null;
+  const DEBUG = true; // TEMP diagnostic — remove before final commit
+  let lastRawLog = 0;
 
   // --- serialized writer: one write at a time, in order ---
   const writer = port.writable.getWriter();
@@ -99,13 +110,20 @@ export const connectVibrotherm = async ({
   };
 
   // Drive the machine onto a screen: init + start + advance N positions.
-  const gotoScreen = async (channel) => {
-    await tx('IIII');
-    await sleep(180);
-    await tx('T');
-    await sleep(180);
-    await tx('R'.repeat(RCOUNT[channel] ?? RCOUNT.vpt));
-    await sleep(180);
+  const gotoScreen = async (screen) => {
+    const cfg = SCREENS[screen] || SCREENS.vpt;
+    // The vendor switches modes on a blocked UI thread, so its clock timer sends
+    // NO 'H' during the sequence — stray heartbeats here corrupt the switch and
+    // the unit goes quiet. Pause our heartbeat for the whole init, resume after.
+    if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+    await sleep(500);
+    await tx('I'.repeat(cfg.inits));   // init / reset to a known position
+    await sleep(500);
+    await tx('T');                     // start transmit on the new mode
+    await sleep(cfg.postT);            // CRITICAL: let the mode actually change
+    await tx('R'.repeat(cfg.rcount));  // navigate to the mode's read position
+    await sleep(200);
+    if (running) heartbeat = setInterval(() => { tx('H'); }, 1000);
   };
 
   // --- byte state machine ---
@@ -121,6 +139,7 @@ export const connectVibrotherm = async ({
     if (b === B_CLOSE_VPT || b === B_CLOSE_TH) {
       if (channel && intByte !== null) {
         const value = Math.min(50, intByte + (decByte ?? 0) / 10);
+        if (DEBUG) console.log('[vibro] FRAME', channel, 'int', intByte, 'dec', decByte, 'val', value.toFixed(1));
         onReading({ value, channel });
         tx(channel === 'vpt' ? 'C' : 'Z');          // continue ack
       }
@@ -144,12 +163,8 @@ export const connectVibrotherm = async ({
 
   (async () => {
     try {
-      await tx('H');
-      await sleep(180);
-      await gotoScreen(startScreen);
+      await gotoScreen(startScreen);   // runs the init, then starts the heartbeat
     } catch { /* init best-effort */ }
-
-    heartbeat = setInterval(() => { tx('H'); }, 1000);
 
     // Re-acquire the reader after a BufferOverrunError while the port is open.
     while (running && port.readable) {
@@ -159,7 +174,10 @@ export const connectVibrotherm = async ({
         while (running) {
           const { value, done } = await reader.read();
           if (done) break;
-          if (value) for (let i = 0; i < value.length; i += 1) handleByte(value[i]);
+          if (value && value.length) {
+            if (DEBUG) { const now = Date.now(); if (now - lastRawLog > 400) { lastRawLog = now; console.log('[vibro] rx', Array.from(value.slice(0, 48)).map((x) => x.toString(16).padStart(2, '0')).join(' ')); } }
+            for (let i = 0; i < value.length; i += 1) handleByte(value[i]);
+          }
         }
       } catch (err) {
         if (!running) break;

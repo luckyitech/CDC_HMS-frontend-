@@ -128,7 +128,7 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
 
   // ---- probe link (read-only) ----
   const [device, setDevice] = useState({ status: 'idle', detail: null });
-  const [live, setLive] = useState(null);           // { value, channel, at } — matched to the current modality's channel
+  const [live, setLive] = useState(null);           // { value, at } — latest reading for the active (tab-driven) probe
   const [manual, setManual] = useState('');
   const linkRef = useRef(null);
 
@@ -136,9 +136,21 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
   // interleaved. Show only the channel that matches the current modality so
   // the readout doesn't flicker between volts and °C. Hot vs cold is our own
   // flow state — both are thermal frames.
-  const channelFor = (m) => (m === 'VPT' ? 'vpt' : (m === 'HOT' || m === 'COLD') ? 'thermal' : null);
+  // Which device screen each modality drives (VPT → vibration probe;
+  // Hot / Cold → thermal probe on their own screens). MONO uses no probe.
+  const screenFor = (m) => (m === 'VPT' ? 'vpt' : m === 'HOT' ? 'hot' : m === 'COLD' ? 'cold' : null);
   const modalityRef = useRef(modality);
-  useEffect(() => { modalityRef.current = modality; setLive(null); }, [modality]);
+  // The Vibrotherm tags every serial frame the same way regardless of which
+  // probe is live, so HMS DRIVES the probe from the selected modality — VPT
+  // commands the vibration probe, Hot/Cold the thermal probe — and takes
+  // whatever streams as that modality's reading. Switching tabs re-commands
+  // the probe and clears the readout until the new value settles.
+  useEffect(() => {
+    modalityRef.current = modality;
+    setLive(null);
+    const screen = screenFor(modality);
+    if (screen) linkRef.current?.switchScreen?.(screen); // no-op until connected
+  }, [modality]);
 
   const meta = MODALITY_META[modality];
   const ModIcon = MOD_ICON[modality];
@@ -163,11 +175,8 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
     try {
       const link = await connectVibrotherm({
         silent,
-        startScreen: channelFor(modality) || 'vpt',
-        onReading: (r) => {
-          if (r.channel !== channelFor(modalityRef.current)) return; // ignore the other probe's frames
-          setLive({ value: r.value, channel: r.channel, at: Date.now() });
-        },
+        startScreen: screenFor(modality) || 'vpt',
+        onReading: (r) => setLive({ value: r.value, at: Date.now() }),
         onStatus: (status, detail) => setDevice({ status, detail }),
       });
       linkRef.current = link;
