@@ -128,9 +128,17 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
 
   // ---- probe link (read-only) ----
   const [device, setDevice] = useState({ status: 'idle', detail: null });
-  const [live, setLive] = useState(null);           // { value, modality, raw, at }
+  const [live, setLive] = useState(null);           // { value, channel, at } — matched to the current modality's channel
   const [manual, setManual] = useState('');
   const linkRef = useRef(null);
+
+  // The driver streams vibration ('vpt') and thermal ('thermal') frames
+  // interleaved. Show only the channel that matches the current modality so
+  // the readout doesn't flicker between volts and °C. Hot vs cold is our own
+  // flow state — both are thermal frames.
+  const channelFor = (m) => (m === 'VPT' ? 'vpt' : (m === 'HOT' || m === 'COLD') ? 'thermal' : null);
+  const modalityRef = useRef(modality);
+  useEffect(() => { modalityRef.current = modality; setLive(null); }, [modality]);
 
   const meta = MODALITY_META[modality];
   const ModIcon = MOD_ICON[modality];
@@ -155,7 +163,11 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
     try {
       const link = await connectVibrotherm({
         silent,
-        onReading: (r) => setLive({ ...r, at: Date.now() }),
+        startScreen: channelFor(modality) || 'vpt',
+        onReading: (r) => {
+          if (r.channel !== channelFor(modalityRef.current)) return; // ignore the other probe's frames
+          setLive({ value: r.value, channel: r.channel, at: Date.now() });
+        },
         onStatus: (status, detail) => setDevice({ status, detail }),
       });
       linkRef.current = link;
