@@ -28,6 +28,7 @@ import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import UltrasoundTab from "../../components/shared/UltrasoundTab";
+import NeuropathyStudyList from "../../components/shared/NeuropathyStudyList";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import NursingActionsTab from "../../components/nursing/NursingActionsTab";
 import TodaysConsultationTab from "../../components/doctor/TodaysConsultationTab";
@@ -128,11 +129,13 @@ const DiagnosticsTab = ({ patient }) => {
         tabs={[
           { id: "documents", label: "Medical Documents" },
           { id: "ultrasound", label: "Radiology" },
+          { id: "neuropathy", label: "Neuropathy" },
           { id: "charts", label: "Charts" },
         ]}
       />
       {sub === "documents" && <MedicalDocumentsTab patient={patient} />}
       {sub === "ultrasound" && <UltrasoundTab patient={patient} />}
+      {sub === "neuropathy" && <NeuropathyStudyList patient={patient} />}
       {sub === "charts" && <GlycemicChartPanel patient={patient} />}
     </div>
   );

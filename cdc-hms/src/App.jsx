@@ -101,6 +101,7 @@ const UnassignedUltrasound   = lazy(() => import("./pages/admin/UnassignedUltras
 const UltrasoundStudio       = lazy(() => import("./pages/doctor/UltrasoundStudio"));
 const RadiologySuite         = lazy(() => import("./pages/radiology/RadiologySuite"));
 const RadiologyUnassigned     = lazy(() => import("./pages/radiology/RadiologyUnassigned"));
+const NeuropathyStudioPage    = lazy(() => import("./pages/radiology/NeuropathyStudioPage"));
 
 // HMIS V3 — inpatient (lazy)
 const WardBoard          = lazy(() => import("./pages/inpatient/WardBoard"));
@@ -287,6 +288,7 @@ function App() {
                   <Route path="patients" element={<MyPatients basePath="/radiology" />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="unassigned" element={<RadiologyUnassigned />} />
+                  <Route path="neuropathy" element={<NeuropathyStudioPage />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
