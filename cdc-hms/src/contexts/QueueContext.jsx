@@ -61,7 +61,7 @@ export const QueueProvider = ({ children }) => {
   // ============================================
 
   // Add patient to queue
-  const addToQueue = async (patient, priority = 'Normal', reason = '', assignedDoctorId = null, isReview = false) => {
+  const addToQueue = async (patient, priority = 'Normal', reason = '', assignedDoctorId = null, isReview = false, extra = {}) => {
     setLoading(true);
     try {
       const response = await queueService.add({
@@ -70,6 +70,8 @@ export const QueueProvider = ({ children }) => {
         reason: reason || (isReview ? 'Review visit' : 'Routine checkup'),
         assignedDoctorId,
         isReview,
+        destination: extra.destination || 'Outpatient',
+        service: extra.service || null,
       });
 
       if (response.success) {

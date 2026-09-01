@@ -8,8 +8,8 @@
 export const FEET = ['R', 'L'];
 export const FOOT_LABELS = { R: 'Right', L: 'Left' };
 
-// The clinic's plantar protocol: 4 sites per foot (MTH 3 + instep omitted).
-export const PROTOCOL_SITES = ['greatToe', 'mth1', 'mth5', 'heel'];
+// The clinic's plantar protocol: the full 6 vendor sites per foot.
+export const PROTOCOL_SITES = ['greatToe', 'mth1', 'mth3', 'mth5', 'midfoot', 'heel'];
 
 export const SITE_LABELS = {
   greatToe: 'Great toe',
@@ -17,9 +17,9 @@ export const SITE_LABELS = {
   mth5:     'MTH 5',
   heel:     'Heel',
   mth3:     'MTH 3',
-  midfoot:  'Instep',
+  midfoot:  'Mid-foot',
 };
-export const SITE_SHORT = { greatToe: 'GT', mth1: 'M1', mth5: 'M5', heel: 'H', mth3: 'M3', midfoot: 'IN' };
+export const SITE_SHORT = { greatToe: 'GT', mth1: 'M1', mth3: 'M3', mth5: 'M5', midfoot: 'MF', heel: 'H' };
 
 export const MODALITIES = ['VPT', 'HOT', 'COLD', 'MONO'];
 export const MODALITY_META = {
@@ -81,4 +81,14 @@ export const GRADE_CLASSES = {
   Moderate: 'bg-orange-50 text-orange-700 border-orange-200',
   Severe:   'bg-red-50 text-red-700 border-red-200',
   pending:  'bg-gray-50 text-gray-500 border-gray-200',
+};
+
+// Per-spot fill/ring for the foot diagram — the measured point tinted by its own
+// grade band (green Normal · amber Mild · orange Moderate · red Severe).
+export const GRADE_SPOT = {
+  Normal:   { fill: 'rgba(22,163,74,0.38)',  ring: '#16a34a', text: '#065f46' },
+  Mild:     { fill: 'rgba(202,138,4,0.40)',  ring: '#ca8a04', text: '#713f12' },
+  Moderate: { fill: 'rgba(234,88,12,0.40)',  ring: '#ea580c', text: '#7c2d12' },
+  Severe:   { fill: 'rgba(220,38,38,0.42)',  ring: '#dc2626', text: '#7f1d1d' },
+  none:     { fill: 'rgba(255,255,255,0.65)', ring: '#9ca3af', text: '#374151' },
 };

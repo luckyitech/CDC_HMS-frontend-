@@ -11,7 +11,6 @@ import {
   Syringe,
   ChevronUp,
   ChevronDown,
-  Menu as MenuIcon,
   Package,
   BedDouble,
   FlaskConical,
@@ -38,6 +37,7 @@ import SwitcherTabs from "../shared/SwitcherTabs";
 import Glp1Kardex from "../shared/Glp1Kardex";
 import LabRequest from "../shared/LabRequest";
 import ConsultationSummaryContainer from "./ConsultationSummaryContainer";
+import SummaryDock from "../shared/SummaryDock";
 import { isToday } from "../../utils/dateUtils";
 
 // ---------------------------------------------------------------------------
@@ -123,7 +123,6 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   // Admit modal can pre-fill the admission note.
   const notesTextRef = useRef('');
   // Patient summary drawer — mobile/tablet only (always visible ≥ xl)
-  const [summaryOpen, setSummaryOpen] = useState(false);
   // Tracked diagnoses (summary panel is their single home). Active ones are
   // auto-attached to treatment plans; returning patients with an active
   // diagnosis don't re-enter one every visit.
@@ -543,19 +542,28 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
       {/* Two-column layout: consultation body + right summary panel. The panel
           lives OUTSIDE the accordion grid, so ACCORDION_SECTIONS parity is
           untouched. */}
-      <div className="flex flex-col xl:flex-row xl:items-start gap-4">
-      <div className="flex-1 min-w-0">
-
-      {/* Patient summary — mobile/tablet trigger for the drawer (always-on ≥ xl) */}
-      <div className="xl:hidden flex justify-end mb-3">
-        <button
-          onClick={() => setSummaryOpen(true)}
-          className="flex items-center gap-1.5 text-sm font-semibold border border-primary text-primary rounded-lg px-3 py-1.5 hover:bg-blue-50"
-        >
-          <MenuIcon className="w-4 h-4" /> Patient Summary
-        </button>
-      </div>
-
+      <SummaryDock
+        overviewOpen={overviewOpen}
+        panel={({ closeSummary }) => (
+          <ConsultationSummaryContainer
+            patient={patient}
+            medications={patientPrescriptions.flatMap((p) =>
+              (p.medications || []).map((m, i) => ({
+                id: `${p.id}-${i}`,
+                name: m.name,
+                dose: [m.dosage, m.frequency].filter(Boolean).join(' · '),
+                since: p.date || p.createdAt,
+              }))
+            )}
+            onOpenMeds={() => {
+              setOpenSections("prescriptions");
+              closeSummary();
+            }}
+            onEditVitals={() => setShowVitalsModal(true)}
+            onDiagnosesChange={setTrackedDiagnoses}
+          />
+        )}
+      >
       {/* ── Today's Consultation (accordion) ── */}
       <div className="space-y-3">
           {/* Reminder banner — only for patients with no active tracked diagnosis */}
@@ -775,63 +783,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
         )}
       </div>
 
-      </div>
-
-      {/* ── Right summary panel ──
-          ≥ xl: always-visible, FIXED to the viewport — main scrolling can never
-          move it (sticky still travels once its flex parent runs out; fixed
-          cannot). The spacer below reserves its column in the layout.
-          < xl: right-side floating drawer opened by the "Patient Summary" button. */}
-
-      {/* Summary panel — shown alongside the consultation body, but hidden while
-          the full patient overview is expanded so the fixed panel can't overlap it. */}
-      {!overviewOpen && (
-      <>
-      {/* Drawer backdrop — mobile/tablet only (toggle lives above the accordion) */}
-      {summaryOpen && (
-        <div className="fixed inset-0 bg-black/40 z-40 xl:hidden" onClick={() => setSummaryOpen(false)} />
-      )}
-
-      <aside
-        className={`
-          fixed top-[calc(1rem+env(safe-area-inset-top,0px))] bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-[calc(1rem+env(safe-area-inset-right,0px))] z-40 w-[320px] max-w-[88vw] md:w-[50vw] overflow-y-auto no-scrollbar overscroll-contain rounded-[20px] bg-gray-50 shadow-2xl p-3
-          transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
-          ${summaryOpen ? "translate-x-0" : "translate-x-[calc(100%+1.5rem)]"}
-          xl:inset-auto xl:top-[11.5rem] xl:right-8 xl:z-[5] xl:w-[340px] xl:max-w-none xl:translate-x-0
-          xl:max-h-[calc(100dvh-12.5rem)] xl:rounded-none xl:bg-transparent xl:shadow-none xl:p-0
-        `}
-      >
-        {/* Drawer header — mobile/tablet only */}
-        <div className="xl:hidden flex items-center justify-between mb-2 px-1">
-          <span className="text-sm font-bold text-gray-700">Patient Summary</span>
-          <button onClick={() => setSummaryOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-600" aria-label="Close">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <ConsultationSummaryContainer
-          patient={patient}
-          medications={patientPrescriptions.flatMap((p) =>
-            (p.medications || []).map((m, i) => ({
-              id: `${p.id}-${i}`,
-              name: m.name,
-              dose: [m.dosage, m.frequency].filter(Boolean).join(' · '),
-              since: p.date || p.createdAt,
-            }))
-          )}
-          onOpenMeds={() => {
-            setOpenSections("prescriptions");
-            setSummaryOpen(false);
-          }}
-          onEditVitals={() => setShowVitalsModal(true)}
-          onDiagnosesChange={setTrackedDiagnoses}
-        />
-      </aside>
-
-      {/* Spacer — reserves the fixed panel's column in the xl layout */}
-      <div className="hidden xl:block w-[340px] flex-shrink-0" aria-hidden="true" />
-      </>
-      )}
-      </div>
+      </SummaryDock>
 
 
       {/* ===== Billing Checklist Modal ===== */}

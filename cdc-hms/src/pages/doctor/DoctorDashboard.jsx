@@ -86,8 +86,11 @@ const DoctorDashboard = () => {
   // Active patients: show regardless of date — a patient added yesterday who was
   // never discharged must still appear today until their consultation is completed.
   // Completed: only show today's so old discharged records don't clutter the view.
-  const todayActive    = queue.filter(q => q.status !== 'Completed' && q.status !== 'Removed');
-  const todayCompleted = queue.filter(q => q.status === 'Completed'  && isToday(q.createdAt));
+  // Outpatient dashboard shows only outpatient visits. Radiology/Pharmacy live in
+  // their own portals; a missing destination is treated as outpatient (legacy rows).
+  const isOutpatient = (q) => (q.destination || 'Outpatient') === 'Outpatient';
+  const todayActive    = queue.filter(q => isOutpatient(q) && q.status !== 'Completed' && q.status !== 'Removed');
+  const todayCompleted = queue.filter(q => isOutpatient(q) && q.status === 'Completed'  && isToday(q.createdAt));
   const todayQueue     = [...todayActive, ...todayCompleted]
     .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
 

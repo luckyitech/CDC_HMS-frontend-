@@ -1,27 +1,42 @@
-import { FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_SHORT, SITE_LABELS, gradeValue } from '../../constants/neuropathy';
+import { FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_LABELS, SITE_SHORT, gradeValue, GRADE_SPOT } from '../../constants/neuropathy';
+import rightFoot from '../../assets/rightFoot.png';
+import leftFoot from '../../assets/leftFoot.png';
 
-// Neuropathy Studio — the two plantar foot diagrams with the four protocol
-// sites (Great toe, MTH 1, MTH 5, Heel). Tap a site to make it the capture
-// target; each site is tinted by the band of its OWN reading for the current
-// modality (monofilament: green felt / red not felt).
+// Neuropathy Studio — the two plantar foot diagrams, drawn on the vendor
+// Vibrotherm template (Right_Foot / Left_Foot). The six protocol sites are
+// overlaid on the printed circles (positions detected from the template) and
+// each measured point is tinted by the band of its OWN reading:
+// green Normal · amber Mild · orange Moderate · red Severe.
 
-const FOOT_PATH = 'M32 6c11 0 18 9 18 22 0 10-3 16-3 27 0 9 4 14 4 24 0 12-8 19-19 19S13 91 13 79c0-10 4-15 4-24 0-11-3-17-3-27C14 15 21 6 32 6Z';
-// Right-foot coordinates; the left foot is mirrored.
-const SITE_POS = { greatToe: { x: 32, y: 20 }, mth1: { x: 22, y: 40 }, mth5: { x: 44, y: 40 }, heel: { x: 32, y: 92 } };
+const FOOT_IMG = { R: rightFoot, L: leftFoot };
 
-const TINT = {
-  Normal:   { fill: '#e4f5ec', stroke: '#1f9d6b' },
-  Mild:     { fill: '#fbf1d9', stroke: '#c68a12' },
-  Moderate: { fill: '#fcecdc', stroke: '#d9741d' },
-  Severe:   { fill: '#fbe4e4', stroke: '#d33f3f' },
-  none:     { fill: '#f6f8fb', stroke: '#8a97ac' },
-  active:   { fill: '#1f6feb', stroke: '#1f6feb' },
+// Right-foot circle centres + diameter as % of the image (detected from the
+// template). The left foot mirrors x.
+const SITE_POS_R = {
+  greatToe: { x: 66.4, y: 9.9,  d: 21 },
+  mth1:     { x: 74.1, y: 27.5, d: 16 },
+  mth3:     { x: 46.3, y: 30.5, d: 14 },
+  mth5:     { x: 23.9, y: 40.7, d: 14 },
+  midfoot:  { x: 61.0, y: 58.4, d: 18 },
+  heel:     { x: 57.1, y: 87.7, d: 17 },
+};
+const posFor = (foot, site) => {
+  const p = SITE_POS_R[site];
+  return foot === 'L' ? { ...p, x: 100 - p.x } : p;
 };
 
-const bandFor = (modality, value) => {
-  if (value === null || value === undefined) return 'none';
-  if (modality === 'MONO') return Number(value) === 1 ? 'Normal' : 'Severe';
+// The grade that tints a spot. MONO isn't a numeric band: felt (1) reads as
+// Normal, not felt (0) as Severe — the clinically meaningful colours.
+const spotGrade = (modality, value) => {
+  if (value === null || value === undefined || value === '') return 'none';
+  if (modality === 'MONO') return value ? 'Normal' : 'Severe';
   return gradeValue(modality, value) || 'none';
+};
+
+const displayValue = (modality, value) => {
+  if (value === null || value === undefined || value === '') return '';
+  if (modality === 'MONO') return value ? '✓' : '✗';
+  return `${value}`;
 };
 
 /**
@@ -30,46 +45,46 @@ const bandFor = (modality, value) => {
  *   modality  — 'VPT' | 'HOT' | 'COLD' | 'MONO'
  *   active    — { foot, site } | null
  *   onSelect  — (foot, site) => void
- *   readOnly  — no pointer affordance
+ *   readOnly  — disables selection
  */
-const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false }) => (
-  <div className="grid grid-cols-2 gap-2">
+const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false, size = 'default' }) => (
+  <div className={size === 'compact' ? 'grid grid-cols-2 gap-3 max-w-[380px]' : 'grid grid-cols-2 gap-4 sm:gap-8 max-w-lg mx-auto'}>
     {FEET.map((foot) => (
       <div key={foot} className="text-center">
-        <h4 className="text-xs font-semibold text-gray-500 tracking-wide mb-1">{FOOT_LABELS[foot]}</h4>
-        <svg
-          viewBox="0 0 64 118"
-          className="mx-auto w-28 h-48"
-          style={{ transform: foot === 'L' ? 'scaleX(-1)' : 'none' }}
-          role="img"
-          aria-label={`${FOOT_LABELS[foot]} foot test sites`}
-        >
-          <path d={FOOT_PATH} fill="#f6f8fb" stroke="#dde3ec" strokeWidth="1.5" />
+        <div className={`relative w-full mx-auto select-none ${size === 'compact' ? 'max-w-[187px]' : 'max-w-[220px]'}`}>
+          <img src={FOOT_IMG[foot]} alt={`${FOOT_LABELS[foot]} foot test sites`} className="w-full block pointer-events-none" draggable="false" />
           {PROTOCOL_SITES.map((site) => {
-            const p = SITE_POS[site];
+            const p = posFor(foot, site);
             const value = readings?.[foot]?.[site];
+            const grade = spotGrade(modality, value);
+            const c = GRADE_SPOT[grade] || GRADE_SPOT.none;
             const isActive = active?.foot === foot && active?.site === site;
-            const tint = isActive ? TINT.active : TINT[bandFor(modality, value)];
+            const txt = displayValue(modality, value);
+            const has = value !== null && value !== undefined && value !== '';
             return (
-              <g
+              <button
                 key={site}
+                type="button"
+                disabled={readOnly}
                 onClick={readOnly ? undefined : () => onSelect?.(foot, site)}
-                style={{ cursor: readOnly ? 'default' : 'pointer' }}
+                title={`${FOOT_LABELS[foot]} · ${SITE_LABELS[site]}${has ? ` — ${txt}` : ''}`}
+                className="absolute rounded-full flex items-center justify-center font-bold leading-none transition-all"
+                style={{
+                  left: `${p.x}%`, top: `${p.y}%`, width: `${p.d}%`, aspectRatio: '1',
+                  transform: 'translate(-50%,-50%)',
+                  background: c.fill,
+                  color: c.text,
+                  border: `2px solid ${isActive ? '#0066CC' : c.ring}`,
+                  boxShadow: isActive ? '0 0 0 3px rgba(0,102,204,0.30)' : 'none',
+                  fontSize: (has && txt.length >= 4) ? '13px' : '16px',
+                  cursor: readOnly ? 'default' : 'pointer',
+                }}
               >
-                <title>{`${FOOT_LABELS[foot]} · ${SITE_LABELS[site]}${value != null ? ` — ${value}` : ''}`}</title>
-                <circle cx={p.x} cy={p.y} r="9" fill={tint.fill} stroke={tint.stroke} strokeWidth={value != null || isActive ? 2.5 : 2} />
-                {/* un-mirror the label on the left foot so text reads normally */}
-                <text
-                  x={p.x} y={p.y + 3} textAnchor="middle" fontSize="8" fontFamily="ui-monospace, monospace"
-                  fill={isActive ? '#fff' : '#51607a'}
-                  style={{ transform: foot === 'L' ? 'scaleX(-1)' : 'none', transformOrigin: `${p.x}px ${p.y}px` }}
-                >
-                  {SITE_SHORT[site]}
-                </text>
-              </g>
+                {has ? txt : <span className="text-[9px] font-semibold opacity-60">{SITE_SHORT[site]}</span>}
+              </button>
             );
           })}
-        </svg>
+        </div>
       </div>
     ))}
   </div>

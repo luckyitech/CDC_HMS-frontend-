@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, User, X, Loader2, Usb, Zap, Thermometer, Snowflake, Footprints, SkipForward, CheckCircle2, Plug, PlugZap } from 'lucide-react';
+import { Search, User, X, Loader2, Usb, Zap, Thermometer, Snowflake, Footprints, SkipForward, CheckCircle2, Plug, PlugZap, ChevronDown } from 'lucide-react';
 import patientService from '../../services/patientService';
 import neuropathyService from '../../services/neuropathyService';
+import prescriptionService from '../../services/prescriptionService';
+import SummaryDock from './SummaryDock';
+import ConsultationSummaryContainer from '../doctor/ConsultationSummaryContainer';
 import { notify } from '../../utils/notify';
 import { connectVibrotherm, isWebSerialSupported } from '../../utils/vibrothermSerial';
 import NeuropathyFootMap from './NeuropathyFootMap';
@@ -112,8 +115,13 @@ const PatientPicker = ({ onPick }) => {
  *   onCompleted  — (study) => void — called with the graded, locked study
  *   onCancelled  — () => void
  */
-const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
+const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: overviewOpenProp, onCompleted, onCancelled }) => {
   const [patient, setPatient] = useState(fixedPatient);
+  const [meds, setMeds] = useState([]);
+  const [overviewOpenState, setOverviewOpen] = useState(false);
+  // Embedded in the patient file (PNS Studio tab): the file owns the overview,
+  // so we don't draw our own and take overviewOpen from it. Standalone: internal.
+  const overviewOpen = embedded ? !!overviewOpenProp : overviewOpenState;
   const [study, setStudy] = useState(null);
   const [creating, setCreating] = useState(false);
 
@@ -168,6 +176,27 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
       .finally(() => setCreating(false));
   }, [patient, study, creating, fixedPatient]);
 
+  // Active medications for the patient-summary dock (shared with Today's Consultation)
+  useEffect(() => {
+    if (!patient?.uhid) return undefined;
+    let live = true;
+    prescriptionService.getAll({ patientUhid: patient.uhid, status: 'Active' })
+      .then((res) => {
+        const list = res.data?.prescriptions || res.data || [];
+        if (!live) return;
+        setMeds((Array.isArray(list) ? list : []).flatMap((p) =>
+          (p.medications || []).map((m, i) => ({
+            id: `${p.id}-${i}`,
+            name: m.name,
+            dose: [m.dosage, m.frequency].filter(Boolean).join(' · '),
+            since: p.date || p.createdAt,
+          }))
+        ));
+      })
+      .catch(() => { if (live) setMeds([]); });
+    return () => { live = false; };
+  }, [patient?.uhid]);
+
   // Tear the serial link down on unmount.
   useEffect(() => () => { linkRef.current?.disconnect?.(); }, []);
 
@@ -206,6 +235,14 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
     persist(foot, site, mod, value, value === null);
   };
 
+  // When a modality's sites (both feet) are all captured, jump to the next
+  // modality and reset to the first site — the vendor's sequential flow.
+  const advanceModality = () => {
+    const idx = MODALITIES.indexOf(modality);
+    const nextMod = MODALITIES[idx + 1];
+    if (nextMod) { setModality(nextMod); setActive({ foot: 'R', site: PROTOCOL_SITES[0] }); }
+  };
+
   const capture = () => {
     const src = live && device.status === 'connected' ? live.value : (manual === '' ? null : Number(manual));
     if (src === null || Number.isNaN(src)) { notify('error', 'No reading to capture — connect the probe or type a value.'); return; }
@@ -213,13 +250,13 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
     record(active.foot, active.site, modality, src);
     setManual('');
     const next = nextOpenSite({ ...readings, [modality]: { ...readings[modality], [active.foot]: { ...readings[modality][active.foot], [active.site]: src } } }, modality, active);
-    if (next) setActive(next);
+    if (next) setActive(next); else advanceModality();
   };
 
   const skipSite = () => {
     record(active.foot, active.site, modality, null);
     const next = nextOpenSite({ ...readings, [modality]: { ...readings[modality], [active.foot]: { ...readings[modality][active.foot], [active.site]: null } } }, modality, active);
-    if (next) setActive(next);
+    if (next) setActive(next); else advanceModality();
   };
 
   const toggleMono = (foot, site) => {
@@ -283,30 +320,70 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
 
   return (
     <div className="space-y-4">
-      {/* patient strip */}
-      <div className="bg-white border border-gray-200 rounded-lg px-5 py-4 flex items-center gap-4 flex-wrap">
-        <div className="w-10 h-10 rounded-lg bg-blue-50 text-primary font-bold grid place-items-center">
-          {(patient.name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('')}
+      <SummaryDock
+        overviewOpen={overviewOpen}
+        xlTop={embedded ? undefined : "xl:top-[9.5rem] xl:max-h-[calc(100dvh-11rem)]"}
+        panel={<ConsultationSummaryContainer patient={patient} medications={meds} />}
+      >
+        {!embedded && (
+        <>
+        {/* Overview bar — collapsible, same pattern as Today's Consultation */}
+        <div
+          onClick={() => setOverviewOpen((o) => !o)}
+          className={`mb-1 px-4 py-2 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${overviewOpen ? 'bg-primary border-primary text-white' : 'bg-white border-gray-200 hover:bg-blue-50'}`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${overviewOpen ? 'rotate-180 text-white' : 'text-gray-400'}`} />
+            <div className="w-9 h-9 rounded-lg bg-blue-50 text-primary font-bold grid place-items-center flex-shrink-0">
+              {(patient.name || '?').split(' ').map((w) => w[0]).slice(0, 2).join('')}
+            </div>
+            <h2 className={`text-base font-bold truncate ${overviewOpen ? 'text-white' : 'text-gray-800'}`}>{patient.name}</h2>
+            <span className={`hidden sm:inline text-sm truncate ${overviewOpen ? 'text-blue-100' : 'text-gray-400'}`}>
+              {patient.uhid} · {patient.gender ?? '—'} · {patient.age != null ? `${patient.age} yrs` : '—'} · Plantar protocol — 6 sites/foot
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {creating && <span className={`text-xs ${overviewOpen ? 'text-blue-100' : 'text-primary'}`}>starting study…</span>}
+            {study && <span className={`px-2.5 py-0.5 rounded-md text-xs font-semibold ${overviewOpen ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>Study #{study.id} · Draft</span>}
+          </div>
         </div>
-        <div className="min-w-0">
-          <p className="font-semibold text-gray-800">
-            {patient.name} <span className="font-mono text-xs bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 ml-1">{patient.uhid}</span>
-          </p>
-          <p className="text-xs text-gray-500">
-            {patient.gender ?? '—'} · {patient.age != null ? `${patient.age} yrs` : '—'} · Plantar protocol — 4 sites per foot
-            {creating && <span className="ml-2 text-primary">starting study…</span>}
-            {study && <span className="ml-2 text-gray-400">Study #{study.id} · Draft</span>}
-          </p>
-        </div>
-        <div className="flex-1" />
-        {!fixedPatient && (
-          <button type="button" onClick={discard} className="text-xs font-semibold text-gray-500 hover:text-red-600 inline-flex items-center gap-1">
-            <X className="w-3.5 h-3.5" /> Discard &amp; change patient
-          </button>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-4 items-start">
+        {/* expanded overview */}
+        <div className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${overviewOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+          <div className="overflow-hidden min-h-0">
+            <div className="py-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl border border-gray-100 p-5">
+                <h3 className="text-sm font-bold text-gray-800 mb-3 border-b pb-2">Personal Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3"><span className="text-gray-500">Full name</span><span className="font-semibold text-right">{patient.name || '—'}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-gray-500">UHID</span><span className="font-semibold text-primary">{patient.uhid}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-gray-500">Age / Gender</span><span className="font-semibold">{patient.age ?? '—'} yrs · {patient.gender ?? '—'}</span></div>
+                  {patient.phone && <div className="flex justify-between gap-3"><span className="text-gray-500">Phone</span><span className="font-semibold">{patient.phone}</span></div>}
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-100 p-5">
+                <h3 className="text-sm font-bold text-gray-800 mb-3 border-b pb-2">Medical Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3"><span className="text-gray-500">Diagnosis</span><span className="font-semibold text-right">{patient.diagnosis || '—'}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-gray-500">Risk level</span><span className="font-semibold">{patient.riskLevel || '—'}</span></div>
+                  <div className="flex justify-between gap-3"><span className="text-gray-500">Primary doctor</span><span className="font-semibold text-right">{patient.primaryDoctor || '—'}</span></div>
+                </div>
+              </div>
+            </div>
+            {!fixedPatient && (
+              <div className="flex justify-end pb-1">
+                <button type="button" onClick={discard} className="text-xs font-semibold text-gray-500 hover:text-red-600 inline-flex items-center gap-1">
+                  <X className="w-3.5 h-3.5" /> Discard &amp; change patient
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        </>
+        )}
+
+        <div className="space-y-4 mt-3">
         {/* LEFT — sites + probe */}
         <div className="bg-white border border-gray-200 rounded-lg p-5">
           <p className="text-xs font-semibold tracking-wider uppercase text-gray-400">Test point</p>
@@ -357,12 +434,18 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
               <p className="text-xs text-gray-500 mt-3">{meta.bands}. Sites left unticked and untouched are not counted.</p>
             </div>
           ) : (
-            <div>
-              <NeuropathyFootMap readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => setActive({ foot, site })} />
-              <p className="text-xs text-gray-500 mt-2">Protocol omits MTH 3 &amp; instep — 4 sites per foot. <span className="text-gray-400">{meta.bands}</span></p>
+            <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
+              {/* feet — left */}
+              <div className="lg:flex-shrink-0">
+                <NeuropathyFootMap size="compact" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => setActive({ foot, site })} />
+                <p className="text-xs text-gray-500 mt-2 max-w-[380px]">6 sites per foot — great toe, MTH 1 / 3 / 5, mid-foot, heel. <span className="text-gray-400">{meta.bands}</span></p>
+              </div>
 
+              {/* probe reading + controls — centered in the space beside the feet */}
+              <div className="flex-1 flex lg:justify-center min-w-0">
+              <div className="w-full lg:w-[340px]">
               {/* probe readout */}
-              <div className="mt-4 rounded-xl bg-slate-900 text-white p-4 flex items-center justify-between gap-4">
+              <div className="rounded-xl bg-slate-900 text-white p-4 flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <p className="text-[10.5px] tracking-widest uppercase text-slate-400">
                     {connected ? 'Live from probe' : 'Probe not connected'} · {meta.label.toLowerCase()}
@@ -427,8 +510,10 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
               </div>
               <p className="text-[11px] text-gray-500 mt-2 flex items-start gap-1">
                 <Plug className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                Read-only: the portal only listens. Voltage and temperature are driven on the device, whose ≥49 °C cut-off stays in hardware.
+                The portal commands the probe with the same signals as the vendor app and records what it reads — no firmware or configuration is changed, and the ≥49 °C cut-off stays in hardware.
               </p>
+              </div>
+              </div>
             </div>
           )}
         </div>
@@ -506,7 +591,8 @@ const NeuropathyExam = ({ fixedPatient = null, onCompleted, onCancelled }) => {
             </button>
           </div>
         </div>
-      </div>
+        </div>
+      </SummaryDock>
     </div>
   );
 };
