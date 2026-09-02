@@ -12,7 +12,7 @@ import footIllusLeft from '../../assets/footIllusLeft.png';
 // Two artworks: `template` — the original Vibrotherm line drawing, kept for the
 // PDF report; `illustration` — the friendlier colour feet on the capture screen
 // (the default). Each has its own right-foot circle centres (% of image); the
-// left foot mirrors x.
+// left foot has its own detected centres (illustration) or mirrors x (template).
 const TEMPLATE_POS = {
   greatToe: { x: 66.4, y: 9.9,  d: 21 },
   mth1:     { x: 74.1, y: 27.5, d: 16 },
@@ -21,17 +21,32 @@ const TEMPLATE_POS = {
   midfoot:  { x: 61.0, y: 58.4, d: 18 },
   heel:     { x: 57.1, y: 87.7, d: 17 },
 };
-const ILLUS_POS = {
-  greatToe: { x: 81.7, y: 7.3,  d: 17 },
-  mth1:     { x: 81.5, y: 29.5, d: 17 },
-  mth3:     { x: 49.9, y: 26.9, d: 17 },
-  mth5:     { x: 18.0, y: 37.3, d: 17 },
-  midfoot:  { x: 30.6, y: 58.5, d: 17 },
-  heel:     { x: 52.5, y: 89.9, d: 17 },
-}
+// Illustration circle centres are detected PER FOOT — the two colour images are
+// hand-drawn and are NOT exact vertical mirrors of each other, so the left foot
+// carries its own map rather than mirroring the right (markers must sit snug in
+// the printed white discs).
+const ILLUS_POS_R = {
+  greatToe: { x: 81.6, y: 7.2,  d: 17 },
+  mth1:     { x: 81.4, y: 29.5, d: 17 },
+  mth3:     { x: 49.8, y: 26.8, d: 17 },
+  mth5:     { x: 17.9, y: 37.2, d: 17 },
+  midfoot:  { x: 30.4, y: 58.5, d: 17 },
+  heel:     { x: 52.4, y: 89.9, d: 17 },
+};
+const ILLUS_POS_L = {
+  greatToe: { x: 16.9, y: 7.6,  d: 17 },
+  mth1:     { x: 18.3, y: 29.4, d: 17 },
+  mth3:     { x: 50.0, y: 26.8, d: 17 },
+  mth5:     { x: 80.9, y: 34.7, d: 17 },
+  midfoot:  { x: 69.2, y: 58.7, d: 17 },
+  heel:     { x: 46.7, y: 88.4, d: 17 },
+};
 const ART = {
+  // pos = right-foot centres. posL, when present, gives the left foot its own
+  // detected centres; without it the left foot mirrors x (template line art is a
+  // true mirror, so it needs no posL).
   template:     { img: { R: rightFoot, L: leftFoot },           pos: TEMPLATE_POS },
-  illustration: { img: { R: footIllusRight, L: footIllusLeft }, pos: ILLUS_POS },
+  illustration: { img: { R: footIllusRight, L: footIllusLeft }, pos: ILLUS_POS_R, posL: ILLUS_POS_L },
 };
 
 // Display sizes. `large` is the capture screen (big enough to tap comfortably);
@@ -67,8 +82,12 @@ const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = fa
   const set = ART[art] || ART.illustration;
   const sz = SIZES[size] || SIZES.default;
   const posFor = (foot, site) => {
-    const p = set.pos[site];
-    return foot === 'L' ? { ...p, x: 100 - p.x } : p;
+    if (foot === 'L') {
+      if (set.posL) return set.posL[site];      // per-foot detected centres
+      const p = set.pos[site];
+      return { ...p, x: 100 - p.x };             // mirror (template line art)
+    }
+    return set.pos[site];
   };
   return (
     <div className={sz.grid}>
