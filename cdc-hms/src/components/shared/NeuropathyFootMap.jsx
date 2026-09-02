@@ -39,7 +39,7 @@ const ART = {
 const SIZES = {
   compact: { grid: 'grid grid-cols-2 gap-3 max-w-[380px]',             foot: 'max-w-[187px]' },
   default: { grid: 'grid grid-cols-2 gap-4 sm:gap-8 max-w-lg mx-auto',  foot: 'max-w-[220px]' },
-  large:   { grid: 'grid grid-cols-2 gap-5 max-w-[620px] mx-auto',      foot: 'max-w-[300px]' },
+  large:   { grid: 'grid grid-cols-2 gap-4 max-w-[520px] mx-auto',      foot: 'max-w-[243px]' },
 };
 
 const spotGrade = (modality, value) => {
