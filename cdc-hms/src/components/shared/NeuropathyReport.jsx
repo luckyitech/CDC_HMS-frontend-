@@ -163,7 +163,7 @@ const NeuropathyReport = ({ study, onClose }) => {
         const fd = new FormData();
         fd.append('file', new File([blob], filename, { type: 'application/pdf' }));
         fd.append('uhid', study.uhid);
-        fd.append('documentCategory', 'Neuropathy Report');
+        fd.append('documentCategory', 'Neuropathy Screening Test');
         fd.append('testType', 'Neuropathy Assessment');
         if (study.studyDate) fd.append('testDate', study.studyDate);
         fd.append('notes', `Final result: ${finalResult}`);

@@ -131,7 +131,8 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   const [saving, setSaving] = useState(false);
 
   const [remarks, setRemarks] = useState('');
-  const [impression, setImpression] = useState('');
+  const [rightInterpretation, setRightInterpretation] = useState('');
+  const [leftInterpretation, setLeftInterpretation] = useState('');
   const [completing, setCompleting] = useState(false);
 
   // ---- probe link (read-only) ----
@@ -291,7 +292,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     if (!study || !anyReading) { notify('error', 'Record at least one reading before completing.'); return; }
     setCompleting(true);
     try {
-      const res = await neuropathyService.complete(study.id, { remarks: remarks || undefined, impression: impression || undefined });
+      const res = await neuropathyService.complete(study.id, { remarks: remarks || undefined, rightInterpretation: rightInterpretation || undefined, leftInterpretation: leftInterpretation || undefined });
       await disconnectProbe();
       notify('success', 'Study graded and saved to the patient’s record.');
       onCompleted?.(res.data.data || res.data);
@@ -307,7 +308,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
       try { await neuropathyService.cancel(study.id, 'Discarded before completion'); } catch { /* nurses cannot cancel — the empty Draft is harmless */ }
     }
     await disconnectProbe();
-    setStudy(null); setReadings(emptyReadings()); setRemarks(''); setImpression('');
+    setStudy(null); setReadings(emptyReadings()); setRemarks(''); setRightInterpretation(''); setLeftInterpretation('');
     if (!fixedPatient) setPatient(null);
     onCancelled?.();
   };
@@ -571,12 +572,20 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
             placeholder="Remarks (optional) — e.g. callus over R great toe, patient reports burning at night"
             className="w-full mt-4 border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[60px] focus:outline-none focus:ring-2 focus:ring-primary"
           />
-          <textarea
-            value={impression}
-            onChange={(e) => setImpression(e.target.value)}
-            placeholder="Impression / plan (optional) — e.g. loss of protective sensation right foot; offloading review, re-assess in 3 months"
-            className="w-full mt-2 border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[60px] focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <textarea
+              value={rightInterpretation}
+              onChange={(e) => setRightInterpretation(e.target.value)}
+              placeholder="Right interpretation (optional) — blank auto-fills from the grades on the report"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[56px] focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <textarea
+              value={leftInterpretation}
+              onChange={(e) => setLeftInterpretation(e.target.value)}
+              placeholder="Left interpretation (optional) — blank auto-fills from the grades"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[56px] focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
 
           <div className="flex items-center justify-end gap-2 mt-4">
             {saving && <span className="text-xs text-gray-400 inline-flex items-center gap-1 mr-auto"><Loader2 className="w-3 h-3 animate-spin" /> saving…</span>}

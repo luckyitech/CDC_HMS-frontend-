@@ -28,7 +28,8 @@ export const neuropathyService = {
   /** readings: [{ foot:'R'|'L', site, modality:'VPT'|'HOT'|'COLD'|'MONO', value, omitted? }] */
   saveReadings: (id, readings) => api.put(`/neuropathy/${id}/readings`, { readings }),
 
-  complete: (id, { remarks, impression } = {}) => api.put(`/neuropathy/${id}/complete`, { remarks, impression }),
+  complete: (id, { remarks, rightInterpretation, leftInterpretation } = {}) =>
+    api.put(`/neuropathy/${id}/complete`, { remarks, rightInterpretation, leftInterpretation }),
 
   cancel: (id, reason) => api.put(`/neuropathy/${id}/cancel`, { reason }),
 };
