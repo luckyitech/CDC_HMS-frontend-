@@ -1,5 +1,6 @@
 import PageHeader from '../../components/shared/PageHeader';
 import UltrasoundTab from '../../components/shared/UltrasoundTab';
+import BridgeStatusBar from '../../components/shared/BridgeStatusBar';
 
 /**
  * Radiology Suite — the machine worklist and image workspace. Studies are moved
@@ -13,6 +14,7 @@ const RadiologySuite = () => (
       title="Radiology Suite"
       subtitle="Machine studies — build and save to a patient's record"
     />
+    <BridgeStatusBar />
     <UltrasoundTab />
   </div>
 );
