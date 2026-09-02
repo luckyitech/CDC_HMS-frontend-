@@ -15,25 +15,17 @@ export const buildReportPdf = async (element, { filename = 'report.pdf' } = {}) 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const imgW = pageW;
-  const imgH = (canvas.height * imgW) / canvas.width;
-  const img = canvas.toDataURL('image/jpeg', 0.92);
-
-  if (imgH <= pageH) {
-    doc.addImage(img, 'JPEG', 0, 0, imgW, imgH);
-  } else {
-    // Taller than one page — slice it across pages (standard html2canvas trick).
-    let remaining = imgH;
-    let pos = 0;
-    doc.addImage(img, 'JPEG', 0, pos, imgW, imgH);
-    remaining -= pageH;
-    while (remaining > 0) {
-      pos -= pageH;
-      doc.addPage();
-      doc.addImage(img, 'JPEG', 0, pos, imgW, imgH);
-      remaining -= pageH;
-    }
+  let imgW = pageW;
+  let imgH = (canvas.height * imgW) / canvas.width;
+  // Fit the whole report onto ONE A4 page — scale down if it is taller than the
+  // page and centre it horizontally (a neuropathy report is always one page).
+  if (imgH > pageH) {
+    imgW *= pageH / imgH;
+    imgH = pageH;
   }
+  const x = (pageW - imgW) / 2;
+  const img = canvas.toDataURL('image/jpeg', 0.92);
+  doc.addImage(img, 'JPEG', x, 0, imgW, imgH);
   return { filename, blob: doc.output('blob') };
 };
 

@@ -1,29 +1,21 @@
 // NeuropathyReport.jsx — the printable neuropathy report on the CDC letterhead.
 //
 // Layout mirrors the vendor "Vibrotherm Dx" form: a 4-quadrant study grid
-// (Monofilament · Biothesiometry/VPT · Cold · Hot) with per-site foot maps,
-// each site circle tinted by its own grade band, per-foot averages + grades, an
-// auto-derived-but-editable Final Result (DPN grade), and editable Right/Left
-// interpretation + Remarks. Print / Download / Save-to-Medical-Documents reuse
-// the same mechanism as the ultrasound report (a jsPDF blob filed via
-// documentService), so screen == print == saved PDF.
+// (Monofilament · Biothesiometry/VPT · Cold · Hot). The foot maps reuse the
+// exam's NeuropathyFootMap (the real Vibrotherm foot template with grade-tinted
+// site circles) so the report matches the capture screen exactly. Auto-derived-
+// but-editable Right/Left interpretation + Final Result. Print / Download / Save
+// reuse the ultrasound report's mechanism (a jsPDF blob filed via
+// documentService), fitted to a single A4 page.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Printer, Download, Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrintLetterhead from './PrintLetterhead';
+import NeuropathyFootMap from './NeuropathyFootMap';
 import buildReportPdf from '../../utils/neuropathyPdf';
 import documentService from '../../services/documentService';
-import { PROTOCOL_SITES, gradeValue } from '../../constants/neuropathy';
+import { PROTOCOL_SITES } from '../../constants/neuropathy';
 
-const POS = { greatToe: [41, 28], mth1: [37, 66], mth3: [60, 60], mth5: [83, 68], midfoot: [62, 120], heel: [60, 176] };
-const FOOT_PATH = 'M60,6 C44,6 36,18 37,34 C31,37 25,47 27,62 C21,76 22,98 30,120 C33,146 33,172 60,198 C87,172 87,146 90,120 C98,98 99,76 93,62 C95,47 89,37 83,34 C84,18 76,6 60,6 Z';
-const GRADE_COL = {
-  Normal:   { fill: 'rgba(22,163,74,.28)', ring: '#16a34a', text: '#065f46' },
-  Mild:     { fill: 'rgba(202,138,4,.30)', ring: '#ca8a04', text: '#713f12' },
-  Moderate: { fill: 'rgba(234,88,12,.30)', ring: '#ea580c', text: '#7c2d12' },
-  Severe:   { fill: 'rgba(220,38,38,.32)', ring: '#dc2626', text: '#7f1d1d' },
-  none:     { fill: 'rgba(255,255,255,.7)', ring: '#9ca3af', text: '#374151' },
-};
 const CHIP = { Normal: ['#dcfce7', '#166534'], Mild: ['#fef3c7', '#92400e'], Moderate: ['#ffedd5', '#9a3412'], Severe: ['#fee2e2', '#991b1b'] };
 const RANK = { Normal: 0, Mild: 1, Moderate: 2, Severe: 3 };
 const RESULTS = ['No Evidence of DPN', 'Mild DPN', 'Moderate DPN', 'Severe DPN'];
@@ -57,10 +49,14 @@ const NeuropathyReport = ({ study, onClose }) => {
     const r = study?.readings?.find((x) => x.foot === foot && x.site === site && x.modality === mod);
     return !r || r.omitted ? null : num(r.value);
   };
-  const siteGrade = (mod, v) => {
-    if (v === null) return null;
-    if (mod === 'MONO') return v === 1 ? 'Normal' : v === 0 ? 'Severe' : null;
-    return gradeValue(mod, v);
+  // { R: { site: value }, L: { site: value } } for one modality — the shape NeuropathyFootMap wants.
+  const modReadings = (mod) => {
+    const out = { R: {}, L: {} };
+    ['R', 'L'].forEach((foot) => PROTOCOL_SITES.forEach((site) => {
+      const v = readingVal(foot, site, mod);
+      if (v !== null) out[foot][site] = v;
+    }));
+    return out;
   };
 
   const worstRank = useMemo(() => {
@@ -75,7 +71,6 @@ const NeuropathyReport = ({ study, onClose }) => {
   const [finalResult, setFinalResult] = useState(RESULTS[worstRank]);
   useEffect(() => { setFinalResult(RESULTS[worstRank]); }, [worstRank, study?.id]);
 
-  // Auto interpretation text (editable in place afterwards).
   const autoInterp = (F) => {
     const parts = [];
     const g = (o, lbl, unit) => (o && o.grade ? `${lbl} ${o.grade.toLowerCase()}${o.avg != null ? ` (${o.avg}${unit})` : ''}` : null);
@@ -84,7 +79,6 @@ const NeuropathyReport = ({ study, onClose }) => {
     return parts.length ? `${parts.join('; ')}.` : '';
   };
 
-  // Seed the editable regions once per study (uncontrolled so the caret never jumps).
   useEffect(() => {
     if (rInterpRef.current) rInterpRef.current.innerText = study?.rightInterpretation || autoInterp(R);
     if (lInterpRef.current) lInterpRef.current.innerText = study?.leftInterpretation || autoInterp(L);
@@ -93,33 +87,6 @@ const NeuropathyReport = ({ study, onClose }) => {
   }, [study?.id]);
 
   if (!study) return null;
-
-  const Foot = ({ side, mod }) => {
-    const mirror = side === 'L';
-    return (
-      <div className="nr-foot">
-        <svg viewBox="0 0 120 210" width="100%">
-          <path d={FOOT_PATH} fill="#f3f4f6" stroke="#cbd5e1" strokeWidth="1.5" transform={mirror ? 'translate(120,0) scale(-1,1)' : undefined} />
-          {PROTOCOL_SITES.map((site) => {
-            let [x, y] = POS[site];
-            if (mirror) x = 120 - x;
-            const v = readingVal(side, site, mod);
-            const col = GRADE_COL[siteGrade(mod, v) || 'none'];
-            let label = '';
-            if (mod === 'MONO') label = v === 1 ? '✓' : v === 0 ? '✗' : '';
-            else if (v !== null) label = mod === 'VPT' ? String(Math.round(v)) : v.toFixed(1);
-            return (
-              <g key={site}>
-                <circle cx={x} cy={y} r="12.5" fill={col.fill} stroke={col.ring} strokeWidth="1.6" />
-                <text x={x} y={y + 3.5} textAnchor="middle" fontSize={mod === 'MONO' ? 12 : 9} fontWeight="700" fill={col.text}>{label}</text>
-              </g>
-            );
-          })}
-        </svg>
-        <div className="nr-flabel">{side === 'R' ? 'RIGHT' : 'LEFT'}</div>
-      </div>
-    );
-  };
 
   const AvgLine = ({ mod }) => {
     const unit = mod === 'VPT' ? 'V' : '°C';
@@ -138,7 +105,7 @@ const NeuropathyReport = ({ study, onClose }) => {
   const Quadrant = ({ title, color, mod, legend }) => (
     <div className="nr-cell">
       <div className="nr-stitle" style={{ color }}>{title}</div>
-      <div className="nr-feet"><Foot side="R" mod={mod} /><Foot side="L" mod={mod} /></div>
+      <NeuropathyFootMap readings={modReadings(mod)} modality={mod} active={null} readOnly size="compact" />
       {legend ? <div className="nr-legend">{legend}</div> : <AvgLine mod={mod} />}
     </div>
   );
@@ -205,37 +172,32 @@ const NeuropathyReport = ({ study, onClose }) => {
 
         {/* printable body — fixed A4 width for the PDF capture */}
         <div className="mx-auto" style={{ width: 794, padding: '2px' }}>
-          <div ref={bodyRef} style={{ width: 794, background: '#fff', padding: '26px 34px 20px', color: '#1f2937', fontFamily: 'Segoe UI, system-ui, sans-serif' }}>
+          <div ref={bodyRef} style={{ width: 794, background: '#fff', padding: '24px 34px 16px', color: '#1f2937', fontFamily: 'Segoe UI, system-ui, sans-serif' }}>
             <style>{`
-              .nr-lab{text-align:right;font-weight:700;font-size:11px;letter-spacing:.03em;color:#374151}
-              .nr-demo{display:grid;grid-template-columns:1fr 1fr;border:1px solid #d1d5db;margin:10px 0 6px}
-              .nr-demo .nr-col{padding:6px 10px;display:grid;grid-template-columns:70px 1fr;row-gap:3px;background:#fdebd3;font-size:11.5px}
+              .nr-demo{display:grid;grid-template-columns:1fr 1fr;border:1px solid #d1d5db;margin:10px 0 4px}
+              .nr-demo .nr-col{padding:6px 10px;display:grid;grid-template-columns:80px 1fr;row-gap:3px;background:#fff;font-size:11.5px}
               .nr-demo .nr-col:first-child{border-right:1px solid #d1d5db}
               .nr-demo b{font-weight:600;color:#374151}
-              .nr-demo .nr-v{border-bottom:1px dotted #b98a55;min-height:15px;padding-left:4px;color:#111}
-              .nr-grid{display:grid;grid-template-columns:1fr 18px 1fr;gap:6px 0;margin-top:6px}
-              .nr-cc{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-size:9px;color:#9ca3af;align-self:center}
-              .nr-cell{padding:4px}
-              .nr-stitle{text-align:center;font-weight:700;font-size:12px;letter-spacing:.02em;margin-bottom:2px}
-              .nr-feet{display:flex;justify-content:center;gap:8px}
-              .nr-foot{width:140px}
-              .nr-flabel{text-align:center;font-size:8.5px;color:#9ca3af;letter-spacing:.14em;margin-top:-4px}
+              .nr-demo .nr-v{border-bottom:1px dotted #cbd5e1;min-height:15px;padding-left:4px;color:#111}
+              .nr-grid{display:grid;grid-template-columns:1fr 16px 1fr;gap:2px 0;margin-top:4px}
+              .nr-cc{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-size:8.5px;color:#9ca3af;align-self:center}
+              .nr-cell{padding:2px 4px}
+              .nr-stitle{text-align:center;font-weight:700;font-size:11.5px;letter-spacing:.02em;margin-bottom:2px}
               .nr-avg{display:flex;align-items:baseline;gap:8px;justify-content:center;margin-top:2px;font-size:11px;color:#374151}
               .nr-pair{display:flex;gap:4px;align-items:baseline}
               .nr-legend{text-align:center;font-size:10px;color:#6b7280;margin-top:2px}
-              .nr-rowline{display:grid;grid-template-columns:118px 1fr;gap:8px;margin-top:8px;font-size:11.5px;align-items:start}
+              .nr-rowline{display:grid;grid-template-columns:118px 1fr;gap:8px;margin-top:6px;font-size:11.5px;align-items:start}
               .nr-rowline .nr-l2{font-weight:700;color:#374151;padding-top:2px}
-              .nr-result{margin-top:12px;border:1.5px solid #111;padding:7px 10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+              .nr-result{margin-top:10px;border:1.5px solid #111;padding:7px 10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
               .nr-opt{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer}
               .nr-cbox{width:13px;height:13px;border:1.4px solid #374151;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
               .nr-opt.sel{color:#991b1b;font-weight:700}
               .nr-opt.sel .nr-cbox{border-color:#dc2626;background:#fee2e2;color:#b91c1c}
-              .nr-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:26px;font-size:11px;color:#374151}
-              .nr-foot-note{margin-top:16px;border-top:1px solid #e5e7eb;padding-top:6px;font-size:9px;color:#9ca3af;display:flex;justify-content:space-between}
+              .nr-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:22px;font-size:11px;color:#374151}
+              .nr-foot-note{margin-top:14px;border-top:1px solid #e5e7eb;padding-top:6px;font-size:9px;color:#9ca3af;display:flex;justify-content:space-between}
             `}</style>
 
             <PrintLetterhead show />
-            <div className="nr-lab">DIABETIC NEUROPATHY FUNCTION LAB</div>
 
             <div className="nr-demo">
               <div className="nr-col">
