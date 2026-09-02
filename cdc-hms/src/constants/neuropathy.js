@@ -21,7 +21,7 @@ export const SITE_LABELS = {
 };
 export const SITE_SHORT = { greatToe: 'GT', mth1: 'M1', mth3: 'M3', mth5: 'M5', midfoot: 'MF', heel: 'H' };
 
-export const MODALITIES = ['VPT', 'HOT', 'COLD', 'MONO'];
+export const MODALITIES = ['VPT', 'COLD', 'HOT', 'MONO'];
 export const MODALITY_META = {
   VPT:  { label: 'Vibration',    long: 'Vibration perception (VPT)', unit: 'V',  step: 1,   min: 0, max: 50, fromProbe: true,
           bands: 'Normal ≤15 · Mild 16–20 · Moderate 21–25 · Severe ≥26 V' },
