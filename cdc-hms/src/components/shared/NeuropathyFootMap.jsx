@@ -22,13 +22,13 @@ const TEMPLATE_POS = {
   heel:     { x: 57.1, y: 87.7, d: 17 },
 };
 const ILLUS_POS = {
-  greatToe: { x: 64.6, y: 7.3,  d: 13 },
-  mth1:     { x: 64.5, y: 29.5, d: 13 },
-  mth3:     { x: 50.0, y: 26.9, d: 13 },
-  mth5:     { x: 35.2, y: 37.3, d: 13 },
-  midfoot:  { x: 41.0, y: 58.5, d: 13 },
-  heel:     { x: 51.1, y: 89.9, d: 13 },
-};
+  greatToe: { x: 81.7, y: 7.3,  d: 17 },
+  mth1:     { x: 81.5, y: 29.5, d: 17 },
+  mth3:     { x: 49.9, y: 26.9, d: 17 },
+  mth5:     { x: 18.0, y: 37.3, d: 17 },
+  midfoot:  { x: 30.6, y: 58.5, d: 17 },
+  heel:     { x: 52.5, y: 89.9, d: 17 },
+}
 const ART = {
   template:     { img: { R: rightFoot, L: leftFoot },           pos: TEMPLATE_POS },
   illustration: { img: { R: footIllusRight, L: footIllusLeft }, pos: ILLUS_POS },
@@ -39,7 +39,7 @@ const ART = {
 const SIZES = {
   compact: { grid: 'grid grid-cols-2 gap-3 max-w-[380px]',             foot: 'max-w-[187px]' },
   default: { grid: 'grid grid-cols-2 gap-4 sm:gap-8 max-w-lg mx-auto',  foot: 'max-w-[220px]' },
-  large:   { grid: 'grid grid-cols-2 gap-4 max-w-[520px] mx-auto',      foot: 'max-w-[243px]' },
+  large:   { grid: 'grid grid-cols-2 gap-3 max-w-[470px] mx-auto',      foot: 'max-w-[220px]' },
 };
 
 const spotGrade = (modality, value) => {
