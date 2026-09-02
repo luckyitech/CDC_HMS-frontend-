@@ -105,7 +105,7 @@ const NeuropathyReport = ({ study, onClose }) => {
   const Quadrant = ({ title, color, mod, legend }) => (
     <div className="nr-cell">
       <div className="nr-stitle" style={{ color }}>{title}</div>
-      <NeuropathyFootMap readings={modReadings(mod)} modality={mod} active={null} readOnly size="compact" />
+      <NeuropathyFootMap readings={modReadings(mod)} modality={mod} active={null} readOnly size="compact" art="template" />
       {legend ? <div className="nr-legend">{legend}</div> : <AvgLine mod={mod} />}
     </div>
   );
