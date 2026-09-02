@@ -34,6 +34,14 @@ const ART = {
   illustration: { img: { R: footIllusRight, L: footIllusLeft }, pos: ILLUS_POS },
 };
 
+// Display sizes. `large` is the capture screen (big enough to tap comfortably);
+// the PDF report uses `compact`.
+const SIZES = {
+  compact: { grid: 'grid grid-cols-2 gap-3 max-w-[380px]',             foot: 'max-w-[187px]' },
+  default: { grid: 'grid grid-cols-2 gap-4 sm:gap-8 max-w-lg mx-auto',  foot: 'max-w-[220px]' },
+  large:   { grid: 'grid grid-cols-2 gap-5 max-w-[620px] mx-auto',      foot: 'max-w-[300px]' },
+};
+
 const spotGrade = (modality, value) => {
   if (value === null || value === undefined || value === '') return 'none';
   if (modality === 'MONO') return value ? 'Normal' : 'Severe';
@@ -57,15 +65,16 @@ const displayValue = (modality, value) => {
  */
 const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false, size = 'default', art = 'illustration' }) => {
   const set = ART[art] || ART.illustration;
+  const sz = SIZES[size] || SIZES.default;
   const posFor = (foot, site) => {
     const p = set.pos[site];
     return foot === 'L' ? { ...p, x: 100 - p.x } : p;
   };
   return (
-    <div className={size === 'compact' ? 'grid grid-cols-2 gap-3 max-w-[380px]' : 'grid grid-cols-2 gap-4 sm:gap-8 max-w-lg mx-auto'}>
+    <div className={sz.grid}>
       {FEET.map((foot) => (
         <div key={foot} className="text-center">
-          <div className={`relative w-full mx-auto select-none ${size === 'compact' ? 'max-w-[187px]' : 'max-w-[220px]'}`}>
+          <div className={`relative w-full mx-auto select-none ${sz.foot}`}>
             <img src={set.img[foot]} alt={`${FOOT_LABELS[foot]} foot test sites`} className="w-full block pointer-events-none" draggable="false" />
             {PROTOCOL_SITES.map((site) => {
               const p = posFor(foot, site);

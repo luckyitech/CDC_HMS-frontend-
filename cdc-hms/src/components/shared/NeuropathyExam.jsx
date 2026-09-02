@@ -438,7 +438,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
             <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
               {/* feet — left */}
               <div className="lg:flex-shrink-0">
-                <NeuropathyFootMap size="compact" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => setActive({ foot, site })} />
+                <NeuropathyFootMap size="large" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => setActive({ foot, site })} />
                 <p className="text-xs text-gray-500 mt-2 max-w-[380px]">6 sites per foot — great toe, MTH 1 / 3 / 5, mid-foot, heel. <span className="text-gray-400">{meta.bands}</span></p>
               </div>
 
