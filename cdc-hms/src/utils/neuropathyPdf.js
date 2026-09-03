@@ -5,6 +5,12 @@ import html2canvas from 'html2canvas';
 // Mirrors the ultrasound report's Print/Save mechanism (jsPDF + a blob filed to
 // Medical Documents), sourced from the rendered report so screen == print == PDF.
 export const buildReportPdf = async (element, { filename = 'report.pdf' } = {}) => {
+  // Let web fonts settle before capture. html2canvas measures text at capture
+  // time; an unsettled font can drop the inter-word spaces in the letterhead
+  // heading (COMPREHENSIVE DIABETES CENTRE rendering as one word).
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    try { await document.fonts.ready; } catch { /* non-fatal */ }
+  }
   const canvas = await html2canvas(element, {
     scale: 2,
     backgroundColor: '#ffffff',

@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_LABELS, SITE_SHORT, gradeValue, GRADE_SPOT } from '../../constants/neuropathy';
 import rightFootV2 from '../../assets/rightFootV2.png';
 import leftFootV2 from '../../assets/leftFootV2.png';
@@ -18,20 +19,20 @@ import footIllusLeft from '../../assets/footIllusLeft.png';
 // detected map (the drawings are near-mirrors, tuned per foot). Uniform marker
 // size, since there is no printed circle to match.
 const TEMPLATE_POS_R = {
-  greatToe: { x: 62, y: 11, d: 16 },
-  mth1:     { x: 61, y: 30, d: 16 },
-  mth3:     { x: 47, y: 27, d: 16 },
-  mth5:     { x: 31, y: 31, d: 16 },
-  midfoot:  { x: 43, y: 56, d: 16 },
-  heel:     { x: 50, y: 86, d: 16 },
+  greatToe: { x: 70.6, y: 8.2,  d: 16 },
+  mth1:     { x: 79.0, y: 27.3, d: 16 },
+  mth3:     { x: 47.6, y: 26.5, d: 16 },
+  mth5:     { x: 18.8, y: 39.6, d: 16 },
+  midfoot:  { x: 42.9, y: 59.7, d: 16 },
+  heel:     { x: 52.6, y: 88.8, d: 16 },
 };
 const TEMPLATE_POS_L = {
-  greatToe: { x: 38, y: 11, d: 16 },
-  mth1:     { x: 39, y: 30, d: 16 },
-  mth3:     { x: 53, y: 27, d: 16 },
-  mth5:     { x: 69, y: 31, d: 16 },
-  midfoot:  { x: 57, y: 56, d: 16 },
-  heel:     { x: 50, y: 86, d: 16 },
+  greatToe: { x: 29.4, y: 8.2,  d: 16 },
+  mth1:     { x: 21.0, y: 27.3, d: 16 },
+  mth3:     { x: 52.4, y: 26.5, d: 16 },
+  mth5:     { x: 81.2, y: 39.6, d: 16 },
+  midfoot:  { x: 57.1, y: 59.7, d: 16 },
+  heel:     { x: 47.4, y: 88.8, d: 16 },
 };
 // Illustration circle centres are detected PER FOOT — the two colour images are
 // hand-drawn and are NOT exact vertical mirrors of each other, so the left foot
@@ -64,7 +65,7 @@ const ART = {
 // Display sizes. `large` is the capture screen (big enough to tap comfortably);
 // the PDF report uses `compact`.
 const SIZES = {
-  compact: { grid: 'grid grid-cols-2 gap-2 max-w-[300px]',             foot: 'max-w-[110px]' },
+  compact: { grid: 'grid grid-cols-2 gap-2 max-w-[320px]',             foot: 'max-w-[122px]' },
   default: { grid: 'grid grid-cols-2 gap-4 sm:gap-8 max-w-lg mx-auto',  foot: 'max-w-[220px]' },
   large:   { grid: 'grid grid-cols-2 gap-3 max-w-[470px] mx-auto',      foot: 'max-w-[220px]' },
 };
@@ -89,8 +90,9 @@ const displayValue = (modality, value) => {
  *   onSelect  — (foot, site) => void
  *   readOnly  — disables selection
  *   art       — 'illustration' (default, capture screen) | 'template' (PDF report)
+ *   variant   — 'disc' (default, interactive capture) | 'bullet' (report: dot + value below)
  */
-const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false, size = 'default', art = 'illustration', showLabels = false }) => {
+const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false, size = 'default', art = 'illustration', showLabels = false, variant = 'disc' }) => {
   const set = ART[art] || ART.illustration;
   const sz = SIZES[size] || SIZES.default;
   const posFor = (foot, site) => {
@@ -120,6 +122,42 @@ const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = fa
               const isActive = active?.foot === foot && active?.site === site;
               const txt = displayValue(modality, value);
               const has = value !== null && value !== undefined && value !== '';
+
+              // Report variant: a small grade-coloured bullet AT the point with the
+              // reading printed just below it (no disc, so decimals never crowd the
+              // marker). A not-assessed site shows a grey bullet and no value.
+              if (variant === 'bullet') {
+                return (
+                  <Fragment key={site}>
+                    <span
+                      title={`${FOOT_LABELS[foot]} · ${SITE_LABELS[site]}${has ? ` — ${txt}` : ' — not assessed'}`}
+                      className="absolute rounded-full"
+                      style={{
+                        left: `${p.x}%`, top: `${p.y}%`, width: '5.6%', aspectRatio: '1',
+                        transform: 'translate(-50%,-50%)',
+                        background: c.ring,
+                        boxShadow: '0 0 0 1.5px #fff',
+                      }}
+                    />
+                    {has && (
+                      <span
+                        className="absolute font-bold leading-none"
+                        style={{
+                          left: `${p.x}%`, top: `${p.y}%`,
+                          transform: 'translate(-50%,8px)',
+                          fontSize: '10px',
+                          color: c.text,
+                          whiteSpace: 'nowrap',
+                          textShadow: '0 0 2px #fff, 0 0 2px #fff',
+                        }}
+                      >
+                        {txt}
+                      </span>
+                    )}
+                  </Fragment>
+                );
+              }
+
               return (
                 <button
                   key={site}

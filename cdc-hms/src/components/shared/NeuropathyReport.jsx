@@ -41,13 +41,11 @@ const safe = (s, fallback) => String(s || fallback).replace(/[^a-z0-9]+/gi, '_')
 const Pill = ({ g }) => {
   if (!g || !PAL[g]) return null;
   const [bg, ring, fg] = PAL[g];
-  return <span style={{ background: bg, color: fg, border: `1px solid ${ring}`, padding: '0 6px', borderRadius: 8, fontSize: 9.5, fontWeight: 700, lineHeight: '15px', display: 'inline-block' }}>{g === 'NT' ? 'Not tested' : g}</span>;
+  return <span style={{ background: bg, color: fg, border: `1px solid ${ring}`, padding: '0 6px', borderRadius: 5, fontSize: 9.5, fontWeight: 700, lineHeight: '15px', display: 'inline-block' }}>{g === 'NT' ? 'Not tested' : g}</span>;
 };
 
 const NeuropathyReport = ({ study, onClose }) => {
   const bodyRef = useRef(null);
-  const rInterpRef = useRef(null);
-  const lInterpRef = useRef(null);
   const remarksRef = useRef(null);
   const [busy, setBusy] = useState(null);
 
@@ -99,17 +97,7 @@ const NeuropathyReport = ({ study, onClose }) => {
   const [finalResult, setFinalResult] = useState(RESULTS[worstRank]);
   useEffect(() => { setFinalResult(RESULTS[worstRank]); }, [worstRank, study?.id]);
 
-  const autoInterp = (F) => {
-    const parts = [];
-    const g = (o, lbl, unit) => (o && o.grade ? `${lbl} ${o.grade.toLowerCase()} (${o.avg}${unit}${o.n < 6 ? `, ${o.n} of 6 sites` : ''})` : null);
-    [g(F.vpt, 'VPT', ' V'), g(F.cold, 'cold', ' °C'), g(F.hot, 'hot', ' °C')].forEach((x) => x && parts.push(x));
-    if (F.mono?.tested) parts.push(F.mono.insensate ? `monofilament ${F.mono.insensate}/${F.mono.tested} not felt` : 'monofilament intact');
-    return parts.length ? `${parts.join('; ')}.` : '';
-  };
-
   useEffect(() => {
-    if (rInterpRef.current) rInterpRef.current.innerText = study?.rightInterpretation || autoInterp(R);
-    if (lInterpRef.current) lInterpRef.current.innerText = study?.leftInterpretation || autoInterp(L);
     if (remarksRef.current) remarksRef.current.innerText = study?.remarks || '';
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [study?.id]);
@@ -144,7 +132,7 @@ const NeuropathyReport = ({ study, onClose }) => {
             {mod === 'MONO' ? <>{monoSide('R', R.mono)}{monoSide('L', L.mono)}</> : <>{side('R', R[key])}{side('L', L[key])}</>}
           </span>
         </div>
-        <NeuropathyFootMap readings={modReadings(mod)} modality={mod} active={null} readOnly size="compact" art="template" showLabels />
+        <NeuropathyFootMap readings={modReadings(mod)} modality={mod} active={null} readOnly size="compact" art="template" showLabels variant="bullet" />
       </div>
     );
   };
@@ -184,8 +172,6 @@ const NeuropathyReport = ({ study, onClose }) => {
     }
   };
 
-  const editable = { minHeight: 13, outline: 'none', padding: '1px 4px', borderBottom: '1px solid #d6dce6' };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-lg shadow-2xl my-4" style={{ width: 834 }}>
@@ -211,9 +197,10 @@ const NeuropathyReport = ({ study, onClose }) => {
 
         {/* printable body — fixed A4 width for the PDF capture */}
         <div className="mx-auto" style={{ width: 794, padding: '2px' }}>
-          <div ref={bodyRef} style={{ width: 794, background: '#fff', padding: '12px 30px 9px', color: '#14213d', fontFamily: 'Segoe UI, system-ui, Helvetica, Arial, sans-serif', fontSize: 12 }}>
+          <div ref={bodyRef} className="nr-root" style={{ width: 794, background: '#fff', padding: '12px 30px 9px', color: '#14213d', fontFamily: 'Segoe UI, system-ui, Helvetica, Arial, sans-serif', fontSize: 12 }}>
             <style>{`
               .nr-title{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:5px 0 5px}
+              .nr-root h1{word-spacing:2px;letter-spacing:.01em}
               .nr-title h2{margin:0;font-size:17px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#14213d}
               .nr-title .nr-meta{color:#6a7891;font-size:11px;text-align:right}
               .nr-title .nr-meta b{color:#3d4a63;font-weight:600}
@@ -233,7 +220,7 @@ const NeuropathyReport = ({ study, onClose }) => {
               .nr-side b{font-weight:600;color:#14213d}
               .nr-legend{display:flex;flex-wrap:wrap;gap:2px 14px;justify-content:center;color:#6a7891;font-size:9.5px;margin:4px 0 2px}
               .nr-legend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
-              .nr-legend i{width:9px;height:9px;border-radius:50%;border:1.5px solid;display:inline-block}
+              .nr-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
               .nr-interp{display:grid;grid-template-columns:112px 1fr;row-gap:3px;column-gap:10px;align-items:start;margin-top:5px}
               .nr-interp .nr-l2{color:#6a7891;font-weight:600;font-size:10px;letter-spacing:.03em;text-transform:uppercase;padding-top:3px}
               .nr-remarks{border:1px solid #d6dce6;border-radius:4px;min-height:26px;padding:4px 8px;color:#14213d}
@@ -252,10 +239,9 @@ const NeuropathyReport = ({ study, onClose }) => {
             <PrintLetterhead show />
 
             <div className="nr-title">
-              <h2>Neuropathy Function Report</h2>
+              <h2>Peripheral Neuropathy Screen</h2>
               <div className="nr-meta">
-                {study.studyNumber ? <>Study <b>#{study.studyNumber}</b> · </> : null}
-                Vibrotherm Dx · Plantar protocol, 6 sites per foot
+                {study.studyNumber ? <>Study <b>#{study.studyNumber}</b></> : null}
               </div>
             </div>
 
@@ -268,7 +254,6 @@ const NeuropathyReport = ({ study, onClose }) => {
               <dl>
                 <dt>Date</dt><dd>{fmtDay(study.studyDate)}</dd>
                 <dt>Referral</dt><dd className={study.referral ? '' : 'e'}>{study.referral || '—'}</dd>
-                <dt>Performed by</dt><dd>{study.performedByName || '—'}</dd>
               </dl>
             </div>
 
@@ -280,16 +265,14 @@ const NeuropathyReport = ({ study, onClose }) => {
             </div>
 
             <div className="nr-legend">
-              <span><i style={{ borderColor: '#1f8a4c', background: '#dff2e6' }} />Normal / felt</span>
-              <span><i style={{ borderColor: '#c07d00', background: '#fdf1d3' }} />Mild</span>
-              <span><i style={{ borderColor: '#d9531e', background: '#fbe5d8' }} />Moderate</span>
-              <span><i style={{ borderColor: '#c11d2e', background: '#f9dde1' }} />Severe / not felt</span>
-              <span>Averages: VPT whole volts · thermal to 0.1 °C · monofilament = sites not felt / tested · a site with no marker was not tested and is excluded</span>
+              <span><i style={{ background: '#1f8a4c' }} />Normal / felt</span>
+              <span><i style={{ background: '#c07d00' }} />Mild</span>
+              <span><i style={{ background: '#d9531e' }} />Moderate</span>
+              <span><i style={{ background: '#c11d2e' }} />Severe / not felt</span>
+              <span><i style={{ background: '#9aa6b6' }} />Not assessed</span>
             </div>
 
             <div className="nr-interp">
-              <span className="nr-l2">Right foot</span><div ref={rInterpRef} contentEditable suppressContentEditableWarning style={editable} />
-              <span className="nr-l2">Left foot</span><div ref={lInterpRef} contentEditable suppressContentEditableWarning style={editable} />
               <span className="nr-l2">Remarks</span><div ref={remarksRef} contentEditable suppressContentEditableWarning className="nr-remarks" />
             </div>
 
