@@ -381,17 +381,21 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     </div>
   );
 
-  const AvgFooter = () => (
+  // Per-foot average / protective-sensation, laid out to sit directly under each
+  // foot (same 2-col width as the foot map).
+  const AvgUnderFeet = () => (
+    <div className="grid grid-cols-2 gap-3 mt-3 max-w-[470px] mx-auto">
+      {FEET.map((foot) => (
+        <div key={foot} className="border border-gray-200 bg-gray-50 rounded-lg p-3 text-center">
+          <p className="text-[10.5px] uppercase tracking-wider text-gray-400 font-semibold">{FOOT_LABELS[foot]} · {modality === 'MONO' ? 'protective sensation' : 'average'}</p>
+          <p className="font-mono text-2xl font-semibold tabular-nums my-0.5">{summary[foot].text}</p>
+          <Chip grade={summary[foot].grade}>{summary[foot].grade || 'Pending'}</Chip>
+        </div>
+      ))}
+    </div>
+  );
+  const StudyFooter = () => (
     <>
-      <div className="grid grid-cols-2 gap-3 mt-4 max-w-[520px] mx-auto">
-        {FEET.map((foot) => (
-          <div key={foot} className="border border-gray-200 bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-[10.5px] uppercase tracking-wider text-gray-400 font-semibold">{FOOT_LABELS[foot]} · {modality === 'MONO' ? 'protective sensation' : 'average'}</p>
-            <p className="font-mono text-2xl font-semibold tabular-nums my-0.5">{summary[foot].text}</p>
-            <Chip grade={summary[foot].grade}>{summary[foot].grade || 'Pending'}</Chip>
-          </div>
-        ))}
-      </div>
       <Legend />
       <p className="text-center text-xs text-gray-500 mt-2">{capturedCount.done} of {capturedCount.total} selected points recorded. Preview only — the server grades on complete.</p>
     </>
@@ -506,10 +510,13 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
             <div className="bg-white border border-gray-200 rounded-lg p-5">
               <h3 className="text-base font-semibold text-gray-800 inline-flex items-center gap-2"><Footprints className="w-4 h-4 text-primary" /> Monofilament · 10 g</h3>
               <p className="text-sm text-gray-500 mt-1">Tap each selected point: a tap marks it <span className="text-green-700 font-semibold">felt</span>; tap again for <span className="text-red-600 font-semibold">not felt</span>.</p>
-              <div className="mt-4 flex justify-center">
-                <NeuropathyFootMap size="large" readings={readings.MONO} modality="MONO" active={null} onSelect={toggleMono} selected={selected} />
+              <div className="mt-4">
+                <div className="flex justify-center">
+                  <NeuropathyFootMap size="large" readings={readings.MONO} modality="MONO" active={null} onSelect={toggleMono} selected={selected} />
+                </div>
+                <AvgUnderFeet />
               </div>
-              <AvgFooter />
+              <StudyFooter />
               <NavRow nextLabel="Next: VPT" nextDisabled={false} />
             </div>
           )}
@@ -527,8 +534,11 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
 
               {/* feet on the left, probe readout + nav to the right */}
               <div className="flex flex-col lg:flex-row gap-5 lg:items-start mt-4">
-                <div className="lg:flex-shrink-0 flex justify-center">
-                  <NeuropathyFootMap size="large" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => selected[foot]?.[site] && setActive({ foot, site })} selected={selected} />
+                <div className="lg:flex-shrink-0">
+                  <div className="flex justify-center">
+                    <NeuropathyFootMap size="large" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => selected[foot]?.[site] && setActive({ foot, site })} selected={selected} />
+                  </div>
+                  <AvgUnderFeet />
                 </div>
 
                 <div className="w-full lg:w-[340px] lg:flex-none">
@@ -574,7 +584,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                   </div>
                 </div>
               </div>
-              <AvgFooter />
+              <StudyFooter />
               {saving && <p className="text-center text-xs text-gray-400 mt-2 inline-flex items-center gap-1 justify-center w-full"><Loader2 className="w-3 h-3 animate-spin" /> saving…</p>}
               <p className="text-[11px] text-gray-400 mt-2 flex items-start gap-1 justify-center">
                 <Plug className="w-3 h-3 mt-0.5 flex-shrink-0" />
