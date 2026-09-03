@@ -541,7 +541,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                   <AvgUnderFeet />
                 </div>
 
-                <div className="w-full lg:w-[340px] lg:flex-none">
+                <div className="w-full lg:w-[340px] lg:flex-none lg:ml-auto">
                   {/* readout — white with blue reading, beside the feet */}
                   <div className="rounded-xl bg-white border-2 border-primary p-4">
                     <p className="text-[10.5px] tracking-widest uppercase text-gray-400 font-semibold">
