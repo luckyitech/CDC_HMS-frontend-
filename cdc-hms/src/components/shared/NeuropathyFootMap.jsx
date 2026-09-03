@@ -90,9 +90,10 @@ const displayValue = (modality, value) => {
  *   onSelect  — (foot, site) => void
  *   readOnly  — disables selection
  *   art       — 'illustration' (default, capture screen) | 'template' (PDF report)
- *   variant   — 'disc' (default, interactive capture) | 'bullet' (report: dot + value below)
+ *   variant   — 'disc' (default, interactive capture) | 'bullet' (report: dot + value below) | 'select' (spot picker)
+ *   selected  — { R:{site:bool}, L:{site:bool} } | null — when set, unselected sites are dimmed (capture) or unticked (select)
  */
-const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false, size = 'default', art = 'illustration', showLabels = false, variant = 'disc' }) => {
+const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false, size = 'default', art = 'illustration', showLabels = false, variant = 'disc', selected = null }) => {
   const set = ART[art] || ART.illustration;
   const sz = SIZES[size] || SIZES.default;
   const posFor = (foot, site) => {
@@ -122,6 +123,31 @@ const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = fa
               const isActive = active?.foot === foot && active?.site === site;
               const txt = displayValue(modality, value);
               const has = value !== null && value !== undefined && value !== '';
+              const siteOn = !selected || !!selected?.[foot]?.[site];
+
+              // Spot-selection variant: tap to include / exclude a site from the study.
+              if (variant === 'select') {
+                return (
+                  <button
+                    key={site}
+                    type="button"
+                    onClick={() => onSelect?.(foot, site)}
+                    title={`${FOOT_LABELS[foot]} · ${SITE_LABELS[site]} — ${siteOn ? 'will be assessed' : 'not assessed'}`}
+                    className="absolute rounded-full flex items-center justify-center font-bold leading-none transition-all"
+                    style={{
+                      left: `${p.x}%`, top: `${p.y}%`, width: `${p.d}%`, aspectRatio: '1',
+                      transform: 'translate(-50%,-50%)',
+                      background: siteOn ? '#1a63c6' : '#fff',
+                      color: '#fff',
+                      border: `2px solid ${siteOn ? '#1a63c6' : '#94a3b8'}`,
+                      boxShadow: siteOn ? '0 1px 2px rgba(15,23,42,.25)' : 'none',
+                      fontSize: '14px', cursor: 'pointer',
+                    }}
+                  >
+                    {siteOn ? '✓' : ''}
+                  </button>
+                );
+              }
 
               // Report variant: a small grade-coloured bullet AT the point with the
               // reading printed just below it (no disc, so decimals never crowd the
@@ -158,26 +184,28 @@ const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = fa
                 );
               }
 
+              const dim = selected && !siteOn;
               return (
                 <button
                   key={site}
                   type="button"
-                  disabled={readOnly}
-                  onClick={readOnly ? undefined : () => onSelect?.(foot, site)}
-                  title={`${FOOT_LABELS[foot]} · ${SITE_LABELS[site]}${has ? ` — ${txt}` : ''}`}
+                  disabled={readOnly || dim}
+                  onClick={(readOnly || dim) ? undefined : () => onSelect?.(foot, site)}
+                  title={`${FOOT_LABELS[foot]} · ${SITE_LABELS[site]}${dim ? ' — not assessed' : (has ? ` — ${txt}` : '')}`}
                   className="absolute rounded-full flex items-center justify-center font-bold leading-none transition-all"
                   style={{
                     left: `${p.x}%`, top: `${p.y}%`, width: `${p.d}%`, aspectRatio: '1',
                     transform: 'translate(-50%,-50%)',
-                    background: c.fill,
-                    color: c.text,
-                    border: `2px solid ${isActive ? '#0066CC' : c.ring}`,
-                    boxShadow: isActive ? '0 0 0 3px rgba(0,102,204,0.30)' : 'none',
+                    background: dim ? '#f1f5f9' : c.fill,
+                    color: dim ? '#94a3b8' : c.text,
+                    border: `2px ${dim ? 'dashed' : 'solid'} ${dim ? '#cbd5e1' : (isActive ? '#0066CC' : c.ring)}`,
+                    boxShadow: (isActive && !dim) ? '0 0 0 3px rgba(0,102,204,0.30)' : 'none',
+                    opacity: dim ? 0.85 : 1,
                     fontSize: (has && txt.length >= 4) ? '13.5px' : '15px',
-                    cursor: readOnly ? 'default' : 'pointer',
+                    cursor: (readOnly || dim) ? 'default' : 'pointer',
                   }}
                 >
-                  {has ? txt : <span className="text-[9px] font-semibold opacity-60">{SITE_SHORT[site]}</span>}
+                  {dim ? '' : (has ? txt : <span className="text-[9px] font-semibold opacity-60">{SITE_SHORT[site]}</span>)}
                 </button>
               );
             })}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, User, X, Loader2, Usb, Zap, Thermometer, Snowflake, Footprints, SkipForward, CheckCircle2, Plug, PlugZap, ChevronDown } from 'lucide-react';
+import { Search, User, X, Loader2, Usb, Zap, Thermometer, Snowflake, Footprints, CheckCircle2, Check, Plug, PlugZap, ChevronDown } from 'lucide-react';
 import patientService from '../../services/patientService';
 import neuropathyService from '../../services/neuropathyService';
 import prescriptionService from '../../services/prescriptionService';
@@ -9,33 +9,28 @@ import { notify } from '../../utils/notify';
 import { connectVibrotherm, isWebSerialSupported } from '../../utils/vibrothermSerial';
 import NeuropathyFootMap from './NeuropathyFootMap';
 import {
-  FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_LABELS, MODALITIES, MODALITY_META,
+  FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_LABELS, MODALITY_META,
   gradeValue, averageReadings, monoSummary, GRADE_CLASSES,
 } from '../../constants/neuropathy';
 
-// Neuropathy Studio — the in-portal exam. Read-only capture: the operator
-// works the Vibrotherm probe as today; this screen listens on the serial port,
-// files each reading against a foot × site × modality, previews the per-foot
-// average + band live, and on Complete asks the server to grade and lock.
-//
-// Flow: pick patient (UHID first) → Draft study → capture per site → Complete.
-// Monofilament is a separate physical test — a tick per site, not a probe read.
+// Neuropathy Studio — the in-portal exam, run as a step-by-step wizard:
+//   Select spots -> Monofilament -> VPT -> Cold -> Hot -> Review & complete.
+// The operator works the Vibrotherm probe; pressing REC on the machine files
+// the reading to the active site (a 'recorded' serial frame). A value can also
+// be typed as a no-probe fallback. Only the sites picked in step 1 are walked;
+// unpicked sites are left not-assessed and excluded from grading server-side.
 
 const MOD_ICON = { VPT: Zap, HOT: Thermometer, COLD: Snowflake, MONO: Footprints };
 
-const emptyReadings = () => Object.fromEntries(MODALITIES.map((m) => [m, { R: {}, L: {} }]));
+// Wizard order — monofilament first, then the probe modalities.
+const CAPTURE_MODS = ['MONO', 'VPT', 'COLD', 'HOT'];
+const STEP_IDS = ['spots', ...CAPTURE_MODS, 'review'];
+const STEP_LABEL = { spots: 'Select spots', MONO: 'Monofilament', VPT: 'VPT', COLD: 'Cold', HOT: 'Hot', review: 'Review & complete' };
 
-const nextOpenSite = (readings, modality, from) => {
-  // Same foot first, then the other foot; null when the modality is complete.
-  const order = [from.foot, from.foot === 'R' ? 'L' : 'R'];
-  for (const foot of order) {
-    for (const site of PROTOCOL_SITES) {
-      const v = readings[modality][foot][site];
-      if (v === undefined) return { foot, site };
-    }
-  }
-  return null;
-};
+const emptyReadings = () => Object.fromEntries(CAPTURE_MODS.map((m) => [m, { R: {}, L: {} }]));
+const allSelected = () => Object.fromEntries(FEET.map((f) => [f, Object.fromEntries(PROTOCOL_SITES.map((s) => [s, true]))]));
+
+const monoGrade = (insensate) => (insensate === 0 ? 'Normal' : insensate <= 2 ? 'Mild' : insensate <= 4 ? 'Moderate' : 'Severe');
 
 const Chip = ({ grade, children }) => (
   <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${GRADE_CLASSES[grade] || GRADE_CLASSES.pending}`}>
@@ -108,7 +103,7 @@ const PatientPicker = ({ onPick }) => {
   );
 };
 
-// ---------------------------------------------------------------- the exam
+// ---------------------------------------------------------------- the exam wizard
 /**
  * Props:
  *   fixedPatient — { uhid, name, age?, gender? } to skip the picker (patient file)
@@ -119,57 +114,41 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   const [patient, setPatient] = useState(fixedPatient);
   const [meds, setMeds] = useState([]);
   const [overviewOpenState, setOverviewOpen] = useState(false);
-  // Embedded in the patient file (PNS Studio tab): the file owns the overview,
-  // so we don't draw our own and take overviewOpen from it. Standalone: internal.
   const overviewOpen = embedded ? !!overviewOpenProp : overviewOpenState;
   const [study, setStudy] = useState(null);
   const [creating, setCreating] = useState(false);
 
-  const [modality, setModality] = useState('VPT');
-  const [active, setActive] = useState({ foot: 'R', site: PROTOCOL_SITES[0] });
+  const [step, setStep] = useState(0);                 // wizard step index into STEP_IDS
+  const [selected, setSelected] = useState(allSelected);
+  const [modality, setModality] = useState('MONO');    // current capture modality (driven by the step)
+  const [active, setActive] = useState(null);          // { foot, site } | null
   const [readings, setReadings] = useState(emptyReadings);
   const [saving, setSaving] = useState(false);
 
   const [remarks, setRemarks] = useState('');
-  const [rightInterpretation, setRightInterpretation] = useState('');
-  const [leftInterpretation, setLeftInterpretation] = useState('');
   const [completing, setCompleting] = useState(false);
 
-  // ---- probe link (read-only) ----
+  const stepId = STEP_IDS[step];
+  const isCapture = CAPTURE_MODS.includes(stepId);
+
+  // ---- probe link ----
   const [device, setDevice] = useState({ status: 'idle', detail: null });
-  const [live, setLive] = useState(null);           // { value, at } — latest reading for the active (tab-driven) probe
+  const [live, setLive] = useState(null);
   const [manual, setManual] = useState('');
   const linkRef = useRef(null);
-  const fileReadingRef = useRef(null);   // latest fileValue, for the driver's 'recorded' frames
+  const fileReadingRef = useRef(null);
 
-  // The driver streams vibration ('vpt') and thermal ('thermal') frames
-  // interleaved. Show only the channel that matches the current modality so
-  // the readout doesn't flicker between volts and °C. Hot vs cold is our own
-  // flow state — both are thermal frames.
-  // Which device screen each modality drives (VPT → vibration probe;
-  // Hot / Cold → thermal probe on their own screens). MONO uses no probe.
   const screenFor = (m) => (m === 'VPT' ? 'vpt' : m === 'HOT' ? 'hot' : m === 'COLD' ? 'cold' : null);
   const modalityRef = useRef(modality);
-  // The Vibrotherm tags every serial frame the same way regardless of which
-  // probe is live, so HMS DRIVES the probe from the selected modality — VPT
-  // arms the vibration probe, Hot/Cold navigate to the thermal probe. Site
-  // changes do NOT re-command the probe: the driver's own watchdog keeps the
-  // VPT stream alive, and staleness gating below keeps the readout honest, so
-  // moving between sites just tracks the live value. MONO drives nothing (the
-  // falsy screen parks the driver watchdog).
   useEffect(() => {
     modalityRef.current = modality;
-    setLive(null);                                         // clear until the new mode settles
-    linkRef.current?.switchScreen?.(screenFor(modality));  // no-op until connected
+    setLive(null);
+    linkRef.current?.switchScreen?.(screenFor(modality));
   }, [modality]);
 
   const meta = MODALITY_META[modality];
   const ModIcon = MOD_ICON[modality];
 
-  // A stale live value must never sit on screen pretending to match the LCD.
-  // The readout shows the live reading only while it is fresh; once frames stop
-  // (probe lifted, stream idling before the driver re-arms) it falls back to
-  // "—". `nowTick` re-renders on a timer so freshness updates without a frame.
   const LIVE_STALE_MS = 1500;
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
@@ -177,6 +156,18 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     const id = setInterval(() => setNowTick((n) => n + 1), 400);
     return () => clearInterval(id);
   }, [device.status]);
+
+  // Entering a capture step arms the matching probe screen and parks on that
+  // modality's first still-open selected site.
+  useEffect(() => {
+    const id = STEP_IDS[step];
+    if (!CAPTURE_MODS.includes(id)) return;
+    setModality(id);
+    let first = null;
+    for (const f of FEET) { for (const s of PROTOCOL_SITES) { if (selected[f]?.[s] && readings[id][f][s] === undefined) { first = { foot: f, site: s }; break; } } if (first) break; }
+    setActive(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // Create the Draft the moment a patient is chosen — UHID-linked from the start.
   useEffect(() => {
@@ -191,7 +182,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
       .finally(() => setCreating(false));
   }, [patient, study, creating, fixedPatient]);
 
-  // Active medications for the patient-summary dock (shared with Today's Consultation)
   useEffect(() => {
     if (!patient?.uhid) return undefined;
     let live = true;
@@ -212,7 +202,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     return () => { live = false; };
   }, [patient?.uhid]);
 
-  // Tear the serial link down on unmount.
   useEffect(() => () => { linkRef.current?.disconnect?.(); }, []);
 
   const connectProbe = async (silent = false) => {
@@ -222,9 +211,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
         startScreen: screenFor(modality) || 'vpt',
         onReading: (r) => {
           if (r.channel === 'recorded') {
-            // The operator pressed REC on the machine: this is the reading at
-            // that instant (the perception temperature on hot/cold). File it
-            // to the active site exactly as the vendor app does.
             fileReadingRef.current?.(r.value, 'recorded');
             return;
           }
@@ -234,7 +220,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
       });
       linkRef.current = link;
     } catch (err) {
-      if (err?.name === 'NotFoundError') return; // user dismissed the chooser
+      if (err?.name === 'NotFoundError') return;
       setDevice({ status: 'error', detail: err });
       notify('error', err.message || 'Could not connect to the probe.');
     }
@@ -259,74 +245,87 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     persist(foot, site, mod, value, value === null);
   };
 
-  // When a modality's sites (both feet) are all captured, jump to the next
-  // modality and reset to the first site — the vendor's sequential flow.
-  const advanceModality = () => {
-    const idx = MODALITIES.indexOf(modality);
-    const nextMod = MODALITIES[idx + 1];
-    if (nextMod) { setModality(nextMod); setActive({ foot: 'R', site: PROTOCOL_SITES[0] }); }
+  // Next still-open SELECTED site for this modality (same foot first, then other).
+  const nextOpenSelFrom = (rd, mod, from) => {
+    const order = [from.foot, from.foot === 'R' ? 'L' : 'R'];
+    for (const foot of order) for (const site of PROTOCOL_SITES) {
+      if (!selected[foot]?.[site]) continue;
+      if (rd[mod][foot][site] === undefined) return { foot, site };
+    }
+    return null;
   };
 
-  // File a value to the active site and advance — shared by the Capture button
-  // and by the machine's REC button (a 'recorded' frame from the driver).
+  // File a value to the active site and advance to the next selected site.
+  // Shared by the manual fallback and the machine's REC button ('recorded').
   const fileValue = (src, source = 'capture') => {
-    if (src === null || Number.isNaN(src)) { notify('error', 'No reading to capture — connect the probe or type a value.'); return; }
-    if (modality === 'MONO') return;                       // monofilament has no probe reading
+    if (modality === 'MONO' || !active) return;
+    if (src === null || Number.isNaN(src)) { notify('error', 'No reading to file — press REC on the machine or type a value.'); return; }
     if (src < meta.min || src > meta.max) { notify('error', `Out of range: ${meta.long} must be ${meta.min}–${meta.max}${meta.unit}.`); return; }
     record(active.foot, active.site, modality, src);
     setManual('');
-    setLive(null);                                         // the next site starts clean
-    if (source === 'recorded') notify('success', `Recorded from device: ${src}${meta.unit} → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}`);
-    const next = nextOpenSite({ ...readings, [modality]: { ...readings[modality], [active.foot]: { ...readings[modality][active.foot], [active.site]: src } } }, modality, active);
-    if (next) setActive(next); else advanceModality();
+    setLive(null);
+    if (source === 'recorded') notify('success', `Recorded: ${src}${meta.unit} → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}`);
+    const rd = { ...readings, [modality]: { ...readings[modality], [active.foot]: { ...readings[modality][active.foot], [active.site]: src } } };
+    setActive(nextOpenSelFrom(rd, modality, active));
   };
-  fileReadingRef.current = fileValue;                      // latest closure for the serial callback
+  fileReadingRef.current = fileValue;
 
-  const capture = () => {
+  const captureManual = () => {
     const fresh = live && device.status === 'connected' && (Date.now() - live.at) < LIVE_STALE_MS;
     const src = fresh ? live.value : (manual === '' ? null : Number(manual));
     fileValue(src, 'capture');
   };
 
-  const skipSite = () => {
-    record(active.foot, active.site, modality, null);
-    const next = nextOpenSite({ ...readings, [modality]: { ...readings[modality], [active.foot]: { ...readings[modality][active.foot], [active.site]: null } } }, modality, active);
-    if (next) setActive(next); else advanceModality();
-  };
-
   const toggleMono = (foot, site) => {
+    if (!selected[foot]?.[site]) return;
     const cur = readings.MONO[foot][site];
-    const val = cur === 1 ? 0 : 1;   // undefined → felt (1), felt → not felt (0), not felt → felt
-    record(foot, site, 'MONO', val);
+    record(foot, site, 'MONO', cur === 1 ? 0 : 1);   // undefined -> felt, felt -> not felt, not felt -> felt
   };
 
-  // ---- live preview of per-foot averages + bands (server recomputes on complete) ----
-  const summary = useMemo(() => {
-    const out = {};
-    for (const foot of FEET) {
-      const vals = PROTOCOL_SITES.map((s) => readings[modality][foot][s]).filter((v) => v !== undefined);
-      if (modality === 'MONO') {
-        const m = monoSummary(vals);
-        out[foot] = { text: m.tested ? `${m.tested - m.insensate}/${m.tested} felt` : '—', grade: m.tested ? (m.insensate ? 'Severe' : 'Normal') : null, label: m.tested ? (m.insensate ? `${m.insensate} insensate` : 'Intact') : 'Pending' };
-      } else {
-        const avg = averageReadings(modality, vals);
-        const grade = gradeValue(modality, avg);
-        out[foot] = { text: avg === null ? '—' : `${avg}${meta.unit}`, grade, label: grade || 'Pending' };
-      }
+  // ---- spot selection ----
+  const toggleSelect = (foot, site) => setSelected((prev) => ({ ...prev, [foot]: { ...prev[foot], [site]: !prev[foot][site] } }));
+  const allSpots = (on) => setSelected(Object.fromEntries(FEET.map((f) => [f, Object.fromEntries(PROTOCOL_SITES.map((s) => [s, on]))])));
+  const selCount = useMemo(() => FEET.reduce((n, f) => n + PROTOCOL_SITES.filter((s) => selected[f]?.[s]).length, 0), [selected]);
+
+  // ---- summaries ----
+  const footMod = (foot, mod) => {
+    if (mod === 'MONO') {
+      const m = monoSummary(PROTOCOL_SITES.map((s) => readings.MONO[foot][s]).filter((v) => v != null));
+      if (!m.tested) return { text: '—', grade: null };
+      return { text: m.insensate ? `${m.insensate}/${m.tested} not felt` : `${m.tested}/${m.tested} felt`, grade: monoGrade(m.insensate) };
     }
-    return out;
-  }, [readings, modality, meta.unit]);
+    const vals = PROTOCOL_SITES.map((s) => readings[mod][foot][s]).filter((v) => v != null);
+    const avg = averageReadings(mod, vals);
+    return { text: avg === null ? '—' : `${avg}${MODALITY_META[mod].unit}`, grade: gradeValue(mod, avg) };
+  };
+  // running preview for the current capture modality
+  const summary = useMemo(() => Object.fromEntries(FEET.map((f) => [f, footMod(f, modality)])), [readings, modality]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const capturedCount = useMemo(() => {
+    if (!isCapture) return { done: 0, total: 0 };
+    let done = 0; let total = 0;
+    for (const f of FEET) for (const s of PROTOCOL_SITES) {
+      if (!selected[f]?.[s]) continue;
+      total += 1;
+      if (readings[modality][f][s] !== undefined) done += 1;
+    }
+    return { done, total };
+  }, [readings, modality, selected, isCapture]);
 
   const anyReading = useMemo(
-    () => MODALITIES.some((m) => FEET.some((f) => PROTOCOL_SITES.some((s) => readings[m][f][s] != null))),
+    () => CAPTURE_MODS.some((m) => FEET.some((f) => PROTOCOL_SITES.some((s) => readings[m][f][s] != null))),
     [readings],
   );
+
+  // ---- wizard nav ----
+  const goNext = () => setStep((s) => Math.min(s + 1, STEP_IDS.length - 1));
+  const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const complete = async () => {
     if (!study || !anyReading) { notify('error', 'Record at least one reading before completing.'); return; }
     setCompleting(true);
     try {
-      const res = await neuropathyService.complete(study.id, { remarks: remarks || undefined, rightInterpretation: rightInterpretation || undefined, leftInterpretation: leftInterpretation || undefined });
+      const res = await neuropathyService.complete(study.id, { remarks: remarks || undefined });
       await disconnectProbe();
       notify('success', 'Study graded and saved to the patient’s record.');
       onCompleted?.(res.data.data || res.data);
@@ -342,7 +341,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
       try { await neuropathyService.cancel(study.id, 'Discarded before completion'); } catch { /* nurses cannot cancel — the empty Draft is harmless */ }
     }
     await disconnectProbe();
-    setStudy(null); setReadings(emptyReadings()); setRemarks(''); setRightInterpretation(''); setLeftInterpretation('');
+    setStudy(null); setReadings(emptyReadings()); setRemarks(''); setSelected(allSelected()); setStep(0);
     if (!fixedPatient) setPatient(null);
     onCancelled?.();
   };
@@ -351,8 +350,59 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   if (!patient) return <PatientPicker onPick={setPatient} />;
 
   const connected = device.status === 'connected';
-  void nowTick;                                            // re-evaluate freshness on each tick
+  void nowTick;
   const liveFresh = connected && live && (Date.now() - live.at) < LIVE_STALE_MS;
+
+  // ---- probe connect / disconnect control (shared by capture steps) ----
+  const ProbeControl = () => (
+    connected ? (
+      <button type="button" onClick={disconnectProbe} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 inline-flex items-center gap-1.5">
+        <PlugZap className="w-3.5 h-3.5" /> Probe connected · disconnect
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={() => connectProbe(false)}
+        disabled={!isWebSerialSupported() || device.status === 'connecting'}
+        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-primary inline-flex items-center gap-1.5 disabled:opacity-50"
+        title={isWebSerialSupported() ? 'Choose the probe’s USB port' : 'Use Chrome or Edge on the exam PC'}
+      >
+        {device.status === 'connecting' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Usb className="w-3.5 h-3.5" />}
+        {device.status === 'connecting' ? 'Connecting…' : 'Connect probe'}
+      </button>
+    )
+  );
+
+  const Legend = () => (
+    <div className="flex flex-wrap gap-x-4 gap-y-1 justify-center text-[11px] text-gray-500 mt-3">
+      {[['#1f8a4c', 'Normal / felt'], ['#c07d00', 'Mild'], ['#d9531e', 'Moderate'], ['#c11d2e', 'Severe / not felt'], ['#9aa6b6', 'Not assessed']].map(([c, l]) => (
+        <span key={l} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: c }} />{l}</span>
+      ))}
+    </div>
+  );
+
+  const AvgFooter = () => (
+    <>
+      <div className="grid grid-cols-2 gap-3 mt-4 max-w-[520px] mx-auto">
+        {FEET.map((foot) => (
+          <div key={foot} className="border border-gray-200 bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-[10.5px] uppercase tracking-wider text-gray-400 font-semibold">{FOOT_LABELS[foot]} · {modality === 'MONO' ? 'protective sensation' : 'average'}</p>
+            <p className="font-mono text-2xl font-semibold tabular-nums my-0.5">{summary[foot].text}</p>
+            <Chip grade={summary[foot].grade}>{summary[foot].grade || 'Pending'}</Chip>
+          </div>
+        ))}
+      </div>
+      <Legend />
+      <p className="text-center text-xs text-gray-500 mt-2">{capturedCount.done} of {capturedCount.total} selected points recorded. Preview only — the server grades on complete.</p>
+    </>
+  );
+
+  const NavRow = ({ nextLabel, nextDisabled }) => (
+    <div className="flex items-center justify-between gap-2 mt-4 max-w-[520px] mx-auto">
+      <button type="button" onClick={goBack} disabled={step === 0} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40">← Back</button>
+      <button type="button" onClick={goNext} disabled={nextDisabled} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">{nextLabel} →</button>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -363,7 +413,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
       >
         {!embedded && (
         <>
-        {/* Overview bar — collapsible, same pattern as Today's Consultation */}
         <div
           onClick={() => setOverviewOpen((o) => !o)}
           className={`mb-1 px-4 py-2 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${overviewOpen ? 'bg-primary border-primary text-white' : 'bg-white border-gray-200 hover:bg-blue-50'}`}
@@ -384,7 +433,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
           </div>
         </div>
 
-        {/* expanded overview */}
         <div className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${overviewOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
           <div className="overflow-hidden min-h-0">
             <div className="py-3 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -415,126 +463,93 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
             )}
           </div>
         </div>
-
         </>
         )}
 
-        <div className="space-y-4 mt-3">
-        {/* LEFT — sites + probe */}
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <p className="text-xs font-semibold tracking-wider uppercase text-gray-400">Test point</p>
-          <h3 className="text-base font-semibold text-gray-800">Tap a site, then capture the reading</h3>
-
-          {/* modality switch */}
-          <div className="flex flex-wrap gap-1.5 my-3">
-            {MODALITIES.map((m) => {
-              const I = MOD_ICON[m];
-              const on = m === modality;
+        <div className="mt-3">
+          {/* ---- step rail ---- */}
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {STEP_IDS.map((id, i) => {
+              const done = i < step; const cur = i === step;
               return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setModality(m)}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold inline-flex items-center gap-1.5 transition ${on ? 'bg-primary border-primary text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-primary'}`}
-                >
-                  <I className="w-3.5 h-3.5" />
-                  {MODALITY_META[m].label}
-                  {MODALITY_META[m].unit && <span className={`font-normal ${on ? 'text-blue-100' : 'text-gray-400'}`}>· {MODALITY_META[m].unit}</span>}
-                </button>
+                <div key={id} className={`flex-1 min-w-[104px] flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${cur ? 'border-primary text-primary ring-2 ring-primary/10' : done ? 'border-green-200 text-green-700' : 'border-gray-200 text-gray-400'}`}>
+                  <span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] flex-none ${cur ? 'bg-primary text-white' : done ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                    {done ? <Check className="w-3 h-3" /> : i + 1}
+                  </span>
+                  {STEP_LABEL[id]}
+                </div>
               );
             })}
           </div>
 
-          {modality === 'MONO' ? (
-            /* monofilament — a tick per site, no probe */
-            <div>
-              <NeuropathyFootMap readings={readings.MONO} modality="MONO" active={null} onSelect={toggleMono} />
-              <div className="grid grid-cols-2 gap-3 mt-3">
-                {FEET.map((foot) => (
-                  <div key={foot} className="border border-gray-200 rounded-lg p-3">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{FOOT_LABELS[foot]} — felt?</p>
-                    {PROTOCOL_SITES.map((site) => {
-                      const v = readings.MONO[foot][site];
-                      return (
-                        <label key={site} className="flex items-center gap-2 py-1 text-sm cursor-pointer">
-                          <input type="checkbox" checked={v === 1} onChange={() => toggleMono(foot, site)} className="w-4 h-4 accent-primary" />
-                          <span className="text-gray-700">{SITE_LABELS[site]}</span>
-                          {v === 0 && <span className="ml-auto text-xs font-semibold text-red-600">not felt</span>}
-                          {v === 1 && <span className="ml-auto text-xs font-semibold text-green-700">felt</span>}
-                        </label>
-                      );
-                    })}
-                  </div>
-                ))}
+          {/* ---- STEP: select spots ---- */}
+          {stepId === 'spots' && (
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+              <h3 className="text-base font-semibold text-gray-800">Select the points to assess</h3>
+              <p className="text-sm text-gray-500 mt-1">Tap a point to include or exclude it. Excluded points are recorded as <span className="font-semibold">not assessed</span> and left out of the grade.</p>
+              <div className="flex items-center gap-2 mt-3">
+                <button type="button" onClick={() => allSpots(true)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50">Assess all</button>
+                <button type="button" onClick={() => allSpots(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50">Clear all</button>
+                <span className="ml-auto text-sm text-gray-500">{selCount} of 12 points selected</span>
               </div>
-              <p className="text-xs text-gray-500 mt-3">{meta.bands}. Sites left unticked and untouched are not counted.</p>
+              <div className="mt-4 flex justify-center">
+                <NeuropathyFootMap variant="select" size="large" readings={{}} modality="MONO" selected={selected} onSelect={toggleSelect} />
+              </div>
+              <div className="flex justify-end mt-4">
+                <button type="button" onClick={goNext} disabled={selCount === 0} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">Continue →</button>
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
-              {/* feet — left */}
-              <div className="lg:flex-shrink-0">
-                <NeuropathyFootMap size="large" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => setActive({ foot, site })} />
-                <p className="text-xs text-gray-500 mt-2 max-w-[380px]">6 sites per foot — great toe, MTH 1 / 3 / 5, mid-foot, heel. <span className="text-gray-400">{meta.bands}</span></p>
+          )}
+
+          {/* ---- STEP: monofilament ---- */}
+          {stepId === 'MONO' && (
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+              <h3 className="text-base font-semibold text-gray-800 inline-flex items-center gap-2"><Footprints className="w-4 h-4 text-primary" /> Monofilament · 10 g</h3>
+              <p className="text-sm text-gray-500 mt-1">Tap each selected point: a tap marks it <span className="text-green-700 font-semibold">felt</span>; tap again for <span className="text-red-600 font-semibold">not felt</span>.</p>
+              <div className="mt-4 flex justify-center">
+                <NeuropathyFootMap size="large" readings={readings.MONO} modality="MONO" active={null} onSelect={toggleMono} selected={selected} />
+              </div>
+              <AvgFooter />
+              <NavRow nextLabel="Next: VPT" nextDisabled={false} />
+            </div>
+          )}
+
+          {/* ---- STEP: VPT / Cold / Hot ---- */}
+          {isCapture && stepId !== 'MONO' && (
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-800 inline-flex items-center gap-2"><ModIcon className="w-4 h-4 text-primary" /> {meta.long}</h3>
+                  <p className="text-sm text-gray-500 mt-0.5">Work the probe and press <span className="font-semibold">REC</span> on the machine to file each reading — it advances to the next selected point.</p>
+                </div>
+                <div className="flex-none"><ProbeControl /></div>
               </div>
 
-              {/* probe reading + controls — centered in the space beside the feet */}
-              <div className="flex-1 flex lg:justify-center min-w-0">
-              <div className="w-full lg:w-[340px]">
-              {/* probe readout */}
-              <div className="rounded-xl bg-slate-900 text-white p-4 flex items-center justify-between gap-4">
+              <div className="mt-4 flex justify-center">
+                <NeuropathyFootMap size="large" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => selected[foot]?.[site] && setActive({ foot, site })} selected={selected} />
+              </div>
+
+              {/* readout — white with blue reading */}
+              <div className="rounded-xl bg-white border-2 border-primary p-4 flex flex-nowrap justify-between items-center gap-4 max-w-[520px] mx-auto mt-4">
                 <div className="min-w-0">
-                  <p className="text-[10.5px] tracking-widest uppercase text-slate-400">
-                    {connected ? 'Live from probe' : 'Probe not connected'} · {meta.label.toLowerCase()}
+                  <p className="text-[10.5px] tracking-widest uppercase text-gray-400 font-semibold">
+                    {active ? `Reading → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}` : 'All selected points recorded'}
                   </p>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-mono text-4xl font-semibold tabular-nums">
-                      {liveFresh ? live.value : (manual !== '' ? manual : '—')}
-                    </span>
-                    <span className="text-slate-400">{meta.unit}</span>
+                    <span className="font-mono text-4xl font-semibold text-primary tabular-nums">{liveFresh ? live.value : (manual !== '' ? manual : '—')}</span>
+                    <span className="text-blue-300 font-semibold">{meta.unit}</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">→ {FOOT_LABELS[active.foot]} · {SITE_LABELS[active.site]}</p>
-                  {connected && !liveFresh && (modality === 'HOT' || modality === 'COLD') && (
-                    <p className="text-xs text-amber-300 mt-1">
-                      Ramping — the machine sends no live °C during the ramp. Watch its LCD and press <span className="font-semibold">REC</span> on the machine at the patient's response; HMS files it here.
-                    </p>
+                  <p className="text-xs text-gray-500 mt-1.5">
+                    {connected
+                      ? <>Press <span className="font-semibold">REC</span> on the Vibrotherm to file the reading{active ? ' to this point' : ''}.</>
+                      : 'Connect the probe, then press REC on the machine to file each reading.'}
+                  </p>
+                  {connected && !liveFresh && (modality === 'HOT' || modality === 'COLD') && active && (
+                    <p className="text-xs text-amber-600 mt-1">Ramping — no live °C during the ramp; watch the LCD and press <span className="font-semibold">REC</span> at the patient’s response.</p>
                   )}
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    type="button"
-                    onClick={capture}
-                    disabled={!study || saving || (!liveFresh && manual === '')}
-                    className="bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-5 py-3 font-semibold text-sm inline-flex flex-col items-center min-w-[104px]"
-                  >
-                    Capture
-                    <span className="text-[10px] font-normal opacity-80">reading only</span>
-                  </button>
-                  <button type="button" onClick={skipSite} disabled={!study} className="text-xs text-slate-300 hover:text-white inline-flex items-center gap-1">
-                    <SkipForward className="w-3 h-3" /> Skip this site
-                  </button>
-                </div>
-              </div>
-
-              {/* device controls + manual fallback */}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {connected ? (
-                  <button type="button" onClick={disconnectProbe} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-green-200 bg-green-50 text-green-700 inline-flex items-center gap-1.5">
-                    <PlugZap className="w-3.5 h-3.5" /> Vibrotherm connected · disconnect
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => connectProbe(false)}
-                    disabled={!isWebSerialSupported() || device.status === 'connecting'}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-primary inline-flex items-center gap-1.5 disabled:opacity-50"
-                    title={isWebSerialSupported() ? 'Choose the probe’s USB port' : 'Use Chrome or Edge on the exam PC'}
-                  >
-                    {device.status === 'connecting' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Usb className="w-3.5 h-3.5" />}
-                    {device.status === 'connecting' ? 'Connecting…' : 'Connect Vibrotherm probe'}
-                  </button>
-                )}
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <label className="text-xs text-gray-500">or type</label>
+                <div className="flex flex-col items-end gap-1 flex-none">
+                  <label className="text-[10.5px] text-gray-500">no probe? type + Enter</label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -542,104 +557,81 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                     min={meta.min}
                     max={meta.max}
                     value={manual}
+                    disabled={!active}
                     onChange={(e) => setManual(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') capture(); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') captureManual(); }}
                     placeholder={`${meta.unit || 'value'}`}
-                    className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-mono text-primary text-center focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                   />
                 </div>
               </div>
-              <p className="text-[11px] text-gray-500 mt-2 flex items-start gap-1">
+
+              <NavRow nextLabel={`Next: ${STEP_LABEL[STEP_IDS[step + 1]]}`} nextDisabled={false} />
+              <AvgFooter />
+              {saving && <p className="text-center text-xs text-gray-400 mt-2 inline-flex items-center gap-1 justify-center w-full"><Loader2 className="w-3 h-3 animate-spin" /> saving…</p>}
+              <p className="text-[11px] text-gray-400 mt-2 flex items-start gap-1 justify-center">
                 <Plug className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                The portal commands the probe with the same signals as the vendor app and records what it reads — no firmware or configuration is changed, and the ≥49 °C cut-off stays in hardware.
+                The portal commands the probe with the same signals as the vendor app and records what it reads — no firmware change, and the ≥49 °C cut-off stays in hardware.
               </p>
+            </div>
+          )}
+
+          {/* ---- STEP: review & complete ---- */}
+          {stepId === 'review' && (
+            <div className="bg-white border border-gray-200 rounded-lg p-5">
+              <h3 className="text-base font-semibold text-gray-800">Review &amp; complete</h3>
+              <p className="text-sm text-gray-500 mt-1">The server grades and locks the study, then opens the report to print &amp; save.</p>
+
+              <div className="overflow-x-auto mt-4 max-w-[560px] mx-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[10.5px] uppercase tracking-wider text-gray-400">
+                      <th className="text-left py-2 px-2 border-b border-gray-200 font-semibold">Test</th>
+                      <th className="text-right py-2 px-2 border-b border-gray-200 font-semibold">Right</th>
+                      <th className="text-right py-2 px-2 border-b border-gray-200 font-semibold">Left</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[['MONO', 'Monofilament'], ['VPT', 'Biothesiometry (VPT)'], ['COLD', 'Cold perception'], ['HOT', 'Hot perception']].map(([mod, label]) => {
+                      const r = footMod('R', mod); const l = footMod('L', mod);
+                      return (
+                        <tr key={mod} className="border-b border-gray-100 last:border-0">
+                          <td className="py-2 px-2 text-gray-700">{label}</td>
+                          <td className="py-2 px-2 text-right"><span className="font-mono tabular-nums mr-2">{r.text}</span>{r.grade && <Chip grade={r.grade}>{r.grade}</Chip>}</td>
+                          <td className="py-2 px-2 text-right"><span className="font-mono tabular-nums mr-2">{l.text}</span>{l.grade && <Chip grade={l.grade}>{l.grade}</Chip>}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
+
+              <div className="max-w-[560px] mx-auto mt-4">
+                <label className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Remarks</label>
+                <textarea
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder="Remarks (optional) — e.g. callus over R great toe, patient reports burning at night"
+                  className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[66px] focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <p className="text-center text-xs text-gray-500 mt-3 max-w-[560px] mx-auto">Completing generates the report → <span className="font-semibold">Print</span> and <span className="font-semibold">Save to record</span>. The report can be saved <span className="font-semibold">once</span>; after that the study is view / print only.</p>
+
+              <div className="flex items-center justify-between gap-2 mt-4 max-w-[560px] mx-auto">
+                <button type="button" onClick={goBack} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">← Back</button>
+                <button
+                  type="button"
+                  onClick={complete}
+                  disabled={!study || !anyReading || completing}
+                  className="bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-5 py-2.5 font-semibold text-sm inline-flex items-center gap-2"
+                >
+                  {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  Complete &amp; grade → report
+                </button>
               </div>
             </div>
           )}
-        </div>
-
-        {/* RIGHT — readings + grading + complete */}
-        <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <p className="text-xs font-semibold tracking-wider uppercase text-gray-400">This study</p>
-          <h3 className="text-base font-semibold text-gray-800 inline-flex items-center gap-2"><ModIcon className="w-4 h-4 text-primary" />{meta.long}</h3>
-
-          <div className="overflow-x-auto mt-3">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-[10.5px] uppercase tracking-wider text-gray-400">
-                  <th className="text-left py-2 px-2 border-b border-gray-200 font-semibold">Site</th>
-                  <th className="text-right py-2 px-2 border-b border-gray-200 font-semibold">Right</th>
-                  <th className="text-right py-2 px-2 border-b border-gray-200 font-semibold">Left</th>
-                </tr>
-              </thead>
-              <tbody>
-                {PROTOCOL_SITES.map((site) => {
-                  const cell = (foot) => {
-                    const v = readings[modality][foot][site];
-                    if (v === undefined) return <span className="text-gray-300">—</span>;
-                    if (v === null) return <span className="text-xs text-gray-400 italic">skipped</span>;
-                    if (modality === 'MONO') return <span className={`text-xs font-semibold ${v === 1 ? 'text-green-700' : 'text-red-600'}`}>{v === 1 ? 'felt' : 'not felt'}</span>;
-                    return <span className="font-mono font-semibold tabular-nums">{v}{meta.unit}</span>;
-                  };
-                  const isActiveRow = (foot) => modality !== 'MONO' && active.foot === foot && active.site === site;
-                  return (
-                    <tr key={site} className="border-b border-gray-100 last:border-0">
-                      <td className="py-2 px-2 text-gray-700">{SITE_LABELS[site]}</td>
-                      <td className={`py-2 px-2 text-right ${isActiveRow('R') ? 'bg-blue-50 rounded' : ''}`}>{cell('R')}</td>
-                      <td className={`py-2 px-2 text-right ${isActiveRow('L') ? 'bg-blue-50 rounded' : ''}`}>{cell('L')}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            {FEET.map((foot) => (
-              <div key={foot} className="border border-gray-200 bg-gray-50 rounded-lg p-3">
-                <p className="text-[10.5px] uppercase tracking-wider text-gray-400 font-semibold">{FOOT_LABELS[foot]} · {modality === 'MONO' ? 'protective sensation' : 'average'}</p>
-                <p className="font-mono text-2xl font-semibold tabular-nums my-0.5">{summary[foot].text}</p>
-                <Chip grade={summary[foot].grade}>{summary[foot].label}</Chip>
-              </div>
-            ))}
-          </div>
-          <p className="text-[11px] text-gray-400 mt-2">Preview only — the stored grade is computed by the server when you complete the study.</p>
-
-          <textarea
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Remarks (optional) — e.g. callus over R great toe, patient reports burning at night"
-            className="w-full mt-4 border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[60px] focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            <textarea
-              value={rightInterpretation}
-              onChange={(e) => setRightInterpretation(e.target.value)}
-              placeholder="Right interpretation (optional) — blank auto-fills from the grades on the report"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[56px] focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <textarea
-              value={leftInterpretation}
-              onChange={(e) => setLeftInterpretation(e.target.value)}
-              placeholder="Left interpretation (optional) — blank auto-fills from the grades"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[56px] focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 mt-4">
-            {saving && <span className="text-xs text-gray-400 inline-flex items-center gap-1 mr-auto"><Loader2 className="w-3 h-3 animate-spin" /> saving…</span>}
-            <button
-              type="button"
-              onClick={complete}
-              disabled={!study || !anyReading || completing}
-              className="bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-5 py-2.5 font-semibold text-sm inline-flex items-center gap-2"
-            >
-              {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-              Complete &amp; grade study
-            </button>
-          </div>
-        </div>
         </div>
       </SummaryDock>
     </div>

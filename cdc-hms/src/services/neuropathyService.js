@@ -32,6 +32,9 @@ export const neuropathyService = {
     api.put(`/neuropathy/${id}/complete`, { remarks, rightInterpretation, leftInterpretation }),
 
   cancel: (id, reason) => api.put(`/neuropathy/${id}/cancel`, { reason }),
+
+  /** Record (once) that the graded report PDF was filed to Medical Documents. */
+  markReportSaved: (id, documentId) => api.put(`/neuropathy/${id}/report-saved`, { documentId }),
 };
 
 export default neuropathyService;

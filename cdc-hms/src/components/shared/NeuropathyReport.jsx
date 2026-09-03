@@ -14,12 +14,13 @@
 // backend averageReadings would keep the study list in step — flagged, not yet
 // done.)
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Printer, Download, Save, Loader2 } from 'lucide-react';
+import { Printer, Download, Save, Loader2, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrintLetterhead from './PrintLetterhead';
 import NeuropathyFootMap from './NeuropathyFootMap';
 import buildReportPdf from '../../utils/neuropathyPdf';
 import documentService from '../../services/documentService';
+import neuropathyService from '../../services/neuropathyService';
 import { PROTOCOL_SITES, averageReadings, gradeValue, monoSummary } from '../../constants/neuropathy';
 
 // One grade palette [tint, ring, text] — shared by the pills here and, in spirit,
@@ -48,6 +49,11 @@ const NeuropathyReport = ({ study, onClose }) => {
   const bodyRef = useRef(null);
   const remarksRef = useRef(null);
   const [busy, setBusy] = useState(null);
+  // A study's report can be filed to the record only ONCE; after that it is
+  // view / print only. reportSavedAt comes from the study (getById) and is set
+  // locally the moment we file it, so the button locks immediately too.
+  const [savedAt, setSavedAt] = useState(study?.reportSavedAt || null);
+  useEffect(() => { setSavedAt(study?.reportSavedAt || null); }, [study?.id, study?.reportSavedAt]);
 
   // Raw reading, with the not-tested rule applied: omitted -> null, and a thermal
   // 0 C -> null (an artefact, never a real perception threshold). VPT 0 and
@@ -139,6 +145,7 @@ const NeuropathyReport = ({ study, onClose }) => {
 
   const doAction = async (kind) => {
     if (busy) return;
+    if (kind === 'save' && savedAt) { toast.error('This report is already saved to the record.'); return; }
     setBusy(kind);
     try {
       const filename = `${safe(study.uhid, 'CDC')}_${safe(study.patientName, 'Patient')}_Neuropathy.pdf`;
@@ -161,7 +168,10 @@ const NeuropathyReport = ({ study, onClose }) => {
         fd.append('testType', 'Neuropathy Assessment');
         if (study.studyDate) fd.append('testDate', study.studyDate);
         fd.append('notes', `Final result: ${finalResult}`);
-        await documentService.upload(fd);
+        const up = await documentService.upload(fd);
+        const docId = up?.data?.data?.id ?? up?.data?.document?.id ?? up?.data?.id ?? null;
+        try { await neuropathyService.markReportSaved(study.id, docId); } catch { /* doc is filed; the guard is best-effort */ }
+        setSavedAt(new Date().toISOString());
         toast.success("Saved to the patient's Medical Documents.");
       }
     } catch (err) {
@@ -179,7 +189,7 @@ const NeuropathyReport = ({ study, onClose }) => {
         <div className="sticky top-0 bg-white border-b-2 border-gray-200 p-3 flex justify-between items-center rounded-t-lg z-10">
           <div>
             <h3 className="text-lg font-bold text-gray-800">Neuropathy Report</h3>
-            <p className="text-xs text-gray-500">Interpretations &amp; Final Result are editable — click the text or a result box before printing/saving.</p>
+            <p className="text-xs text-gray-500">The Final result is editable — click a result box before printing or saving.</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => doAction('print')} disabled={!!busy} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
@@ -188,9 +198,15 @@ const NeuropathyReport = ({ study, onClose }) => {
             <button onClick={() => doAction('download')} disabled={!!busy} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
               {busy === 'download' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} PDF
             </button>
-            <button onClick={() => doAction('save')} disabled={!!busy} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
-              {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save to record
-            </button>
+            {savedAt ? (
+              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-green-700 bg-green-50 border border-green-200" title={`Saved to record on ${fmtDay(savedAt)} — view / print only`}>
+                <CheckCircle2 className="w-4 h-4" /> Saved {fmtDay(savedAt)} · view / print
+              </span>
+            ) : (
+              <button onClick={() => doAction('save')} disabled={!!busy} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                {busy === 'save' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save to record
+              </button>
+            )}
             <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg text-sm font-semibold hover:bg-gray-300">Done</button>
           </div>
         </div>
