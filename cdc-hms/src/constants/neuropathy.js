@@ -86,9 +86,12 @@ export const GRADE_CLASSES = {
 // Per-spot fill/ring for the foot diagram — the measured point tinted by its own
 // grade band (green Normal · amber Mild · orange Moderate · red Severe).
 export const GRADE_SPOT = {
-  Normal:   { fill: 'rgba(22,163,74,0.38)',  ring: '#16a34a', text: '#065f46' },
-  Mild:     { fill: 'rgba(202,138,4,0.40)',  ring: '#ca8a04', text: '#713f12' },
-  Moderate: { fill: 'rgba(234,88,12,0.40)',  ring: '#ea580c', text: '#7c2d12' },
-  Severe:   { fill: 'rgba(220,38,38,0.42)',  ring: '#dc2626', text: '#7f1d1d' },
-  none:     { fill: 'rgba(255,255,255,0.65)', ring: '#9ca3af', text: '#374151' },
+  // Opaque pale fill + coloured ring + dark value — a clean single marker that
+  // sits inside the template's printed circle (no muddy translucent double-ring)
+  // and keeps the value legible. Shared by the capture screen and the PDF report.
+  Normal:   { fill: '#dff2e6', ring: '#1f8a4c', text: '#14532d' },
+  Mild:     { fill: '#fdf1d3', ring: '#c07d00', text: '#7a4a00' },
+  Moderate: { fill: '#fbe5d8', ring: '#d9531e', text: '#8a3110' },
+  Severe:   { fill: '#f9dde1', ring: '#c11d2e', text: '#8a1420' },
+  none:     { fill: '#eef1f6', ring: '#9aa6b6', text: '#5b6b82' },
 };

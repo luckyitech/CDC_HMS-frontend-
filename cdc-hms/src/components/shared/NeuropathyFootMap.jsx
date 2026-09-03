@@ -1,6 +1,6 @@
 import { FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_LABELS, SITE_SHORT, gradeValue, GRADE_SPOT } from '../../constants/neuropathy';
-import rightFoot from '../../assets/rightFoot.png';
-import leftFoot from '../../assets/leftFoot.png';
+import rightFootV2 from '../../assets/rightFootV2.png';
+import leftFootV2 from '../../assets/leftFootV2.png';
 import footIllusRight from '../../assets/footIllusRight.png';
 import footIllusLeft from '../../assets/footIllusLeft.png';
 
@@ -13,13 +13,25 @@ import footIllusLeft from '../../assets/footIllusLeft.png';
 // PDF report; `illustration` — the friendlier colour feet on the capture screen
 // (the default). Each has its own right-foot circle centres (% of image); the
 // left foot has its own detected centres (illustration) or mirrors x (template).
-const TEMPLATE_POS = {
-  greatToe: { x: 66.4, y: 9.9,  d: 21 },
-  mth1:     { x: 74.1, y: 27.5, d: 16 },
-  mth3:     { x: 46.3, y: 30.5, d: 14 },
-  mth5:     { x: 23.9, y: 40.7, d: 14 },
-  midfoot:  { x: 61.0, y: 58.4, d: 18 },
-  heel:     { x: 57.1, y: 87.7, d: 17 },
+// Site centres for the report's clean feet (rightFootV2 / leftFootV2 — Emu's own
+// artwork, no printed circles). Right foot = big toe top-right; left = its own
+// detected map (the drawings are near-mirrors, tuned per foot). Uniform marker
+// size, since there is no printed circle to match.
+const TEMPLATE_POS_R = {
+  greatToe: { x: 62, y: 11, d: 16 },
+  mth1:     { x: 61, y: 30, d: 16 },
+  mth3:     { x: 47, y: 27, d: 16 },
+  mth5:     { x: 31, y: 31, d: 16 },
+  midfoot:  { x: 43, y: 56, d: 16 },
+  heel:     { x: 50, y: 86, d: 16 },
+};
+const TEMPLATE_POS_L = {
+  greatToe: { x: 38, y: 11, d: 16 },
+  mth1:     { x: 39, y: 30, d: 16 },
+  mth3:     { x: 53, y: 27, d: 16 },
+  mth5:     { x: 69, y: 31, d: 16 },
+  midfoot:  { x: 57, y: 56, d: 16 },
+  heel:     { x: 50, y: 86, d: 16 },
 };
 // Illustration circle centres are detected PER FOOT — the two colour images are
 // hand-drawn and are NOT exact vertical mirrors of each other, so the left foot
@@ -45,14 +57,14 @@ const ART = {
   // pos = right-foot centres. posL, when present, gives the left foot its own
   // detected centres; without it the left foot mirrors x (template line art is a
   // true mirror, so it needs no posL).
-  template:     { img: { R: rightFoot, L: leftFoot },           pos: TEMPLATE_POS },
+  template:     { img: { R: rightFootV2, L: leftFootV2 },       pos: TEMPLATE_POS_R, posL: TEMPLATE_POS_L },
   illustration: { img: { R: footIllusRight, L: footIllusLeft }, pos: ILLUS_POS_R, posL: ILLUS_POS_L },
 };
 
 // Display sizes. `large` is the capture screen (big enough to tap comfortably);
 // the PDF report uses `compact`.
 const SIZES = {
-  compact: { grid: 'grid grid-cols-2 gap-3 max-w-[380px]',             foot: 'max-w-[187px]' },
+  compact: { grid: 'grid grid-cols-2 gap-2 max-w-[300px]',             foot: 'max-w-[110px]' },
   default: { grid: 'grid grid-cols-2 gap-4 sm:gap-8 max-w-lg mx-auto',  foot: 'max-w-[220px]' },
   large:   { grid: 'grid grid-cols-2 gap-3 max-w-[470px] mx-auto',      foot: 'max-w-[220px]' },
 };
@@ -78,7 +90,7 @@ const displayValue = (modality, value) => {
  *   readOnly  — disables selection
  *   art       — 'illustration' (default, capture screen) | 'template' (PDF report)
  */
-const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false, size = 'default', art = 'illustration' }) => {
+const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = false, size = 'default', art = 'illustration', showLabels = false }) => {
   const set = ART[art] || ART.illustration;
   const sz = SIZES[size] || SIZES.default;
   const posFor = (foot, site) => {
@@ -93,6 +105,11 @@ const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = fa
     <div className={sz.grid}>
       {FEET.map((foot) => (
         <div key={foot} className="text-center">
+          {showLabels && (
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.14em', color: '#6a7891', textTransform: 'uppercase', lineHeight: 1, marginBottom: 3 }}>
+              {FOOT_LABELS[foot]}
+            </div>
+          )}
           <div className={`relative w-full mx-auto select-none ${sz.foot}`}>
             <img src={set.img[foot]} alt={`${FOOT_LABELS[foot]} foot test sites`} className="w-full block pointer-events-none" draggable="false" />
             {PROTOCOL_SITES.map((site) => {
@@ -118,7 +135,7 @@ const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = fa
                     color: c.text,
                     border: `2px solid ${isActive ? '#0066CC' : c.ring}`,
                     boxShadow: isActive ? '0 0 0 3px rgba(0,102,204,0.30)' : 'none',
-                    fontSize: (has && txt.length >= 4) ? '13px' : '16px',
+                    fontSize: (has && txt.length >= 4) ? '13.5px' : '15px',
                     cursor: readOnly ? 'default' : 'pointer',
                   }}
                 >

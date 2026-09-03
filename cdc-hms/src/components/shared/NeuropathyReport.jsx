@@ -1,12 +1,18 @@
 // NeuropathyReport.jsx — the printable neuropathy report on the CDC letterhead.
 //
-// Layout mirrors the vendor "Vibrotherm Dx" form: a 4-quadrant study grid
-// (Monofilament · Biothesiometry/VPT · Cold · Hot). The foot maps reuse the
-// exam's NeuropathyFootMap (the real Vibrotherm foot template with grade-tinted
-// site circles) so the report matches the capture screen exactly. Auto-derived-
-// but-editable Right/Left interpretation + Final Result. Print / Download / Save
-// reuse the ultrasound report's mechanism (a jsPDF blob filed via
-// documentService), fitted to a single A4 page.
+// One A4 page: title, patient block, a 2x2 study grid (Monofilament ·
+// Biothesiometry/VPT · Cold · Hot) whose foot maps reuse the exam's
+// NeuropathyFootMap on the real Vibrotherm TEMPLATE artwork, per-panel R/L
+// averages + grade beside each title, auto-derived-but-editable interpretation
+// and Final Result. Print / Download / Save reuse the ultrasound report's
+// mechanism (html2canvas -> jsPDF blob filed via documentService).
+//
+// The report computes its own averages/grades from the raw readings (via the
+// shared constants) rather than the stored summary, so a mis-captured thermal
+// 0 C is treated as NOT TESTED and excluded — a signed report is always correct
+// regardless of when the study was completed. (A matching exclusion in the
+// backend averageReadings would keep the study list in step — flagged, not yet
+// done.)
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Printer, Download, Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -14,27 +20,30 @@ import PrintLetterhead from './PrintLetterhead';
 import NeuropathyFootMap from './NeuropathyFootMap';
 import buildReportPdf from '../../utils/neuropathyPdf';
 import documentService from '../../services/documentService';
-import { PROTOCOL_SITES } from '../../constants/neuropathy';
+import { PROTOCOL_SITES, averageReadings, gradeValue, monoSummary } from '../../constants/neuropathy';
 
-const CHIP = { Normal: ['#dcfce7', '#166534'], Mild: ['#fef3c7', '#92400e'], Moderate: ['#ffedd5', '#9a3412'], Severe: ['#fee2e2', '#991b1b'] };
+// One grade palette [tint, ring, text] — shared by the pills here and, in spirit,
+// by the foot-map markers (GRADE_SPOT). Kept as literal hex for html2canvas.
+const PAL = {
+  Normal:   ['#dff2e6', '#1f8a4c', '#14532d'],
+  Mild:     ['#fdf1d3', '#c07d00', '#7a4a00'],
+  Moderate: ['#fbe5d8', '#d9531e', '#8a3110'],
+  Severe:   ['#f9dde1', '#c11d2e', '#8a1420'],
+  NT:       ['#eef1f6', '#9aa6b6', '#5b6b82'],
+};
 const RANK = { Normal: 0, Mild: 1, Moderate: 2, Severe: 3 };
 const RESULTS = ['No Evidence of DPN', 'Mild DPN', 'Moderate DPN', 'Severe DPN'];
 
-const fmtDay = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
+const fmtDay = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
 const num = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
 const safe = (s, fallback) => String(s || fallback).replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || fallback;
 
-const Chip = ({ g }) => {
-  if (!g || !CHIP[g]) return null;
-  const [bg, fg] = CHIP[g];
-  return <span style={{ background: bg, color: fg, padding: '1px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700 }}>{g}</span>;
+const Pill = ({ g }) => {
+  if (!g || !PAL[g]) return null;
+  const [bg, ring, fg] = PAL[g];
+  return <span style={{ background: bg, color: fg, border: `1px solid ${ring}`, padding: '0 6px', borderRadius: 8, fontSize: 9.5, fontWeight: 700, lineHeight: '15px', display: 'inline-block' }}>{g === 'NT' ? 'Not tested' : g}</span>;
 };
 
-/**
- * Props:
- *   study   — formatted study from the API (summary + readings + patient fields)
- *   onClose
- */
 const NeuropathyReport = ({ study, onClose }) => {
   const bodyRef = useRef(null);
   const rInterpRef = useRef(null);
@@ -42,14 +51,17 @@ const NeuropathyReport = ({ study, onClose }) => {
   const remarksRef = useRef(null);
   const [busy, setBusy] = useState(null);
 
-  const R = useMemo(() => study?.summary?.right || {}, [study]);
-  const L = useMemo(() => study?.summary?.left || {}, [study]);
-
+  // Raw reading, with the not-tested rule applied: omitted -> null, and a thermal
+  // 0 C -> null (an artefact, never a real perception threshold). VPT 0 and
+  // monofilament 0 (= not felt) are genuine and kept.
   const readingVal = (foot, site, mod) => {
     const r = study?.readings?.find((x) => x.foot === foot && x.site === site && x.modality === mod);
-    return !r || r.omitted ? null : num(r.value);
+    if (!r || r.omitted) return null;
+    const v = num(r.value);
+    if (v === 0 && (mod === 'HOT' || mod === 'COLD')) return null;
+    return v;
   };
-  // { R: { site: value }, L: { site: value } } for one modality — the shape NeuropathyFootMap wants.
+  // { R:{site:value}, L:{site:value} } for one modality — the shape the foot map wants.
   const modReadings = (mod) => {
     const out = { R: {}, L: {} };
     ['R', 'L'].forEach((foot) => PROTOCOL_SITES.forEach((site) => {
@@ -58,6 +70,22 @@ const NeuropathyReport = ({ study, onClose }) => {
     }));
     return out;
   };
+
+  // Per-foot summary recomputed from the readings (not study.summary).
+  const footSummary = (foot) => {
+    const s = {};
+    ['VPT', 'HOT', 'COLD'].forEach((m) => {
+      const vals = PROTOCOL_SITES.map((site) => readingVal(foot, site, m));
+      const tested = vals.filter((v) => v !== null);
+      const avg = averageReadings(m, vals);
+      s[m.toLowerCase()] = avg === null ? null : { avg, grade: gradeValue(m, avg), n: tested.length };
+    });
+    const mono = monoSummary(PROTOCOL_SITES.map((site) => readingVal(foot, site, 'MONO')));
+    s.mono = mono; // { tested, insensate }
+    return s;
+  };
+  const R = useMemo(() => footSummary('R'), [study]); // eslint-disable-line react-hooks/exhaustive-deps
+  const L = useMemo(() => footSummary('L'), [study]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const worstRank = useMemo(() => {
     let r = 0;
@@ -73,9 +101,9 @@ const NeuropathyReport = ({ study, onClose }) => {
 
   const autoInterp = (F) => {
     const parts = [];
-    const g = (o, lbl, unit) => (o && o.grade ? `${lbl} ${o.grade.toLowerCase()}${o.avg != null ? ` (${o.avg}${unit})` : ''}` : null);
+    const g = (o, lbl, unit) => (o && o.grade ? `${lbl} ${o.grade.toLowerCase()} (${o.avg}${unit}${o.n < 6 ? `, ${o.n} of 6 sites` : ''})` : null);
     [g(F.vpt, 'VPT', ' V'), g(F.cold, 'cold', ' °C'), g(F.hot, 'hot', ' °C')].forEach((x) => x && parts.push(x));
-    if (F.mono?.tested) parts.push(F.mono.insensate ? `monofilament ${F.mono.insensate}/${F.mono.tested} insensate` : 'monofilament intact');
+    if (F.mono?.tested) parts.push(F.mono.insensate ? `monofilament ${F.mono.insensate}/${F.mono.tested} not felt` : 'monofilament intact');
     return parts.length ? `${parts.join('; ')}.` : '';
   };
 
@@ -88,27 +116,38 @@ const NeuropathyReport = ({ study, onClose }) => {
 
   if (!study) return null;
 
-  const AvgLine = ({ mod }) => {
+  // A panel: title + R/L average & grade in the header, feet below.
+  const Panel = ({ title, sub, color, mod }) => {
     const unit = mod === 'VPT' ? 'V' : '°C';
     const key = mod.toLowerCase();
-    const cell = (lbl, o) => (
-      <span className="nr-pair"><b>{lbl}</b> {o && o.avg != null ? <>{o.avg} {unit} <Chip g={o.grade} /></> : <span style={{ color: '#9ca3af' }}>—</span>}</span>
+    const side = (lbl, o) => (
+      <span className="nr-side">
+        <i>{lbl}</i>
+        {o && o.avg != null
+          ? <><b>{o.avg} {unit}</b><Pill g={o.grade} /></>
+          : <span style={{ color: '#9aa6b6' }}>—</span>}
+      </span>
+    );
+    const monoSide = (lbl, m) => (
+      <span className="nr-side">
+        <i>{lbl}</i>
+        {m.tested
+          ? <><b>{m.insensate}/{m.tested} not felt</b><Pill g={m.insensate === 0 ? 'Normal' : m.insensate <= 2 ? 'Mild' : m.insensate <= 4 ? 'Moderate' : 'Severe'} /></>
+          : <span style={{ color: '#9aa6b6' }}>—</span>}
+      </span>
     );
     return (
-      <div className="nr-avg">
-        {cell('R', R[key])}{cell('L', L[key])}
-        <span style={{ color: '#9ca3af', fontSize: 9.5 }}>Average {mod === 'VPT' ? '(Volts)' : '(°C)'}</span>
+      <div className="nr-panel">
+        <div className="nr-phead">
+          <span className="nr-ptitle" style={{ color }}>{title}{sub ? <small> · {sub}</small> : null}</span>
+          <span className="nr-avg">
+            {mod === 'MONO' ? <>{monoSide('R', R.mono)}{monoSide('L', L.mono)}</> : <>{side('R', R[key])}{side('L', L[key])}</>}
+          </span>
+        </div>
+        <NeuropathyFootMap readings={modReadings(mod)} modality={mod} active={null} readOnly size="compact" art="template" showLabels />
       </div>
     );
   };
-
-  const Quadrant = ({ title, color, mod, legend }) => (
-    <div className="nr-cell">
-      <div className="nr-stitle" style={{ color }}>{title}</div>
-      <NeuropathyFootMap readings={modReadings(mod)} modality={mod} active={null} readOnly size="compact" art="template" />
-      {legend ? <div className="nr-legend">{legend}</div> : <AvgLine mod={mod} />}
-    </div>
-  );
 
   const doAction = async (kind) => {
     if (busy) return;
@@ -145,7 +184,7 @@ const NeuropathyReport = ({ study, onClose }) => {
     }
   };
 
-  const editableStyle = { minHeight: 16, outline: 'none', borderBottom: '1px solid #d1d5db', padding: '2px 3px' };
+  const editable = { minHeight: 13, outline: 'none', padding: '1px 4px', borderBottom: '1px solid #d6dce6' };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto">
@@ -172,61 +211,90 @@ const NeuropathyReport = ({ study, onClose }) => {
 
         {/* printable body — fixed A4 width for the PDF capture */}
         <div className="mx-auto" style={{ width: 794, padding: '2px' }}>
-          <div ref={bodyRef} style={{ width: 794, background: '#fff', padding: '24px 34px 16px', color: '#1f2937', fontFamily: 'Segoe UI, system-ui, sans-serif' }}>
+          <div ref={bodyRef} style={{ width: 794, background: '#fff', padding: '12px 30px 9px', color: '#14213d', fontFamily: 'Segoe UI, system-ui, Helvetica, Arial, sans-serif', fontSize: 12 }}>
             <style>{`
-              .nr-demo{display:grid;grid-template-columns:1fr 1fr;border:1px solid #d1d5db;margin:10px 0 4px}
-              .nr-demo .nr-col{padding:6px 10px;display:grid;grid-template-columns:80px 1fr;row-gap:3px;background:#fff;font-size:11.5px}
-              .nr-demo .nr-col:first-child{border-right:1px solid #d1d5db}
-              .nr-demo b{font-weight:600;color:#374151}
-              .nr-demo .nr-v{border-bottom:1px dotted #cbd5e1;min-height:15px;padding-left:4px;color:#111}
-              .nr-grid{display:grid;grid-template-columns:1fr 16px 1fr;gap:2px 0;margin-top:4px}
-              .nr-cc{writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-size:8.5px;color:#9ca3af;align-self:center}
-              .nr-cell{padding:2px 4px}
-              .nr-stitle{text-align:center;font-weight:700;font-size:11.5px;letter-spacing:.02em;margin-bottom:2px}
-              .nr-avg{display:flex;align-items:baseline;gap:8px;justify-content:center;margin-top:2px;font-size:11px;color:#374151}
-              .nr-pair{display:flex;gap:4px;align-items:baseline}
-              .nr-legend{text-align:center;font-size:10px;color:#6b7280;margin-top:2px}
-              .nr-rowline{display:grid;grid-template-columns:118px 1fr;gap:8px;margin-top:6px;font-size:11.5px;align-items:start}
-              .nr-rowline .nr-l2{font-weight:700;color:#374151;padding-top:2px}
-              .nr-result{margin-top:10px;border:1.5px solid #111;padding:7px 10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-              .nr-opt{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer}
-              .nr-cbox{width:13px;height:13px;border:1.4px solid #374151;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
-              .nr-opt.sel{color:#991b1b;font-weight:700}
-              .nr-opt.sel .nr-cbox{border-color:#dc2626;background:#fee2e2;color:#b91c1c}
-              .nr-sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:22px;font-size:11px;color:#374151}
-              .nr-foot-note{margin-top:14px;border-top:1px solid #e5e7eb;padding-top:6px;font-size:9px;color:#9ca3af;display:flex;justify-content:space-between}
+              .nr-title{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:5px 0 5px}
+              .nr-title h2{margin:0;font-size:17px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#14213d}
+              .nr-title .nr-meta{color:#6a7891;font-size:11px;text-align:right}
+              .nr-title .nr-meta b{color:#3d4a63;font-weight:600}
+              .nr-pt{display:grid;grid-template-columns:1fr 1fr;column-gap:20px;border:1px solid #d6dce6;border-radius:4px;padding:5px 12px}
+              .nr-pt dl{margin:0;display:grid;grid-template-columns:74px 1fr;row-gap:2px;align-content:start}
+              .nr-pt dt{color:#6a7891;font-weight:600;font-size:10px;letter-spacing:.03em;text-transform:uppercase}
+              .nr-pt dd{margin:0;font-weight:600;color:#14213d;font-size:12px}
+              .nr-pt dd.e{color:#9aa6b6;font-weight:400}
+              .nr-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:7px}
+              .nr-panel{border:1px solid #d6dce6;border-radius:4px;padding:4px 6px 2px}
+              .nr-phead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;padding-bottom:3px;margin-bottom:1px;border-bottom:1px solid #eef1f6}
+              .nr-ptitle{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+              .nr-ptitle small{font-weight:400;letter-spacing:0;text-transform:none;color:#6a7891;font-size:10.5px}
+              .nr-avg{display:flex;gap:12px;font-size:10.5px}
+              .nr-side{display:flex;align-items:center;gap:5px;white-space:nowrap}
+              .nr-side i{font-style:normal;color:#9aa6b6;font-weight:700;letter-spacing:.05em;font-size:9.5px}
+              .nr-side b{font-weight:600;color:#14213d}
+              .nr-legend{display:flex;flex-wrap:wrap;gap:2px 14px;justify-content:center;color:#6a7891;font-size:9.5px;margin:4px 0 2px}
+              .nr-legend span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+              .nr-legend i{width:9px;height:9px;border-radius:50%;border:1.5px solid;display:inline-block}
+              .nr-interp{display:grid;grid-template-columns:112px 1fr;row-gap:3px;column-gap:10px;align-items:start;margin-top:5px}
+              .nr-interp .nr-l2{color:#6a7891;font-weight:600;font-size:10px;letter-spacing:.03em;text-transform:uppercase;padding-top:3px}
+              .nr-remarks{border:1px solid #d6dce6;border-radius:4px;min-height:26px;padding:4px 8px;color:#14213d}
+              .nr-result{margin-top:7px;border:1.4px solid #14213d;border-radius:4px;padding:5px 12px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+              .nr-result .nr-rl{font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-size:11px}
+              .nr-opt{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;color:#3d4a63}
+              .nr-cbox{width:13px;height:13px;border:1.3px solid #3d4a63;border-radius:2px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-sizing:border-box}
+              .nr-opt.sel{color:#8a1420;font-weight:700}
+              .nr-opt.sel .nr-cbox{border-color:#c11d2e;background:#c11d2e;color:#fff}
+              .nr-sign{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:11px;font-size:10.5px;color:#6a7891}
+              .nr-sign div{border-top:1px solid #3d4a63;padding-top:4px}
+              .nr-sign b{display:block;color:#14213d;font-weight:600;font-size:11.5px;min-height:14px}
+              .nr-fn{margin-top:7px;border-top:1px solid #d6dce6;padding-top:4px;font-size:9px;color:#9aa6b6;display:flex;justify-content:space-between}
             `}</style>
 
             <PrintLetterhead show />
 
-            <div className="nr-demo">
-              <div className="nr-col">
-                <b>UHID</b><span className="nr-v">{study.uhid || ''}</span>
-                <b>Name</b><span className="nr-v">{study.patientName || ''}</span>
-                <b>Age / Sex</b><span className="nr-v">{[study.patientAge, study.patientGender].filter(Boolean).join(' · ')}</span>
+            <div className="nr-title">
+              <h2>Neuropathy Function Report</h2>
+              <div className="nr-meta">
+                {study.studyNumber ? <>Study <b>#{study.studyNumber}</b> · </> : null}
+                Vibrotherm Dx · Plantar protocol, 6 sites per foot
               </div>
-              <div className="nr-col">
-                <b>Date</b><span className="nr-v">{fmtDay(study.studyDate)}</span>
-                <b>Referral</b><span className="nr-v">{study.referral || ''}</span>
-                <b>Performed by</b><span className="nr-v">{study.performedByName || ''}</span>
-              </div>
+            </div>
+
+            <div className="nr-pt">
+              <dl>
+                <dt>UHID</dt><dd>{study.uhid || '—'}</dd>
+                <dt>Name</dt><dd>{study.patientName || '—'}</dd>
+                <dt>Age / Sex</dt><dd className={[study.patientAge, study.patientGender].filter(Boolean).length ? '' : 'e'}>{[study.patientAge, study.patientGender].filter(Boolean).join(' · ') || '—'}</dd>
+              </dl>
+              <dl>
+                <dt>Date</dt><dd>{fmtDay(study.studyDate)}</dd>
+                <dt>Referral</dt><dd className={study.referral ? '' : 'e'}>{study.referral || '—'}</dd>
+                <dt>Performed by</dt><dd>{study.performedByName || '—'}</dd>
+              </dl>
             </div>
 
             <div className="nr-grid">
-              <Quadrant title="10 g MONOFILAMENT STUDY" color="#111827" mod="MONO" legend={<>&#10003; Felt (present) &nbsp;·&nbsp; &#10007; Not felt (absent)</>} />
-              <div className="nr-cc">** Clinically Correlated</div>
-              <Quadrant title="BIOTHESIOMETRY STUDY" color="#15803d" mod="VPT" />
-              <Quadrant title="COLD PERCEPTION STUDY" color="#1d4ed8" mod="COLD" />
-              <div className="nr-cc" />
-              <Quadrant title="HOT PERCEPTION STUDY" color="#dc2626" mod="HOT" />
+              <Panel title="Monofilament" sub="10 g" color="#14213d" mod="MONO" />
+              <Panel title="Biothesiometry" sub="VPT" color="#1f8a4c" mod="VPT" />
+              <Panel title="Cold perception" color="#1a63c6" mod="COLD" />
+              <Panel title="Hot perception" color="#c11d2e" mod="HOT" />
             </div>
 
-            <div className="nr-rowline"><span className="nr-l2">Right interpretation</span><div ref={rInterpRef} contentEditable suppressContentEditableWarning style={editableStyle} /></div>
-            <div className="nr-rowline"><span className="nr-l2">Left interpretation</span><div ref={lInterpRef} contentEditable suppressContentEditableWarning style={editableStyle} /></div>
-            <div className="nr-rowline"><span className="nr-l2">Remarks</span><div ref={remarksRef} contentEditable suppressContentEditableWarning style={editableStyle} /></div>
+            <div className="nr-legend">
+              <span><i style={{ borderColor: '#1f8a4c', background: '#dff2e6' }} />Normal / felt</span>
+              <span><i style={{ borderColor: '#c07d00', background: '#fdf1d3' }} />Mild</span>
+              <span><i style={{ borderColor: '#d9531e', background: '#fbe5d8' }} />Moderate</span>
+              <span><i style={{ borderColor: '#c11d2e', background: '#f9dde1' }} />Severe / not felt</span>
+              <span>Averages: VPT whole volts · thermal to 0.1 °C · monofilament = sites not felt / tested · a site with no marker was not tested and is excluded</span>
+            </div>
+
+            <div className="nr-interp">
+              <span className="nr-l2">Right foot</span><div ref={rInterpRef} contentEditable suppressContentEditableWarning style={editable} />
+              <span className="nr-l2">Left foot</span><div ref={lInterpRef} contentEditable suppressContentEditableWarning style={editable} />
+              <span className="nr-l2">Remarks</span><div ref={remarksRef} contentEditable suppressContentEditableWarning className="nr-remarks" />
+            </div>
 
             <div className="nr-result">
-              <b style={{ fontSize: 12 }}>Final Result :</b>
+              <span className="nr-rl">Final result</span>
               {RESULTS.map((r) => (
                 <span key={r} className={`nr-opt${finalResult === r ? ' sel' : ''}`} onClick={() => setFinalResult(r)}>
                   <span className="nr-cbox">{finalResult === r ? '✓' : ''}</span>{r}
@@ -235,11 +303,15 @@ const NeuropathyReport = ({ study, onClose }) => {
             </div>
 
             <div className="nr-sign">
-              <div style={{ borderTop: '1px solid #6b7280', paddingTop: 3 }}>Consultant :<br /><span style={{ color: '#9ca3af' }}>Specialisation :</span></div>
-              <div style={{ borderTop: '1px solid #6b7280', paddingTop: 3, textAlign: 'right' }}>&nbsp;<br /><span style={{ color: '#9ca3af' }}>(Examiner)</span></div>
+              <div><b>{study.performedByName || ''}</b>Examiner · signature</div>
+              <div><b>&nbsp;</b>Consultant · signature</div>
             </div>
 
-            <div className="nr-foot-note"><span>Comprehensive Diabetes Centre · Nairobi</span><span>NEUROPATHY FUNCTION REPORT</span></div>
+            <div className="nr-fn">
+              <span>Comprehensive Diabetes Centre · Nairobi</span>
+              <span>Generated {new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · CDC HMS</span>
+              <span>Page 1 of 1</span>
+            </div>
           </div>
         </div>
       </div>
