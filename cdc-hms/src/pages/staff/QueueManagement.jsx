@@ -22,6 +22,7 @@ import StatCard from '../../components/shared/StatCard';
 import Button from '../../components/shared/Button';
 import StatusBadge from '../../components/shared/StatusBadge';
 import { QUEUE_STATUS_TONES, QUEUE_PRIORITY_TONES } from '../../utils/statusStyles';
+import { DESTINATION_META, DESTINATIONS } from '../../constants/queueDestinations';
 import { useQueueContext } from '../../contexts/QueueContext';
 import { useAppointmentContext } from '../../contexts/AppointmentContext';
 import { BatchScanBox } from '../../components/stock/stockUi';
@@ -64,6 +65,9 @@ const QueueManagement = () => {
 
   // Only show active entries — hide Completed and Removed
   const activeQueue = queue.filter(p => p.status !== 'Completed' && p.status !== 'Removed');
+  const [destFilter, setDestFilter] = useState('all');
+  const destOf = (p) => p.destination || 'Outpatient';
+  const filteredQueue = destFilter === 'all' ? activeQueue : activeQueue.filter(p => destOf(p) === destFilter);
 
   // ── Notification sound — play when a new patient joins the active queue ──
   const prevActiveIds = useRef(null);
@@ -324,16 +328,29 @@ const QueueManagement = () => {
 
       {/* Queue Table */}
       <Card title="Current Queue">
-        {loading && activeQueue.length === 0 ? (
+        {/* Destination filter — front desk sees every destination, filterable */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {['all', ...DESTINATIONS].map((d) => {
+            const count = d === 'all' ? activeQueue.length : activeQueue.filter((p) => destOf(p) === d).length;
+            const on = destFilter === d;
+            return (
+              <button key={d} onClick={() => setDestFilter(d)}
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${on ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:bg-blue-50'}`}>
+                {d === 'all' ? 'All' : DESTINATION_META[d].short}<span className={`ml-1.5 ${on ? 'opacity-90' : 'text-gray-400'}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+        {loading && filteredQueue.length === 0 ? (
           <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
             <Loader2 className="w-6 h-6 animate-spin" />
             <span>Loading queue...</span>
           </div>
-        ) : activeQueue.length > 0 ? (
+        ) : filteredQueue.length > 0 ? (
           <>
             {/* Card list — mobile & tablet (< xl) */}
             <div className="xl:hidden space-y-3">
-              {activeQueue.map((patient, index) => (
+              {filteredQueue.map((patient, index) => (
                 <div
                   key={patient.id}
                   className={`border rounded-xl overflow-hidden ${patient.priority === 'Urgent' ? 'border-red-300' : 'border-gray-200'}`}
@@ -425,6 +442,7 @@ const QueueManagement = () => {
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">#</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Destination</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Arrival</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Est. Wait</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Priority</th>
@@ -435,13 +453,19 @@ const QueueManagement = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {activeQueue.map((patient, index) => (
+                  {filteredQueue.map((patient, index) => (
                     <tr key={patient.id} className={`hover:bg-blue-50 ${patient.priority === 'Urgent' ? 'bg-red-50' : ''}`}>
                       <td className="px-6 py-4 font-bold text-gray-800 text-sm">{index + 1}</td>
                       <td className="px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                       <td className="px-6 py-4 font-semibold text-sm">
                         {patient.name}
                         {patient.age && <span className="text-xs text-gray-500 ml-1">({patient.age}y)</span>}
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge size="xs" tone={DESTINATION_META[destOf(patient)].tone}>
+                          {DESTINATION_META[destOf(patient)].short}
+                        </StatusBadge>
+                        {patient.service && <span className="block text-[11px] text-gray-500 mt-0.5">{patient.service}</span>}
                       </td>
                       <td className="px-6 py-4 text-sm">{formatArrival(patient.createdAt)}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{patient.estimatedWait || '—'}</td>

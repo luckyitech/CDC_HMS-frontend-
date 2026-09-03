@@ -50,6 +50,7 @@ import {
   KeyRound,
   Waves,
   Scan,
+  Footprints,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 
@@ -205,7 +206,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     { label: 'Doctor Portal', path: '/doctor/dashboard', icon: Stethoscope, portal: PERMISSIONS.PORTAL_DOCTOR },
     { label: 'Staff Portal', path: '/staff/dashboard', icon: Users, portal: PERMISSIONS.PORTAL_STAFF },
     { label: 'Lab Portal', path: '/lab/dashboard', icon: TestTube, portal: PERMISSIONS.PORTAL_LAB },
-    { label: 'Radiology Suite', path: '/radiology/suite', icon: Scan, portal: PERMISSIONS.PORTAL_RADIOLOGY },
+    { label: 'Radiology Suite', path: '/radiology/dashboard', icon: Scan, portal: PERMISSIONS.PORTAL_RADIOLOGY },
   ];
 
   // Portals this person may open, other than the one they are already in.
@@ -315,9 +316,10 @@ const MainLayout = ({ userRole = "Staff" }) => {
     // Radiology is a top-level section, not a role. Reached from the portal
     // switcher; use the switcher to return to another portal.
     radiology: [
+      { name: "Dashboard", path: "/radiology/dashboard", icon: LayoutDashboard },
       { name: "Patients", path: "/radiology/patients", icon: Users },
-      { name: "Radiology Suite", path: "/radiology/suite", icon: Scan },
-      { name: "Unassigned Queue", path: "/radiology/unassigned", icon: Waves },
+      { name: "Ultrasound Suite", path: "/radiology/suite", icon: Scan },
+      { name: "Neuropathy Suite", path: "/radiology/neuropathy", icon: Footprints },
     ],
     staff: [
       { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },

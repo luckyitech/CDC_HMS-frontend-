@@ -100,7 +100,8 @@ const WardConfig             = lazy(() => import("./pages/admin/WardConfig"));
 const UnassignedUltrasound   = lazy(() => import("./pages/admin/UnassignedUltrasound"));
 const UltrasoundStudio       = lazy(() => import("./pages/doctor/UltrasoundStudio"));
 const RadiologySuite         = lazy(() => import("./pages/radiology/RadiologySuite"));
-const RadiologyUnassigned     = lazy(() => import("./pages/radiology/RadiologyUnassigned"));
+const RadiologyDashboard     = lazy(() => import("./pages/radiology/RadiologyDashboard"));
+const NeuropathyStudioPage    = lazy(() => import("./pages/radiology/NeuropathyStudioPage"));
 
 // HMIS V3 — inpatient (lazy)
 const WardBoard          = lazy(() => import("./pages/inpatient/WardBoard"));
@@ -281,12 +282,13 @@ function App() {
                   path="/radiology"
                   element={<ProtectedRoute requiredPortal="portal.radiology"><MainLayout userRole="Radiology" /></ProtectedRoute>}
                 >
-                  <Route index element={<Navigate to="/radiology/suite" replace />} />
-                  <Route path="dashboard" element={<Navigate to="/radiology/suite" replace />} />
+                  <Route index element={<Navigate to="/radiology/dashboard" replace />} />
+                  <Route path="dashboard" element={<RadiologyDashboard />} />
                   <Route path="suite" element={<RadiologySuite />} />
                   <Route path="patients" element={<MyPatients basePath="/radiology" />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
-                  <Route path="unassigned" element={<RadiologyUnassigned />} />
+                  <Route path="unassigned" element={<Navigate to="/radiology/suite" replace />} />
+                  <Route path="neuropathy" element={<NeuropathyStudioPage />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import {
   ChevronDown, ArrowLeft, Zap, Radio, Battery, Calendar,
   FileText, Pencil, ClipboardEdit, AlertTriangle,
-  KeyRound, UserCheck, UserX, Trash2, UserCog, Stethoscope,
+  KeyRound, UserCheck, UserX, Trash2, UserCog, Stethoscope, Footprints,
 } from "lucide-react";
 import { formatDOB } from "../../utils/dateUtils";
 import { usePatientContext } from "../../contexts/PatientContext";
@@ -28,8 +28,10 @@ import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
 import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import UltrasoundTab from "../../components/shared/UltrasoundTab";
+import NeuropathyStudyList from "../../components/shared/NeuropathyStudyList";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import NursingActionsTab from "../../components/nursing/NursingActionsTab";
+import NeuropathyExam from "../../components/shared/NeuropathyExam";
 import TodaysConsultationTab from "../../components/doctor/TodaysConsultationTab";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
@@ -63,6 +65,7 @@ const REST_TABS = [
 const LIVE_TABS = {
   consultation: { id: "consultation", name: "Today's Consultation", Icon: Stethoscope },
   nursing:      { id: "nursing",      name: "Nursing",              Icon: Stethoscope },
+  pns:          { id: "pns",          name: "PNS Studio",           Icon: Footprints },
 };
 
 // Per-portal config. Portals differ only in navigation labels, management
@@ -128,11 +131,13 @@ const DiagnosticsTab = ({ patient }) => {
         tabs={[
           { id: "documents", label: "Medical Documents" },
           { id: "ultrasound", label: "Radiology" },
+          { id: "neuropathy", label: "Neuropathy" },
           { id: "charts", label: "Charts" },
         ]}
       />
       {sub === "documents" && <MedicalDocumentsTab patient={patient} />}
       {sub === "ultrasound" && <UltrasoundTab patient={patient} />}
+      {sub === "neuropathy" && <NeuropathyStudyList patient={patient} />}
       {sub === "charts" && <GlycemicChartPanel patient={patient} />}
     </div>
   );
@@ -277,7 +282,15 @@ const PatientFile = () => {
 
   // The role-specific live tab (Today's Consultation for doctors, Nursing for
   // staff/nurses, none for admin). Prepended to the shared REST_TABS.
-  const liveTabDef = cfg.liveTab ? LIVE_TABS[cfg.liveTab] : null;
+  const { isInQueue, queue } = useQueueContext();
+  // Radiology's live tab is service-aware: a patient in the neuropathy flow
+  // (queued Radiology → Neuropathy) gets the PNS Studio tab in place of the
+  // review-only file. Everyone else uses the static per-portal liveTab.
+  const inNeuropathyFlow = portal === 'radiology' && queue.some((q) =>
+    q.uhid === uhid && q.destination === 'Radiology' && q.service === 'Neuropathy' &&
+    !['Completed', 'Removed'].includes(q.status));
+  const liveTabKey = inNeuropathyFlow ? 'pns' : cfg.liveTab;
+  const liveTabDef = liveTabKey ? LIVE_TABS[liveTabKey] : null;
   const orderedTabs = liveTabDef ? [liveTabDef, ...REST_TABS] : REST_TABS;
 
   // A "User Management" tab, appended last, houses every account/management
@@ -291,7 +304,6 @@ const PatientFile = () => {
 
   const { fetchPatientByUHID } = usePatientContext();
   const { getPrescriptionsByPatient } = usePrescriptionContext();
-  const { isInQueue } = useQueueContext();
   const { currentUser } = useUserContext();
 
   // The live tab is the "today's visit" workspace — like the doctor's Today's
@@ -312,7 +324,7 @@ const PatientFile = () => {
   // This is the half that has to accompany the api.js change suppressing the
   // toast on a refused read. Suppressing the message without also hiding the
   // section would trade a confusing warning for a confusing emptiness.
-  const CLINICAL_TABS = ["nursing", "visit-history", "equipment"];
+  const CLINICAL_TABS = ["nursing", "pns", "visit-history", "equipment"];
   const canReadClinical = hasPermission(currentUser, PERMISSIONS.CLINICAL_VIEW);
   const tabs = canReadClinical
     ? visibleTabs
@@ -488,6 +500,9 @@ const PatientFile = () => {
         {currentTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
         {currentTab === "consultation" && (
           <TodaysConsultationTab patient={patient} onRefresh={loadPatient} overviewOpen={overviewOpen} />
+        )}
+        {currentTab === "pns" && (
+          <NeuropathyExam embedded fixedPatient={patient} overviewOpen={overviewOpen} onCompleted={loadPatient} />
         )}
         {currentTab === "nursing" && (
           <NursingActionsTab
