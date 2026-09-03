@@ -3,19 +3,30 @@
 // portal opens the device's USB virtual COM port itself, with the user's
 // explicit permission.
 //
-// PROTOCOL (solved & validated live against the real probe, 1 Sep 2026 — see
-// VIBROTHERM-serial-protocol.md):
+// PROTOCOL (validated live against the real probe, 1 & 3 Sep 2026 — see
+// claude/VIBROTHERM-mode-switching-SOLVED.md, which supersedes the older
+// serial-protocol / command-reference notes on how the probe is switched):
 //   • 19200 8N1, no flow control. FTDI FT232 (VID 0x0403 / PID 0x6001).
 //   • The probe is REQUEST-DRIVEN: a passive listener gets zero bytes. HMS must
 //     open a writer and drive it with the SAME bytes the vendor app sends. This
 //     is exactly as safe as running the vendor app — protocol bytes only, no
 //     firmware/config writes; the >49 °C thermal cut-off stays firmware-side.
-//   • Binary, bracket-framed:
-//        '<'(0x3C) int dec '>'(0x3E)  → vibration (VPT), volts
-//        '['(0x5B) int dec ']'(0x5D)  → thermal (hot/cold), °C
-//     value = min(50, int + dec/10). Value bytes are always ≤50 (0x32), so they
-//     never collide with the bracket/heartbeat codes (all ≥0x3C). Hot vs cold is
-//     NOT in the frame — the exam UI derives it from flow state.
+//   • Binary, bracket-framed, value = min(50, int + dec/10). Value bytes are
+//     always ≤50 (0x32), so they never collide with the control codes (≥0x3C).
+//     TWO frame kinds, and the bracket tells you WHICH KIND, not which probe:
+//        '<'(0x3C) int dec '>'(0x3E)  → 'stream'   — the live reading of whatever
+//                                       probe is armed (volts on VPT, °C on
+//                                       hot/cold). Acked B (mid) / C (continue).
+//        '['(0x5B) int dec ']'(0x5D)  → 'recorded' — sent ONCE when the operator
+//                                       presses the machine's physical REC
+//                                       button: the reading at that instant
+//                                       (proven 3 Sep 2026: 15.4 °C, 12.2 °C,
+//                                       matching the LCD). Acked A / Z.
+//     During a thermal ramp the device stops streaming and emits a static status
+//     ('NN' 0x3E, e.g. 03/04/05) — no live °C exists on the wire then; the
+//     perception temperature arrives only as a 'recorded' frame on REC.
+//     The exam DRIVES the probe from the selected tab (gotoScreen); hot vs cold
+//     is flow state.
 //   • 'S'(0x53) is a heartbeat ack and may appear anywhere, even mid-frame —
 //     ignore it without disturbing frame state. Drop malformed/garbage frames.
 //
@@ -42,32 +53,45 @@ export const isWebSerialSupported = () =>
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Frame bytes.
-const B_HEARTBEAT = 0x53; // 'S'
-const B_OPEN_VPT = 0x3c;  // '<'
-const B_CLOSE_VPT = 0x3e; // '>'
-const B_OPEN_TH = 0x5b;   // '['
-const B_CLOSE_TH = 0x5d;  // ']'
+const B_HEARTBEAT = 0x53;   // 'S'
+const B_OPEN_STREAM = 0x3c; // '<'  live stream frame
+const B_CLOSE_STREAM = 0x3e;// '>'
+const B_OPEN_REC = 0x5b;    // '['  recorded (REC button) frame
+const B_CLOSE_REC = 0x5d;   // ']'
 
-// Exact mode-select sequences, decompiled from the vendor app
-// (VibrothermDx.exe: btnNEXTvpt / btnNEXTcold / btnNEXThot). The device does
-// NOT switch modes on the frame bracket — the PC drives it here. The long gap
-// after 'T' is essential: the unit needs ~1-2 s to change mode before it will
-// accept the 'R' navigation; short gaps silently fail (the machine then looks
-// "stuck" in whatever mode it was in). 'I' count and 'R' count both matter.
+// Mode-select sequences — PROVEN LIVE against the machine, 3 Sep 2026 (see
+// claude/VIBROTHERM-mode-switching-SOLVED.md). Two facts overturn the earlier
+// notes:
+//   1. VPT is NOT reached by the vendor's btnNEXTvpt navigation (IIII·T·2s·R×7
+//      walks AWAY from vibration into thermal). The vibration probe is ARMED by
+//      the vendor's VPT-select/record choreography (V · r×4). IIII-prefixed
+//      (= vendor btnBACKcold) it works from ANY state, and streams live volts
+//      that track the amplitude knob. The stream idles after a while — re-arm
+//      by calling it again (the exam does this per site).
+//   2. Thermal is entered via the vendor's btnNEXThot/cold nav, but only from
+//      the base screen: sent from INSIDE a live VPT stream it parks on an idle
+//      "09" screen. So exit VPT (D) and park on base (R) first. Hot/cold differ
+//      only in the vendor's I-count and post-T wait; the wire frame is °C
+//      either way and the exam labels it from the active tab.
+// The device does NOT tag the probe in the frame — the PC drives it here.
+// All of this was proven with the heartbeat and frame acks LEFT RUNNING during
+// the sequences, so gotoScreen deliberately pauses nothing.
 const SCREENS = {
-  vpt:  { inits: 4, postT: 2000, rcount: 7 }, // IIII · T · (2 s) · R×7
-  hot:  { inits: 4, postT: 2000, rcount: 3 }, // IIII · T · (2 s) · R×3
-  cold: { inits: 3, postT: 1000, rcount: 3 }, // III  · T · (1 s) · R×3
+  vpt:  { kind: 'vpt' },                                       // IIII·900·V·450·r×4
+  hot:  { kind: 'thermal', inits: 4, postT: 2000, rcount: 3 },  // D·R · IIII·T·2s·R×3
+  cold: { kind: 'thermal', inits: 3, postT: 1000, rcount: 3 },  // D·R · III·T·1s·R×3
 };
 
 /**
  * Connect to the probe and stream parsed readings by actively driving it.
  *
  * @param {Object}   opts
- * @param {Function} opts.onReading  ({ value:number, channel:'vpt'|'thermal' }) per frame
+ * @param {Function} opts.onReading  ({ value:number, channel:'stream'|'recorded' }) per frame —
+ *                                   'stream' = live reading, 'recorded' = the machine's REC button
  * @param {Function} opts.onStatus   ('connecting'|'connected'|'disconnected'|'error', detail?)
  * @param {boolean}  opts.silent     reuse a previously-granted port without prompting
- * @param {'vpt'|'thermal'} opts.startScreen  which screen to open on (default 'vpt')
+ * @param {'vpt'|'hot'|'cold'|'none'} opts.startScreen  which screen to open on (default 'vpt'; 'none' = read only)
+ * @param {Function} [opts.onRaw]   optional raw inbound byte observer (Uint8Array) for protocol work
  * @returns {Promise<{ disconnect:()=>Promise<void>, switchScreen:(c)=>Promise<void>, port:SerialPort }>}
  */
 export const connectVibrotherm = async ({
@@ -75,6 +99,7 @@ export const connectVibrotherm = async ({
   onStatus = () => {},
   silent = false,
   startScreen = 'vpt',
+  onRaw = null,      // optional: (Uint8Array chunk) => void — raw inbound bytes, for protocol work
 } = {}) => {
   if (!isWebSerialSupported()) {
     throw new Error('Web Serial is not available in this browser. Use Chrome or Edge on the exam PC.');
@@ -91,13 +116,20 @@ export const connectVibrotherm = async ({
   }
 
   onStatus('connecting');
-  await port.open(SERIAL_SETTINGS);
+  await port.open(SERIAL_SETTINGS);   // default DTR/RTS asserted — holding them low mutes the device
 
   let running = true;
   let heartbeat = null;
   let activeReader = null;
-  const DEBUG = true; // TEMP diagnostic — remove before final commit
-  let lastRawLog = 0;
+  // Liveness watchdog state. The VPT stream idles after ~20-30 s and only a full
+  // re-arm restarts it (a bare 'V'/'rrrr' does nothing). So we track the active
+  // screen and the last value frame, and silently re-arm VPT when it goes quiet
+  // — that keeps the readout matching the LCD without a per-site command.
+  let currentScreen = 'idle';   // 'vpt' | 'thermal' | 'idle'
+  let lastFrameAt = Date.now();
+  let arming = false;
+  let watchdog = null;
+  const REARM_IDLE_MS = 1500;   // re-arm VPT after this long with no value frame
 
   // --- serialized writer: one write at a time, in order ---
   const writer = port.writable.getWriter();
@@ -109,40 +141,67 @@ export const connectVibrotherm = async ({
     return txChain;
   };
 
-  // Drive the machine onto a screen: init + start + advance N positions.
+  // Drive the machine onto a modality screen (sequences above). Deliberately
+  // leaves the heartbeat and frame acks running — that is the condition under
+  // which every switch was proven live; pausing them was NOT part of the recipe.
   const gotoScreen = async (screen) => {
     const cfg = SCREENS[screen] || SCREENS.vpt;
-    // The vendor switches modes on a blocked UI thread, so its clock timer sends
-    // NO 'H' during the sequence — stray heartbeats here corrupt the switch and
-    // the unit goes quiet. Pause our heartbeat for the whole init, resume after.
-    if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+    arming = true;
+    currentScreen = cfg.kind === 'vpt' ? 'vpt' : 'thermal';
+    try {
+    if (cfg.kind === 'vpt') {
+      // Arm the live VPT stream (vendor btnBACKcold): works from any state.
+      await sleep(500);
+      await tx('IIII');                  // reset step (device beeps ×3)
+      await sleep(900);
+      await tx('V');                     // VPT-select
+      await sleep(450);
+      await tx('rrrr');                  // record-step ×4 → live volts, tracks the knob
+      await sleep(300);
+      return;
+    }
+    // Thermal: leave a live VPT stream and park on the base screen first, then
+    // the vendor's btnNEXThot / btnNEXTcold navigation.
+    await tx('D');                       // exit the VPT screen
+    await sleep(600);
+    await tx('R');                       // park on base
+    await sleep(600);
     await sleep(500);
-    await tx('I'.repeat(cfg.inits));   // init / reset to a known position
+    await tx('I'.repeat(cfg.inits));     // init / reset
     await sleep(500);
-    await tx('T');                     // start transmit on the new mode
-    await sleep(cfg.postT);            // CRITICAL: let the mode actually change
-    await tx('R'.repeat(cfg.rcount));  // navigate to the mode's read position
-    await sleep(200);
-    if (running) heartbeat = setInterval(() => { tx('H'); }, 1000);
+    await tx('T');                       // start transmit
+    await sleep(cfg.postT);              // CRITICAL: let the mode actually change
+    await tx('R'.repeat(cfg.rcount));    // navigate to the thermal read position
+    await sleep(300);
+    } finally {
+      lastFrameAt = Date.now();          // grace period before the watchdog judges idle
+      arming = false;
+    }
   };
 
   // --- byte state machine ---
-  let channel = null;   // 'vpt' | 'thermal' while inside a frame
+  let channel = null;   // 'stream' | 'recorded' while inside a frame
   let intByte = null;
   let decByte = null;
   const resetFrame = () => { channel = null; intByte = null; decByte = null; };
 
   const handleByte = (b) => {
     if (b === B_HEARTBEAT) return;                 // 'S' anywhere — ignore
-    if (b === B_OPEN_VPT) { channel = 'vpt'; intByte = null; decByte = null; return; }
-    if (b === B_OPEN_TH)  { channel = 'thermal'; intByte = null; decByte = null; return; }
-    if (b === B_CLOSE_VPT || b === B_CLOSE_TH) {
+    if (b === B_OPEN_STREAM) { channel = 'stream'; intByte = null; decByte = null; return; }
+    if (b === B_OPEN_REC)    { channel = 'recorded'; intByte = null; decByte = null; return; }
+    if (b === B_CLOSE_STREAM || b === B_CLOSE_REC) {
       if (channel && intByte !== null) {
         const value = Math.min(50, intByte + (decByte ?? 0) / 10);
-        if (DEBUG) console.log('[vibro] FRAME', channel, 'int', intByte, 'dec', decByte, 'val', value.toFixed(1));
+        if (channel === 'stream') lastFrameAt = Date.now();   // only the live stream feeds the watchdog
         onReading({ value, channel });
-        tx(channel === 'vpt' ? 'C' : 'Z');          // continue ack
       }
+      // ALWAYS ack a close bracket, even with no frame head in hand. The device
+      // is request-driven and re-sends the frame TAIL ('dec >') until it gets
+      // the continue-ack; when a state change (e.g. starting a thermal ramp)
+      // drops the head, a head-gated ack deadlocks it — which showed up as the
+      // "static 03 3e" ramp and the "VPT idles" symptoms (3 Sep 2026). The
+      // vendor's handler acks per byte, statelessly; so do we.
+      tx(b === B_CLOSE_STREAM ? 'C' : 'Z');
       resetFrame();                                 // drop doubled/garbage closes
       return;
     }
@@ -150,7 +209,7 @@ export const connectVibrotherm = async ({
     if (channel) {
       if (intByte === null) {
         intByte = b;
-        tx(channel === 'vpt' ? 'B' : 'A');          // mid-frame ack
+        tx(channel === 'stream' ? 'B' : 'A');       // mid-frame ack
       } else {
         decByte = b;                                // keep latest before close
       }
@@ -162,8 +221,17 @@ export const connectVibrotherm = async ({
   onStatus('connected', { info: port.getInfo?.() });
 
   (async () => {
+    // Heartbeat runs from connect for the life of the link (the device answers
+    // each 'H' with 'S'). 'none' = connect + read only, no navigation.
+    if (running) heartbeat = setInterval(() => { tx('H'); }, 1000);
+    // Watchdog: re-arm VPT if its live stream has gone quiet. Only acts on the
+    // VPT screen (thermal streams continuously); never overlaps an in-flight arm.
+    if (running) watchdog = setInterval(() => {
+      if (!running || arming || currentScreen !== 'vpt') return;
+      if (Date.now() - lastFrameAt > REARM_IDLE_MS) { gotoScreen('vpt').catch(() => {}); }
+    }, 500);
     try {
-      await gotoScreen(startScreen);   // runs the init, then starts the heartbeat
+      if (startScreen !== 'none') await gotoScreen(startScreen);
     } catch { /* init best-effort */ }
 
     // Re-acquire the reader after a BufferOverrunError while the port is open.
@@ -175,7 +243,7 @@ export const connectVibrotherm = async ({
           const { value, done } = await reader.read();
           if (done) break;
           if (value && value.length) {
-            if (DEBUG) { const now = Date.now(); if (now - lastRawLog > 400) { lastRawLog = now; console.log('[vibro] rx', Array.from(value.slice(0, 48)).map((x) => x.toString(16).padStart(2, '0')).join(' ')); } }
+            if (onRaw) { try { onRaw(value); } catch { /* observer errors never break the link */ } }
             for (let i = 0; i < value.length; i += 1) handleByte(value[i]);
           }
         }
@@ -195,6 +263,7 @@ export const connectVibrotherm = async ({
   const disconnect = async () => {
     running = false;
     if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+    if (watchdog) { clearInterval(watchdog); watchdog = null; }
     try { await tx('D'); } catch { /* ignore */ }          // vendor's "done"
     try { await activeReader?.cancel(); } catch { /* ignore */ }
     try { writer.releaseLock(); } catch { /* ignore */ }
@@ -202,15 +271,20 @@ export const connectVibrotherm = async ({
     onStatus('disconnected');
   };
 
-  // Optional: if the live test shows the machine does NOT auto-follow the
-  // operator from vibration → thermal, wire this to the exam's modality switch.
-  // Unused by default — the assumed design is that the device follows itself.
-  const switchScreen = async (chan) => { await gotoScreen(chan); };
+  // Called by the exam on a modality change. 'vpt' | 'hot' | 'cold' arms/navigates
+  // that screen; a falsy screen (MONO uses no probe) just parks the watchdog so
+  // it stops re-arming VPT in the background.
+  const switchScreen = async (screen) => {
+    if (!screen) { currentScreen = 'idle'; return; }
+    await gotoScreen(screen);
+  };
 
   // Physical unplug surfaces here.
   port.addEventListener?.('disconnect', () => {
     if (running) { running = false; onStatus('disconnected'); }
   });
 
-  return { disconnect, switchScreen, port };
+  // `send` writes raw command bytes — kept for protocol work from the console
+  // (connect with silent:true + startScreen:'none', then link.send('…')).
+  return { disconnect, switchScreen, port, send: tx };
 };

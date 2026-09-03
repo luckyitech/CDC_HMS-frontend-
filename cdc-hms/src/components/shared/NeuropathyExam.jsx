@@ -140,6 +140,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   const [live, setLive] = useState(null);           // { value, at } — latest reading for the active (tab-driven) probe
   const [manual, setManual] = useState('');
   const linkRef = useRef(null);
+  const fileReadingRef = useRef(null);   // latest fileValue, for the driver's 'recorded' frames
 
   // The driver streams vibration ('vpt') and thermal ('thermal') frames
   // interleaved. Show only the channel that matches the current modality so
@@ -151,18 +152,31 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   const modalityRef = useRef(modality);
   // The Vibrotherm tags every serial frame the same way regardless of which
   // probe is live, so HMS DRIVES the probe from the selected modality — VPT
-  // commands the vibration probe, Hot/Cold the thermal probe — and takes
-  // whatever streams as that modality's reading. Switching tabs re-commands
-  // the probe and clears the readout until the new value settles.
+  // arms the vibration probe, Hot/Cold navigate to the thermal probe. Site
+  // changes do NOT re-command the probe: the driver's own watchdog keeps the
+  // VPT stream alive, and staleness gating below keeps the readout honest, so
+  // moving between sites just tracks the live value. MONO drives nothing (the
+  // falsy screen parks the driver watchdog).
   useEffect(() => {
     modalityRef.current = modality;
-    setLive(null);
-    const screen = screenFor(modality);
-    if (screen) linkRef.current?.switchScreen?.(screen); // no-op until connected
+    setLive(null);                                         // clear until the new mode settles
+    linkRef.current?.switchScreen?.(screenFor(modality));  // no-op until connected
   }, [modality]);
 
   const meta = MODALITY_META[modality];
   const ModIcon = MOD_ICON[modality];
+
+  // A stale live value must never sit on screen pretending to match the LCD.
+  // The readout shows the live reading only while it is fresh; once frames stop
+  // (probe lifted, stream idling before the driver re-arms) it falls back to
+  // "—". `nowTick` re-renders on a timer so freshness updates without a frame.
+  const LIVE_STALE_MS = 1500;
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    if (device.status !== 'connected') return undefined;
+    const id = setInterval(() => setNowTick((n) => n + 1), 400);
+    return () => clearInterval(id);
+  }, [device.status]);
 
   // Create the Draft the moment a patient is chosen — UHID-linked from the start.
   useEffect(() => {
@@ -206,7 +220,16 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
       const link = await connectVibrotherm({
         silent,
         startScreen: screenFor(modality) || 'vpt',
-        onReading: (r) => setLive({ value: r.value, at: Date.now() }),
+        onReading: (r) => {
+          if (r.channel === 'recorded') {
+            // The operator pressed REC on the machine: this is the reading at
+            // that instant (the perception temperature on hot/cold). File it
+            // to the active site exactly as the vendor app does.
+            fileReadingRef.current?.(r.value, 'recorded');
+            return;
+          }
+          setLive({ value: r.value, at: Date.now(), kind: 'stream' });
+        },
         onStatus: (status, detail) => setDevice({ status, detail }),
       });
       linkRef.current = link;
@@ -244,14 +267,25 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     if (nextMod) { setModality(nextMod); setActive({ foot: 'R', site: PROTOCOL_SITES[0] }); }
   };
 
-  const capture = () => {
-    const src = live && device.status === 'connected' ? live.value : (manual === '' ? null : Number(manual));
+  // File a value to the active site and advance — shared by the Capture button
+  // and by the machine's REC button (a 'recorded' frame from the driver).
+  const fileValue = (src, source = 'capture') => {
     if (src === null || Number.isNaN(src)) { notify('error', 'No reading to capture — connect the probe or type a value.'); return; }
+    if (modality === 'MONO') return;                       // monofilament has no probe reading
     if (src < meta.min || src > meta.max) { notify('error', `Out of range: ${meta.long} must be ${meta.min}–${meta.max}${meta.unit}.`); return; }
     record(active.foot, active.site, modality, src);
     setManual('');
+    setLive(null);                                         // the next site starts clean
+    if (source === 'recorded') notify('success', `Recorded from device: ${src}${meta.unit} → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}`);
     const next = nextOpenSite({ ...readings, [modality]: { ...readings[modality], [active.foot]: { ...readings[modality][active.foot], [active.site]: src } } }, modality, active);
     if (next) setActive(next); else advanceModality();
+  };
+  fileReadingRef.current = fileValue;                      // latest closure for the serial callback
+
+  const capture = () => {
+    const fresh = live && device.status === 'connected' && (Date.now() - live.at) < LIVE_STALE_MS;
+    const src = fresh ? live.value : (manual === '' ? null : Number(manual));
+    fileValue(src, 'capture');
   };
 
   const skipSite = () => {
@@ -316,8 +350,9 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   // ---------------------------------------------------------------- render
   if (!patient) return <PatientPicker onPick={setPatient} />;
 
-  const liveFresh = live && device.status === 'connected';
   const connected = device.status === 'connected';
+  void nowTick;                                            // re-evaluate freshness on each tick
+  const liveFresh = connected && live && (Date.now() - live.at) < LIVE_STALE_MS;
 
   return (
     <div className="space-y-4">
@@ -458,6 +493,11 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                     <span className="text-slate-400">{meta.unit}</span>
                   </div>
                   <p className="text-xs text-slate-400 mt-1">→ {FOOT_LABELS[active.foot]} · {SITE_LABELS[active.site]}</p>
+                  {connected && !liveFresh && (modality === 'HOT' || modality === 'COLD') && (
+                    <p className="text-xs text-amber-300 mt-1">
+                      Ramping — the machine sends no live °C during the ramp. Watch its LCD and press <span className="font-semibold">REC</span> on the machine at the patient's response; HMS files it here.
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <button
