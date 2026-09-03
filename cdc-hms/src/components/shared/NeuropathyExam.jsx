@@ -525,48 +525,55 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                 <div className="flex-none"><ProbeControl /></div>
               </div>
 
-              <div className="mt-4 flex justify-center">
-                <NeuropathyFootMap size="large" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => selected[foot]?.[site] && setActive({ foot, site })} selected={selected} />
-              </div>
+              {/* feet on the left, probe readout + nav to the right */}
+              <div className="flex flex-col lg:flex-row gap-5 lg:items-start mt-4">
+                <div className="lg:flex-shrink-0 flex justify-center">
+                  <NeuropathyFootMap size="large" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => selected[foot]?.[site] && setActive({ foot, site })} selected={selected} />
+                </div>
 
-              {/* readout — white with blue reading */}
-              <div className="rounded-xl bg-white border-2 border-primary p-4 flex flex-nowrap justify-between items-center gap-4 max-w-[520px] mx-auto mt-4">
-                <div className="min-w-0">
-                  <p className="text-[10.5px] tracking-widest uppercase text-gray-400 font-semibold">
-                    {active ? `Reading → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}` : 'All selected points recorded'}
-                  </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-mono text-4xl font-semibold text-primary tabular-nums">{liveFresh ? live.value : (manual !== '' ? manual : '—')}</span>
-                    <span className="text-blue-300 font-semibold">{meta.unit}</span>
+                <div className="w-full lg:w-[340px] lg:flex-none">
+                  {/* readout — white with blue reading, beside the feet */}
+                  <div className="rounded-xl bg-white border-2 border-primary p-4">
+                    <p className="text-[10.5px] tracking-widest uppercase text-gray-400 font-semibold">
+                      {active ? `Reading → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}` : 'All selected points recorded'}
+                    </p>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="font-mono text-4xl font-semibold text-primary tabular-nums">{liveFresh ? live.value : (manual !== '' ? manual : '—')}</span>
+                      <span className="text-blue-300 font-semibold">{meta.unit}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      {connected
+                        ? <>Press <span className="font-semibold">REC</span> on the Vibrotherm to file the reading{active ? ' to this point' : ''}.</>
+                        : 'Connect the probe, then press REC on the machine to file each reading.'}
+                    </p>
+                    {connected && !liveFresh && (modality === 'HOT' || modality === 'COLD') && active && (
+                      <p className="text-xs text-amber-600 mt-1">Ramping — no live °C during the ramp; watch the LCD and press <span className="font-semibold">REC</span> at the patient’s response.</p>
+                    )}
+                    <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-gray-100">
+                      <label className="text-[10.5px] text-gray-500">no probe? type + Enter</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step={meta.step}
+                        min={meta.min}
+                        max={meta.max}
+                        value={manual}
+                        disabled={!active}
+                        onChange={(e) => setManual(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') captureManual(); }}
+                        placeholder={`${meta.unit || 'value'}`}
+                        className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-mono text-primary text-center focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                      />
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1.5">
-                    {connected
-                      ? <>Press <span className="font-semibold">REC</span> on the Vibrotherm to file the reading{active ? ' to this point' : ''}.</>
-                      : 'Connect the probe, then press REC on the machine to file each reading.'}
-                  </p>
-                  {connected && !liveFresh && (modality === 'HOT' || modality === 'COLD') && active && (
-                    <p className="text-xs text-amber-600 mt-1">Ramping — no live °C during the ramp; watch the LCD and press <span className="font-semibold">REC</span> at the patient’s response.</p>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-1 flex-none">
-                  <label className="text-[10.5px] text-gray-500">no probe? type + Enter</label>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step={meta.step}
-                    min={meta.min}
-                    max={meta.max}
-                    value={manual}
-                    disabled={!active}
-                    onChange={(e) => setManual(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') captureManual(); }}
-                    placeholder={`${meta.unit || 'value'}`}
-                    className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-mono text-primary text-center focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
-                  />
+
+                  {/* Back / Next directly below the readout */}
+                  <div className="flex items-center justify-between gap-2 mt-4">
+                    <button type="button" onClick={goBack} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">← Back</button>
+                    <button type="button" onClick={goNext} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-blue-700">Next: {STEP_LABEL[STEP_IDS[step + 1]]} →</button>
+                  </div>
                 </div>
               </div>
-
-              <NavRow nextLabel={`Next: ${STEP_LABEL[STEP_IDS[step + 1]]}`} nextDisabled={false} />
               <AvgFooter />
               {saving && <p className="text-center text-xs text-gray-400 mt-2 inline-flex items-center gap-1 justify-center w-full"><Loader2 className="w-3 h-3 animate-spin" /> saving…</p>}
               <p className="text-[11px] text-gray-400 mt-2 flex items-start gap-1 justify-center">
