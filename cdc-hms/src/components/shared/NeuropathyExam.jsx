@@ -533,15 +533,13 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
               </div>
 
               {/* feet on the left, probe readout + nav to the right */}
-              <div className="flex flex-col lg:flex-row gap-5 lg:items-start mt-4">
-                <div className="lg:flex-shrink-0">
-                  <div className="flex justify-center">
+              <div className="mt-4">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-5">
+                  <div className="lg:flex-shrink-0 flex justify-center">
                     <NeuropathyFootMap size="large" readings={readings[modality]} modality={modality} active={active} onSelect={(foot, site) => selected[foot]?.[site] && setActive({ foot, site })} selected={selected} />
                   </div>
-                  <AvgUnderFeet />
-                </div>
 
-                <div className="w-full lg:w-[340px] lg:flex-none lg:ml-auto">
+                  <div className="w-full lg:w-[340px] lg:flex-none lg:ml-auto">
                   {/* readout — white with blue reading, beside the feet */}
                   <div className="rounded-xl bg-white border-2 border-primary p-4">
                     <p className="text-[10.5px] tracking-widest uppercase text-gray-400 font-semibold">
@@ -582,6 +580,10 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                     <button type="button" onClick={goBack} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">← Back</button>
                     <button type="button" onClick={goNext} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-blue-700">Next: {STEP_LABEL[STEP_IDS[step + 1]]} →</button>
                   </div>
+                </div>
+                </div>
+                <div className="lg:w-[470px]">
+                  <AvgUnderFeet />
                 </div>
               </div>
               <StudyFooter />
