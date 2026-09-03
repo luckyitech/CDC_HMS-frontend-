@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, FileText, Ban, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { RefreshCw, FileText, Ban, Loader2, Search, Download } from 'lucide-react';
 import neuropathyService from '../../services/neuropathyService';
 import { useUserContext } from '../../contexts/UserContext';
 import { canAccessAdmin } from '../../utils/permissions';
@@ -35,6 +35,9 @@ const NeuropathyStudyList = ({ patient = null, refreshKey = 0 }) => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(null);      // full study for the report modal
   const [opening, setOpening] = useState(null);
+  const [search, setSearch] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -67,23 +70,79 @@ const NeuropathyStudyList = ({ patient = null, refreshKey = 0 }) => {
 
   const completed = studies.filter((s) => s.status !== 'Cancelled');
 
+  // Client-side search (name / UHID) + inclusive date range over the loaded list.
+  const filtered = useMemo(() => completed.filter((s) => {
+    const d = s.studyDate ? String(s.studyDate).slice(0, 10) : '';
+    if (fromDate && (!d || d < fromDate)) return false;
+    if (toDate && (!d || d > toDate)) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      if (!`${s.patientName || ''} ${s.uhid || ''}`.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }), [completed, fromDate, toDate, search]);
+
+  const gradeCell = (s, k) => worst(s.summary?.right?.[k]?.grade, s.summary?.left?.[k]?.grade) || 'Not tested';
+  const monoCell = (s) => {
+    const r = s.summary?.right?.mono || {}, l = s.summary?.left?.mono || {};
+    const lost = (r.insensate || 0) + (l.insensate || 0), tested = (r.tested || 0) + (l.tested || 0);
+    return tested ? (lost ? `${lost}/${tested} insensate` : 'Intact') : 'Not tested';
+  };
+  // Export the CURRENTLY FILTERED rows as CSV (opens in Excel). BOM + CRLF, the
+  // app's existing export convention.
+  const exportCsv = () => {
+    if (!filtered.length) { notify('error', 'No studies to export for the current filters.'); return; }
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Patient', 'UHID', 'Date', 'VPT', 'Hot', 'Cold', 'Monofilament', 'Status'];
+    const rows = filtered.map((s) => [s.patientName || '', s.uhid || '', fmtDay(s.studyDate), gradeCell(s, 'vpt'), gradeCell(s, 'hot'), gradeCell(s, 'cold'), monoCell(s), s.status]);
+    const csv = '\ufeff' + [header, ...rows].map((r) => r.map(esc).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    const range = (fromDate || toDate) ? `_${fromDate || 'start'}-to-${toDate || 'end'}` : '';
+    a.href = url; a.download = `neuropathy-studies${range}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
         <FileText className="w-4 h-4 text-primary" />
         <h3 className="font-semibold text-gray-800">
           {patient ? 'Neuropathy studies' : 'Recent neuropathy studies'}
-          <span className="ml-2 text-xs font-semibold bg-blue-50 text-primary rounded-full px-2 py-0.5">{completed.length}</span>
+          <span className="ml-2 text-xs font-semibold bg-blue-50 text-primary rounded-full px-2 py-0.5">{filtered.length}</span>
         </h3>
         <button type="button" onClick={load} className="ml-auto text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline">
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
 
+      {/* search / date filter / export */}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+        {!patient && (
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or UHID" className="w-full pl-8 pr-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+        )}
+        <label className="text-xs text-gray-500 inline-flex items-center gap-1.5">From
+          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </label>
+        <label className="text-xs text-gray-500 inline-flex items-center gap-1.5">To
+          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </label>
+        {(search || fromDate || toDate) && (
+          <button type="button" onClick={() => { setSearch(''); setFromDate(''); setToDate(''); }} className="text-xs font-semibold text-gray-500 hover:text-gray-700 px-2 py-1.5">Clear</button>
+        )}
+        <button type="button" onClick={exportCsv} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-blue-700">
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </button>
+      </div>
+
       {loading && studies.length === 0 ? (
         <p className="p-6 text-sm text-gray-500 inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</p>
-      ) : completed.length === 0 ? (
-        <p className="p-6 text-sm text-gray-500">{patient ? 'No neuropathy studies on file for this patient yet.' : 'No studies yet — start one from the New exam tab.'}</p>
+      ) : filtered.length === 0 ? (
+        <p className="p-6 text-sm text-gray-500">{(search || fromDate || toDate) ? 'No studies match the current filters.' : (patient ? 'No neuropathy studies on file for this patient yet.' : 'No studies yet — start one from the New exam tab.')}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -100,7 +159,7 @@ const NeuropathyStudyList = ({ patient = null, refreshKey = 0 }) => {
               </tr>
             </thead>
             <tbody>
-              {completed.map((s) => {
+              {filtered.map((s) => {
                 const r = s.summary?.right || {}, l = s.summary?.left || {};
                 const g = (k) => worst(r[k]?.grade, l[k]?.grade);
                 const monoLost = (r.mono?.insensate || 0) + (l.mono?.insensate || 0);

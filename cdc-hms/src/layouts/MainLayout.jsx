@@ -318,9 +318,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
     radiology: [
       { name: "Dashboard", path: "/radiology/dashboard", icon: LayoutDashboard },
       { name: "Patients", path: "/radiology/patients", icon: Users },
-      { name: "Radiology Suite", path: "/radiology/suite", icon: Scan },
-      { name: "Unassigned Queue", path: "/radiology/unassigned", icon: Waves },
-      { name: "Neuropathy", path: "/radiology/neuropathy", icon: Footprints },
+      { name: "Ultrasound Suite", path: "/radiology/suite", icon: Scan },
+      { name: "Neuropathy Suite", path: "/radiology/neuropathy", icon: Footprints },
     ],
     staff: [
       { name: "Dashboard", path: "/staff/dashboard", icon: LayoutDashboard },
