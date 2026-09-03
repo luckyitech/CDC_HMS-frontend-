@@ -402,7 +402,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   );
 
   const NavRow = ({ nextLabel, nextDisabled }) => (
-    <div className="flex items-center justify-between gap-2 mt-4 max-w-[520px] mx-auto">
+    <div className="flex items-center justify-between gap-2 mt-4 w-full lg:w-[340px] lg:ml-auto">
       <button type="button" onClick={goBack} disabled={step === 0} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40">← Back</button>
       <button type="button" onClick={goNext} disabled={nextDisabled} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">{nextLabel} →</button>
     </div>
