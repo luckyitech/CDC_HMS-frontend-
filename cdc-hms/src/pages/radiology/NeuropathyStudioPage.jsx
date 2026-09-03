@@ -8,10 +8,7 @@ import NeuropathyStudio from '../../components/shared/NeuropathyStudio';
  */
 const NeuropathyStudioPage = () => (
   <div>
-    <PageHeader
-      title="Neuropathy Studio"
-      subtitle="Biothesiometry, thermal perception and monofilament — captured live, graded and filed to the patient's record"
-    />
+    <PageHeader title="Neuropathy Suite" />
     <NeuropathyStudio />
   </div>
 );
