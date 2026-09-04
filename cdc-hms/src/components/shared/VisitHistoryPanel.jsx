@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
-  BedDouble, Share2, FileText, Clock, FlaskConical,
+  BedDouble, Share2, FileText, Clock, FlaskConical, Footprints,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
@@ -16,6 +16,9 @@ import glp1Service from '../../services/glp1Service';
 import queueService from '../../services/queueService';
 import nursingNoteService from '../../services/nursingNoteService';
 import labService from '../../services/labService';
+import neuropathyService from '../../services/neuropathyService';
+import NeuropathyReport from './NeuropathyReport';
+import { notify } from '../../utils/notify';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
 import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
 import { useTreatmentPlanContext } from '../../contexts/TreatmentPlanContext';
@@ -57,6 +60,9 @@ const DATE_FIELD_MAP = {
   admissions:      'savedAt',
   // Referral notes (doctor's referral letter from OPD) — also an "action".
   referrals:       'savedAt',
+  // Completed neuropathy (PNS) studies — a doctor "action" (grouped by the day
+  // the study was graded), and a point on the Visit Timeline.
+  neuropathyStudies: 'completedAt',
   // Nursing notes — the DAR-format Kardex. Each entry is dated by its own day.
   nursingNotes:    'date',
   // Lab requests — one grouped record per requisition (see groupLabRequests).
@@ -606,8 +612,17 @@ const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
   </button>
 );
 
-const ActionsList = ({ records, onView, onViewLab = () => {} }) => (
+const ActionsList = ({ records, onView, onViewLab = () => {}, onViewNeuro = () => {} }) => (
   <div className="space-y-2.5">
+    {/* Completed neuropathy (PNS) studies — a doctor action; opens the graded
+        report to view / print. */}
+    {(records.neuropathyStudies || []).map((s) => (
+      <ActionRow key={`pns-${s.id}`}
+        icon={<Footprints className="w-4 h-4" />} iconCls="bg-orange-50 text-orange-600"
+        title="Neuropathy study (PNS)"
+        sub={[s.performedByName].filter(Boolean).join(' · ') + (s.performedByName ? ' · ' : '') + 'view / print report'}
+        onClick={() => onViewNeuro(s)} />
+    ))}
     {/* Doctor-raised lab requests are actions (nurse-raised ones live on the
         Nursing Kardex tab instead). */}
     {(records.labRequests || []).filter((r) => r.authorRole === 'doctor').map((req) => (
@@ -701,7 +716,7 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
 const NURSING_BLANK = {
   vitals: [], plans: [], assessments: [], exams: [], notes: [], prescriptions: [],
   glp1Injections: [], glp1Reviews: [], glp1WeekNotes: [], nursingNotes: [], admissions: [], referrals: [],
-  labRequests: [],
+  labRequests: [], neuropathyStudies: [],
 };
 
 const nursingTasks = (records) => {
@@ -824,6 +839,7 @@ const VISIT_TIMELINE_KINDS = [
   { kind: 'glp1Review',    type: 'glp1Reviews',    ts: 'date',             Icon: ClipboardList, title: 'GLP-1 review',      by: (r) => r.clinicianName || r.doctorName },
   { kind: 'glp1WeekNote',  type: 'glp1WeekNotes',  ts: 'createdAt',        Icon: MessageSquare, title: 'GLP-1 note',        by: (r) => r.authorName },
   { kind: 'labRequest',    type: 'labRequests',    ts: 'orderedDate',      Icon: FlaskConical,  title: 'Lab request',       by: (r) => r.orderedBy },
+  { kind: 'neuropathy',    type: 'neuropathyStudies', ts: 'completedAt',   Icon: Footprints,    title: 'Neuropathy study',  by: (r) => r.performedByName },
 ];
 
 const visitTimelineTasks = (records) => {
@@ -962,7 +978,7 @@ const TimelinePrintList = ({ records }) => {
 // The whole-visit timeline: every action as a dot on one connected line. Clicking
 // a clinical/nursing entry opens its detail; dispositions (prescription, admission,
 // referral) reuse the shared action viewers so nothing is rendered twice.
-const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact, onViewLab = () => {} }) => {
+const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact, onViewLab = () => {}, onViewNeuro = () => {} }) => {
   const { printRef, handlePrint } = usePrint();
   const items = visitTimelineTasks(records);
   if (items.length === 0) return <p className="text-sm text-gray-500">No recorded actions on this day.</p>;
@@ -1002,6 +1018,8 @@ const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact, onViewL
                     onViewArtifact({ type: t.kind, data: t.raw });
                   } else if (t.kind === 'labRequest') {
                     onViewLab(t.raw);
+                  } else if (t.kind === 'neuropathy') {
+                    onViewNeuro(t.raw);
                   } else {
                     onViewRecord(t);
                   }
@@ -1092,6 +1110,22 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   const [viewArtifact, setViewArtifact]         = useState(null);       // { type, data }
   const [viewRecord, setViewRecord]             = useState(null);       // one visit-timeline entry → detail
   const [viewLabReq, setViewLabReq]             = useState(null);       // a grouped lab request → print preview
+  const [viewNeuro, setViewNeuro]               = useState(null);       // a completed PNS study → graded report
+  const [openingNeuro, setOpeningNeuro]         = useState(false);
+  // A study row from getByPatient carries no readings; the report recomputes its
+  // grades from the raw readings, so re-fetch the full study before opening it.
+  const openNeuro = useCallback(async (summary) => {
+    if (!summary?.id || openingNeuro) return;
+    setOpeningNeuro(true);
+    try {
+      const res = await neuropathyService.getById(summary.id);
+      setViewNeuro(res.data?.data || res.data || null);
+    } catch {
+      notify('error', 'Could not open the neuropathy report.');
+    } finally {
+      setOpeningNeuro(false);
+    }
+  }, [openingNeuro]);
   // Master print: which sections to include for the filtered visits
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [printInclude, setPrintInclude]         = useState({ notes: true, kardex: false, timeline: false });
@@ -1111,7 +1145,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes, labRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes, labRes, neuroRes] = await Promise.all([
           // Not requested unless they can be read — see canReadDoctorRecord.
           canReadDoctorRecord ? getAssessmentsByPatient(uhid) : [],
           canReadDoctorRecord ? getExaminationsByPatient(uhid) : [],
@@ -1128,6 +1162,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           nursingNoteService.getByPatient(uhid).catch(() => ({ data: { nursingNotes: [] } })),
           queueService.patientHistory(uhid).catch(() => ({ data: { visits: [] } })),
           labService.getByPatient(uhid).catch(() => ({ success: false, data: { labTests: [] } })),
+          neuropathyService.getByPatient(uhid).catch(() => ({ data: { data: [] } })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
@@ -1150,6 +1185,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           const glp1WeekNotes  = weekNotesRes?.data?.notes          || [];
           const nursingNotes   = nursingRes?.data?.nursingNotes     || [];
           const labRequests    = groupLabRequests(labRes?.data?.labTests || labRes?.data || []);
+          // Completed studies only — a Draft/Cancelled study isn't a recorded action.
+          const neuropathyStudies = (neuroRes?.data?.data || neuroRes?.data || [])
+            .filter((s) => s.status === 'Completed');
           const workflow       = workflowFromVisits(queueRes?.data?.visits);
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
@@ -1165,6 +1203,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             glp1WeekNotes:   Array.isArray(glp1WeekNotes)   ? glp1WeekNotes   : [],
             nursingNotes:    Array.isArray(nursingNotes)    ? nursingNotes    : [],
             labRequests:     Array.isArray(labRequests)     ? labRequests     : [],
+            neuropathyStudies: Array.isArray(neuropathyStudies) ? neuropathyStudies : [],
             workflow:        Array.isArray(workflow)        ? workflow        : [],
             // Raw queue visit rows (with status + dischargedAt) — used to tell an
             // ongoing, un-checked-out episode from closed dated visits. Not a
@@ -1341,7 +1380,8 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     const docLabCount   = (records.labRequests || []).filter((r) => r.authorRole === 'doctor').length;
     const nurseLabCount = (records.labRequests || []).filter((r) => r.authorRole !== 'doctor').length;
     const actionCount =
-      records.admissions.length + (records.referrals || []).length + records.prescriptions.length + docLabCount;
+      records.admissions.length + (records.referrals || []).length + records.prescriptions.length + docLabCount
+      + (records.neuropathyStudies || []).length;
     const nursingCount = (records.vitals?.length || 0) + (records.glp1Injections?.length || 0)
       + (records.glp1WeekNotes?.length || 0) + (records.glp1Reviews?.length || 0)
       + (records.nursingNotes?.length || 0) + nurseLabCount;
@@ -1384,9 +1424,9 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           </div>
         )}
         {dayTab === 'timeline' && timelineCount > 0 ? (
-          <VisitTimeline records={records} patient={patient} onViewRecord={setViewRecord} onViewArtifact={setViewArtifact} onViewLab={setViewLabReq} />
+          <VisitTimeline records={records} patient={patient} onViewRecord={setViewRecord} onViewArtifact={setViewArtifact} onViewLab={setViewLabReq} onViewNeuro={openNeuro} />
         ) : dayTab === 'actions' && actionCount > 0 ? (
-          <ActionsList records={records} onView={setViewArtifact} onViewLab={setViewLabReq} />
+          <ActionsList records={records} onView={setViewArtifact} onViewLab={setViewLabReq} onViewNeuro={openNeuro} />
         ) : dayTab === 'nursing' && nursingCount > 0 ? (
           <NursingKardexView records={records} patient={patient} fullExamCache={fullExamCache} />
         ) : (
@@ -1772,6 +1812,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           patient={{ name: patient?.name, uhid: patient?.uhid, age: patient?.age, gender: patient?.gender }}
           onClose={() => setViewLabReq(null)}
         />
+      )}
+
+      {/* Neuropathy (PNS) study viewer — the graded report, view / print (+ the
+          shared clinical actions on its toolbar). */}
+      {viewNeuro && (
+        <NeuropathyReport study={viewNeuro} onClose={() => setViewNeuro(null)} />
       )}
 
     </div>

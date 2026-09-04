@@ -21,6 +21,7 @@ import NeuropathyFootMap from './NeuropathyFootMap';
 import buildReportPdf from '../../utils/neuropathyPdf';
 import documentService from '../../services/documentService';
 import neuropathyService from '../../services/neuropathyService';
+import NeuropathyActions from './NeuropathyActions';
 import { PROTOCOL_SITES, averageReadings, gradeValue, monoSummary } from '../../constants/neuropathy';
 
 // One grade palette [tint, ring, text] — shared by the pills here and, in spirit,
@@ -192,6 +193,11 @@ const NeuropathyReport = ({ study, onClose }) => {
             <p className="text-xs text-gray-500">The Final result is editable — click a result box before printing or saving.</p>
           </div>
           <div className="flex gap-2">
+            {/* DRY clinical actions (prescription / lab / record use / refer /
+                send to billing) — the same set as Today's Consultation, acting
+                on this study's patient. */}
+            <NeuropathyActions study={study} />
+            <span className="w-px bg-gray-200 mx-1" aria-hidden="true" />
             <button onClick={() => doAction('print')} disabled={!!busy} className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
               {busy === 'print' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />} Print
             </button>
