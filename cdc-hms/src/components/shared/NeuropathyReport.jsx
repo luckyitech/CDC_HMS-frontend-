@@ -233,10 +233,13 @@ const NeuropathyReport = ({ study, onClose }) => {
               .nr-pt dd.e{color:#9aa6b6;font-weight:400}
               .nr-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:7px}
               .nr-panel{border:1px solid #d6dce6;border-radius:4px;padding:4px 6px 2px}
-              .nr-phead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;padding-bottom:3px;margin-bottom:1px;border-bottom:1px solid #eef1f6}
-              .nr-ptitle{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+              /* Header is ALWAYS two rows — title, then the R/L averages — so every
+                 panel's header is the same height and the four feet line up across
+                 the grid. (A single wrapping row let long averages push some feet down.) */
+              .nr-phead{display:block;padding-bottom:3px;margin-bottom:1px;border-bottom:1px solid #eef1f6}
+              .nr-ptitle{display:block;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;line-height:1.25}
               .nr-ptitle small{font-weight:400;letter-spacing:0;text-transform:none;color:#6a7891;font-size:10.5px}
-              .nr-avg{display:flex;gap:12px;font-size:10.5px}
+              .nr-avg{display:flex;flex-wrap:nowrap;gap:12px;font-size:10.5px;margin-top:2px;line-height:1.3}
               .nr-side{display:flex;align-items:center;gap:5px;white-space:nowrap}
               .nr-side i{font-style:normal;color:#9aa6b6;font-weight:700;letter-spacing:.05em;font-size:9.5px}
               .nr-side b{font-weight:600;color:#14213d}
