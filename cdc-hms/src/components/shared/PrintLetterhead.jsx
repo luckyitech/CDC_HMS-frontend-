@@ -9,7 +9,7 @@ import cdcLogo from "../../assets/cdc_web_logo1.svg";
  */
 const PrintLetterhead = ({ show = false }) => (
   <div className={show ? "" : "hidden print:block"}>
-    <div className="flex justify-between items-center border-b-4 border-primary pb-4 mb-4">
+    <div className="flex justify-between items-center border-b-4 border-primary pb-2 mb-2">
       <div>
         <h1 className="text-2xl font-bold text-primary mb-1">COMPREHENSIVE DIABETES CENTRE</h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mt-1">
