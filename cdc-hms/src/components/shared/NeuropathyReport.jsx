@@ -52,10 +52,11 @@ const ageFrom = (dob) => {
 const num = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
 const safe = (s, fallback) => String(s || fallback).replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || fallback;
 
+// Grade label as plain coloured text — no pill/box, just the saturated grade colour.
 const Pill = ({ g }) => {
   if (!g || !PAL[g]) return null;
-  const [bg, ring, fg] = PAL[g];
-  return <span style={{ background: bg, color: fg, border: `1px solid ${ring}`, padding: '0 6px', borderRadius: 5, fontSize: 9.5, fontWeight: 700, lineHeight: '15px', display: 'inline-block' }}>{g === 'NT' ? 'Not tested' : g}</span>;
+  const [, ring] = PAL[g];
+  return <span style={{ color: ring, fontSize: 9.5, fontWeight: 700, lineHeight: '15px', display: 'inline-block' }}>{g === 'NT' ? 'Not tested' : g}</span>;
 };
 
 const NeuropathyReport = ({ study, onClose }) => {
