@@ -68,7 +68,10 @@ const NeuropathyStudyList = ({ patient = null, refreshKey = 0 }) => {
     } catch (err) { notify('error', err.response?.data?.message || 'Could not withdraw the study.'); }
   };
 
-  const completed = studies.filter((s) => s.status !== 'Cancelled');
+  // The Studies tab is a record of FINISHED studies only. A Draft is an
+  // in-progress (or abandoned) exam and a Cancelled one is withdrawn — neither
+  // belongs in the worklist; only Completed studies show.
+  const completed = studies.filter((s) => s.status === 'Completed');
 
   // Client-side search (name / UHID) + inclusive date range over the loaded list.
   const filtered = useMemo(() => completed.filter((s) => {
