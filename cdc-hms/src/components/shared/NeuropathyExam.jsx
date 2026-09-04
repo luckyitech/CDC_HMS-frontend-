@@ -559,9 +559,9 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                     <p className="text-[10.5px] tracking-widest uppercase text-gray-400 font-semibold">
                       {active ? `Reading → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}` : 'All selected points recorded'}
                     </p>
-                    <div className="flex items-baseline gap-1 mt-1">
+                    <div className="flex items-baseline justify-center gap-1 mt-1">
                       <span
-                        className={`font-mono text-4xl font-semibold tabular-nums ${readingHex ? '' : 'text-primary'}`}
+                        className={`font-mono text-[2.7rem] leading-none font-semibold tabular-nums ${readingHex ? '' : 'text-primary'}`}
                         style={readingHex ? { color: readingHex } : undefined}
                       >{liveFresh ? live.value : (manual !== '' ? manual : '—')}</span>
                       <span
