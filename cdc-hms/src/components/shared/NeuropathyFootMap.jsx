@@ -164,7 +164,6 @@ const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = fa
                       width: '20%', aspectRatio: '1',
                       transform: 'translate(-50%,-50%)',
                       background: c.ring,
-                      boxShadow: '0 0 0 2px #fff',
                       color: '#fff',
                       fontFamily: '"Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive',
                       fontWeight: 700,
