@@ -1,4 +1,3 @@
-import { MapPin, Phone, Mail } from "lucide-react";
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
 
 /**
@@ -13,13 +12,12 @@ const PrintLetterhead = ({ show = false }) => (
     <div className="flex justify-between items-center border-b-4 border-primary pb-4 mb-4">
       <div>
         <h1 className="text-2xl font-bold text-primary mb-1">COMPREHENSIVE DIABETES CENTRE</h1>
-        <p className="text-gray-600">Center for Diabetes Care &amp; Management</p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mt-1">
-          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> 3rd Floor, Doctors Park, Third Avenue, Nairobi</span>
+          <span>3rd Floor, Doctors Park, Third Avenue, Nairobi</span>
           <span className="text-gray-400">|</span>
-          <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> 0711 781299</span>
+          <span>0711 781299</span>
           <span className="text-gray-400">|</span>
-          <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> info@comprehensivediabetescentre.com</span>
+          <span>info@comprehensivediabetescentre.com</span>
         </div>
       </div>
       {/* Sized to sit level with the address block rather than tower over it —
