@@ -33,6 +33,10 @@ const allSelected = () => Object.fromEntries(FEET.map((f) => [f, Object.fromEntr
 
 const monoGrade = (insensate) => (insensate === 0 ? 'Normal' : insensate <= 2 ? 'Mild' : insensate <= 4 ? 'Moderate' : 'Severe');
 
+// Grade → hex (matches the foot-map / legend palette). Used to tint the live
+// readout so a value shows the severity of the band it falls in as it's read.
+const GRADE_HEX = { Normal: '#1f8a4c', Mild: '#c07d00', Moderate: '#d9531e', Severe: '#c11d2e' };
+
 const Chip = ({ grade, children }) => (
   <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${GRADE_CLASSES[grade] || GRADE_CLASSES.pending}`}>
     <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -265,7 +269,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     record(active.foot, active.site, modality, src);
     setManual('');
     setLive(null);
-    if (source === 'recorded') notify('success', `Recorded: ${src}${meta.unit} → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}`);
     const rd = { ...readings, [modality]: { ...readings[modality], [active.foot]: { ...readings[modality][active.foot], [active.site]: src } } };
     setActive(nextOpenSelFrom(rd, modality, active));
   };
@@ -353,6 +356,13 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   const connected = device.status === 'connected';
   void nowTick;
   const liveFresh = connected && live && (Date.now() - live.at) < LIVE_STALE_MS;
+
+  // Colour the live readout by where the current value sits in its reference
+  // band (e.g. Hot 50 °C = Severe → red; Cold is inverted). null → default blue.
+  const shownReadingVal = liveFresh ? live.value : (manual !== '' ? Number(manual) : null);
+  const shownReadingGrade = (isCapture && modality !== 'MONO' && shownReadingVal != null && !Number.isNaN(shownReadingVal))
+    ? gradeValue(modality, shownReadingVal) : null;
+  const readingHex = shownReadingGrade ? GRADE_HEX[shownReadingGrade] : null;
 
   // ---- probe connect / disconnect control (shared by capture steps) ----
   const ProbeControl = () => (
@@ -542,13 +552,22 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
 
                   <div className="w-full lg:w-[340px] lg:flex-none lg:ml-auto">
                   {/* readout — white with blue reading, beside the feet */}
-                  <div className="rounded-xl bg-white border-2 border-primary p-4">
+                  <div
+                    className={`rounded-xl bg-white border-2 p-4 ${readingHex ? '' : 'border-primary'}`}
+                    style={readingHex ? { borderColor: readingHex } : undefined}
+                  >
                     <p className="text-[10.5px] tracking-widest uppercase text-gray-400 font-semibold">
                       {active ? `Reading → ${FOOT_LABELS[active.foot]} · ${SITE_LABELS[active.site]}` : 'All selected points recorded'}
                     </p>
                     <div className="flex items-baseline gap-1 mt-1">
-                      <span className="font-mono text-4xl font-semibold text-primary tabular-nums">{liveFresh ? live.value : (manual !== '' ? manual : '—')}</span>
-                      <span className="text-blue-300 font-semibold">{meta.unit}</span>
+                      <span
+                        className={`font-mono text-4xl font-semibold tabular-nums ${readingHex ? '' : 'text-primary'}`}
+                        style={readingHex ? { color: readingHex } : undefined}
+                      >{liveFresh ? live.value : (manual !== '' ? manual : '—')}</span>
+                      <span
+                        className={`font-semibold ${readingHex ? '' : 'text-blue-300'}`}
+                        style={readingHex ? { color: readingHex, opacity: 0.7 } : undefined}
+                      >{meta.unit}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1.5">
                       {connected
