@@ -1,4 +1,3 @@
-import { Fragment } from 'react';
 import { FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_LABELS, SITE_SHORT, gradeValue, GRADE_SPOT } from '../../constants/neuropathy';
 import rightFootV2 from '../../assets/rightFootV2.png';
 import leftFootV2 from '../../assets/leftFootV2.png';
@@ -149,38 +148,34 @@ const NeuropathyFootMap = ({ readings, modality, active, onSelect, readOnly = fa
                 );
               }
 
-              // Report variant: a small grade-coloured bullet AT the point with the
-              // reading printed just below it (no disc, so decimals never crowd the
-              // marker). A not-assessed site shows a grey bullet and no value.
+              // Report variant (Emu's design): a filled grade-coloured disc with
+              // the reading centred inside — white, Comic Sans, bold. The disc is a
+              // fixed % of the foot so it scales down with the report; a fixed value
+              // font that leaves clear margin so 4-char readings ("49.9") never touch
+              // the border. A not-assessed site is a plain grey disc with no value.
               if (variant === 'bullet') {
                 return (
-                  <Fragment key={site}>
-                    <span
-                      title={`${FOOT_LABELS[foot]} · ${SITE_LABELS[site]}${has ? ` — ${txt}` : ' — not assessed'}`}
-                      className="absolute rounded-full"
-                      style={{
-                        left: `${p.x}%`, top: `${p.y}%`, width: '5.6%', aspectRatio: '1',
-                        transform: 'translate(-50%,-50%)',
-                        background: c.ring,
-                        boxShadow: '0 0 0 1.5px #fff',
-                      }}
-                    />
-                    {has && (
-                      <span
-                        className="absolute font-bold leading-none"
-                        style={{
-                          left: `${p.x}%`, top: `${p.y}%`,
-                          transform: 'translate(-50%,8px)',
-                          fontSize: '10px',
-                          color: c.text,
-                          whiteSpace: 'nowrap',
-                          textShadow: '0 0 2px #fff, 0 0 2px #fff',
-                        }}
-                      >
-                        {txt}
-                      </span>
-                    )}
-                  </Fragment>
+                  <span
+                    key={site}
+                    title={`${FOOT_LABELS[foot]} · ${SITE_LABELS[site]}${has ? ` — ${txt}` : ' — not assessed'}`}
+                    className="absolute rounded-full flex items-center justify-center"
+                    style={{
+                      left: `${p.x}%`, top: `${p.y}%`,
+                      width: '20%', aspectRatio: '1',
+                      transform: 'translate(-50%,-50%)',
+                      background: c.ring,
+                      boxShadow: '0 0 0 2px #fff',
+                      color: '#fff',
+                      fontFamily: '"Comic Sans MS", "Comic Sans", "Chalkboard SE", cursive',
+                      fontWeight: 700,
+                      fontSize: '7px',
+                      lineHeight: 1,
+                      letterSpacing: '-0.02em',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {has ? txt : ''}
+                  </span>
                 );
               }
 
