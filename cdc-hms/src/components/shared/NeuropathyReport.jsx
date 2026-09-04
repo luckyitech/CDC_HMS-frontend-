@@ -37,6 +37,18 @@ const RANK = { Normal: 0, Mild: 1, Moderate: 2, Severe: 3 };
 const RESULTS = ['No Evidence of DPN', 'Mild DPN', 'Moderate DPN', 'Severe DPN'];
 
 const fmtDay = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+// Age in whole years from a date of birth (formatStudy returns patientDateOfBirth,
+// not patientAge — deriving it here is what fills the Age / Sex line).
+const ageFrom = (dob) => {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let a = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) a -= 1;
+  return a >= 0 ? a : null;
+};
 const num = (v) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
 const safe = (s, fallback) => String(s || fallback).replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || fallback;
 
@@ -270,17 +282,24 @@ const NeuropathyReport = ({ study, onClose }) => {
               </div>
             </div>
 
-            <div className="nr-pt">
-              <dl>
-                <dt>UHID</dt><dd>{study.uhid || '—'}</dd>
-                <dt>Name</dt><dd>{study.patientName || '—'}</dd>
-                <dt>Age / Sex</dt><dd className={[study.patientAge, study.patientGender].filter(Boolean).length ? '' : 'e'}>{[study.patientAge, study.patientGender].filter(Boolean).join(' · ') || '—'}</dd>
-              </dl>
-              <dl>
-                <dt>Date</dt><dd>{fmtDay(study.studyDate)}</dd>
-                <dt>Referral</dt><dd className={study.referral ? '' : 'e'}>{study.referral || '—'}</dd>
-              </dl>
-            </div>
+            {/* Patient block: a 2x2 (two lines) — UHID / Name on the left, Age·Sex /
+                Date on the right. Referral dropped to keep it to two rows. */}
+            {(() => {
+              const age = study.patientAge ?? ageFrom(study.patientDateOfBirth);
+              const ageSex = [age != null ? String(age) : null, study.patientGender].filter(Boolean).join(' · ');
+              return (
+                <div className="nr-pt">
+                  <dl>
+                    <dt>UHID</dt><dd>{study.uhid || '—'}</dd>
+                    <dt>Name</dt><dd>{study.patientName || '—'}</dd>
+                  </dl>
+                  <dl>
+                    <dt>Age / Sex</dt><dd className={ageSex ? '' : 'e'}>{ageSex || '—'}</dd>
+                    <dt>Date</dt><dd>{fmtDay(study.studyDate)}</dd>
+                  </dl>
+                </div>
+              );
+            })()}
 
             <div className="nr-grid">
               <Panel title="Monofilament" sub="10 g" color="#14213d" mod="MONO" />
