@@ -8,6 +8,7 @@ import ConsultationSummaryContainer from '../doctor/ConsultationSummaryContainer
 import { notify } from '../../utils/notify';
 import { connectVibrotherm, isWebSerialSupported } from '../../utils/vibrothermSerial';
 import NeuropathyFootMap from './NeuropathyFootMap';
+import NeuropathyActions from './NeuropathyActions';
 import {
   FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_LABELS, MODALITY_META,
   gradeValue, averageReadings, monoSummary, GRADE_CLASSES,
@@ -637,17 +638,23 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
 
               <p className="text-center text-xs text-gray-500 mt-3 max-w-[560px] mx-auto">Completing generates the report → <span className="font-semibold">Print</span> and <span className="font-semibold">Save to record</span>. The report can be saved <span className="font-semibold">once</span>; after that the study is view / print only.</p>
 
-              <div className="flex items-center justify-between gap-2 mt-4 max-w-[560px] mx-auto">
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-4 max-w-[560px] mx-auto">
                 <button type="button" onClick={goBack} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">← Back</button>
-                <button
-                  type="button"
-                  onClick={complete}
-                  disabled={!study || !anyReading || completing}
-                  className="bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-5 py-2.5 font-semibold text-sm inline-flex items-center gap-2"
-                >
-                  {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  Complete &amp; grade → report
-                </button>
+                {/* The same clinical actions as the report (prescription / lab /
+                    record use / refer / send to billing) — available here on the
+                    final step whether or not the graded report is generated. */}
+                <div className="flex items-center gap-2">
+                  <NeuropathyActions study={{ uhid: patient.uhid, patientName: patient.name }} />
+                  <button
+                    type="button"
+                    onClick={complete}
+                    disabled={!study || !anyReading || completing}
+                    className="bg-primary hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-5 py-2.5 font-semibold text-sm inline-flex items-center gap-2"
+                  >
+                    {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    Complete &amp; grade → report
+                  </button>
+                </div>
               </div>
             </div>
           )}
