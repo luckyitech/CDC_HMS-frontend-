@@ -412,12 +412,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     </>
   );
 
-  const NavRow = ({ nextLabel, nextDisabled }) => (
-    <div className="flex items-center justify-between gap-2 mt-4 w-full lg:w-[340px] lg:ml-auto">
-      <button type="button" onClick={goBack} disabled={step === 0} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40">← Back</button>
-      <button type="button" onClick={goNext} disabled={nextDisabled} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">{nextLabel} →</button>
-    </div>
-  );
 
   return (
     <div className="space-y-4">
@@ -522,13 +516,25 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
               <h3 className="text-base font-semibold text-gray-800 inline-flex items-center gap-2"><Footprints className="w-4 h-4 text-primary" /> Monofilament · 10 g</h3>
               <p className="text-sm text-gray-500 mt-1">Tap each selected point: a tap marks it <span className="text-green-700 font-semibold">felt</span>; tap again for <span className="text-red-600 font-semibold">not felt</span>.</p>
               <div className="mt-4">
-                <div className="flex justify-center">
-                  <NeuropathyFootMap size="large" readings={readings.MONO} modality="MONO" active={null} onSelect={toggleMono} selected={selected} />
+                {/* Feet on the left, Back/Next on the right — the same layout as
+                    the probe (VPT/Cold/Hot) steps, so the nav sits in the same
+                    place; there is simply no readout box on the monofilament step. */}
+                <div className="flex flex-col lg:flex-row lg:items-center gap-5">
+                  <div className="lg:flex-shrink-0 flex justify-center">
+                    <NeuropathyFootMap size="large" readings={readings.MONO} modality="MONO" active={null} onSelect={toggleMono} selected={selected} />
+                  </div>
+                  <div className="w-full lg:w-[340px] lg:flex-none lg:ml-auto">
+                    <div className="flex items-center justify-between gap-2">
+                      <button type="button" onClick={goBack} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">← Back</button>
+                      <button type="button" onClick={goNext} className="px-5 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-blue-700">Next: {STEP_LABEL[STEP_IDS[step + 1]]} →</button>
+                    </div>
+                  </div>
                 </div>
-                <AvgUnderFeet />
+                <div className="lg:w-[470px]">
+                  <AvgUnderFeet />
+                </div>
               </div>
               <StudyFooter />
-              <NavRow nextLabel="Next: VPT" nextDisabled={false} />
             </div>
           )}
 
