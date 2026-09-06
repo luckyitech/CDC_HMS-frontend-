@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, Legend,
+  AreaChart, Area,
 } from 'recharts';
 import { Loader2, RefreshCw, Info, Download } from 'lucide-react';
 import neuropathyService from '../../services/neuropathyService';
@@ -178,6 +178,9 @@ const NeuropathyAnalytics = () => {
   const prevTotal = GRADES.reduce((n, g) => n + (data.prevalence[g] || 0), 0);
   const modalityData = ['VPT', 'HOT', 'COLD'].map((m) => ({ modality: MOD_LABEL[m], ...data.byModality[m] }));
   const mono = data.byModality.MONO || { felt: 0, notFelt: 0 };
+  const vptAbnormal = ['Mild', 'Moderate', 'Severe'].reduce((n, g) => n + (data.byModality.VPT?.[g] || 0), 0);
+  const vptAbnormalPct = prevTotal ? Math.round((vptAbnormal / prevTotal) * 100) : null;
+  const firstMonth = data.throughput?.[0]?.month;
   const monoTotal = mono.felt + mono.notFelt;
 
   return (
@@ -214,10 +217,10 @@ const NeuropathyAnalytics = () => {
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Kpi label="Patients screened" value={t.patientsScreened} meta={`${t.repeatPatients} re-screened`} />
-        <Kpi label="Studies completed" value={t.studiesCompleted} meta={`${t.studiesCancelled} cancelled`} />
+        <Kpi label="Studies signed" value={t.studiesCompleted} meta={firstMonth ? `since ${firstMonth}` : "completed studies only"} />
         <Kpi label="DPN prevalence" value={t.dpnPrevalencePct ?? '—'} unit="%" meta="any grade, among screened" accent />
         <Kpi label="Median VPT" value={t.medianWorstVpt ?? '—'} unit=" V" meta="worst foot per patient" />
-        <Kpi label="Cancellation rate" value={t.cancellationPct ?? 0} unit="%" meta="of studies started" />
+        <Kpi label="Abnormal VPT" value={vptAbnormalPct ?? '—'} unit="%" meta="any grade, worse foot" />
         <Kpi label="Repeat patients" value={t.repeatPatients} meta="have ≥2 studies" />
       </div>
 
@@ -348,16 +351,14 @@ const NeuropathyAnalytics = () => {
           </ResponsiveContainer>
         </Panel>
 
-        <Panel title="Studies signed per month" cap="Completed vs cancelled throughput">
+        <Panel title="Studies signed per month" cap="Completed studies only — drafts and cancellations are never counted">
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={data.throughput} margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
               <CartesianGrid strokeDasharray="2 3" vertical={false} stroke="#eef2f7" />
               <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={{ stroke: '#e2e8f0' }} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12, border: '1px solid #e2e8f0' }} />
-              <Legend wrapperStyle={{ fontSize: 11.5 }} />
               <Bar dataKey="completed" name="Completed" fill="#0e7490" radius={[3, 3, 0, 0]} maxBarSize={34} />
-              <Bar dataKey="cancelled" name="Cancelled" fill="#cbd5e1" radius={[3, 3, 0, 0]} maxBarSize={34} />
             </BarChart>
           </ResponsiveContainer>
         </Panel>
