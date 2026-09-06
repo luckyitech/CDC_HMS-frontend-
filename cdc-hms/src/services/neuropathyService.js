@@ -23,6 +23,19 @@ export const neuropathyService = {
 
   getRecent: (limit = 100) => api.get('/neuropathy', { params: { limit } }),
 
+  /** Cross-patient cohort analytics for the Analytics tab (doctor/admin only).
+   *  params: { from?, to?, sex?, ageBand?, performedById? } */
+  getAnalyticsOverview: (params = {}) => api.get('/neuropathy/analytics/overview', { params }),
+
+  /** Screening coverage vs the active diabetic population (doctor/admin only). */
+  getCoverage: () => api.get('/neuropathy/analytics/coverage'),
+
+  /** Risk correlation + de-identified cohort rows for CSV (doctor/admin only). */
+  getCorrelation: () => api.get('/neuropathy/analytics/correlation'),
+
+  /** Longitudinal progression — patients re-screened over time (doctor/admin only). */
+  getLongitudinal: () => api.get('/neuropathy/analytics/longitudinal'),
+
   getById: (id) => api.get(`/neuropathy/${id}`),
 
   /** readings: [{ foot:'R'|'L', site, modality:'VPT'|'HOT'|'COLD'|'MONO', value, omitted? }] */
