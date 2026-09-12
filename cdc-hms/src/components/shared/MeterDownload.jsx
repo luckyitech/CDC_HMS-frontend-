@@ -18,6 +18,24 @@ const Stepper = ({ step }) => (
 
 const EMPTY_LINK = { action: 'reassign', usedFromDate: '', reason: '' };
 const fmtDelta = (s) => { const a = Math.abs(s); const h = Math.floor(a / 3600), m = Math.round((a % 3600) / 60); return `${h ? `${h} h ` : ''}${m} min ${s > 0 ? 'behind' : 'ahead of'} this PC`; };
+// What to tell the nurse once the meter has been read. "Nothing new" is the
+// normal second-visit outcome, not a fault — and an empty meter is different
+// from an up-to-date one (the HMS asks only for records after the last one it
+// holds, so zero back on a linked meter means everything is already on file).
+const outcomeText = (data, who, r) => {
+  const serial = data.meter?.deviceSerial || r?.device?.serial;
+  if (data.nothingNew) {
+    return data.linked
+      ? { headline: 'Meter up to date — nothing new to import', detail: `Every reading on ${serial} is already on file${Number.isInteger(data.meter?.lastSequenceNumber) ? ` (records up to #${data.meter.lastSequenceNumber})` : ''}. Nothing was removed from the meter.` }
+      : { headline: 'The meter has no readings stored', detail: `${serial} returned no records, so there is nothing to import and it has not been linked to ${who}. Nothing was removed from the meter.` };
+  }
+  const n = data.inserted;
+  return {
+    headline: `${n} reading${n === 1 ? '' : 's'} imported for ${who}`,
+    detail: `From ${serial}.${data.duplicates ? ` ${data.duplicates} already on file.` : ''}${data.skippedBeforeUsedFrom ? ` ${data.skippedBeforeUsedFrom} skipped (before the "used since" date).` : ''} The doctor reviews them in the Glucose Management Centre.`,
+  };
+};
+
 const readingsPayload = (r) => r.readings.map(({ sequenceNumber, measuredAt, timeOffsetMin, glucoseMgdl, unitsReported, sampleType, sampleLocation, sensorStatus, mealFlag, rawHex }) =>
   ({ sequenceNumber, measuredAt, timeOffsetMin, glucoseMgdl, unitsReported, sampleType, sampleLocation, sensorStatus, mealFlag, rawHex }));
 
@@ -78,7 +96,7 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
       });
       const data = res?.data || res;
       setResult(data); setPhase('done');
-      toast.success(`${data.inserted} reading${data.inserted === 1 ? '' : 's'} imported for ${patientName || uhid}`);
+      toast.success(outcomeText(data, patientName || uhid, r).headline);
       onImported(data);
     } catch (e) {
       setErr(e?.message || 'Import failed.'); setPhase('error');
@@ -106,8 +124,9 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
       if (!preflight) preflight = await runPreflight(r.device);
       setRead(r); setPre(preflight);
       const state = preflight?.link || 'unlinked';
-      if (state === 'conflict') { setPhase('conflict'); return; }
-      await doImport(r, state === 'unlinked' ? { action: 'link' } : undefined);
+      // Nothing to file → no link question either; the API just records the sync.
+      if (state === 'conflict' && r.readings.length) { setPhase('conflict'); return; }
+      await doImport(r, state === 'unlinked' && r.readings.length ? { action: 'link' } : undefined);
     } catch (e) {
       if (e?.code === 'cancelled') { setPhase('idle'); setProgress(null); return; }
       setErr(e?.message || 'Could not read the meter.'); setPhase('error');
@@ -199,7 +218,7 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
           <Stepper step={3} />
           <div className="p-3 rounded-lg border border-green-200 bg-green-50 text-sm text-green-800 flex items-start gap-2">
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
-            <span><strong>{result.inserted} reading{result.inserted === 1 ? '' : 's'} imported for {patient?.name || uhid}</strong> from <span className="font-mono">{result.meter?.deviceSerial || read?.device?.serial}</span>.{result.duplicates ? ` ${result.duplicates} already on file.` : ''}{result.skippedBeforeUsedFrom ? ` ${result.skippedBeforeUsedFrom} skipped (before the "used since" date).` : ''} The doctor reviews them in the Glucose Management Centre.</span>
+            {(() => { const o = outcomeText(result, patient?.name || uhid, read); return <span><strong>{o.headline}.</strong> {o.detail}</span>; })()}
           </div>
           {result.clockDriftWarn && (
             <label className="flex items-start gap-2 text-sm text-amber-800 p-3 rounded-lg border border-amber-200 bg-amber-50">
