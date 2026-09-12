@@ -290,7 +290,9 @@ export const readMeter = async ({ fromSequence, beforeFetch, onProgress = () => 
         else racpReject?.(Object.assign(new Error(`The meter refused the request: ${RACP_RESULT_TEXT[result] || 'code ' + result}.`), { code: 'racp' }));
       }
     });
-    await racp.startIndications();
+    // Web Bluetooth has no startIndications(): startNotifications() enables
+    // indications when that is what the characteristic supports (RACP does).
+    await racp.startNotifications();
     timings.discoverMs = Math.round(performance.now() - td);
 
     // Identity + clock. DIS serial (0x2A25) is blocklisted: identity is the name.
