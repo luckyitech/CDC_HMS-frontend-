@@ -4,7 +4,7 @@ import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
 import Button from "../../components/shared/Button";
 import { usePatientContext } from "../../contexts/PatientContext";
-import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
+import GlucoseManagementCentre from "../../components/shared/GlucoseManagementCentre";
 import PatientSearchInput from "../../components/shared/PatientSearchInput";
 
 const GlycemicCharts = () => {
@@ -30,7 +30,7 @@ const GlycemicCharts = () => {
   return (
     <div>
       <PageHeader
-        title="Glycemic Charts"
+        title="Glucose Management Centre"
         actions={fromConsultation && (
           <Button
             variant="outline"
@@ -49,7 +49,7 @@ const GlycemicCharts = () => {
           />
         </Card>
       ) : (
-        <GlycemicChartPanel patient={selectedPatient} />
+        <GlucoseManagementCentre patient={selectedPatient} />
       )}
     </div>
   );

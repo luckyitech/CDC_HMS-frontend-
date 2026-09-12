@@ -11,7 +11,7 @@ import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import MedicalDocumentsTab from '../../components/shared/MedicalDocumentsTab';
 import ConsultationNotesList from "../../components/doctor/ConsultationNotesList";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
-import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
+import GlucoseManagementCentre from "../../components/shared/GlucoseManagementCentre";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
 import BarcodeActions from "../../components/shared/BarcodeActions";
@@ -267,7 +267,7 @@ const StaffPatientProfile = () => {
           </>
         )}
         {activeTab === "charts" && (
-          <GlycemicChartPanel patient={patient} />
+          <GlucoseManagementCentre patient={patient} />
         )}
         {activeTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
         {activeTab === "medical-documents" && <MedicalDocumentsTab patient={patient} />}

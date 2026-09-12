@@ -52,14 +52,25 @@ const transformReadingsForChart = (readings) => {
 };
 
 /**
- * Reusable glycemic chart panel.
+ * Reusable glycemic chart panel — the manual logbook's 7-slot-per-day view.
+ *
+ * Since the Glucose Management Centre (components/shared/GlucoseManagementCentre)
+ * took over its three homes, this panel is ALSO embedded inside the centre as
+ * the "Logbook" view: the centre already holds the readings for its window,
+ * so it passes them in (`readings`) and hides the header, period filter and
+ * summary box (`embedded`). Both props are optional — every existing caller
+ * that passes only `patient` still gets the full stand-alone panel.
  *
  * @param {object}   patient           - Patient object (must have .uhid and .name)
  * @param {function} [getDataForPeriod] - Optional callback(period) → chartData[].
  *                                        When provided the panel uses it instead of
  *                                        fetching from the API (used for demo mode).
+ * @param {Array}    [readings]         - Already-fetched logbook rows
+ *                                        ({ date, timeSlot, value(mg/dL) }); when given,
+ *                                        nothing is fetched.
+ * @param {boolean}  [embedded]         - Chart + legend only (no header / filter / stat).
  */
-const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
+const GlycemicChartPanel = ({ patient, getDataForPeriod, readings = null, embedded = false }) => {
   const { getBloodSugarReadings } = usePatientContext();
   const [filterPeriod, setFilterPeriod] = useState("7days");
   const [chartData, setChartData] = useState([]);
@@ -67,6 +78,11 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
 
   // Fetch data from API or use external provider when period changes
   useEffect(() => {
+    if (readings) {
+      setChartData(readings.length > 0 ? transformReadingsForChart(readings) : []);
+      setDataLoading(false);
+      return;
+    }
     if (getDataForPeriod) {
       setChartData(getDataForPeriod(filterPeriod));
       setDataLoading(false);
@@ -92,7 +108,7 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patient?.uhid, filterPeriod, getDataForPeriod]);
+  }, [patient?.uhid, filterPeriod, getDataForPeriod, readings]);
 
   // Compute summary stats from current data
   const stats = (() => {
@@ -145,9 +161,12 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
     orange: { bg: "bg-orange-50 border-orange-500", text: "text-orange-700" },
   };
 
+  const Wrapper = embedded ? "div" : Card;
+
   return (
-    <Card>
+    <Wrapper>
       {/* Header with period filter */}
+      {!embedded && (
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <h3 className="text-xl lg:text-2xl font-bold text-gray-800">
           {patient?.name} - Sugar Trends
@@ -168,9 +187,10 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
           ))}
         </div>
       </div>
+      )}
 
       {/* Summary stat */}
-      {stats && (
+      {!embedded && stats && (
         <div
           className={`mb-6 p-4 rounded-lg border-2 ${
             colorClasses[stats.color]?.bg || "bg-gray-50 border-gray-300"
@@ -216,7 +236,7 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-semibold text-gray-600">
-            Blood Sugar Levels (mmol/L)
+            {embedded ? "Logbook — manual entries by time slot (mmol/L)" : "Blood Sugar Levels (mmol/L)"}
           </span>
           <span className="text-xs text-gray-500">
             Target: 4-7 mmol/L (72-126 mg/dL)
@@ -255,13 +275,15 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
 
       {/* Empty */}
       {!dataLoading && chartData.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <p className="text-gray-500 text-lg mb-2">
-            No blood sugar data available
+        <div className={`text-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 ${embedded ? "py-6" : "py-12"}`}>
+          <p className={`text-gray-500 mb-2 ${embedded ? "text-sm" : "text-lg"}`}>
+            {embedded ? "No logbook entries in this window" : "No blood sugar data available"}
           </p>
-          <p className="text-gray-400 text-sm">
-            Patient has not logged any readings for this period.
-          </p>
+          {!embedded && (
+            <p className="text-gray-400 text-sm">
+              Patient has not logged any readings for this period.
+            </p>
+          )}
         </div>
       )}
 
@@ -271,8 +293,8 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
           <div className="overflow-x-auto">
             <div
               style={{
-                minWidth: `${Math.max(chartData.length * 150, 500)}px`,
-                height: "500px",
+                minWidth: `${Math.max(chartData.length * (embedded ? 90 : 150), 500)}px`,
+                height: embedded ? "260px" : "500px",
               }}
             >
               <ResponsiveContainer width="100%" height="100%">
@@ -364,7 +386,7 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod }) => {
           </div>
         </div>
       )}
-    </Card>
+    </Wrapper>
   );
 };
 

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import {
-  Activity, Calendar, FlaskConical, LineChart as LineChartIcon, Pill,
+  Activity, Calendar, FlaskConical, LineChart as LineChartIcon, Pill, Droplet,
   ChevronDown, ExternalLink, FileText, Pencil, ClipboardList, Plus, Check, RotateCcw,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import VitalsGrid from '../shared/VitalsGrid';
+import GlucoseSummaryCard from '../shared/GlucoseSummaryCard';
 import useCatalogSearch from '../../hooks/useCatalogSearch';
 
 /**
@@ -343,6 +344,14 @@ const ConsultationSummaryPanel = ({
       </CollapsibleCard>
 
       {/* Charts */}
+      {/* Glucose — the compact Glucose Management Centre: meter download
+          status, 14-day TIR and headline figures, with the download modal
+          and a jump to the full centre (Diagnostics → Charts). Self-loading,
+          so nothing new flows through the container. */}
+      <CollapsibleCard icon={Droplet} title="Glucose" open={openCard === 'glucose'} onToggle={() => toggleCard('glucose')}>
+        <GlucoseSummaryCard patient={patient} />
+      </CollapsibleCard>
+
       <CollapsibleCard icon={LineChartIcon} title="Charts" open={openCard === 'charts'} onToggle={() => toggleCard('charts')}>
         <div className="flex flex-wrap gap-1.5 mb-2">
           {METRICS.map((m) => {

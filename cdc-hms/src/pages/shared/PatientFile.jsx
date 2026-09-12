@@ -34,7 +34,7 @@ import NursingActionsTab from "../../components/nursing/NursingActionsTab";
 import NeuropathyExam from "../../components/shared/NeuropathyExam";
 import TodaysConsultationTab from "../../components/doctor/TodaysConsultationTab";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
-import GlycemicChartPanel from "../../components/doctor/GlycemicChartPanel";
+import GlucoseManagementCentre from "../../components/shared/GlucoseManagementCentre";
 import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
@@ -120,8 +120,10 @@ const ROLE_CONFIG = {
 // Diagnostics tab body — a Medical Documents / Ultrasound / Charts sub-toggle,
 // same pattern as Visit History's Visits/Prescriptions. Ultrasound sits 2nd so
 // it's always available to every role that can see the patient file.
-const DiagnosticsTab = ({ patient }) => {
-  const [sub, setSub] = useState("documents");
+// `initialSub` lets a deep link land on one sub-tab (the consultation's Glucose
+// card opens Charts here via location.state.diagnosticsSub).
+const DiagnosticsTab = ({ patient, initialSub = "documents" }) => {
+  const [sub, setSub] = useState(initialSub);
   return (
     <div>
       <SwitcherTabs
@@ -138,7 +140,7 @@ const DiagnosticsTab = ({ patient }) => {
       {sub === "documents" && <MedicalDocumentsTab patient={patient} />}
       {sub === "ultrasound" && <UltrasoundTab patient={patient} />}
       {sub === "neuropathy" && <NeuropathyStudyList patient={patient} />}
-      {sub === "charts" && <GlycemicChartPanel patient={patient} />}
+      {sub === "charts" && <GlucoseManagementCentre patient={patient} />}
     </div>
   );
 };
@@ -342,6 +344,15 @@ const PatientFile = () => {
   // below already guarded it; this one did not.
   const initialTab = location.state?.activeTab || (onConsultationRoute ? "consultation" : tabs[0]?.id);
   const { activeTab, selectTab, overviewOpen, setOverviewOpen } = useCollapsibleOverview(initialTab);
+  // A navigation INTO this page that names a tab (the consultation's Glucose
+  // card → Diagnostics → Charts, the notification bell → Medical Documents)
+  // must land on it even when the page is already mounted — the router reuses
+  // this component across /consultation/:uhid and /patient-profile/:uhid, so
+  // useState's initial value alone is only honoured on a cold mount.
+  useEffect(() => {
+    if (location.state?.activeTab) selectTab(location.state.activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
   // Guard the active tab: if it isn't currently visible (e.g. Nursing after the
   // patient leaves the queue), fall back to the first visible tab.
   const currentTab = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0]?.id;
@@ -513,7 +524,7 @@ const PatientFile = () => {
             onDone={() => (portal === "staff" || portal === "nurse") ? navigate(`/${portal}/queue`) : loadPatient()}
           />
         )}
-        {currentTab === "medical-documents" && <DiagnosticsTab patient={patient} />}
+        {currentTab === "medical-documents" && <DiagnosticsTab key={location.key} patient={patient} initialSub={location.state?.diagnosticsSub || "documents"} />}
         {currentTab === "visit-history" && (
           <VisitHistoryTab patient={patient} uhid={uhid} prescriptions={prescriptions} />
         )}

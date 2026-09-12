@@ -1,9 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Search, Stethoscope, ClipboardList, Syringe, ChevronDown, Receipt, ClipboardPlus, FileText, FlaskConical } from "lucide-react";
+import { Search, Stethoscope, ClipboardList, Syringe, ChevronDown, Receipt, ClipboardPlus, FileText, FlaskConical, Bluetooth } from "lucide-react";
 import TriagePanel from "./TriagePanel";
+import Card from "../shared/Card";
 import NursingKardex from "./NursingKardex";
 import Glp1Kardex from "../shared/Glp1Kardex";
 import LabRequest from "../shared/LabRequest";
+import MeterDownload from "../shared/MeterDownload";
 import SendToDoctorModal from "./SendToDoctorModal";
 import BillingModal from "../shared/BillingModal";
 import RecordUseModal from "../stock/RecordUseModal";
@@ -58,6 +60,21 @@ const NURSING_ACTIONS = [
     name: "Nursing notes",
     Icon: FileText,
     render: ({ patient }) => <NursingKardex patient={patient} />,
+  },
+  {
+    id: "meter",
+    name: "Meter download",
+    Icon: Bluetooth,
+    // Read the patient's home glucose meter over Bluetooth and file every
+    // stored reading (up to 720 — the whole interval since the last visit).
+    // Open entry: no queue row needed, so a meter handed over at reception or
+    // brought in between visits can still be read. Same component the doctor
+    // opens as a modal from the consultation's Glucose card.
+    render: ({ patient, onRefresh }) => (
+      <Card title="Meter download — home glucose meter">
+        <MeterDownload patient={patient} onImported={onRefresh} />
+      </Card>
+    ),
   },
 ];
 

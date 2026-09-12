@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
-  BedDouble, Share2, FileText, Clock, FlaskConical, Footprints,
+  BedDouble, Share2, FileText, Clock, FlaskConical, Footprints, Bluetooth,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
@@ -17,6 +17,7 @@ import queueService from '../../services/queueService';
 import nursingNoteService from '../../services/nursingNoteService';
 import labService from '../../services/labService';
 import neuropathyService from '../../services/neuropathyService';
+import { glucoseService } from '../../services/glucoseService';
 import NeuropathyReport from './NeuropathyReport';
 import { notify } from '../../utils/notify';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
@@ -63,6 +64,11 @@ const DATE_FIELD_MAP = {
   // Completed neuropathy (PNS) studies — a doctor "action" (grouped by the day
   // the study was graded), and a point on the Visit Timeline.
   neuropathyStudies: 'completedAt',
+  // Home glucose-meter downloads — one row per import batch (the Glucose
+  // Management Centre). A nursing event on the Kardex timeline (a nurse reads
+  // the meter at the visit) and a point on the Visit Timeline. Dated by when
+  // the download was filed, not by the readings inside it.
+  meterImports:    'importedAt',
   // Nursing notes — the DAR-format Kardex. Each entry is dated by its own day.
   nursingNotes:    'date',
   // Lab requests — one grouped record per requisition (see groupLabRequests).
@@ -441,6 +447,26 @@ const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) =>
       </div>
     )}
 
+    {/* Meter downloads — one block per import batch. Nurse-authored, so only
+        on the nursing timeline, like nursing notes. */}
+    {showNursingNotes && records.meterImports?.length > 0 && (
+      <div>
+        <SectionHeader icon={<Bluetooth className="w-3.5 h-3.5" />} label="Meter Downloads" />
+        {records.meterImports.map((b) => (
+          <DocBox key={b.batchId}>
+            <p className="text-xs text-gray-500 mb-1">
+              {new Date(b.importedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+              {b.importedByName ? ` · ${b.importedByName}` : ''}
+            </p>
+            <p><b className="font-semibold text-gray-800">{b.count} reading{b.count === 1 ? '' : 's'}</b> from meter <span className="font-mono">{b.deviceSerial}</span>
+              {b.firstAt && b.lastAt ? ` · ${b.firstAt.slice(0, 10)} → ${b.lastAt.slice(0, 10)} (meter time)` : ''}
+              {b.hostClockDeltaSec !== null && Math.abs(b.hostClockDeltaSec) > 600 ? ` · meter clock was ${Math.round(Math.abs(b.hostClockDeltaSec) / 60)} min ${b.hostClockDeltaSec > 0 ? 'behind' : 'ahead'}` : ''}
+            </p>
+          </DocBox>
+        ))}
+      </div>
+    )}
+
     {/* Laboratory requests — one block per requisition */}
     {records.labRequests?.length > 0 && (
       <div>
@@ -716,7 +742,7 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
 const NURSING_BLANK = {
   vitals: [], plans: [], assessments: [], exams: [], notes: [], prescriptions: [],
   glp1Injections: [], glp1Reviews: [], glp1WeekNotes: [], nursingNotes: [], admissions: [], referrals: [],
-  labRequests: [], neuropathyStudies: [],
+  labRequests: [], neuropathyStudies: [], meterImports: [],
 };
 
 const nursingTasks = (records) => {
@@ -752,6 +778,15 @@ const nursingTasks = (records) => {
     Icon: FileText,
     title: 'Nursing note',
     records: { ...NURSING_BLANK, nursingNotes: [note] },
+  }));
+  // A meter download is a point on the Kardex timeline: how many readings the
+  // nurse brought in from the patient's home meter, and from which meter.
+  (records.meterImports || []).forEach((b, i) => tasks.push({
+    key: `meter-${b.batchId ?? i}`,
+    ts: b.importedAt,
+    Icon: Bluetooth,
+    title: 'Meter download',
+    records: { ...NURSING_BLANK, meterImports: [b] },
   }));
   // Nurse-raised lab requests are a point on the Kardex timeline (doctor-raised
   // ones live in the Actions tab instead).
@@ -840,6 +875,7 @@ const VISIT_TIMELINE_KINDS = [
   { kind: 'glp1WeekNote',  type: 'glp1WeekNotes',  ts: 'createdAt',        Icon: MessageSquare, title: 'GLP-1 note',        by: (r) => r.authorName },
   { kind: 'labRequest',    type: 'labRequests',    ts: 'orderedDate',      Icon: FlaskConical,  title: 'Lab request',       by: (r) => r.orderedBy },
   { kind: 'neuropathy',    type: 'neuropathyStudies', ts: 'completedAt',   Icon: Footprints,    title: 'Neuropathy study',  by: (r) => r.performedByName },
+  { kind: 'meterImport',   type: 'meterImports',   ts: 'importedAt',       Icon: Bluetooth,     title: 'Meter download',    by: (r) => r.importedByName },
 ];
 
 const visitTimelineTasks = (records) => {
@@ -1145,7 +1181,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes, labRes, neuroRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes, labRes, neuroRes, meterRes] = await Promise.all([
           // Not requested unless they can be read — see canReadDoctorRecord.
           canReadDoctorRecord ? getAssessmentsByPatient(uhid) : [],
           canReadDoctorRecord ? getExaminationsByPatient(uhid) : [],
@@ -1163,6 +1199,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           queueService.patientHistory(uhid).catch(() => ({ data: { visits: [] } })),
           labService.getByPatient(uhid).catch(() => ({ success: false, data: { labTests: [] } })),
           neuropathyService.getByPatient(uhid).catch(() => ({ data: { data: [] } })),
+          glucoseService.getBatches(uhid).catch(() => ({ data: [] })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
@@ -1188,6 +1225,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           // Completed studies only — a Draft/Cancelled study isn't a recorded action.
           const neuropathyStudies = (neuroRes?.data?.data || neuroRes?.data || [])
             .filter((s) => s.status === 'Completed');
+          const meterImports   = Array.isArray(meterRes?.data) ? meterRes.data : [];
           const workflow       = workflowFromVisits(queueRes?.data?.visits);
           setHistoryData({
             assessments:     Array.isArray(assessments)     ? assessments     : [],
@@ -1204,6 +1242,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             nursingNotes:    Array.isArray(nursingNotes)    ? nursingNotes    : [],
             labRequests:     Array.isArray(labRequests)     ? labRequests     : [],
             neuropathyStudies: Array.isArray(neuropathyStudies) ? neuropathyStudies : [],
+            meterImports,
             workflow:        Array.isArray(workflow)        ? workflow        : [],
             // Raw queue visit rows (with status + dischargedAt) — used to tell an
             // ongoing, un-checked-out episode from closed dated visits. Not a
@@ -1384,7 +1423,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       + (records.neuropathyStudies || []).length;
     const nursingCount = (records.vitals?.length || 0) + (records.glp1Injections?.length || 0)
       + (records.glp1WeekNotes?.length || 0) + (records.glp1Reviews?.length || 0)
-      + (records.nursingNotes?.length || 0) + nurseLabCount;
+      + (records.nursingNotes?.length || 0) + nurseLabCount + (records.meterImports?.length || 0);
     const clinicalCount =
       records.notes.length + records.assessments.length + records.exams.length + records.plans.length;
     const workflowCount = records.workflow?.length || 0;
