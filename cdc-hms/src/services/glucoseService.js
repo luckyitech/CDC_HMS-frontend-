@@ -27,7 +27,7 @@ export const glucoseService = {
   /** { serial?, name?, modelId?, firmware? } → { link, meter, others, lastSequenceNumber, … } */
   preflightMeter: (uhid, device) => api.post(`/patients/${uhid}/glucose/meter/preflight`, device),
 
-  /** { device, readings, hostTime, meterTime, batchId?, link?, excludeSequenceNumbers? } */
+  /** { device, readings, hostTime, meterTime, batchId?, link? } */
   importMeter: (uhid, payload) => api.post(`/patients/${uhid}/glucose/meter/import`, payload),
 
   excludeReading: (uhid, id, reason) => api.put(`/patients/${uhid}/glucose/meter/readings/${id}/exclude`, { reason }),

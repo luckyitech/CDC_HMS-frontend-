@@ -4,6 +4,7 @@ import { Bluetooth, Clock, ExternalLink } from 'lucide-react';
 import { glucoseService } from '../../services/glucoseService';
 import { MeterDownloadModal } from './MeterDownload';
 import { useUserContext } from '../../contexts/UserContext';
+import { BAND, fmtDelta } from './gmc/gmcShared';
 
 /**
  * GlucoseSummaryCard — the compact Glucose Management Centre for the
@@ -18,9 +19,7 @@ import { useUserContext } from '../../contexts/UserContext';
  * Same numbers as the full centre (both read GET …/glucose/summary).
  */
 const MMOL = 18;
-const BAND = { veryLow: '#b91c1c', low: '#ef4444', inRange: '#16a34a', high: '#f59e0b', veryHigh: '#c2410c' };
 const mmol = (mg) => (mg === null || mg === undefined ? '—' : (Math.round((mg / MMOL) * 10) / 10).toFixed(1));
-const fmtDelta = (s) => { const a = Math.abs(s); const h = Math.floor(a / 3600), m = Math.round((a % 3600) / 60); return `${h ? `${h} h ` : ''}${m} min ${s > 0 ? 'behind' : 'ahead'}`; };
 
 const GlucoseSummaryCard = ({ patient }) => {
   const navigate = useNavigate();

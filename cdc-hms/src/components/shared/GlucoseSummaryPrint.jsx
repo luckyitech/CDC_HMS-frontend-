@@ -1,5 +1,6 @@
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
+import { BAND, makeVal } from './gmc/gmcShared';
 
 // GlucoseSummaryPrint — the printable / PDF one-page glucose summary on the
 // clinic letterhead (DRY: PrintLetterhead + usePrint, the same pattern as
@@ -10,9 +11,6 @@ import PrintLetterhead from './PrintLetterhead';
 //
 // Props: { data (the /glucose/summary payload), patient, unit ('mmol'|'mgdl'), onClose }
 
-const BAND = { veryLow: '#b91c1c', low: '#ef4444', inRange: '#16a34a', high: '#f59e0b', veryHigh: '#c2410c' };
-const MMOL = 18;
-
 const fmtWhen = (naive) => { if (!naive) return '—'; const [d, t] = naive.split(' '); const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y} ${(t || '').slice(0, 5)}`; };
 const fmtDay = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
@@ -22,7 +20,7 @@ const GlucoseSummaryPrint = ({ data, patient, unit = 'mmol', onClose }) => {
   const m = data.metrics;
   const t = data.targets?.targets || {};
   const unitLabel = unit === 'mmol' ? 'mmol/L' : 'mg/dL';
-  const val = (mgdl) => (mgdl === null || mgdl === undefined ? null : unit === 'mmol' ? Math.round((mgdl / MMOL) * 10) / 10 : Math.round(mgdl));
+  const val = makeVal(unit);
   const win = data.window || {};
 
   const bands = [

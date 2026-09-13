@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Utensils, Activity, Syringe, Pill, AlertCircle, StickyNote, Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from './Button';
 import { diaryService } from '../../services/diaryService';
+import { DIARY_TYPES, DIARY_META, diaryDetailBits, fmtTime, dayHeading } from './gmc/gmcShared';
 
 // GlucoseDiaryPanel — the patient diary inside the Glucose Management Centre.
 //
@@ -25,37 +26,13 @@ import { diaryService } from '../../services/diaryService';
 //   isPatient  gentler, first-person copy
 //   unit       'mmol' | 'mgdl' (unused for entry; kept for future carb→dose hints)
 
-const TYPES = [
-  { id: 'meal',     label: 'Meal',     Icon: Utensils,    color: '#0891b2' },
-  { id: 'activity', label: 'Activity', Icon: Activity,     color: '#16a34a' },
-  { id: 'insulin',  label: 'Insulin',  Icon: Syringe,      color: '#7c3aed' },
-  { id: 'oral_med', label: 'Oral med', Icon: Pill,         color: '#d97706' },
-  { id: 'symptom',  label: 'Symptom',  Icon: AlertCircle,  color: '#dc2626' },
-  { id: 'note',     label: 'Note',     Icon: StickyNote,   color: '#6b7280' },
-];
-const TYPE = Object.fromEntries(TYPES.map((t) => [t.id, t]));
 const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
 const pad = (n) => String(n).padStart(2, '0');
 const nowInput = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const inputToNaive = (v) => (v ? `${v.replace('T', ' ')}:00` : null);
-const fmtTime = (naive) => { const t = naive.split(' ')[1] || ''; return t.slice(0, 5); };
-const dayHeading = (naive) => {
-  const [y, m, d] = naive.slice(0, 10).split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-};
-const detailBits = (ev) => {
-  const d = ev.detail || {};
-  return [
-    d.carbs != null ? `${d.carbs} g carbs` : null,
-    d.minutes != null ? `${d.minutes} min` : null,
-    d.units != null ? `${d.units} units` : null,
-    d.drug || null,
-    d.severity || null,
-  ].filter(Boolean).join(' · ');
-};
 
-const GlucoseDiaryPanel = ({ uhid, events = [], onChanged = () => {}, canEdit = true, isPatient = false }) => {
+const GlucoseDiaryPanel = ({ uhid, events = [], onChanged = () => {}, canEdit = true, isPatient = false, addOnly = false }) => {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState('meal');
   const [label, setLabel] = useState('');
@@ -127,7 +104,7 @@ const GlucoseDiaryPanel = ({ uhid, events = [], onChanged = () => {}, canEdit = 
                 <button type="button" onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {TYPES.map((tp) => (
+                {DIARY_TYPES.map((tp) => (
                   <button key={tp.id} type="button" onClick={() => setType(tp.id)}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-semibold ${type === tp.id ? 'text-white border-transparent' : 'bg-white border-gray-300 text-gray-700'}`}
                     style={type === tp.id ? { background: tp.color } : undefined}>
@@ -177,7 +154,7 @@ const GlucoseDiaryPanel = ({ uhid, events = [], onChanged = () => {}, canEdit = 
         </div>
       )}
 
-      {events.length === 0 ? (
+      {addOnly ? null : events.length === 0 ? (
         <div className="py-6 text-center text-sm text-gray-400 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
           {isPatient ? 'No diary entries yet. Log your meals, activity and doses so your readings can be tagged around them.' : 'No diary entries in this window.'}
         </div>
@@ -188,8 +165,8 @@ const GlucoseDiaryPanel = ({ uhid, events = [], onChanged = () => {}, canEdit = 
               <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1">{dayHeading(list[0].at)}</p>
               <div className="space-y-1">
                 {list.map((ev) => {
-                  const meta = TYPE[ev.eventType] || TYPE.note;
-                  const bits = detailBits(ev);
+                  const meta = DIARY_META[ev.eventType] || DIARY_META.note;
+                  const bits = diaryDetailBits(ev).join(' · ');
                   return (
                     <div key={ev.id} className="flex items-center gap-2.5 p-2 rounded-lg border border-gray-100 bg-white">
                       <span className="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0" style={{ background: `${meta.color}1a`, color: meta.color }}><meta.Icon className="w-4 h-4" /></span>
