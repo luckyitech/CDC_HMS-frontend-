@@ -1,53 +1,63 @@
 import { useState } from 'react';
 import { ComposedChart, Bar, ErrorBar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea, ResponsiveContainer } from 'recharts';
-import { Target, ChevronDown } from 'lucide-react';
+import { Target, TrendingUp } from 'lucide-react';
 import Button from '../Button';
+import { VitalsTrendModal } from '../VitalsGrid';
 import { Metric, ChartCard, SOURCE_META, BAND, TwoLineTick, fmtWhen } from './gmcShared';
 
 /**
  * Indices — the analytical dashboard: the consensus glycaemic figures the
- * clinic acts on. GMI beside the measured HbA1c (the latest, expandable to the
- * full trend), Time in / above / below range, SMBG consistency (readings a
- * day), variability and hypos, the time-of-day profile and the pre-/post-meal
- * split, and the targets these are judged against. Every number is server-
- * computed (constants/glucose.js) — this tab lays them out, it does not
- * recompute them.
+ * clinic acts on. Time in / above / below range as a vertical band chart,
+ * GMI beside the measured HbA1c (which opens the same HbA1c-history trend the
+ * triage vitals grid uses — DRY), SMBG consistency, variability and hypos, the
+ * time-of-day profile and the pre-/post-meal split, and the targets these are
+ * judged against. Every number is server-computed (constants/glucose.js).
  */
 const GlucoseIndicesTab = ({ data, m, t, unit, val, unitLabel, days, isClinician, onEditTargets }) => {
-  const goal = (ok, text) => <span className={`text-[11px] ${ok ? 'text-green-700' : 'text-red-700'}`}>{ok ? '✓' : '✗'} {text}</span>;
   const dim = m && !m.sufficient ? 'opacity-40' : '';
+
+  // Time in range as a vertical stack of labelled bars (very high → very low).
+  const tirRows = [
+    { key: 'veryHigh', pct: m.tir.veryHighPct, range: `> ${val(t.tarLevel2Mgdl)}`, ok: m.tir.veryHighPct < t.tar2GoalPct, goal: `< ${t.tar2GoalPct} %` },
+    { key: 'high', pct: m.tir.highPct, range: `${val(t.tirHighMgdl)}–${val(t.tarLevel2Mgdl)}`, ok: m.tir.abovePct < t.tarGoalPct, goal: `< ${t.tarGoalPct} %` },
+    { key: 'inRange', pct: m.tir.inRangePct, range: `${val(t.tirLowMgdl)}–${val(t.tirHighMgdl)}`, ok: m.tir.inRangePct > t.tirGoalPct, goal: `> ${t.tirGoalPct} %` },
+    { key: 'low', pct: m.tir.lowPct, range: `${val(t.tbrLevel2Mgdl)}–${val(t.tirLowMgdl)}`, ok: m.tir.belowPct < t.tbrGoalPct, goal: `< ${t.tbrGoalPct} %` },
+    { key: 'veryLow', pct: m.tir.veryLowPct, range: `< ${val(t.tbrLevel2Mgdl)}`, ok: m.tir.veryLowPct < t.tbr2GoalPct, goal: `< ${t.tbr2GoalPct} %` },
+  ];
 
   return (
     <div>
       <div className="grid grid-cols-12 gap-3 mb-4">
-        {/* Time in range */}
-        <Metric className={`col-span-12 lg:col-span-5 ${dim}`} label={`Time in range · ${data.window.days || days}-day window`}>
-          <div className="flex h-6 rounded-md overflow-hidden gap-0.5 bg-gray-200 my-2" title="Very low / low / in range / high / very high">
-            {[['veryLowPct', BAND.veryLow], ['lowPct', BAND.low], ['inRangePct', BAND.inRange], ['highPct', BAND.high], ['veryHighPct', BAND.veryHigh]].map(([k, c]) => (
-              <div key={k} style={{ width: `${m.tir[k]}%`, background: c }} />
+        {/* Time in range — vertical band chart */}
+        <div className={`col-span-12 p-3 rounded-xl bg-gray-50 border border-gray-200 ${dim}`}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Time in range · {data.window.days || days}-day window · {unitLabel}</p>
+          <div className="space-y-1.5">
+            {tirRows.map((r) => (
+              <div key={r.key} className="flex items-center gap-2">
+                <span className="w-16 sm:w-20 text-right text-[11px] text-gray-500 flex-shrink-0 tabular-nums">{r.range}</span>
+                <div className="relative flex-1 h-6 bg-gray-100 rounded overflow-hidden">
+                  <div className="h-full rounded" style={{ width: `${Math.max(r.pct, 0)}%`, background: BAND[r.key] }} />
+                  <span className="absolute inset-y-0 right-2 flex items-center text-xs font-bold tabular-nums" style={{ color: r.pct >= 88 ? '#fff' : BAND[r.key] }}>{r.pct} %</span>
+                </div>
+                <span className={`w-24 text-left text-[10px] flex-shrink-0 hidden sm:block ${r.ok ? 'text-green-700' : 'text-red-700'}`}>{r.ok ? '✓' : '✗'} {r.goal}</span>
+              </div>
             ))}
           </div>
-          <div className="grid grid-cols-5 gap-1 text-[11px] leading-tight">
-            <div><b className="text-sm" style={{ color: BAND.veryLow }}>{m.tir.veryLowPct} %</b><div>&lt; {val(t.tbrLevel2Mgdl)}</div>{goal(m.tir.veryLowPct < t.tbr2GoalPct, `< ${t.tbr2GoalPct} %`)}</div>
-            <div><b className="text-sm" style={{ color: BAND.low }}>{m.tir.lowPct} %</b><div>{val(t.tbrLevel2Mgdl)}–{val(t.tirLowMgdl)}</div>{goal(m.tir.belowPct < t.tbrGoalPct, `< ${t.tbrGoalPct} % total`)}</div>
-            <div><b className="text-sm" style={{ color: BAND.inRange }}>{m.tir.inRangePct} %</b><div>{val(t.tirLowMgdl)}–{val(t.tirHighMgdl)}</div>{goal(m.tir.inRangePct > t.tirGoalPct, `> ${t.tirGoalPct} %`)}</div>
-            <div><b className="text-sm" style={{ color: BAND.high }}>{m.tir.highPct} %</b><div>{val(t.tirHighMgdl)}–{val(t.tarLevel2Mgdl)}</div>{goal(m.tir.abovePct < t.tarGoalPct, `< ${t.tarGoalPct} % total`)}</div>
-            <div><b className="text-sm" style={{ color: BAND.veryHigh }}>{m.tir.veryHighPct} %</b><div>&gt; {val(t.tarLevel2Mgdl)}</div>{goal(m.tir.veryHighPct < t.tar2GoalPct, `< ${t.tar2GoalPct} %`)}</div>
-          </div>
-        </Metric>
+        </div>
 
-        {/* HbA1c (measured, expandable) */}
-        <Hba1cCard className="col-span-6 lg:col-span-3" data={data} />
+        {/* HbA1c (measured) — clickable → the triage HbA1c-history modal */}
+        <Hba1cCard className="col-span-6 lg:col-span-4" data={data} />
 
         {/* Estimated GMI */}
         <Metric className={`col-span-6 lg:col-span-4 ${dim}`} label="Estimated GMI (SMBG)" big={m.gmiPct !== null ? `${m.gmiPct} %` : '—'}
           note={<>a CGM formula applied to fingersticks — an estimate{data.hba1c ? <>, to read beside the measured HbA1c</> : null}{!m.sufficient && <span className="text-amber-700"> · too little data to quote</span>}</>} />
 
-        <Metric className="col-span-6 lg:col-span-3" label="Mean" big={<>{val(m.meanMgdl) ?? '—'}<small className="text-xs font-normal text-gray-500 ml-1">{unitLabel}</small></>} note={`SD ${val(m.sdMgdl) ?? '—'}`} />
-        <Metric className="col-span-6 lg:col-span-3" label="Variability · CV" big={<span className={m.cvPct === null ? '' : m.cvPct <= t.cvTargetPct ? 'text-green-700' : 'text-amber-700'}>{m.cvPct ?? '—'}<small className="text-xs font-normal text-gray-500 ml-1">%</small></span>} note={`target ≤ ${t.cvTargetPct} %`} />
-        <Metric className="col-span-12 sm:col-span-6 lg:col-span-2" label="Hypos" big={<span className={m.hypoCount ? 'text-red-700' : ''}>{m.hypoCount}</span>} note={`${m.hypoLevel2Count} below ${val(t.tbrLevel2Mgdl)}`} />
-        <Metric className="col-span-12 lg:col-span-4" label="SMBG consistency" big={<>{m.readingsPerDay}<small className="text-xs font-normal text-gray-500 ml-1">/ day</small></>}
-          note={<>{m.readings} readings · {m.days} days{m.sufficient ? <span className="text-green-700"> · ✓ enough for TIR &amp; GMI</span> : <span className="text-amber-700"> · ⚠ below {m.sufficiency.minDays} days / {m.sufficiency.minReadingsPerDay}-a-day — faded, don&rsquo;t quote</span>}</>} />
+        <Metric className="col-span-6 lg:col-span-4" label="SMBG consistency" big={<>{m.readingsPerDay}<small className="text-xs font-normal text-gray-500 ml-1">/ day</small></>}
+          note={<>{m.readings} readings · {m.days} days{m.sufficient ? <span className="text-green-700"> · ✓ enough for TIR &amp; GMI</span> : <span className="text-amber-700"> · ⚠ below {m.sufficiency.minDays} d / {m.sufficiency.minReadingsPerDay}-a-day</span>}</>} />
+
+        <Metric className="col-span-6 lg:col-span-4" label="Mean" big={<>{val(m.meanMgdl) ?? '—'}<small className="text-xs font-normal text-gray-500 ml-1">{unitLabel}</small></>} note={`SD ${val(m.sdMgdl) ?? '—'}`} />
+        <Metric className="col-span-6 lg:col-span-4" label="Variability · CV" big={<span className={m.cvPct === null ? '' : m.cvPct <= t.cvTargetPct ? 'text-green-700' : 'text-amber-700'}>{m.cvPct ?? '—'}<small className="text-xs font-normal text-gray-500 ml-1">%</small></span>} note={`target ≤ ${t.cvTargetPct} %`} />
+        <Metric className="col-span-6 lg:col-span-4" label="Hypos" big={<span className={m.hypoCount ? 'text-red-700' : ''}>{m.hypoCount}</span>} note={`${m.hypoLevel2Count} below ${val(t.tbrLevel2Mgdl)} · see the Hypos tab`} />
       </div>
 
       {/* Pre / post-meal */}
@@ -73,7 +83,7 @@ const GlucoseIndicesTab = ({ data, m, t, unit, val, unitLabel, days, isClinician
               <XAxis dataKey="label" tick={<TwoLineTick />} interval={0} height={36} />
               <YAxis domain={[0, unit === 'mmol' ? 18 : 324]} tick={{ fontSize: 11, fill: '#6b7280' }} width={34} />
               <ReferenceArea y1={val(t.tirLowMgdl)} y2={val(t.tirHighMgdl)} fill="#dbe8f7" fillOpacity={0.6} />
-              <Tooltip formatter={(v, n) => [v, n === 'mean' ? `Mean (${unitLabel})` : n]} labelFormatter={(l) => l.replace('\n', ' · ')} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+              <Tooltip cursor={false} formatter={(v, n) => [v, n === 'mean' ? `Mean (${unitLabel})` : n]} labelFormatter={(l) => l.replace('\n', ' · ')} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
               <Bar dataKey="mean" name="mean" radius={[4, 4, 0, 0]} isAnimationActive={false} shape={(p) => <rect x={p.x} y={p.y} width={p.width} height={p.height} rx={4} fill={p.payload.n < 3 ? '#cbd5e1' : SOURCE_META.meter.color} />}>
                 <ErrorBar dataKey="sd" width={6} strokeWidth={1.5} stroke="#374151" />
               </Bar>
@@ -103,36 +113,38 @@ const GlucoseIndicesTab = ({ data, m, t, unit, val, unitLabel, days, isClinician
   );
 };
 
-// Measured HbA1c: the latest, clicking reveals the full trend. One card, no
-// second call — the summary already returns the history (DRY).
+// Measured HbA1c: the latest, clickable to open the SAME HbA1c-history trend
+// modal the triage vitals grid uses (DRY). Fed from the summary's hba1cHistory
+// (the PatientVital HbA1c records), so it works in every portal — including the
+// patient's, which cannot call the clinician-only vitals-history endpoint.
 const Hba1cCard = ({ className = '', data }) => {
   const [open, setOpen] = useState(false);
   const hist = data.hba1cHistory || [];
   const latest = data.hba1c;
   const older = hist.slice(1);
   const trendUp = older.length && latest?.value != null && older[0]?.value != null ? latest.value - older[0].value : null;
+  const clickable = hist.length > 0;
+  const history = hist.map((h) => ({ recordedAt: h.at, hba1c: h.value }));
 
   return (
-    <div className={`p-3 rounded-xl bg-gray-50 border border-gray-200 min-w-0 ${className}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Measured HbA1c</p>
-      {latest?.value != null ? (
-        <>
-          <p className="text-2xl font-extrabold text-gray-800 leading-none">{latest.value}<small className="text-xs font-normal text-gray-500 ml-1">%</small>
-            {trendUp !== null && trendUp !== 0 && <small className={`text-xs font-bold ml-2 ${trendUp > 0 ? 'text-red-600' : 'text-green-600'}`}>{trendUp > 0 ? '▲' : '▼'} {Math.abs(Math.round(trendUp * 10) / 10)}</small>}
-          </p>
-          <p className="text-[11px] text-gray-500 mt-1.5">{latest.at ? fmtWhen(latest.at).slice(0, 8) : 'on record'}
-            {older.length > 0 && <button type="button" onClick={() => setOpen((v) => !v)} className="ml-2 inline-flex items-center gap-0.5 font-semibold text-primary">{older.length} previous <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} /></button>}
-          </p>
-          {open && older.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
-              {older.map((h, i) => (
-                <div key={i} className="flex justify-between text-[11px]"><span className="text-gray-500">{h.at ? fmtWhen(h.at).slice(0, 8) : 'on record'}</span><span className="font-bold text-gray-700">{h.value} %</span></div>
-              ))}
-            </div>
-          )}
-        </>
-      ) : <p className="text-sm text-gray-400 mt-2">No HbA1c on record.</p>}
-    </div>
+    <>
+      <div className={`p-3 rounded-xl bg-gray-50 border border-gray-200 min-w-0 ${className} ${clickable ? 'cursor-pointer hover:shadow-sm hover:border-gray-300 transition' : ''}`}
+        onClick={clickable ? () => setOpen(true) : undefined} role={clickable ? 'button' : undefined} tabIndex={clickable ? 0 : undefined}
+        onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true); } } : undefined}>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Measured HbA1c</p>
+        {latest?.value != null ? (
+          <>
+            <p className="text-2xl font-extrabold text-gray-800 leading-none">{latest.value}<small className="text-xs font-normal text-gray-500 ml-1">%</small>
+              {trendUp !== null && trendUp !== 0 && <small className={`text-xs font-bold ml-2 ${trendUp > 0 ? 'text-red-600' : 'text-green-600'}`}>{trendUp > 0 ? '▲' : '▼'} {Math.abs(Math.round(trendUp * 10) / 10)}</small>}
+            </p>
+            <p className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1">{latest.at ? fmtWhen(latest.at).slice(0, 8) : 'on record'}
+              {clickable && <span className="inline-flex items-center gap-0.5 font-semibold text-primary ml-1"><TrendingUp className="w-3 h-3" /> {hist.length} record{hist.length === 1 ? '' : 's'}</span>}
+            </p>
+          </>
+        ) : <p className="text-sm text-gray-400 mt-2">No HbA1c on record.</p>}
+      </div>
+      {open && <VitalsTrendModal group="hba1c" history={history} loading={false} onClose={() => setOpen(false)} />}
+    </>
   );
 };
 

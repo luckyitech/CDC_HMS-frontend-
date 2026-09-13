@@ -101,7 +101,7 @@ const COLOR_LEGEND = [
 ];
 
 // ── VitalsTrendModal ──────────────────────────────────────────────────────────
-const VitalsTrendModal = ({ group, history, loading, onClose }) => {
+export const VitalsTrendModal = ({ group, history, loading, onClose }) => {
   const config = VITAL_GROUPS[group];
   const hasColorCoding = config.columns.some(col => col.colorFn);
 

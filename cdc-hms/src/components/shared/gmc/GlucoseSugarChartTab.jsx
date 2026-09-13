@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { TIME_COLUMNS, BAND, BAND_BG, SOURCE_META, columnForReading, bandOf, fmtTime, Empty } from './gmcShared';
 
 /**
@@ -16,6 +16,9 @@ const weekday = (iso) => { const [y, m, d] = iso.split('-').map(Number); return 
 const dm = (iso) => { const [, m, d] = iso.split('-'); return `${Number(d)}/${Number(m)}`; };
 
 const GlucoseSugarChartTab = ({ data, t, val, unitLabel }) => {
+  const [tip, setTip] = useState(null);
+  const onTip = (e, lines) => setTip({ x: e.clientX, y: e.clientY, lines });
+  const offTip = () => setTip(null);
   const { rows, colMeans, total } = useMemo(() => {
     // day -> column -> [readings]
     const byDay = new Map();
@@ -46,9 +49,9 @@ const GlucoseSugarChartTab = ({ data, t, val, unitLabel }) => {
         <table className="w-full text-sm border-collapse border border-gray-300">
           <thead>
             <tr>
-              <th className="text-left px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 sticky left-0 bg-gray-50 z-10 border border-gray-300">Day</th>
+              <th className="text-left px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500 sticky left-0 bg-gray-50 z-10 border border-gray-300">Day</th>
               {TIME_COLUMNS.map((c) => (
-                <th key={c.key} className="px-1 py-1.5 text-center text-[11px] font-semibold text-gray-600 min-w-[68px] border border-gray-300 bg-gray-50">
+                <th key={c.key} className="px-1 py-1 text-center text-[11px] font-semibold text-gray-600 min-w-[68px] border border-gray-300 bg-gray-50">
                   <div>{c.label}</div><div className="text-[9px] font-normal text-gray-400 uppercase tracking-wide">{c.sub}</div>
                 </th>
               ))}
@@ -57,24 +60,24 @@ const GlucoseSugarChartTab = ({ data, t, val, unitLabel }) => {
           <tbody>
             {rows.map(([day, cols]) => (
               <tr key={day}>
-                <th className="text-left px-2 py-1.5 whitespace-nowrap sticky left-0 bg-white z-10 border border-gray-300">
+                <th className="text-left px-2 py-0.5 whitespace-nowrap sticky left-0 bg-white z-10 border-r border-b border-gray-200 border-b-gray-100">
                   <div className="text-xs font-bold text-gray-700">{dm(day)}</div>
                   <div className="text-[10px] text-gray-400 uppercase">{weekday(day)}</div>
                 </th>
-                {TIME_COLUMNS.map((c) => <Cell key={c.key} readings={cols[c.key]} t={t} val={val} unitLabel={unitLabel} />)}
+                {TIME_COLUMNS.map((c) => <Cell key={c.key} readings={cols[c.key]} t={t} val={val} unitLabel={unitLabel} onTip={onTip} offTip={offTip} />)}
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <th className="text-left px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 sticky left-0 bg-gray-50 z-10 border border-gray-300">Avg</th>
+              <th className="text-left px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 sticky left-0 bg-blue-50 z-10 border-r border-t border-gray-300">Avg</th>
               {TIME_COLUMNS.map((c) => {
                 const mean = colMeans[c.key];
                 const band = mean === null ? null : bandOf(mean, t);
                 return (
-                  <td key={c.key} className="px-1 py-1.5 text-center border border-gray-200">
+                  <td key={c.key} className="px-1 py-1 text-center border-l border-t border-gray-200 bg-blue-50">
                     {mean === null ? <span className="text-gray-300">—</span>
-                      : <span className="inline-block px-2 py-1 rounded-md text-xs font-extrabold" style={{ background: BAND_BG[band], color: BAND[band] }}>{val(mean)}</span>}
+                      : <span className="inline-block text-xs font-extrabold" style={{ color: BAND[band] }}>{val(mean)}</span>}
                   </td>
                 );
               })}
@@ -89,20 +92,27 @@ const GlucoseSugarChartTab = ({ data, t, val, unitLabel }) => {
         ))}
         <span className="text-gray-400">A cell with more than one reading shows the average and a count; hover for each value.</span>
       </div>
+
+      {tip && (
+        <div className="fixed z-50 pointer-events-none bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 shadow-lg max-w-[16rem]"
+          style={{ left: Math.min(tip.x + 14, (typeof window !== 'undefined' ? window.innerWidth : 9999) - 240), top: tip.y + 14 }}>
+          {tip.lines.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      )}
     </div>
   );
 };
 
-const Cell = ({ readings, t, val, unitLabel }) => {
-  if (!readings.length) return <td className="px-1 py-1.5 text-center border border-gray-200"><span className="text-gray-200">·</span></td>;
+const Cell = ({ readings, t, val, unitLabel, onTip, offTip }) => {
+  if (!readings.length) return <td className="px-1 py-0.5 text-center border-l border-b border-gray-200 border-b-gray-100"><span className="text-gray-200">·</span></td>;
   const counted = readings.filter((r) => r.countable);
   const mgs = (counted.length ? counted : readings).map((r) => r.mgdl);
   const mean = mgs.reduce((a, b) => a + b, 0) / mgs.length;
   const band = bandOf(mean, t);
-  const title = readings.map((r) => `${fmtTime(r.at)} · ${val(r.mgdl)} ${unitLabel} · ${SOURCE_META[r.source]?.label || r.source}${r.tagLabel ? ` · ${r.tagLabel}` : ''}`).join('\n');
+  const lines = readings.map((r) => `${fmtTime(r.at)} · ${val(r.mgdl)} ${unitLabel} · ${SOURCE_META[r.source]?.label || r.source}${r.tagLabel ? ` · ${r.tagLabel}` : ''}`);
   return (
-    <td className="px-1 py-1.5 text-center border border-gray-200">
-      <span title={title} className="inline-flex flex-col items-center px-2 py-1 rounded-md" style={{ background: BAND_BG[band] }}>
+    <td className="px-1 py-0.5 text-center border-l border-b border-gray-200 border-b-gray-100" onMouseEnter={(e) => onTip(e, lines)} onMouseLeave={offTip}>
+      <span className="inline-flex flex-col items-center leading-tight">
         <span className="text-sm font-extrabold leading-none" style={{ color: BAND[band] }}>{val(mean)}</span>
         {readings.length > 1 && <span className="text-[9px] font-semibold text-gray-500 mt-0.5">avg · {readings.length}</span>}
       </span>

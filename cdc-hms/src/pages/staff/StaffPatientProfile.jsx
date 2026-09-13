@@ -113,7 +113,7 @@ const StaffPatientProfile = () => {
     { id: "overview",          name: "Overview",           icon: ClipboardList  },
     { id: "notes",             name: "Doctor's Notes",     icon: MessageSquare  },
     { id: "prescriptions",     name: "Prescriptions",      icon: Pill           },
-    { id: "charts",            name: "Glycemic Charts",    icon: LineChart      },
+    { id: "charts",            name: "Sugars",             icon: LineChart      },
     { id: "equipment",         name: "Medical Equipment",  icon: Battery        },
     { id: "medical-documents", name: "Medical Documents",  icon: FileText       },
   ];

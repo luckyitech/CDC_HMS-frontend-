@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Bluetooth, Clock, XCircle, Printer } from 'lucide-react';
+import { Bluetooth, Clock, XCircle, Printer, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from './Card';
 import Button from './Button';
@@ -17,6 +17,7 @@ import {
 import GlucoseDailyTab from './gmc/GlucoseDailyTab';
 import GlucoseSugarChartTab from './gmc/GlucoseSugarChartTab';
 import GlucoseIndicesTab from './gmc/GlucoseIndicesTab';
+import GlucoseHyposTab from './gmc/GlucoseHyposTab';
 import GlucoseLogbookTab from './gmc/GlucoseLogbookTab';
 
 /**
@@ -51,6 +52,7 @@ const TABS = [
   { id: 'daily', label: 'Daily graph' },
   { id: 'chart', label: 'Sugar chart' },
   { id: 'indices', label: 'Indices' },
+  { id: 'hypos', label: 'Hypos' },
   { id: 'logbook', label: 'Logbook' },
 ];
 
@@ -114,32 +116,22 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
 
   return (
     <Card className="!p-4 sm:!p-6 lg:!p-8">
-      {/* ---- header ---- */}
-      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 mb-4">
-        <div>
-          {!isPatient && <h3 className="text-xl lg:text-2xl font-bold text-gray-800">{patient.name} — Glucose Management Centre</h3>}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mt-1">
-            <span className="font-mono">{patient.uhid}</span>
-            <span className={`px-2 py-0.5 rounded-full border font-semibold ${data?.targets?.individualised ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
-              Targets: {data?.targets?.individualised ? `individualised · ${data.targets.meta?.setByName || ''} ${data.targets.meta?.setAt ? new Date(data.targets.meta.setAt).toLocaleDateString('en-GB') : ''}` : 'clinic default (4–10 mmol/L)'}
-            </span>
-            {lastMeter && <span>Last meter download {new Date(lastMeter.lastSyncAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · <span className="font-mono">meter+{lastMeter.deviceSerial}</span></span>}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <SwitcherTabs tabs={WINDOWS} active={win} onChange={setWin} />
-          <div className="flex gap-1">
-            {Object.entries(SOURCE_META).map(([k, meta]) => (
-              <button key={k} type="button" onClick={() => setSources({ ...sources, [k]: !sources[k] })} aria-pressed={sources[k]}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-semibold ${sources[k] ? 'bg-white border-gray-300 text-gray-700' : 'bg-gray-50 border-gray-200 text-gray-400'}`}>
-                <SourceSwatch source={k} /> {meta.label}
-              </button>
-            ))}
-          </div>
-          <SwitcherTabs tabs={UNITS} active={unit} onChange={setUnit} />
-          <Button onClick={() => setDownloadOpen(true)} className="!px-4 !py-2 text-sm"><Bluetooth className="w-4 h-4" /> {isPatient ? 'Sync my meter' : 'Download meter'}</Button>
-          {data && m && <Button variant="outline" onClick={() => setPrintOpen(true)} className="!px-4 !py-2 text-sm"><Printer className="w-4 h-4" /> {isPatient ? 'Save / print' : 'Print summary'}</Button>}
-        </div>
+      {/* ---- meta line ---- */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-3">
+        <span className="font-mono">{patient.uhid}</span>
+        <span className={`px-2 py-0.5 rounded-full border font-semibold ${data?.targets?.individualised ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+          Targets: {data?.targets?.individualised ? `individualised · ${data.targets.meta?.setByName || ''} ${data.targets.meta?.setAt ? new Date(data.targets.meta.setAt).toLocaleDateString('en-GB') : ''}` : 'clinic default (4–10 mmol/L)'}
+        </span>
+        {lastMeter && <span>Meter synced {new Date(lastMeter.lastSyncAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+      </div>
+
+      {/* ---- tabs + view/actions (one row) ---- */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {data && m && t && <SwitcherTabs tabs={TABS} active={tab} onChange={setTab} />}
+        <div className="flex-1 min-w-[1px]" />
+        <ViewMenu win={win} setWin={setWin} unit={unit} setUnit={setUnit} sources={sources} setSources={setSources} />
+        <Button onClick={() => setDownloadOpen(true)} className="!px-3 !py-2 text-sm" title={isPatient ? 'Sync my meter' : 'Download meter'} aria-label={isPatient ? 'Sync my meter' : 'Download meter'}><Bluetooth className="w-4 h-4" /></Button>
+        {data && m && <Button variant="outline" onClick={() => setPrintOpen(true)} className="!px-3 !py-2 text-sm" title={isPatient ? 'Save / print' : 'Print summary'} aria-label={isPatient ? 'Save / print' : 'Print summary'}><Printer className="w-4 h-4" /></Button>}
       </div>
 
       {clockMeter && (
@@ -157,12 +149,10 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
 
       {data && m && t && (
         <>
-          {/* ---- tabs ---- */}
-          <div className="mb-4"><SwitcherTabs tabs={TABS} active={tab} onChange={setTab} /></div>
-
           {tab === 'daily' && <GlucoseDailyTab data={data} t={t} unit={unit} val={val} unitLabel={unitLabel} />}
           {tab === 'chart' && <GlucoseSugarChartTab data={data} t={t} val={val} unitLabel={unitLabel} />}
           {tab === 'indices' && <GlucoseIndicesTab data={data} m={m} t={t} unit={unit} val={val} unitLabel={unitLabel} days={days} isClinician={isClinician} onEditTargets={() => setTargetsOpen(true)} />}
+          {tab === 'hypos' && <GlucoseHyposTab data={data} m={m} t={t} val={val} unitLabel={unitLabel} />}
           {tab === 'logbook' && <GlucoseLogbookTab data={data} t={t} val={val} unitLabel={unitLabel} uhid={uhid} isClinician={isClinician} isPatient={isPatient} load={load} onExcludeRow={setExcludeRow} onRestore={onRestore} />}
         </>
       )}
@@ -238,6 +228,47 @@ const TargetsModal = ({ isOpen, onClose, uhid, unit, current, onSaved }) => {
         <div className="flex justify-end gap-2 pt-2 border-t"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save targets'}</Button></div>
       </div>
     </Modal>
+  );
+};
+
+// ViewMenu — Option 2: the day-window, unit and source filter tucked behind one
+// compact "View" popover so the header stays a single row. Shared component, so
+// every portal (doctor, staff, patient) gets the same tidy header (DRY).
+const ViewMenu = ({ win, setWin, unit, setUnit, sources, setSources }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50">
+        <SlidersHorizontal className="w-4 h-4" /> View <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-11 z-40 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-3 space-y-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Window</p>
+              <SwitcherTabs tabs={WINDOWS} active={win} onChange={setWin} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Unit</p>
+              <SwitcherTabs tabs={UNITS} active={unit} onChange={setUnit} />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">Sources</p>
+              <div className="space-y-0.5">
+                {Object.entries(SOURCE_META).map(([k, meta]) => (
+                  <label key={k} className="flex items-center gap-2 py-1 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={sources[k]} onChange={() => setSources({ ...sources, [k]: !sources[k] })} className="rounded" />
+                    <SourceSwatch source={k} /> {meta.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 };
 

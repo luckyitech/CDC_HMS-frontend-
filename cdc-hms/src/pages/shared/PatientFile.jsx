@@ -134,7 +134,7 @@ const DiagnosticsTab = ({ patient, initialSub = "documents" }) => {
           { id: "documents", label: "Medical Documents" },
           { id: "ultrasound", label: "Radiology" },
           { id: "neuropathy", label: "Neuropathy" },
-          { id: "charts", label: "Charts" },
+          { id: "charts", label: "Sugars" },
         ]}
       />
       {sub === "documents" && <MedicalDocumentsTab patient={patient} />}

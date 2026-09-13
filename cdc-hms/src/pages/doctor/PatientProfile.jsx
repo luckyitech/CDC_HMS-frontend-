@@ -107,7 +107,7 @@ const PatientProfile = () => {
     { id: "overview",          name: "Overview",          Icon: ClipboardList },
     { id: "equipment",         name: "Medical Equipment", Icon: Zap },
     { id: "visit-history",     name: "Visit History",     Icon: Calendar },
-    { id: "glycemic-charts",   name: "Glycemic Charts",   Icon: TrendingUp },
+    { id: "glycemic-charts",   name: "Sugars",            Icon: TrendingUp },
     { id: "medical-documents", name: "Medical Documents", Icon: FileText },
     { id: "ultrasound",        name: "Ultrasound",        Icon: Waves },
   ];
