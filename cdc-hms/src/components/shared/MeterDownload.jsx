@@ -67,7 +67,7 @@ const readingsPayload = (r) => r.readings.map(({ sequenceNumber, measuredAt, tim
  *   onImported  (result) => void — after a successful import (refresh charts)
  *   compact     tighter layout for the modal
  */
-const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
+const MeterDownload = ({ patient, onImported = () => {}, compact = false, variant = 'clinic' }) => {
   const [phase, setPhase] = useState('idle');   // idle | reading | conflict | importing | done | error
   const [progress, setProgress] = useState(null);
   const [read, setRead] = useState(null);       // readMeter() result
@@ -96,12 +96,12 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
       });
       const data = res?.data || res;
       setResult(data); setPhase('done');
-      toast.success(outcomeText(data, patientName || uhid, r).headline);
+      toast.success(outcomeText(data, variant === 'patient' ? 'you' : (patientName || uhid), r).headline);
       onImported(data);
     } catch (e) {
       setErr(e?.message || 'Import failed.'); setPhase('error');
     }
-  }, [uhid, patientName, onImported]);
+  }, [uhid, patientName, onImported, variant]);
 
   // ---- 1 + 2. Connect, read, then straight into the import ---------------
   const connect = useCallback(async () => {
@@ -125,13 +125,19 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
       setRead(r); setPre(preflight);
       const state = preflight?.link || 'unlinked';
       // Nothing to file → no link question either; the API just records the sync.
-      if (state === 'conflict' && r.readings.length) { setPhase('conflict'); return; }
+      if (state === 'conflict' && r.readings.length) {
+        if (variant === 'patient') {
+          setErr('This meter is registered to another patient at the clinic. Please mention it at your next visit so we can sort it out — nothing was imported.');
+          setPhase('error'); return;
+        }
+        setPhase('conflict'); return;
+      }
       await doImport(r, state === 'unlinked' && r.readings.length ? { action: 'link' } : undefined);
     } catch (e) {
       if (e?.code === 'cancelled') { setPhase('idle'); setProgress(null); return; }
       setErr(e?.message || 'Could not read the meter.'); setPhase('error');
     }
-  }, [uhid, doImport]);
+  }, [uhid, doImport, variant]);
 
   const canResolve = !!link.reason.trim() && (link.action === 'share' || !!link.usedFromDate);
   const resolveConflict = () => {
@@ -142,7 +148,7 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
   const markClock = async () => {
     const meterId = result?.meter?.id || pre?.meter?.id;
     if (!meterId) return;
-    try { await glucoseService.markClockCorrected(uhid, meterId); setClockDone(true); toast.success('Meter clock noted as corrected'); }
+    try { await glucoseService.markClockCorrected(uhid, meterId); setClockDone(true); toast.success('Noted — applies to future downloads'); }
     catch (e) { toast.error(e?.message || 'Could not save'); }
   };
 
@@ -151,7 +157,7 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
     return (
       <div className="p-4 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-800 flex items-start gap-2">
         <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-        <span>This browser cannot talk to Bluetooth meters. Open the HMS in <strong>Chrome or Edge</strong> on a PC with Bluetooth.</span>
+<span>This browser cannot connect to a Bluetooth meter. {variant === 'patient' ? <>Open this page in <strong>Chrome</strong> on an Android phone, or on a computer with Bluetooth — it does not work on iPhone or Safari.</> : <>Open the HMS in <strong>Chrome or Edge</strong> on a PC with Bluetooth.</>}</span>
       </div>
     );
   }
@@ -166,12 +172,12 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
             <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-sm text-red-700 flex items-start gap-2"><XCircle className="w-5 h-5 flex-shrink-0" /><span>{err}</span></div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-            <div className="p-3 rounded-lg bg-gray-50 border border-gray-200"><p className="font-semibold text-gray-800 mb-1">First time with this meter on this PC</p><p className="text-gray-600">{METER_SOP.firstTime}</p></div>
+            <div className="p-3 rounded-lg bg-gray-50 border border-gray-200"><p className="font-semibold text-gray-800 mb-1">First time with this meter on this {variant === 'patient' ? 'device' : 'PC'}</p><p className="text-gray-600">{METER_SOP.firstTime}</p></div>
             <div className="p-3 rounded-lg bg-gray-50 border border-gray-200"><p className="font-semibold text-gray-800 mb-1">Already paired</p><p className="text-gray-600">{METER_SOP.later}</p><p className="text-xs text-gray-400 mt-1">{METER_SOP.chooserFirst}</p></div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <Button onClick={connect}><Bluetooth className="w-4 h-4" /> Connect and import</Button>
-            <span className="text-xs text-gray-500">Read-only on the meter · nothing is deleted from it · every reading is filed for the doctor to review.</span>
+            <span className="text-xs text-gray-500">Read-only on the meter · nothing is deleted from it · every reading is filed{variant === 'patient' ? ' for your doctor to review' : ' for the doctor to review'}.</span>
           </div>
         </>
       )}
@@ -218,12 +224,12 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
           <Stepper step={3} />
           <div className="p-3 rounded-lg border border-green-200 bg-green-50 text-sm text-green-800 flex items-start gap-2">
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
-            {(() => { const o = outcomeText(result, patient?.name || uhid, read); return <span><strong>{o.headline}.</strong> {o.detail}</span>; })()}
+            {(() => { const o = outcomeText(result, variant === 'patient' ? 'you' : (patient?.name || uhid), read); return <span><strong>{o.headline}.</strong> {o.detail}</span>; })()}
           </div>
           {result.clockDriftWarn && (
             <label className="flex items-start gap-2 text-sm text-amber-800 p-3 rounded-lg border border-amber-200 bg-amber-50">
               <input type="checkbox" className="mt-1" checked={clockDone} disabled={clockDone} onChange={markClock} />
-              <span className="flex items-start gap-1.5"><Clock className="w-4 h-4 flex-shrink-0 mt-0.5" /><span><strong>The meter clock is {fmtDelta(result.clockDeltaSec)}.</strong> {METER_SOP.clock} Tick once you have set it.</span></span>
+              <span className="flex items-start gap-1.5"><Clock className="w-4 h-4 flex-shrink-0 mt-0.5" /><span><strong>The meter clock is {fmtDelta(result.clockDeltaSec)}.</strong> {METER_SOP.clock} Tick once you have set it on the meter.</span></span>
             </label>
           )}
           <div className="flex gap-3"><Button variant="outline" onClick={reset}>Download another meter</Button></div>
@@ -234,9 +240,9 @@ const MeterDownload = ({ patient, onImported = () => {}, compact = false }) => {
 };
 
 /** The same flow in a modal — for the doctor's Glucose card and the GMC. */
-export const MeterDownloadModal = ({ isOpen, onClose, patient, onImported }) => (
-  <Modal isOpen={isOpen} onClose={onClose} title={`Download meter — ${patient?.name || patient?.uhid || ''}`} size="xl">
-    <MeterDownload patient={patient} compact onImported={(r) => { onImported?.(r); }} />
+export const MeterDownloadModal = ({ isOpen, onClose, patient, onImported, variant = 'clinic' }) => (
+  <Modal isOpen={isOpen} onClose={onClose} title={`${variant === 'patient' ? 'Sync my meter' : 'Download meter'} — ${patient?.name || patient?.uhid || ''}`} size="xl">
+    <MeterDownload patient={patient} compact variant={variant} onImported={(r) => { onImported?.(r); }} />
   </Modal>
 );
 

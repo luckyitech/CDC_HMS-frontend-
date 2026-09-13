@@ -366,5 +366,5 @@ export const METER_SOP = Object.freeze({
   firstTime: 'With the meter OFF, hold ▼ until the Bluetooth symbol shows, then pick it in the list. Type the 6-digit PIN from the label on the back of the meter — once only.',
   later: 'Switch the meter on with a short press and pick it in the list. No PIN.',
   chooserFirst: 'Open the list first, then switch the meter on — it only advertises for a short while.',
-  clock: 'If the meter clock is out, set it on the meter now. The readings are fine; only their times are suspect.',
+  clock: 'If the meter clock is out, set it on the device now. This fixes the times on future downloads only — readings already filed keep the meter\'s own time. The values themselves are fine; only their times are suspect.',
 });

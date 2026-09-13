@@ -3,7 +3,7 @@ import {
   ComposedChart, ScatterChart, Scatter, Bar, ErrorBar, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip,
   ReferenceArea, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
-import { Bluetooth, Clock, XCircle, Target, RotateCcw } from 'lucide-react';
+import { Bluetooth, Clock, XCircle, Target, RotateCcw, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from './Card';
 import Button from './Button';
@@ -12,6 +12,8 @@ import ReasonModal from './ReasonModal';
 import Modal from './Modal';
 import GlycemicChartPanel from '../doctor/GlycemicChartPanel';
 import { MeterDownloadModal } from './MeterDownload';
+import GlucoseDiaryPanel from './GlucoseDiaryPanel';
+import GlucoseSummaryPrint from './GlucoseSummaryPrint';
 import { glucoseService } from '../../services/glucoseService';
 import { useUserContext } from '../../contexts/UserContext';
 import { canAccessAdmin } from '../../utils/permissions';
@@ -60,6 +62,15 @@ const SOURCE_META = {
 // Glucose-state colours — reserved for the TIR bar, never used for a series.
 const BAND = { veryLow: '#b91c1c', low: '#ef4444', inRange: '#16a34a', high: '#f59e0b', veryHigh: '#c2410c' };
 const MMOL = 18;
+// Diary event types — icon colour on the chart and in the diary panel.
+const DIARY_META = {
+  meal:     { label: 'Meal',     color: '#0891b2' },
+  activity: { label: 'Activity', color: '#16a34a' },
+  insulin:  { label: 'Insulin',  color: '#7c3aed' },
+  oral_med: { label: 'Oral med', color: '#d97706' },
+  symptom:  { label: 'Symptom',  color: '#dc2626' },
+  note:     { label: 'Note',     color: '#6b7280' },
+};
 
 const fmtDelta = (s) => { const a = Math.abs(s); const h = Math.floor(a / 3600), m = Math.round((a % 3600) / 60); return `${h ? `${h} h ` : ''}${m} min ${s > 0 ? 'behind' : 'ahead'}`; };
 const fmtWhen = (naive) => { if (!naive) return '—'; const [d, t] = naive.split(' '); const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y.slice(2)} ${t.slice(0, 5)}`; };
@@ -68,6 +79,7 @@ const dayLabel = (naive) => { const [, m, d] = naive.slice(0, 10).split('-'); re
 const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
   const { currentUser } = useUserContext();
   const isClinician = variant === 'doctor' && (currentUser?.role === 'doctor' || canAccessAdmin(currentUser));
+  const isPatient = variant === 'patient';
   const uhid = patient?.uhid;
 
   const [win, setWin] = useState('14');
@@ -80,6 +92,7 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
   const [excludeRow, setExcludeRow] = useState(null);
   const [targetsOpen, setTargetsOpen] = useState(false);
   const [showAllRows, setShowAllRows] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
 
   const days = WINDOWS.find((w) => w.id === win)?.days || 14;
   const activeSources = Object.entries(sources).filter(([, on]) => on).map(([k]) => k);
@@ -115,8 +128,14 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
     const byDay = [...byDayMap.entries()].map(([k, xs]) => { const [y, mo, dd] = k.split('-').map(Number); return { x: Date.UTC(y, mo - 1, dd, 12), y: val(xs.reduce((a, b) => a + b, 0) / xs.length) }; }).sort((a, b) => a.x - b.x);
     const from = Date.UTC(...data.window.from.split('-').map((n, i) => (i === 1 ? Number(n) - 1 : Number(n))));
     const to = Date.UTC(...data.window.to.split('-').map((n, i) => (i === 1 ? Number(n) - 1 : Number(n)))) + 86400000;
-    return { points, byDay, from, to };
-  }, [data, val]);
+    const diaryBase = unit === 'mmol' ? 2 : 36;
+    const diaryPoints = (data.diary || []).map((ev) => {
+      const [d, tm] = ev.at.split(' ');
+      const [y, mo, dd] = d.split('-').map(Number); const [h, mi] = tm.split(':').map(Number);
+      return { x: Date.UTC(y, mo - 1, dd, h, mi), y: diaryBase, diary: true, diaryType: ev.eventType, label: ev.label, at: ev.at, detail: ev.detail };
+    });
+    return { points, byDay, from, to, diaryPoints };
+  }, [data, val, unit]);
 
   const logbookRows = useMemo(() => (data?.readings || []).filter((r) => r.source === 'logbook' || (r.source === 'clinic' && String(r.id).startsWith('log-'))).map((r) => ({ date: r.at.slice(0, 10), timeSlot: r.tag, value: r.mgdl })), [data]);
 
@@ -134,7 +153,7 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
     catch (e) { toast.error(e?.message || 'Could not restore'); }
   };
   const onClockCorrected = async () => {
-    try { await glucoseService.markClockCorrected(uhid, clockMeter.id); toast.success('Meter clock noted as corrected'); load(); }
+    try { await glucoseService.markClockCorrected(uhid, clockMeter.id); toast.success('Noted — applies to future downloads'); load(); }
     catch (e) { toast.error(e?.message || 'Could not save'); }
   };
 
@@ -148,7 +167,7 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
       {/* ---- header ---- */}
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3 mb-4">
         <div>
-          <h3 className="text-xl lg:text-2xl font-bold text-gray-800">{patient.name} — Glucose Management Centre</h3>
+          <h3 className="text-xl lg:text-2xl font-bold text-gray-800">{isPatient ? 'My Glucose Centre' : `${patient.name} — Glucose Management Centre`}</h3>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mt-1">
             <span className="font-mono">{patient.uhid}</span>
             {data?.hba1c && <span>HbA1c <strong className="text-gray-700">{data.hba1c.value} %</strong>{data.hba1c.at ? ` (${fmtWhen(data.hba1c.at).slice(0, 8)})` : ''}</span>}
@@ -169,17 +188,16 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
             ))}
           </div>
           <SwitcherTabs tabs={UNITS} active={unit} onChange={setUnit} />
-          {variant === 'doctor' && (
-            <Button onClick={() => setDownloadOpen(true)} className="!px-4 !py-2 text-sm"><Bluetooth className="w-4 h-4" /> Download meter</Button>
-          )}
+          <Button onClick={() => setDownloadOpen(true)} className="!px-4 !py-2 text-sm"><Bluetooth className="w-4 h-4" /> {isPatient ? 'Sync my meter' : 'Download meter'}</Button>
+          {data && m && <Button variant="outline" onClick={() => setPrintOpen(true)} className="!px-4 !py-2 text-sm"><Printer className="w-4 h-4" /> {isPatient ? 'Save / print' : 'Print summary'}</Button>}
         </div>
       </div>
 
       {clockMeter && (
         <div className="mb-4 p-3 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-800 flex items-start gap-2">
           <Clock className="w-5 h-5 flex-shrink-0" />
-          <span><strong>Meter clock was {fmtDelta(clockMeter.lastClockDeltaSec)} at the last download.</strong> Reading times are the meter&rsquo;s own and are not adjusted; time-of-day buckets for this meter are low-confidence until the clock is set.{' '}
-            {variant === 'doctor' && <button type="button" className="font-semibold underline" onClick={onClockCorrected}>Mark as corrected</button>}</span>
+          <span><strong>Meter clock was {fmtDelta(clockMeter.lastClockDeltaSec)} at the last download.</strong> Reading times are the meter&rsquo;s own and are not adjusted; time-of-day buckets for this meter are low-confidence until the clock is set. Marking it set applies to future downloads only — readings already filed keep the meter&rsquo;s own time.{' '}
+            <button type="button" className="font-semibold underline" onClick={onClockCorrected}>{isPatient ? "I've set my meter clock" : "I've set the meter clock"}</button></span>
         </div>
       )}
 
@@ -215,6 +233,19 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
               note={<>{m.sufficient ? <span className="text-green-700">✓ enough for TIR and GMI (≥ {m.sufficiency.minDays} days, ≥ {m.sufficiency.minReadingsPerDay} / day)</span> : <span className="text-amber-700">⚠ below the {m.sufficiency.minDays}-day / {m.sufficiency.minReadingsPerDay}-a-day floor — TIR and GMI are faded and should not be quoted</span>} · fasting readings in the {val(t.fastingLowMgdl)}–{val(t.fastingHighMgdl)} band: <strong>{m.fasting.inBandPct === null ? '—' : `${m.fasting.inBandPct} %`}</strong> (n = {m.fasting.n}) · time-of-day by clock time</>} />
           </div>
 
+          {m.mealTags && (m.mealTags.pre.n > 0 || m.mealTags.post.n > 0) && (
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {[['Pre-meal', m.mealTags.pre], ['Post-meal', m.mealTags.post]].map(([label, mt]) => (
+                <div key={label} className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1">{label} average</p>
+                  <p className="text-2xl font-extrabold text-gray-800 leading-none">{val(mt.meanMgdl) ?? '—'}<small className="text-xs font-normal text-gray-500 ml-1">{unitLabel}</small></p>
+                  <p className="text-[11px] text-gray-500 mt-1.5">{mt.inRangePct === null ? '—' : `${mt.inRangePct} % in range`} · n = {mt.n}</p>
+                </div>
+              ))}
+              <p className="col-span-2 text-[11px] text-gray-400">Meal timing from the diary and logbook{m.mealTags.matched ? ` · ${m.mealTags.matched} meter reading${m.mealTags.matched === 1 ? '' : 's'} matched to a diary meal` : ''}. A reading up to 60 min before a meal is pre-meal; 60–180 min after is post-meal.</p>
+            </div>
+          )}
+
           {/* ---- time-series ---- */}
           <ChartCard title="Every reading in the window" caption={`Meter readings at the meter's own time · shaded band = target range ${val(t.tirLowMgdl)}–${val(t.tirHighMgdl)} ${unitLabel} · ring = below ${val(t.tirLowMgdl)}`}>
             {series.points.length === 0 ? <Empty text="No readings in this window." /> : (
@@ -232,6 +263,7 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
                     {Object.entries(SOURCE_META).map(([k, meta]) => (
                       <Scatter key={k} name={meta.label} data={series.points.filter((p) => p.source === k)} fill={meta.color} shape={(props) => <PointShape {...props} lowMgdl={t.tirLowMgdl} />} isAnimationActive={false} />
                     ))}
+                    {series.diaryPoints?.length > 0 && <Scatter name="Diary" data={series.diaryPoints} shape={(props) => <DiaryShape {...props} />} legendType="none" isAnimationActive={false} />}
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
@@ -241,6 +273,7 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
               <span className="inline-flex items-center gap-1.5"><i className="inline-block w-3 h-3 rounded-full border-2" style={{ borderColor: BAND.low }} /> Hypo</span>
               <span className="inline-flex items-center gap-1.5"><i className="inline-block w-3 h-3" style={{ background: '#dbe8f7' }} /> In-range band</span>
               <span className="inline-flex items-center gap-1.5 text-gray-400">struck through = excluded</span>
+              {series.diaryPoints?.length > 0 && <span className="inline-flex items-center gap-1.5"><i className="inline-block w-0 h-0" style={{ borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderBottom: `7px solid ${DIARY_META.meal.color}` }} /> Diary event</span>}
             </div>
           </ChartCard>
 
@@ -268,6 +301,11 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
               <GlycemicChartPanel patient={patient} readings={logbookRows} embedded />
             </ChartCard>
           </div>
+
+          {/* ---- diary ---- */}
+          <ChartCard title={isPatient ? 'My diary' : 'Patient diary'} caption="Meals, activity, insulin, oral medication, symptoms and notes · meal entries tag nearby meter readings pre-/post-meal automatically">
+            <GlucoseDiaryPanel uhid={uhid} events={data.diary || []} onChanged={load} canEdit isPatient={isPatient} unit={unit} />
+          </ChartCard>
 
           {/* ---- readings table ---- */}
           <ChartCard title="Readings" caption={`${data.readings.length} in the last ${data.window.days || days} days · ${data.readings.filter((r) => r.excluded).length} excluded · excluded rows stay visible with who and why — nothing is deleted`}>
@@ -326,7 +364,8 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
         </>
       )}
 
-      <MeterDownloadModal isOpen={downloadOpen} onClose={() => setDownloadOpen(false)} patient={patient} onImported={() => load()} />
+      <MeterDownloadModal isOpen={downloadOpen} onClose={() => setDownloadOpen(false)} patient={patient} variant={variant} onImported={() => load()} />
+      {printOpen && data && m && <GlucoseSummaryPrint data={data} patient={patient} unit={unit} onClose={() => setPrintOpen(false)} />}
       <ReasonModal isOpen={!!excludeRow} onClose={() => setExcludeRow(null)} title="Exclude this reading" message={excludeRow ? `${fmtWhen(excludeRow.at)} · ${val(excludeRow.mgdl)} ${unitLabel}. It stays in the record, struck through, with your name and this reason; it is left out of the metrics.` : ''} confirmLabel="Exclude" placeholder="e.g. Expired strip · control test · not this patient" onConfirm={onExclude} />
       {isClinician && data && <TargetsModal isOpen={targetsOpen} onClose={() => setTargetsOpen(false)} uhid={uhid} unit={unit} current={data.targets} onSaved={() => { setTargetsOpen(false); load(); }} />}
     </Card>
@@ -384,9 +423,28 @@ const PointShape = ({ cx, cy, payload, fill, lowMgdl }) => {
   );
 };
 
+// A diary event on the chart: a small upward triangle at the baseline, coloured
+// by type. Details live in the diary panel and the tooltip.
+const DiaryShape = ({ cx, cy, payload }) => {
+  if (cx === undefined || cy === undefined) return null;
+  const color = DIARY_META[payload.diaryType]?.color || DIARY_META.note.color;
+  return <path d={`M ${cx} ${cy - 7} L ${cx - 5} ${cy + 2} L ${cx + 5} ${cy + 2} Z`} fill={color} stroke="#fff" strokeWidth={1} />;
+};
+
 const PointTip = ({ active, payload, unitLabel }) => {
   const p = payload?.[0]?.payload;
-  if (!active || !p || p.source === undefined) return null;
+  if (!active || !p) return null;
+  if (p.diary) {
+    const meta = DIARY_META[p.diaryType] || DIARY_META.note;
+    const bits = [p.label, p.detail?.carbs != null ? `${p.detail.carbs} g carbs` : null, p.detail?.minutes != null ? `${p.detail.minutes} min` : null, p.detail?.units != null ? `${p.detail.units} units` : null, p.detail?.drug || null, p.detail?.severity || null].filter(Boolean);
+    return (
+      <div className="bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 shadow">
+        <div><strong>{meta.label}</strong> · {fmtWhen(p.at)}</div>
+        {bits.length > 0 && <div className="text-gray-300">{bits.join(' · ')}</div>}
+      </div>
+    );
+  }
+  if (p.source === undefined) return null;
   return (
     <div className="bg-gray-800 text-white text-xs rounded-lg px-2.5 py-1.5 shadow">
       <div><strong>{p.y} {unitLabel}</strong> · {fmtWhen(p.at)}</div>
