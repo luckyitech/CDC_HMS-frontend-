@@ -8,19 +8,26 @@ import { useRef } from "react";
  *   <button onClick={handlePrint}>Print</button>
  *   <div ref={printRef}>…document body…</div>
  *
- * Why this is NOT react-to-print any more.
+ * Why this is NOT react-to-print.
  * react-to-print prints by building a hidden <iframe> and calling print() on
  * it. Desktop browsers print the iframe fine — but iOS / iPadOS Safari CANNOT
- * print an iframe and silently prints the visible page instead. So on the
+ * print an iframe and silently prints the visible page instead, so on the
  * clinic tablets every prescription / lab request came out looking like a
- * "screenshot" of the app screen rather than the clean letterhead document.
+ * "screenshot" of the app screen rather than the letterhead document.
  *
  * Instead we print the MAIN document, which every browser (tablets included)
  * prints correctly: on print we clone the ref'd content into a `.print-portal`
  * appended directly to <body>, and an injected @media print stylesheet hides
  * the live app (#root) and shows only the portal. Tailwind classes still apply
- * because it is the same document, so the printout is identical to what desktop
+ * because it is the same document, so the printout matches what desktop
  * produced before. Everything is torn down again on `afterprint`.
+ *
+ * ⚠️ iOS gesture rule: Safari on iPad/iPhone only honours window.print() when it
+ * is called SYNCHRONOUSLY inside the tap handler. Calling it from a promise or
+ * setTimeout callback (e.g. after waiting for images to load) is silently
+ * ignored — the button appears to do nothing. So we print immediately here. The
+ * letterhead logo is already loaded (it is shown in the on-screen preview / the
+ * off-screen PrintRoot), so the clone renders fully without any wait.
  *
  * Default paper size A4 (changeable in the browser dialog). The @page margin
  * gives multi-page documents top/bottom breathing room; the content's own
@@ -95,28 +102,12 @@ const usePrint = ({ pageSize = "A4" } = {}) => {
     };
     window.addEventListener("afterprint", cleanup);
 
-    // Wait for any images in the clone (the letterhead logo) to be ready before
-    // printing, then fire. A timed fallback tears down for the rare browser that
-    // never emits `afterprint`.
-    const imgs = Array.from(portal.querySelectorAll("img"));
-    const ready = Promise.all(
-      imgs.map((img) =>
-        img.complete
-          ? Promise.resolve()
-          : new Promise((resolve) => {
-              img.onload = resolve;
-              img.onerror = resolve;
-            })
-      )
-    );
-
-    ready.then(() => {
-      // A beat for layout, then print.
-      setTimeout(() => {
-        window.print();
-        setTimeout(cleanup, 2000);
-      }, 50);
-    });
+    // Print NOW, synchronously inside the user gesture (see the iOS note above).
+    // On desktop, print() blocks until the dialog closes and `afterprint` then
+    // cleans up; on iOS it returns immediately and the timed fallback below
+    // tears everything down (some iOS versions never emit `afterprint`).
+    window.print();
+    setTimeout(cleanup, 3000);
   };
 
   return { printRef, handlePrint };
