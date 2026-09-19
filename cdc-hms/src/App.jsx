@@ -209,6 +209,7 @@ function App() {
                   <Route path="appointments" element={<DoctorAppointmentsList />} />
                   <Route path="my-schedule" element={<MySchedule />} />
                   <Route path="stock" element={<Stocks />} />
+                  <Route path="lab-inbox" element={<LabInbox />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -239,6 +240,7 @@ function App() {
                   <Route path="test-history" element={<TestHistory />} />
                   <Route path="generate-reports" element={<GenerateReports />} />
                   <Route path="critical-alerts" element={<CriticalAlerts />} />
+                  <Route path="lab-inbox" element={<LabInbox />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

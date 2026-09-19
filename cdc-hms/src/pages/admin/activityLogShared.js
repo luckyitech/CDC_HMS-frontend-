@@ -1,4 +1,4 @@
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Inbox, Trash2, SlidersHorizontal } from 'lucide-react';
 
 // Shared by ActivityLog and its drilldown modal, so an event tagged "Triaged"
 // looks identical whether it's a row in the main table or in the popup
@@ -33,6 +33,9 @@ export const ACTION_STYLE = {
   slot_blocked:          { color: 'bg-red-100 text-red-700',       icon: Lock },
   barcode_scanned:       { color: 'bg-blue-100 text-blue-700',     icon: ScanLine },
   barcode_generated:     { color: 'bg-teal-100 text-teal-700',     icon: QrCode },
+  lab_report_paired:     { color: 'bg-cyan-100 text-cyan-700',     icon: Inbox },
+  lab_report_discarded:  { color: 'bg-gray-100 text-gray-700',     icon: Trash2 },
+  setting_changed:       { color: 'bg-amber-100 text-amber-800',   icon: SlidersHorizontal },
 };
 
 export const formatDateTime = (iso) => {

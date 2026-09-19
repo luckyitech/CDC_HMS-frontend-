@@ -10,9 +10,9 @@ import { formatDateTime } from '../../utils/dateUtils';
  * right. The PDF is fetched through the authenticated API as a blob (the
  * staged file is deliberately NOT on a public URL) and shown in an iframe.
  *
- * Props: isOpen, onClose, item, onPaired, onDiscarded
+ * Props: isOpen, onClose, item, onPaired, onDiscarded, readOnly (view-only holder)
  */
-const LabInboxPreviewModal = ({ isOpen, onClose, item, onPaired, onDiscarded }) => {
+const LabInboxPreviewModal = ({ isOpen, onClose, item, onPaired, onDiscarded, readOnly = false }) => {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
@@ -78,7 +78,11 @@ const LabInboxPreviewModal = ({ isOpen, onClose, item, onPaired, onDiscarded }) 
             {item.emailDate && <p className="text-gray-500">Received {formatDateTime(item.emailDate)}</p>}
           </div>
 
-          {item.status === 'New' ? (
+          {item.status === 'New' && readOnly ? (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-600">
+              Waiting to be paired. You can view this report but not pair or discard it — ask an administrator for the Lab Inbox write permission if you need to.
+            </div>
+          ) : item.status === 'New' ? (
             // key forces a fresh form per item — no state bleeding between reports
             <LabInboxPairForm key={item.id} item={item} onPaired={onPaired} onDiscarded={onDiscarded} />
           ) : item.status === 'Matched' ? (

@@ -42,6 +42,9 @@ const ACTION_TYPES = [
   { value: 'slot_blocked',          label: 'Blocked Slot' },
   { value: 'barcode_scanned',       label: 'Scanned Barcode' },
   { value: 'barcode_generated',     label: 'Generated Barcode' },
+  { value: 'lab_report_paired',     label: 'Paired Lab Report' },
+  { value: 'lab_report_discarded',  label: 'Discarded Lab Report' },
+  { value: 'setting_changed',       label: 'Changed Setting' },
 ];
 
 // `type` is the underlying event type (matches ACTION_STYLE / ACTION_TYPES and
@@ -76,6 +79,9 @@ const SUMMARY_FIELDS = [
   { key: 'slotBlocked',          type: 'slot_blocked',            label: 'Slots Blocked',          color: 'text-red-600' },
   { key: 'barcodeScanned',       type: 'barcode_scanned',         label: 'Barcodes Scanned',       color: 'text-blue-600' },
   { key: 'barcodeGenerated',     type: 'barcode_generated',       label: 'Barcodes Generated',     color: 'text-teal-600' },
+  { key: 'labReportPaired',      type: 'lab_report_paired',       label: 'Lab Reports Paired',     color: 'text-cyan-600' },
+  { key: 'labReportDiscarded',   type: 'lab_report_discarded',    label: 'Lab Reports Discarded',  color: 'text-gray-600' },
+  { key: 'settingChanged',       type: 'setting_changed',         label: 'Settings Changed',       color: 'text-amber-600' },
 ];
 
 // Matches the sm/lg Tailwind breakpoints the rest of the page uses. Columns

@@ -42,6 +42,8 @@ export const PERMISSIONS = {
   STOCK_WRITE:      'stock.write',
   LAB_VIEW:         'lab.view',
   LAB_WRITE:        'lab.write',
+  LABINBOX_VIEW:    'labinbox.view',
+  LABINBOX_WRITE:   'labinbox.write',
 
   // The clinical record, as opposed to the patient's identity and
   // administration. Reception needs to know who a patient is, where they are in

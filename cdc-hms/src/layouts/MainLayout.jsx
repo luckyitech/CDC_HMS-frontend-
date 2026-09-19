@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, hasPermission, passesAdminGate, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, hasPermission, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -106,6 +106,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // `lab_inbox_new`), whenever the route changes (a pair/discard on the inbox
   // page changes the count), and on a slow timer as a fallback.
   const [labInboxCount, setLabInboxCount] = useState(0);
+  // Who has a Lab Inbox entry in their sidebar: staff and lab by role (unless
+  // withdrawn), a doctor only when granted. Mirrors the route gate.
+  const labInboxInNav =
+    !isWithdrawn(currentUser, PERMISSIONS.LABINBOX_VIEW)
+    && (['staff', 'lab'].includes(homeRole)
+        || (homeRole === 'doctor' && passesAdminGate(currentUser, PERMISSIONS.LABINBOX_VIEW)));
   const refreshLabInboxCount = useCallback(() => {
     labInboxService.count()
       .then((r) => setLabInboxCount(r?.data?.count || 0))
@@ -113,11 +119,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
   }, []);
   // route change → refresh (cheap: one GET)
   useEffect(() => {
-    if (homeRole === 'staff') refreshLabInboxCount();
-  }, [homeRole, location.pathname, refreshLabInboxCount]);
+    if (labInboxInNav) refreshLabInboxCount();
+  }, [labInboxInNav, location.pathname, refreshLabInboxCount]);
   // one SSE subscription + slow fallback timer for the life of the layout
   useEffect(() => {
-    if (homeRole !== 'staff') return undefined;
+    if (!labInboxInNav) return undefined;
     const timer = setInterval(refreshLabInboxCount, 2 * 60 * 1000);
     const SSE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/sse`;
     const source = new EventSource(SSE_URL);
@@ -129,7 +135,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       source.close();
       window.removeEventListener('lab-inbox:changed', refreshLabInboxCount);
     };
-  }, [homeRole, refreshLabInboxCount]);
+  }, [labInboxInNav, refreshLabInboxCount]);
   // Only these portals actually mount an /{portal}/inpatient-board route (App.jsx).
   // The nurse and inpatient portals do NOT: a nurse's own dashboard IS the ward
   // board, and the inpatient workspace has /inpatient/board. Generating the tab
@@ -143,7 +149,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // Hide any nav entry or tab this person cannot use. A real admin holds every
   // capability implicitly, so hasPermission keeps the full menu for them.
   // Untagged entries are open to anyone already inside the portal.
-  const allowedEntry = (item) => !item.permission || passesAdminGate(currentUser, item.permission);
+  // `permission`  — shown only when GRANTED (or admin.access): for areas nobody holds by role.
+  // `withdrawnBy` — shown by ROLE DEFAULT, hidden only when an admin has WITHDRAWN that
+  //                 capability from this person (the server refuses them anyway).
+  const allowedEntry = (item) =>
+    (!item.permission || passesAdminGate(currentUser, item.permission))
+    && !(item.withdrawnBy && isWithdrawn(currentUser, item.withdrawnBy));
 
   const dashboardTabs = [
     {
@@ -364,13 +375,15 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
       // External lab reports pulled from the clinic mailbox, waiting to be
       // paired to a patient. The badge is the number still unpaired.
-      { name: "Lab Inbox", path: "/staff/lab-inbox", icon: Inbox, badge: labInboxCount },
+      { name: "Lab Inbox", path: "/staff/lab-inbox", icon: Inbox, badge: labInboxCount, withdrawnBy: PERMISSIONS.LABINBOX_VIEW },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
     ],
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
       { name: "Patients", path: "/doctor/patients", icon: Users },
+      // Not a doctor's job by default — appears only if an admin grants it on the Permissions tab.
+      { name: "Lab Inbox", path: "/doctor/lab-inbox", icon: Inbox, badge: labInboxCount, permission: PERMISSIONS.LABINBOX_VIEW },
       // {
       //   name: "Consultations",
       //   path: "/doctor/consultations",
@@ -415,6 +428,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
       },
       { name: "Enter Results", path: "/lab/enter-results", icon: Edit },
       { name: "Test History", path: "/lab/test-history", icon: Search },
+      // Emailed lab reports waiting to be paired to a patient (by role; hidden if withdrawn).
+      { name: "Lab Inbox", path: "/lab/lab-inbox", icon: Inbox, badge: labInboxCount, withdrawnBy: PERMISSIONS.LABINBOX_VIEW },
       {
         name: "Generate Reports",
         path: "/lab/generate-reports",

@@ -12,6 +12,8 @@ import LabInboxPairForm from '../../components/shared/LabInboxPairForm';
 import LabInboxPreviewModal from '../../components/shared/LabInboxPreviewModal';
 import labInboxService from '../../services/labInboxService';
 import { useUserContext } from '../../contexts/UserContext';
+import NoAccess from '../../components/shared/NoAccess';
+import { PERMISSIONS, hasPermission, isWithdrawn } from '../../utils/permissions';
 import { notify } from '../../utils/notify';
 import { formatDateTime } from '../../utils/dateUtils';
 import {
@@ -37,6 +39,14 @@ const LabInbox = () => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
   const isAdmin = currentUser?.role === 'admin';
+  // Mirrors routes/labInbox.js: staff + lab (+ admin) by role, a doctor/nurse when
+  // granted; either capability can be withdrawn by an admin. The server enforces
+  // this too — the checks here only decide what to draw.
+  const byRole = ['staff', 'lab', 'admin'].includes(currentUser?.role);
+  const canView = !isWithdrawn(currentUser, PERMISSIONS.LABINBOX_VIEW)
+    && (byRole || hasPermission(currentUser, PERMISSIONS.LABINBOX_VIEW));
+  const canWrite = canView && !isWithdrawn(currentUser, PERMISSIONS.LABINBOX_WRITE)
+    && (byRole || hasPermission(currentUser, PERMISSIONS.LABINBOX_WRITE));
 
   const [tab, setTab] = useState('New');
   const [items, setItems] = useState([]);
@@ -102,6 +112,10 @@ const LabInbox = () => {
     ].some((v) => v && String(v).toLowerCase().includes(q)));
   }, [items, query]);
 
+  if (!canView) {
+    return <NoAccess message="You don't have access to the Lab Inbox. Ask an administrator if you need it." />;
+  }
+
   const newCount = status?.count ?? 0;
   const lastPoll = status?.lastPoll;
   const notConfigured = status && status.isConfigured === false;
@@ -119,6 +133,7 @@ const LabInbox = () => {
               <span className={`w-1.5 h-1.5 rounded-full ${lastPoll ? (lastPoll.ok ? 'bg-green-500' : 'bg-red-500') : 'bg-gray-300'}`} />
               {lastPoll ? (lastPoll.ok ? `Synced ${timeAgo(lastPoll.at)}` : `Last check failed ${timeAgo(lastPoll.at)}`) : 'Never synced'}
             </span>
+            {canWrite && (
             <button
               type="button"
               onClick={pullNow}
@@ -128,6 +143,7 @@ const LabInbox = () => {
               {polling ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               Pull now
             </button>
+            )}
           </div>
         }
       />
@@ -245,9 +261,9 @@ const LabInbox = () => {
                       onClick={() => setPreviewItem(it)}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-blue-700"
                     >
-                      <Eye className="w-3.5 h-3.5" /> {isNew ? 'Preview & pair' : 'View'}
+                      <Eye className="w-3.5 h-3.5" /> {isNew && canWrite ? 'Preview & pair' : 'View'}
                     </button>
-                    {isNew && (
+                    {isNew && canWrite && (
                       <button
                         type="button"
                         onClick={() => setExpandedId(expanded ? null : it.id)}
@@ -289,6 +305,7 @@ const LabInbox = () => {
       <LabInboxPreviewModal
         isOpen={!!previewItem}
         item={previewItem}
+        readOnly={!canWrite}
         onClose={() => setPreviewItem(null)}
         onPaired={afterChange}
         onDiscarded={afterChange}
