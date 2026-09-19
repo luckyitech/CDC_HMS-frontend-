@@ -107,6 +107,8 @@ const NeuropathyStudioPage    = lazy(() => import("./pages/radiology/NeuropathyS
 const WardBoard          = lazy(() => import("./pages/inpatient/WardBoard"));
 const AdmissionDetail    = lazy(() => import("./pages/inpatient/AdmissionDetail"));
 const InpatientAdmissions = lazy(() => import("./pages/staff/InpatientAdmissions"));
+// External lab reports pulled from the clinic mailbox — pair each to a patient.
+const LabInbox           = lazy(() => import("./pages/staff/LabInbox"));
 
 // Loading fallback shown while a lazy chunk is downloading
 const PageLoader = () => (
@@ -180,6 +182,7 @@ function App() {
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="stock" element={<Stocks />} />
                   <Route path="inpatient-admissions" element={<InpatientAdmissions />} />
+                  <Route path="lab-inbox" element={<LabInbox />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Check } from 'lucide-react';
+import { KeyRound, Check, Inbox } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
 import Toggle from '../../components/shared/Toggle';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
+import LabInboxSettingsTab from '../../components/admin/settings/LabInboxSettingsTab';
+
+// The settings page is tabbed — one tab per settings area. Add an entry here
+// (and a component) to grow it; the password policy stays the first tab.
+const SETTINGS_TABS = [
+  { id: 'password', label: 'Password policy', Icon: KeyRound },
+  { id: 'labInbox', label: 'Lab Inbox',       Icon: Inbox },
+];
 import settingsService from '../../services/settingsService';
 import { notify } from '../../utils/notify';
 
 const ROLE_LABELS = { doctor: 'Doctors', staff: 'Staff', lab: 'Lab technicians', nurse: 'Nurses' };
 
 const SystemSettings = () => {
+  const [tab, setTab] = useState('password');
   const [rotation, setRotation] = useState(null);  // null = loading
   const [saving, setSaving] = useState(false);
   const [confirmingEnable, setConfirmingEnable] = useState(false);
@@ -82,8 +92,13 @@ const SystemSettings = () => {
     <div className="max-w-3xl mx-auto">
       <PageHeader title="System Settings" subtitle="Clinic-wide policies and access controls" />
 
+      <SwitcherTabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} className="mb-4" />
+
+      {tab === 'labInbox' && <LabInboxSettingsTab />}
+
       {/* Card is used without its `title` prop so the switch can sit on the
           header row itself, which is where a settings toggle belongs. */}
+      {tab === 'password' && (
       <Card>
         <div className="flex items-center justify-between gap-4 pb-4 border-b">
           <div className="flex items-center gap-3">
@@ -162,6 +177,7 @@ const SystemSettings = () => {
           </p>
         )}
       </Card>
+      )}
 
       <ConfirmActionModal
         isOpen={confirmingEnable}

@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
 
-  const sizeClass = size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-md';
+  // '2xl' — side-by-side layouts (a document preview beside a form), e.g. the Lab Inbox pairing modal.
+  const sizeClass = size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : size === '2xl' ? 'max-w-6xl' : 'max-w-md';
 
   return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

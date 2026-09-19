@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import useSessionTimeout from "../hooks/useSessionTimeout";
 import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
@@ -51,8 +51,10 @@ import {
   Waves,
   Scan,
   Footprints,
+  Inbox,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
+import labInboxService from "../services/labInboxService";
 
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
@@ -98,6 +100,36 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // renders at /{portal}/inpatient-board), so the sidebar never changes. Nurses
   // keep their own ward-board home.
   const homeRole = userRole.toLowerCase();
+
+  // Lab Inbox badge — how many external lab reports are waiting to be paired.
+  // Staff portal only. Refreshed when the poller imports something (SSE
+  // `lab_inbox_new`), whenever the route changes (a pair/discard on the inbox
+  // page changes the count), and on a slow timer as a fallback.
+  const [labInboxCount, setLabInboxCount] = useState(0);
+  const refreshLabInboxCount = useCallback(() => {
+    labInboxService.count()
+      .then((r) => setLabInboxCount(r?.data?.count || 0))
+      .catch(() => { /* not granted or not set up — badge stays hidden */ });
+  }, []);
+  // route change → refresh (cheap: one GET)
+  useEffect(() => {
+    if (homeRole === 'staff') refreshLabInboxCount();
+  }, [homeRole, location.pathname, refreshLabInboxCount]);
+  // one SSE subscription + slow fallback timer for the life of the layout
+  useEffect(() => {
+    if (homeRole !== 'staff') return undefined;
+    const timer = setInterval(refreshLabInboxCount, 2 * 60 * 1000);
+    const SSE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/sse`;
+    const source = new EventSource(SSE_URL);
+    source.addEventListener('lab_inbox_new', refreshLabInboxCount);
+    // The inbox page announces a pair/discard/pull (no route change, no SSE).
+    window.addEventListener('lab-inbox:changed', refreshLabInboxCount);
+    return () => {
+      clearInterval(timer);
+      source.close();
+      window.removeEventListener('lab-inbox:changed', refreshLabInboxCount);
+    };
+  }, [homeRole, refreshLabInboxCount]);
   // Only these portals actually mount an /{portal}/inpatient-board route (App.jsx).
   // The nurse and inpatient portals do NOT: a nurse's own dashboard IS the ward
   // board, and the inpatient workspace has /inpatient/board. Generating the tab
@@ -330,6 +362,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // Appointments group entry — Book Appointment + Patient Visits are its tabs.
       { name: "Appointments", path: "/staff/appointments", icon: Calendar },
       { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
+      // External lab reports pulled from the clinic mailbox, waiting to be
+      // paired to a patient. The badge is the number still unpaired.
+      { name: "Lab Inbox", path: "/staff/lab-inbox", icon: Inbox, badge: labInboxCount },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
     ],
@@ -482,7 +517,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
             square in the icon rail, a full-width pill when the rail is expanded. */}
         <span
           className={`
-            flex items-center rounded-xl transition-colors duration-200
+            relative flex items-center rounded-xl transition-colors duration-200
             ${isCollapsed ? "md:w-10 md:h-10 md:justify-center md:p-0 w-full px-3 py-2.5" : "w-full px-3 py-2.5"}
             ${
               isActive
@@ -512,6 +547,20 @@ const MainLayout = ({ userRole = "Staff" }) => {
           >
             {item.name}
           </span>
+          {/* Count badge (e.g. unpaired lab reports). A pill when the rail is
+              expanded; a small dot on the icon when collapsed. */}
+          {item.badge > 0 && (
+            <>
+              <span
+                className={`ml-auto min-w-[1.35rem] h-5 px-1.5 rounded-full bg-secondary text-[#062a2b] text-[11px] font-extrabold flex items-center justify-center ${isCollapsed ? "md:hidden" : ""}`}
+              >
+                {item.badge > 99 ? "99+" : item.badge}
+              </span>
+              <span
+                className={`hidden ${isCollapsed ? "md:block" : ""} absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-secondary ring-2 ring-[#0b2233]`}
+              />
+            </>
+          )}
         </span>
       </button>
     );
