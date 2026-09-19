@@ -19,6 +19,19 @@ export const WINDOWS = [
 ];
 export const UNITS = [{ id: 'mmol', label: 'mmol/L' }, { id: 'mgdl', label: 'mg/dL' }];
 
+// The "modal day" overlay palette — one shared source for the Daily-graph
+// overlay tab AND the printed report's daily section, so a day drawn on screen
+// and the same day on paper carry the same colour. Colour here means "which
+// day", not a glucose band, so it deliberately steers clear of the clinical
+// red / green used by the bands — a day-line is never mistaken for a band edge.
+export const OVERLAY_COLORS = [
+  '#1d4ed8', '#7c3aed', '#c026d3', '#db2777', '#ea580c', '#d97706', '#0891b2',
+  '#0d9488', '#4d7c0f', '#b45309', '#6d28d9', '#be123c', '#2563eb', '#a16207',
+];
+// How many days overlay at once with a distinct colour; a wider range shows the
+// most recent OVERLAY_MAX days with data.
+export const OVERLAY_MAX = 14;
+
 // Source colour follows provenance, never the value — a clinician trusts a
 // number differently depending on where it came from.
 export const SOURCE_META = {
@@ -74,6 +87,11 @@ export const makeVal = (unit) => (mgdl) =>
   (mgdl === null || mgdl === undefined ? null : unit === 'mmol' ? Math.round((mgdl / MMOL) * 10) / 10 : Math.round(mgdl));
 
 export const unitLabelFor = (unit) => (unit === 'mmol' ? 'mmol/L' : 'mg/dL');
+
+// Minutes since midnight from a naive "YYYY-MM-DD HH:MM:SS" timestamp — the
+// x-position on a time-of-day chart. Shared by the Daily-graph tab and the
+// printed daily-overlay so both place a reading at the same point.
+export const minutesOfDay = (at) => { const h = Number(String(at).slice(11, 13)); const m = Number(String(at).slice(14, 16)); return (Number.isNaN(h) ? 0 : h) * 60 + (Number.isNaN(m) ? 0 : m); };
 
 // Which glucose band a mg/dL value sits in, against the effective targets.
 export const bandOf = (mgdl, t) => {

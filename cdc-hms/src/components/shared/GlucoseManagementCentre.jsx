@@ -7,7 +7,7 @@ import SwitcherTabs from './SwitcherTabs';
 import ReasonModal from './ReasonModal';
 import Modal from './Modal';
 import { MeterDownloadModal } from './MeterDownload';
-import GlucoseSummaryPrint from './GlucoseSummaryPrint';
+import GlucoseReportPrint from './GlucoseReportPrint';
 import { glucoseService } from '../../services/glucoseService';
 import { useUserContext } from '../../contexts/UserContext';
 import { canAccessAdmin } from '../../utils/permissions';
@@ -28,15 +28,18 @@ import GlucoseLogbookTab from './gmc/GlucoseLogbookTab';
  * `variant`. The patient variant reuses everything else verbatim, so what a
  * patient sees at home is exactly what the doctor sees in clinic.
  *
- * The screen is organised into four tabs so no single view is crowded:
- *   • Daily graph — one day at a time, CGM-style, with the diary overlaid
+ * The screen is organised into five tabs so no single view is crowded:
+ *   • Daily graph — one day at a time (or the overlaid modal-day), CGM-style
  *   • Sugar chart — the SMBG logbook grid (days × meal slots), colour-coded
  *   • Indices     — GMI, measured HbA1c (+ trend), TIR/TAR/TBR, consistency, targets
+ *   • Hypos       — the low-glucose picture
  *   • Logbook     — the running record of every reading and diary entry
  *
  * A persistent header carries the window (7/14/30/90 days), the source filter,
  * the unit toggle (mmol/L default, switches to mg/dL — the app converts), and
- * the meter-download and print actions, so those apply across every tab.
+ * the meter-download and print actions, so those apply across every tab. The
+ * Print action opens a report builder (ReportMenu → GlucoseReportPrint): pick
+ * any sections onto one letterhead document, Indices always first.
  *
  * All maths are SERVER-SIDE (GET /patients/:uhid/glucose/summary →
  * backend/constants/glucose.js) so this screen, the patient's and any print
@@ -52,6 +55,15 @@ const TABS = [
   { id: 'daily', label: 'Daily graph' },
   { id: 'chart', label: 'Sugar chart' },
   { id: 'indices', label: 'Indices' },
+  { id: 'hypos', label: 'Hypos' },
+  { id: 'logbook', label: 'Logbook' },
+];
+
+// The sections a report can carry beyond Indices (which is always included and
+// always first). Order here is the order they print after Indices.
+const REPORT_PICKS = [
+  { id: 'daily', label: 'Daily graph' },
+  { id: 'chart', label: 'Sugar chart' },
   { id: 'hypos', label: 'Hypos' },
   { id: 'logbook', label: 'Logbook' },
 ];
@@ -72,7 +84,7 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [excludeRow, setExcludeRow] = useState(null);
   const [targetsOpen, setTargetsOpen] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
+  const [reportSections, setReportSections] = useState(null); // null = closed; array of section ids = open
 
   const days = WINDOWS.find((w) => w.id === win)?.days || 14;
   const activeSources = Object.entries(sources).filter(([, on]) => on).map(([k]) => k);
@@ -131,7 +143,7 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
         <div className="flex-1 min-w-[1px]" />
         <ViewMenu win={win} setWin={setWin} unit={unit} setUnit={setUnit} sources={sources} setSources={setSources} />
         <Button onClick={() => setDownloadOpen(true)} className="!px-3 !py-2 text-sm" title={isPatient ? 'Sync my meter' : 'Download meter'} aria-label={isPatient ? 'Sync my meter' : 'Download meter'}><Bluetooth className="w-4 h-4" /></Button>
-        {data && m && <Button variant="outline" onClick={() => setPrintOpen(true)} className="!px-3 !py-2 text-sm" title={isPatient ? 'Save / print' : 'Print summary'} aria-label={isPatient ? 'Save / print' : 'Print summary'}><Printer className="w-4 h-4" /></Button>}
+        {data && m && <ReportMenu currentTab={tab} isPatient={isPatient} onRun={setReportSections} />}
       </div>
 
       {clockMeter && (
@@ -158,7 +170,7 @@ const GlucoseManagementCentre = ({ patient, variant = 'doctor' }) => {
       )}
 
       <MeterDownloadModal isOpen={downloadOpen} onClose={() => setDownloadOpen(false)} patient={patient} variant={variant} onImported={() => load()} />
-      {printOpen && data && m && <GlucoseSummaryPrint data={data} patient={patient} unit={unit} onClose={() => setPrintOpen(false)} />}
+      {reportSections && data && m && <GlucoseReportPrint data={data} patient={patient} unit={unit} sections={reportSections} onClose={() => setReportSections(null)} />}
       <ReasonModal isOpen={!!excludeRow} onClose={() => setExcludeRow(null)} title="Exclude this reading" message={excludeRow ? `${fmtWhen(excludeRow.at)} · ${val(excludeRow.mgdl)} ${unitLabel}. It stays in the record, struck through, with your name and this reason; it is left out of the metrics.` : ''} confirmLabel="Exclude" placeholder="e.g. Expired strip · control test · not this patient" onConfirm={onExclude} />
       {isClinician && data && <TargetsModal isOpen={targetsOpen} onClose={() => setTargetsOpen(false)} uhid={uhid} unit={unit} current={data.targets} onSaved={() => { setTargetsOpen(false); load(); }} />}
     </Card>
@@ -265,6 +277,61 @@ const ViewMenu = ({ win, setWin, unit, setUnit, sources, setSources }) => {
                 ))}
               </div>
             </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ReportMenu — the Print button opens this chooser: tick which sections to build
+// into one letterhead report. Indices is always included and always prints
+// first (pinned, disabled here); the rest print in tab order after it. "Current
+// tab" pre-selects whatever tab the user is on; "All" or "Indices only" are one
+// tap. Confirming hands the section-id list up to open GlucoseReportPrint. DRY:
+// every portal (doctor, staff, patient) gets the same builder.
+const ReportMenu = ({ currentTab, isPatient, onRun }) => {
+  const [open, setOpen] = useState(false);
+  const [sel, setSel] = useState({});
+
+  // On open, seed the picks with the tab the user is currently viewing.
+  useEffect(() => {
+    if (!open) return;
+    setSel(currentTab && currentTab !== 'indices' ? { [currentTab]: true } : {});
+  }, [open, currentTab]);
+
+  const toggle = (id) => setSel((s) => ({ ...s, [id]: !s[id] }));
+  const run = () => {
+    setOpen(false);
+    onRun(REPORT_PICKS.map((p) => p.id).filter((id) => sel[id])); // Indices is added by the report itself
+  };
+
+  return (
+    <div className="relative">
+      <Button variant="outline" onClick={() => setOpen((o) => !o)} className="!px-3 !py-2 text-sm" title={isPatient ? 'Save report' : 'Print / report'} aria-label={isPatient ? 'Save report' : 'Print report'}>
+        <Printer className="w-4 h-4" />
+      </Button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-11 z-40 w-64 bg-white border border-gray-200 rounded-xl shadow-xl p-3">
+            <p className="font-bold text-gray-800 text-sm">Build a report</p>
+            <p className="text-[11px] text-gray-500 mb-2">Tick what to include. Indices always prints first.</p>
+            <label className="flex items-center gap-2 py-1 text-sm text-indigo-800">
+              <input type="checkbox" checked disabled className="rounded" />
+              Indices <span className="ml-auto text-[9px] font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-1.5 py-0.5">1st</span>
+            </label>
+            {REPORT_PICKS.map((p) => (
+              <label key={p.id} className="flex items-center gap-2 py-1 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={!!sel[p.id]} onChange={() => toggle(p.id)} className="rounded" /> {p.label}
+              </label>
+            ))}
+            <div className="flex gap-1.5 mt-2 mb-2">
+              <button type="button" onClick={() => setSel(Object.fromEntries(REPORT_PICKS.map((p) => [p.id, true])))} className="flex-1 text-[11px] font-semibold text-gray-600 border border-gray-300 rounded-lg py-1.5 hover:bg-gray-50">All</button>
+              <button type="button" onClick={() => setSel(currentTab && currentTab !== 'indices' ? { [currentTab]: true } : {})} className="flex-1 text-[11px] font-semibold text-gray-600 border border-gray-300 rounded-lg py-1.5 hover:bg-gray-50">Current tab</button>
+              <button type="button" onClick={() => setSel({})} className="flex-1 text-[11px] font-semibold text-gray-600 border border-gray-300 rounded-lg py-1.5 hover:bg-gray-50">Indices only</button>
+            </div>
+            <Button onClick={run} className="w-full !py-2 text-sm">Preview / Print</Button>
           </div>
         </>
       )}

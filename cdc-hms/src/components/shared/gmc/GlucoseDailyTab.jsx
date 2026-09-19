@@ -6,6 +6,7 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   SOURCE_META, BAND, DIARY_META, SourceSwatch, ChartCard, Empty, PointShape, DiaryShape, PointTip, bandOf, dayHeading, fmtWhen,
+  minutesOfDay, OVERLAY_COLORS, OVERLAY_MAX,
 } from './gmcShared';
 
 /**
@@ -26,25 +27,14 @@ import {
  * readings — a convenience summary of one day, distinct from the server's
  * window-wide consensus metrics on the Indices tab.
  */
-const minutesOfDay = (at) => { const h = Number(at.slice(11, 13)); const m = Number(at.slice(14, 16)); return h * 60 + m; };
 const addDays = (iso, n) => { const [y, mo, d] = iso.split('-').map(Number); const dt = new Date(y, mo - 1, d + n); const p = (x) => String(x).padStart(2, '0'); return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`; };
 const HOUR_TICKS = [0, 360, 720, 1080, 1440];
 const fmtHour = (v) => (v >= 1440 ? '00:00' : `${String(Math.floor(v / 60)).padStart(2, '0')}:00`);
 
-// How many days can overlay at once with a distinct colour. Beyond this the
-// range still works but shows the most recent OVERLAY_MAX days with data.
-const OVERLAY_MAX = 14;
 // A soft ceiling: past this many lines the colours get hard to tell apart, so
-// we show a gentle note (but still draw them).
+// we show a gentle note (but still draw them). OVERLAY_MAX / OVERLAY_COLORS are
+// shared with the printed report (gmcShared) so screen and paper agree.
 const OVERLAY_SOFT = 8;
-
-// Categorical palette for the overlaid days. Colour here means "which day", not
-// a glucose band, so it deliberately steers clear of the clinical red / green
-// used by the bands — a day-line is never mistaken for a band edge.
-const OVERLAY_COLORS = [
-  '#1d4ed8', '#7c3aed', '#c026d3', '#db2777', '#ea580c', '#d97706', '#0891b2',
-  '#0d9488', '#4d7c0f', '#b45309', '#6d28d9', '#be123c', '#2563eb', '#a16207',
-];
 
 // One day's figures, counted from countable readings (same rule as the
 // single-day strip), reused by the overlay legend.
