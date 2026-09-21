@@ -83,11 +83,12 @@ const cell = "border border-gray-300 px-3 py-1.5 text-sm text-left";
 /** The bordered table used for medications, tests and results.
  *  columns: [{ header, cell: (row, index) => node, className? }]
  *  perRow: items side by side per table row (2 halves a long test list's
- *  height); the column set repeats, numbering runs left to right. */
+ *  height); the column set repeats and numbering runs DOWN each column
+ *  (1–8 on the left, 9–15 on the right), the way a list is read. */
 export const PrintTable = ({ columns, rows, perRow = 1 }) => {
-  const lines = [];
-  for (let i = 0; i < rows.length; i += perRow) lines.push(rows.slice(i, i + perRow));
+  const depth = Math.ceil(rows.length / perRow);
   const sets = Array.from({ length: perRow }, (_, s) => s);
+  const lines = Array.from({ length: depth }, (_, li) => sets.map((s) => s * depth + li));
 
   return (
     <table className="w-full border-collapse border-2 border-gray-300">
@@ -102,10 +103,10 @@ export const PrintTable = ({ columns, rows, perRow = 1 }) => {
         {lines.map((line, li) => (
           <tr key={li}>
             {sets.flatMap((s) => columns.map((c) => {
-              const row = line[s];
+              const idx = line[s];
               return (
                 <td key={`${s}-${c.header}`} className={`${cell} ${c.className || ""}`}>
-                  {row !== undefined ? c.cell(row, li * perRow + s) : ""}
+                  {idx < rows.length ? c.cell(rows[idx], idx) : ""}
                 </td>
               );
             }))}
