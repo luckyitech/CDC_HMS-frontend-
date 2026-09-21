@@ -20,7 +20,8 @@ import { useRef } from "react";
  * appended directly to <body>, and an injected @media print stylesheet hides
  * the live app (#root) and shows only the portal. Tailwind classes still apply
  * because it is the same document, so the printout matches what desktop
- * produced before. Everything is torn down again on `afterprint`.
+ * produced before. Everything is torn down again afterwards (see the iOS
+ * teardown rule below).
  *
  * ⚠️ iOS gesture rule: Safari on iPad/iPhone only honours window.print() when it
  * is called SYNCHRONOUSLY inside the tap handler. Calling it from a promise or
@@ -49,7 +50,7 @@ let teardownActive = null;
  * document. Shared by usePrint and the label/summary printers in utils/print.
  * Must be called synchronously inside the tap/click handler (iOS gesture rule).
  */
-export const printElement = (content, { pageSize = "A4", pageMargin = "14mm 0" } = {}) => {
+export const printElement = (content, { pageSize = "A4", pageMargin = "8mm 0" } = {}) => {
   teardownActive?.();
 
   // A detached copy of the content, mounted as a direct child of <body> so a
@@ -68,7 +69,9 @@ export const printElement = (content, { pageSize = "A4", pageMargin = "14mm 0" }
       size: ${pageSize};
       /* Vertical margin gives every page breathing room — a footer gap at the
          bottom of one page and a header gap at the top of the next, so multi-
-         page documents never run content to the paper edge at a break. */
+         page documents never run content to the paper edge at a break. Kept
+         small (8mm) because the printer adds its own unprintable edge on top,
+         and 14mm left a large blank band above the letterhead. */
       margin: ${pageMargin};
     }
     @media print {
@@ -77,12 +80,20 @@ export const printElement = (content, { pageSize = "A4", pageMargin = "14mm 0" }
         padding: 0 !important;
         width: 100% !important;
         background: #fff !important;
+        /* index.css pins html/body to one viewport (height:100%, overflow:hidden)
+           for the installed app. On paper that clipped everything after page 1,
+           so a long prescription — or any document on A5 — lost its tail. */
+        height: auto !important;
+        overflow: visible !important;
       }
       /* Hide the live app; print ONLY the cloned document. This is what makes
          it work on iOS/iPadOS Safari (which prints the main document, never an
          iframe). */
       body > #root { display: none !important; }
       body > .print-portal { display: block !important; }
+      /* The document's own top padding (p-6/p-8 on screen) would stack on the
+         page margin — start the letterhead right at the margin instead. */
+      body > .print-portal > :first-child { padding-top: 0 !important; margin-top: 0 !important; }
       /* Multi-page hygiene. Without these a long table splits mid-row and the
          column headings never reappear, so page 2 is a wall of unlabelled
          values — for a medication list that is a dispensing hazard, not just
