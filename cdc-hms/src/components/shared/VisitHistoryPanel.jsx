@@ -1857,7 +1857,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             onBehalfOfDoctor: viewLabReq.onBehalfOfDoctor,
             tests: (viewLabReq.tests || []).filter((t) => t.status !== 'Cancelled'),
           }}
-          patient={{ name: patient?.name, uhid: patient?.uhid, age: patient?.age, gender: patient?.gender }}
+          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender }}
           onClose={() => setViewLabReq(null)}
         />
       )}
