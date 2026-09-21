@@ -35,7 +35,7 @@ const TABS = [
  * status "Pending Review", and notifies the doctor — the same path a manual
  * upload takes. A wrong pull is Discarded, never deleted.
  */
-const LabInbox = () => {
+const LabInbox = ({ embedded = false }) => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
   const isAdmin = currentUser?.role === 'admin';
@@ -120,33 +120,42 @@ const LabInbox = () => {
   const lastPoll = status?.lastPoll;
   const notConfigured = status && status.isConfigured === false;
 
+  // Sync-status pill + Pull now — shown in the PageHeader on the standalone page,
+  // and in a slim right-aligned row when embedded as the Inbox "Lab reports" tab
+  // (where the Inbox already provides the heading, so the title would be redundant).
+  const syncControls = (
+    <div className="flex items-center gap-2">
+      <span className={`hidden sm:inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border ${
+        lastPoll?.ok === false ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-white text-gray-600'
+      }`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${lastPoll ? (lastPoll.ok ? 'bg-green-500' : 'bg-red-500') : 'bg-gray-300'}`} />
+        {lastPoll ? (lastPoll.ok ? `Synced ${timeAgo(lastPoll.at)}` : `Last check failed ${timeAgo(lastPoll.at)}`) : 'Never synced'}
+      </span>
+      {canWrite && (
+      <button
+        type="button"
+        onClick={pullNow}
+        disabled={polling || notConfigured}
+        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+      >
+        {polling ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+        Pull now
+      </button>
+      )}
+    </div>
+  );
+
   return (
     <div>
-      <PageHeader
-        title="Lab Inbox"
-        subtitle="External lab reports pulled from the clinic mailbox. Pair each one to a patient — it files into their Diagnostics as Pending Review."
-        actions={
-          <div className="flex items-center gap-2">
-            <span className={`hidden sm:inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border ${
-              lastPoll?.ok === false ? 'border-red-200 bg-red-50 text-red-700' : 'border-gray-200 bg-white text-gray-600'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${lastPoll ? (lastPoll.ok ? 'bg-green-500' : 'bg-red-500') : 'bg-gray-300'}`} />
-              {lastPoll ? (lastPoll.ok ? `Synced ${timeAgo(lastPoll.at)}` : `Last check failed ${timeAgo(lastPoll.at)}`) : 'Never synced'}
-            </span>
-            {canWrite && (
-            <button
-              type="button"
-              onClick={pullNow}
-              disabled={polling || notConfigured}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {polling ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              Pull now
-            </button>
-            )}
-          </div>
-        }
-      />
+      {embedded ? (
+        <div className="mb-4 flex justify-end">{syncControls}</div>
+      ) : (
+        <PageHeader
+          title="Lab Inbox"
+          subtitle="External lab reports pulled from the clinic mailbox. Pair each one to a patient — it files into their Diagnostics as Pending Review."
+          actions={syncControls}
+        />
+      )}
 
       {notConfigured && (
         <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

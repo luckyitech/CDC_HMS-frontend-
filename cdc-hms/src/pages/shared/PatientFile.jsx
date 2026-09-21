@@ -59,8 +59,9 @@ const REST_TABS = [
   { id: "visit-history", name: "Visit History", Icon: Calendar },
   // Diagnostics hosts three sub-tabs: Medical Documents, Ultrasound and Charts.
   { id: "medical-documents", name: "Diagnostics", Icon: FileText },
-  { id: "communications", name: "Communications", Icon: MessageCircle },
   { id: "equipment", name: "Medical Equipment", Icon: Battery },
+  // Communications sits second-last, just before the appended User Management tab.
+  { id: "communications", name: "Communications", Icon: MessageCircle },
 ];
 
 // The role-specific live tabs, keyed by the portal's `liveTab`.

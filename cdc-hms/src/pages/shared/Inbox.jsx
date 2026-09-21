@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MessageCircle, FlaskConical, Bell, BarChart3 } from 'lucide-react';
+import { MessageCircle, FlaskConical, Bell, BarChart3, Clock } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { hasPermission, isWithdrawn, PERMISSIONS } from '../../utils/permissions';
 import commsService from '../../services/commsService';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import WhatsAppTab from '../../components/inbox/WhatsAppTab';
 import LabReportsTab from '../../components/inbox/LabReportsTab';
 import RemindersTab from '../../components/inbox/RemindersTab';
@@ -28,33 +29,30 @@ const Inbox = () => {
   const refreshBadge = useCallback(() => { commsService.badge().then((r) => setBadge(r.data)).catch(() => {}); }, []);
   useEffect(() => { refreshBadge(); const h = () => refreshBadge(); window.addEventListener('comms:changed', h); window.addEventListener('lab-inbox:changed', h); const t = setInterval(refreshBadge, 60000); return () => { window.removeEventListener('comms:changed', h); window.removeEventListener('lab-inbox:changed', h); clearInterval(t); }; }, [refreshBadge]);
 
-  const tabs = [
-    canViewComms && { key: 'whatsapp', label: 'WhatsApp', Icon: MessageCircle, badge: badge?.whatsapp?.unread },
-    canViewLab && { key: 'lab', label: 'Lab reports', Icon: FlaskConical, badge: badge?.lab?.new },
-    canViewComms && { key: 'reminders', label: 'Reminders', Icon: Bell, badge: badge?.reminders?.due },
-    canViewComms && { key: 'analytics', label: 'Analytics', Icon: BarChart3 },
+  // Live tabs the user can open, plus the two channels that are not wired up yet
+  // (shown disabled so the roadmap is visible without being clickable). Uses the
+  // app's standard SwitcherTabs look, same as LabInbox's own sub-tabs.
+  const liveTabs = [
+    canViewComms && { id: 'whatsapp', label: 'WhatsApp', Icon: MessageCircle, count: badge?.whatsapp?.unread || undefined },
+    canViewLab && { id: 'lab', label: 'Lab reports', Icon: FlaskConical, count: badge?.lab?.new || undefined },
+    canViewComms && { id: 'reminders', label: 'Reminders', Icon: Bell, count: badge?.reminders?.due || undefined },
+    canViewComms && { id: 'analytics', label: 'Analytics', Icon: BarChart3 },
   ].filter(Boolean);
+  const soonTabs = canViewComms ? [
+    { id: 'messenger-soon', label: 'Messenger · soon', Icon: Clock, disabled: true, title: 'Coming soon' },
+    { id: 'instagram-soon', label: 'Instagram · soon', Icon: Clock, disabled: true, title: 'Coming soon' },
+  ] : [];
+  const liveKeys = liveTabs.map((t) => t.id);
 
-  const tab = params.get('tab') || (tabs[0]?.key || 'whatsapp');
-  const setTab = (key) => setParams((p) => { p.set('tab', key); return p; }, { replace: true });
+  const tab = liveKeys.includes(params.get('tab')) ? params.get('tab') : (liveKeys[0] || 'whatsapp');
+  const setTab = (key) => { if (liveKeys.includes(key)) setParams((p) => { p.set('tab', key); return p; }, { replace: true }); };
 
-  if (!tabs.length) return <div className="p-8 text-center text-gray-400">You don't have access to the Inbox.</div>;
+  if (!liveTabs.length) return <div className="p-8 text-center text-gray-400">You don't have access to the Inbox.</div>;
 
   return (
     <div className="mx-auto max-w-7xl p-3 sm:p-4">
       <h1 className="mb-3 flex items-center gap-2 text-xl font-bold text-gray-800"><MessageCircle className="text-emerald-600" /> Inbox</h1>
-      <div className="mb-3 flex flex-wrap gap-1 border-b">
-        {tabs.map(({ key, label, Icon, badge: b }) => (
-          <button key={key} type="button" onClick={() => setTab(key)} className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm ${tab === key ? 'border-emerald-600 font-semibold text-emerald-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            <Icon size={16} /> {label}
-            {b > 0 && <span className="rounded-full bg-emerald-600 px-1.5 text-[11px] text-white">{b}</span>}
-          </button>
-        ))}
-        <span className="ml-2 flex items-center gap-2 self-center text-[11px] text-gray-300">
-          <span className="cursor-not-allowed">Messenger · soon</span>
-          <span className="cursor-not-allowed">Instagram · soon</span>
-        </span>
-      </div>
+      <SwitcherTabs className="mb-3" tabs={[...liveTabs, ...soonTabs]} active={tab} onChange={setTab} />
 
       {tab === 'whatsapp' && canViewComms && <WhatsAppTab canWrite={canWriteComms} />}
       {tab === 'lab' && canViewLab && <LabReportsTab />}

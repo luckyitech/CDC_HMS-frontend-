@@ -1,8 +1,10 @@
 import { Search, Pin, FlaskConical, User } from 'lucide-react';
 import { fmtRelative } from './inboxHelpers';
 
-const FILTERS = [
-  ['all', 'All'], ['unread', 'Unread'], ['needsReply', 'Needs reply'], ['openQueries', 'Open queries'],
+// "All" is the everyday default and stays a one-tap button; the narrower filters
+// live in a dropdown beside it so the list header stays a single tidy row.
+const MORE_FILTERS = [
+  ['unread', 'Unread'], ['needsReply', 'Needs reply'], ['openQueries', 'Open queries'],
   ['unlinked', 'Unlinked'], ['mine', 'Mine'], ['escalatedToMe', 'Escalated'], ['labs', 'Labs'], ['closed', 'Closed'],
 ];
 
@@ -18,10 +20,22 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
         <Search size={15} className="absolute left-2 top-2.5 text-gray-400" />
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, number, topic…" className="w-full rounded-lg border-gray-300 pl-7 text-sm" />
       </div>
-      <div className="mt-2 flex flex-wrap gap-1">
-        {FILTERS.map(([key, label]) => (
-          <button key={key} type="button" onClick={() => setFilter(key)} className={`rounded-full px-2.5 py-0.5 text-xs ${filter === key ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{label}</button>
-        ))}
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setFilter('all')}
+          className={`rounded-full px-3 py-1 text-xs font-medium ${filter === 'all' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+        >
+          All
+        </button>
+        <select
+          value={filter === 'all' ? '' : filter}
+          onChange={(e) => setFilter(e.target.value || 'all')}
+          className={`flex-1 rounded-full border px-2.5 py-1 text-xs ${filter !== 'all' ? 'border-emerald-600 text-emerald-700 font-medium' : 'border-gray-300 text-gray-600'}`}
+        >
+          <option value="">Filter…</option>
+          {MORE_FILTERS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+        </select>
       </div>
     </div>
 
