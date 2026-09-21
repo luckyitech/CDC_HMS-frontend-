@@ -59,11 +59,13 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
   const saveAndPrint = async () => {
     if (!validate()) return;
     if (!queueItem?.id) return toast.error('No active queue visit for this patient.');
+    // Print FIRST, synchronously in the tap — iPad Safari ignores print() once an
+    // await has run (see usePrint). The note on paper is exactly what is saved next.
+    handlePrint();
     setSaving(true);
     try {
       await queueService.saveReferralNote(queueItem.id, { referralNote, referralType });
       toast.success('Referral note saved to visit history.');
-      handlePrint();
     } catch (err) {
       toast.error(err.message || 'Failed to save referral note');
     } finally {

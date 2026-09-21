@@ -31,6 +31,9 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
   const saveAndPrint = async () => {
     if (!form.admissionNote.trim()) return toast.error("The admission note is empty.");
     if (!queueItem?.id) return toast.error("No active queue visit for this patient.");
+    // Print FIRST, synchronously in the tap — iPad Safari ignores print() once an
+    // await has run (see usePrint). The note on paper is exactly what is saved next.
+    handlePrint();
     setSaving(true);
     try {
       await inpatientService.saveAdmissionNote({
@@ -39,7 +42,6 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
         admissionReason: form.admissionNote,
       });
       toast.success("Admission note saved to visit history.");
-      handlePrint();
     } catch (err) {
       toast.error(err.message || "Failed to save admission note");
     } finally {

@@ -1386,19 +1386,28 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   }, [activeDate, historyData, fetchExamsForDate]);
 
   // Print the current scope: the single visit, or all filtered visits.
-  // Exam details are fetched for every printed date first so nothing prints
-  // as "Loading…".
+  // Exam details must be loaded for every printed date first so nothing prints
+  // as "Loading…". print() itself must run synchronously in the tap (iPad Safari
+  // ignores it after an await — see usePrint), so: if everything is loaded, print
+  // now; otherwise load it and ask for one more tap.
   const printVisits = useCallback(async () => {
+    const pending = visitDates.flatMap(d => fetchExamsForDate(d));
+    if (pending.length === 0) { handlePrint(); return; }
     setPrinting(true);
     try {
-      await Promise.all(visitDates.flatMap(d => fetchExamsForDate(d)));
-      // Let the cache state flush into the print DOM before printing
-      await new Promise(r => setTimeout(r, 150));
-      handlePrint();
+      await Promise.all(pending);
+      notify('success', 'Visit details loaded — tap Print again.');
     } finally {
       setPrinting(false);
     }
   }, [visitDates, fetchExamsForDate, handlePrint]);
+
+  // Opening the print options preloads the exam details, so the Print tap in
+  // the dialog can print immediately.
+  const openPrintOptions = useCallback(() => {
+    visitDates.forEach(d => fetchExamsForDate(d));
+    setShowPrintOptions(true);
+  }, [visitDates, fetchExamsForDate]);
 
   const formatDateLong = (date) =>
     new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
@@ -1511,7 +1520,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
               Opens a chooser: doctor's notes / nursing Kardex / timeline. */}
           {visitDates.length > 0 && (
             <button
-              onClick={() => setShowPrintOptions(true)}
+              onClick={openPrintOptions}
               disabled={printing}
               className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >

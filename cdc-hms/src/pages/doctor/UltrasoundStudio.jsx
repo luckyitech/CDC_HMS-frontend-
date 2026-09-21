@@ -206,18 +206,22 @@ const UltrasoundStudio = () => {
 
   const handlePrint = async () => {
     if (!guardImages()) return;
+    // Open the print tab NOW, inside the tap — iPad Safari blocks window.open()
+    // after an await as a pop-up. The PDF is loaded into it once built.
+    const win = window.open('', '_blank');
+    if (!win) { toast.error('Popup blocked — allow popups for this site to print.'); return; }
     setBusy('print');
     try {
       const { blob } = await exportUltrasoundPdf(pdfImages(), pdfMeta(), {
         orientation: layout.orientation, cols: layout.cols, rows: layout.rows, output: 'blob',
       });
       const url = URL.createObjectURL(blob);
-      const win = window.open(url, '_blank');
-      if (!win) toast.error('Popup blocked — allow popups for this site to print.');
+      win.location.href = url;
       // Give the tab time to load before revoking
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err) {
       console.error(err);
+      win.close();
       toast.error('Could not open the print view.');
     } finally { setBusy(null); }
   };

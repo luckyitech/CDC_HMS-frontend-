@@ -1,10 +1,15 @@
 import toast from "react-hot-toast";
 import { code128Svg } from "./code128";
+import { printElement } from "../hooks/usePrint";
 
-// Shared print path: opens a print window sized to the physical media and
-// prints the given body. Used by patient barcode cards/labels
-// (BarcodeActions) and stock batch shelf labels — one implementation, one
-// place to fix printer quirks.
+// Shared print path: prints the given body on a page sized to the physical
+// media. Used by patient barcode cards/labels (BarcodeActions), stock batch
+// shelf labels and the discharge summary — one implementation, one place to fix
+// printer quirks.
+//
+// Prints on the main document via printElement (NOT a pop-up window): iPad
+// Safari ignores print() fired from a timer in a pop-up, and closing the pop-up
+// right after print() killed the job before iOS rendered it.
 //
 // Thermal label size — confirm against the clinic's printer and adjust in one
 // place. Common desktop thermal labels are 50×30mm. Batch labels deliberately
@@ -12,34 +17,18 @@ import { code128Svg } from "./code128";
 export const LABEL_W_MM = 50;
 export const LABEL_H_MM = 30;
 
-export const printHtml = (title, pageW, pageH, bodyHtml) => {
-  const win = window.open("", "_blank", "width=480,height=360");
-  if (!win) {
-    toast.error("Pop-up blocked — allow pop-ups to print");
-    return;
-  }
-  win.document.write(`<!doctype html>
-<html>
-<head>
-<title>${title}</title>
-<style>
-  @page { size: ${pageW}mm ${pageH}mm; margin: 0; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: ${pageW}mm; height: ${pageH}mm; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff;
-         display: flex; align-items: center; justify-content: center; }
-  svg { max-width: 100%; height: auto; }
-</style>
-</head>
-<body>${bodyHtml}</body>
-</html>`);
-  win.document.close();
-  win.focus();
-  // Give the window a beat to lay out (and any images to load), then print.
-  setTimeout(() => {
-    win.print();
-    win.close();
-  }, 500);
+// Must be called synchronously inside the tap/click handler (iOS gesture rule).
+export const printHtml = (_title, pageW, pageH, bodyHtml) => {
+  printElement(`
+<div style="width:${pageW}mm; height:${pageH}mm; box-sizing:border-box; overflow:hidden;
+            font-family: Arial, Helvetica, sans-serif; color:#000; background:#fff;
+            display:flex; align-items:center; justify-content:center;">
+  <style>
+    .print-portal * { margin: 0; padding: 0; box-sizing: border-box; }
+    .print-portal svg { max-width: 100%; height: auto; }
+  </style>
+  ${bodyHtml}
+</div>`, { pageSize: `${pageW}mm ${pageH}mm`, pageMargin: "0" });
 };
 
 // Stock batch shelf label: item name, batch no, expiry, STK- barcode.

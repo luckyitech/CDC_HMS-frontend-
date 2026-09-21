@@ -160,6 +160,10 @@ const NeuropathyReport = ({ study, onClose }) => {
   const doAction = async (kind) => {
     if (busy) return;
     if (kind === 'save' && savedAt) { toast.error('This report is already saved to the record.'); return; }
+    // Open the print tab NOW, inside the tap — iPad Safari blocks window.open()
+    // after an await as a pop-up. The PDF is loaded into it once built.
+    const printWin = kind === 'print' ? window.open('', '_blank') : null;
+    if (kind === 'print' && !printWin) { toast.error('Allow pop-ups to print, or use Download.'); return; }
     setBusy(kind);
     try {
       const filename = `${safe(study.uhid, 'CDC')}_${safe(study.patientName, 'Patient')}_Neuropathy.pdf`;
@@ -170,9 +174,7 @@ const NeuropathyReport = ({ study, onClose }) => {
         a.href = url; a.download = filename; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 4000);
       } else if (kind === 'print') {
-        const url = URL.createObjectURL(blob);
-        const win = window.open(url, '_blank');
-        if (!win) toast.error('Allow pop-ups to print, or use Download.');
+        printWin.location.href = URL.createObjectURL(blob);
       } else if (kind === 'save') {
         if (!study.uhid) { toast.error('No patient on this study to file to.'); return; }
         const fd = new FormData();
@@ -190,6 +192,7 @@ const NeuropathyReport = ({ study, onClose }) => {
       }
     } catch (err) {
       console.error('NeuropathyReport action failed:', err);
+      printWin?.close();
       toast.error('Could not generate the report PDF.');
     } finally {
       setBusy(null);

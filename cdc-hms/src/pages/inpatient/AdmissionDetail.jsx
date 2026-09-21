@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { useUserContext } from "../../contexts/UserContext";
 import inpatientService from "../../services/inpatientService";
 import { DRUG_SCHEDULES, DRUG_ROUNDS } from "../../constants/drugSchedules";
+import { printElement } from "../../hooks/usePrint";
 
 const TABS = ["Observations", "Medications", "Notes", "Fluids", "Radiology", "Billing", "Discharge"];
 const box = "border border-gray-200 rounded-lg p-3 text-sm";
@@ -432,22 +433,23 @@ function DischargeTab({ admissionId, isDoctor, onSigned }) {
     catch (e) { toast.error(e.message || "Failed"); }
   };
 
+  // Printed on the main document (not a pop-up) so it works on iPad — see usePrint.
   const printSummary = () => {
     const s = draft || summary; if (!s) return;
-    const w = window.open("", "_blank", "width=800,height=900");
-    const meds = Array.isArray(s.dischargeMeds) ? s.dischargeMeds.map((m) => `${m.drug || ""} ${m.dose || ""} ${m.route || ""} ${m.schedule || ""}`).join("<br>") : "";
-    w.document.write(`<html><head><title>Discharge Summary</title>
-      <style>body{font-family:Arial,sans-serif;padding:32px;color:#111;line-height:1.5}h1{font-size:20px}h2{font-size:14px;margin:16px 0 4px;color:#1e40af}p{margin:2px 0;font-size:13px}</style></head><body>
+    const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const text = (v) => esc(v || "-").replace(/\n/g, "<br>");
+    const meds = Array.isArray(s.dischargeMeds) ? s.dischargeMeds.map((m) => esc(`${m.drug || ""} ${m.dose || ""} ${m.route || ""} ${m.schedule || ""}`)).join("<br>") : "";
+    printElement(`<div class="ds-print" style="font-family:Arial,sans-serif;padding:0 32px;color:#111;line-height:1.5">
+      <style>.ds-print h1{font-size:20px;font-weight:bold}.ds-print h2{font-size:14px;font-weight:bold;margin:16px 0 4px;color:#1e40af}.ds-print p{margin:2px 0;font-size:13px}</style>
       <h1>Discharge Summary</h1>
-      <h2>Final diagnoses</h2><p>${s.finalDiagnoses || "-"}</p>
-      <h2>Procedures</h2><p>${s.proceduresDone || "-"}</p>
-      <h2>Hospital course</h2><p>${(s.hospitalCourse || "-").replace(/\n/g, "<br>")}</p>
+      <h2>Final diagnoses</h2><p>${text(s.finalDiagnoses)}</p>
+      <h2>Procedures</h2><p>${text(s.proceduresDone)}</p>
+      <h2>Hospital course</h2><p>${text(s.hospitalCourse)}</p>
       <h2>Discharge medications (TTOs)</h2><p>${meds || "-"}</p>
-      <h2>Follow-up plan</h2><p>${s.followUpPlan || "-"}</p>
-      <h2>Discharge type</h2><p>${s.dischargeType || "-"}</p>
+      <h2>Follow-up plan</h2><p>${text(s.followUpPlan)}</p>
+      <h2>Discharge type</h2><p>${text(s.dischargeType)}</p>
       <hr><p style="font-size:11px;color:#666">Computer-generated discharge summary — CDC HMS V3</p>
-      </body></html>`);
-    w.document.close(); w.focus(); w.print();
+      </div>`);
   };
 
   if (!isDoctor) return <p className="text-gray-500 text-sm">Discharge summary is authored by the doctor.</p>;

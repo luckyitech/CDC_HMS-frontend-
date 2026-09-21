@@ -29,85 +29,111 @@ import { useRef } from "react";
  * letterhead logo is already loaded (it is shown in the on-screen preview / the
  * off-screen PrintRoot), so the clone renders fully without any wait.
  *
+ * ⚠️ iOS teardown rule: on iPad window.print() returns immediately and the print
+ * sheet renders the page LATER (and re-renders it whenever the printer or paper
+ * changes). iOS may also fire `afterprint` straight away. Tearing the portal
+ * down on `afterprint` or on a timer therefore removed the document before
+ * iOS captured it, so nothing (or the app screen) printed. We now leave the
+ * portal in place — it is display:none on screen — and remove it on the user's
+ * next tap/keypress in the app (which can only happen once the print sheet is
+ * closed) or at the start of the next print.
+ *
  * Default paper size A4 (changeable in the browser dialog). The @page margin
  * gives multi-page documents top/bottom breathing room; the content's own
  * padding controls the sides.
  */
+let teardownActive = null;
+
+/**
+ * printElement — print a DOM node (cloned) or an HTML string on the main
+ * document. Shared by usePrint and the label/summary printers in utils/print.
+ * Must be called synchronously inside the tap/click handler (iOS gesture rule).
+ */
+export const printElement = (content, { pageSize = "A4", pageMargin = "14mm 0" } = {}) => {
+  teardownActive?.();
+
+  // A detached copy of the content, mounted as a direct child of <body> so a
+  // single CSS rule can isolate it from the rest of the app when printing.
+  const portal = document.createElement("div");
+  portal.className = "print-portal";
+  if (typeof content === "string") portal.innerHTML = content;
+  else portal.appendChild(content.cloneNode(true));
+
+  const style = document.createElement("style");
+  style.setAttribute("data-print-style", "");
+  style.textContent = `
+    /* Off-screen on screen; only ever visible on paper. */
+    .print-portal { display: none; }
+    @page {
+      size: ${pageSize};
+      /* Vertical margin gives every page breathing room — a footer gap at the
+         bottom of one page and a header gap at the top of the next, so multi-
+         page documents never run content to the paper edge at a break. */
+      margin: ${pageMargin};
+    }
+    @media print {
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        background: #fff !important;
+      }
+      /* Hide the live app; print ONLY the cloned document. This is what makes
+         it work on iOS/iPadOS Safari (which prints the main document, never an
+         iframe). */
+      body > #root { display: none !important; }
+      body > .print-portal { display: block !important; }
+      /* Multi-page hygiene. Without these a long table splits mid-row and the
+         column headings never reappear, so page 2 is a wall of unlabelled
+         values — for a medication list that is a dispensing hazard, not just
+         untidy. */
+      .print-portal thead { display: table-header-group; }
+      .print-portal tfoot { display: table-footer-group; }
+      .print-portal tr, .print-portal img { break-inside: avoid; page-break-inside: avoid; }
+      /* Never leave a heading stranded as the last line of a page. */
+      .print-portal h1, .print-portal h2, .print-portal h3, .print-portal h4 {
+        break-after: avoid; page-break-after: avoid;
+      }
+      /* Force full-colour printing across all browsers and devices, iOS included. */
+      .print-portal * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+  document.body.appendChild(portal);
+
+  const cleanup = () => {
+    if (teardownActive !== cleanup) return;
+    teardownActive = null;
+    document.removeEventListener("pointerdown", cleanup, true);
+    document.removeEventListener("keydown", cleanup, true);
+    portal.remove();
+    style.remove();
+  };
+  teardownActive = cleanup;
+
+  // Print NOW, synchronously inside the user gesture (see the iOS note above).
+  window.print();
+
+  // Tear down on the next interaction with the app (see the iOS teardown rule).
+  // Registered after this tick so the tap that started the print can't trigger it.
+  setTimeout(() => {
+    if (teardownActive !== cleanup) return;
+    document.addEventListener("pointerdown", cleanup, true);
+    document.addEventListener("keydown", cleanup, true);
+  }, 0);
+};
+
 const usePrint = ({ pageSize = "A4" } = {}) => {
   const printRef = useRef(null);
 
   const handlePrint = () => {
     const node = printRef.current;
     if (!node) return;
-
-    // A detached copy of the content, mounted as a direct child of <body> so a
-    // single CSS rule can isolate it from the rest of the app when printing.
-    const portal = document.createElement("div");
-    portal.className = "print-portal";
-    portal.appendChild(node.cloneNode(true));
-
-    const style = document.createElement("style");
-    style.setAttribute("data-print-style", "");
-    style.textContent = `
-      /* Off-screen on screen; only ever visible on paper. */
-      .print-portal { display: none; }
-      @page {
-        size: ${pageSize};
-        /* Vertical margin gives every page breathing room — a footer gap at the
-           bottom of one page and a header gap at the top of the next, so multi-
-           page documents never run content to the paper edge at a break. */
-        margin: 14mm 0;
-      }
-      @media print {
-        html, body {
-          margin: 0 !important;
-          padding: 0 !important;
-          width: 100% !important;
-          background: #fff !important;
-        }
-        /* Hide the live app; print ONLY the cloned document. This is what makes
-           it work on iOS/iPadOS Safari (which prints the main document, never an
-           iframe). */
-        body > #root { display: none !important; }
-        body > .print-portal { display: block !important; }
-        /* Multi-page hygiene. Without these a long table splits mid-row and the
-           column headings never reappear, so page 2 is a wall of unlabelled
-           values — for a medication list that is a dispensing hazard, not just
-           untidy. */
-        .print-portal thead { display: table-header-group; }
-        .print-portal tfoot { display: table-footer-group; }
-        .print-portal tr, .print-portal img { break-inside: avoid; page-break-inside: avoid; }
-        /* Never leave a heading stranded as the last line of a page. */
-        .print-portal h1, .print-portal h2, .print-portal h3, .print-portal h4 {
-          break-after: avoid; page-break-after: avoid;
-        }
-        /* Force full-colour printing across all browsers and devices, iOS included. */
-        .print-portal * {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-    document.body.appendChild(portal);
-
-    let torndown = false;
-    const cleanup = () => {
-      if (torndown) return;
-      torndown = true;
-      window.removeEventListener("afterprint", cleanup);
-      portal.remove();
-      style.remove();
-    };
-    window.addEventListener("afterprint", cleanup);
-
-    // Print NOW, synchronously inside the user gesture (see the iOS note above).
-    // On desktop, print() blocks until the dialog closes and `afterprint` then
-    // cleans up; on iOS it returns immediately and the timed fallback below
-    // tears everything down (some iOS versions never emit `afterprint`).
-    window.print();
-    setTimeout(cleanup, 3000);
+    printElement(node, { pageSize });
   };
 
   return { printRef, handlePrint };
