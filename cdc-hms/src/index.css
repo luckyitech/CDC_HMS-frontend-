@@ -56,6 +56,15 @@ html, body {
   print-color-adjust: exact !important;
   color-adjust: exact !important;
 }
+/* Clinic name wordmark — matches the printed CDC letterhead (Optima, regular
+   weight, slightly spaced). Optima ships with macOS/iPadOS; Windows falls back
+   to Candara, the closest humanist face it has. Used on every printout. */
+.cdc-wordmark {
+  font-family: Optima, Candara, "Segoe UI", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
 /* Hidden-but-working scrollbar — the floating design signals overflow by
    content peeking below; a visible bar is noise. Pair with overscroll-contain
    so independent scroll areas don't chain into each other. (DRY §4c) */

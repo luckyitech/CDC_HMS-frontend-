@@ -68,7 +68,7 @@ const BarcodeActions = ({ patient }) => {
                   display:flex; flex-direction:column; justify-content:space-between;">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:2mm;">
           <div>
-            <div style="font-size:9pt; font-weight:bold;">Comprehensive Diabetes Centre</div>
+            <div class="cdc-wordmark" style="font-size:9pt;">Comprehensive Diabetes Centre</div>
             <div style="font-size:6.5pt; color:#444;">Nairobi &middot; cdiabetescentre.com</div>
           </div>
           <img src="${logo}" alt="" style="height:9mm; width:auto;" />

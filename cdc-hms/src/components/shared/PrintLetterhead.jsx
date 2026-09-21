@@ -11,7 +11,7 @@ const PrintLetterhead = ({ show = false }) => (
   <div className={show ? "" : "hidden print:block"}>
     <div className="flex justify-between items-center border-b-4 border-primary pb-2 mb-2">
       <div>
-        <h1 className="text-2xl font-bold text-primary mb-1">COMPREHENSIVE DIABETES CENTRE</h1>
+        <h1 className="cdc-wordmark text-2xl text-primary mb-1">COMPREHENSIVE DIABETES CENTRE</h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600 mt-1">
           <span>3rd Floor, Doctors Park, Third Avenue, Nairobi</span>
           <span className="text-gray-400">|</span>
