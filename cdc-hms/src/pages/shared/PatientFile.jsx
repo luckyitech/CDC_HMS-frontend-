@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import {
   ChevronDown, ArrowLeft, Zap, Radio, Battery, Calendar,
   FileText, Pencil, ClipboardEdit, AlertTriangle,
-  KeyRound, UserCheck, UserX, Trash2, UserCog, Stethoscope, Footprints,
+  KeyRound, UserCheck, UserX, Trash2, UserCog, Stethoscope, Footprints, MessageCircle,
 } from "lucide-react";
 import { formatDOB } from "../../utils/dateUtils";
 import { usePatientContext } from "../../contexts/PatientContext";
@@ -30,6 +30,7 @@ import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import UltrasoundTab from "../../components/shared/UltrasoundTab";
 import NeuropathyStudyList from "../../components/shared/NeuropathyStudyList";
 import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
+import PatientCommunicationsTab from "../../components/shared/PatientCommunicationsTab";
 import NursingActionsTab from "../../components/nursing/NursingActionsTab";
 import NeuropathyExam from "../../components/shared/NeuropathyExam";
 import TodaysConsultationTab from "../../components/doctor/TodaysConsultationTab";
@@ -58,6 +59,7 @@ const REST_TABS = [
   { id: "visit-history", name: "Visit History", Icon: Calendar },
   // Diagnostics hosts three sub-tabs: Medical Documents, Ultrasound and Charts.
   { id: "medical-documents", name: "Diagnostics", Icon: FileText },
+  { id: "communications", name: "Communications", Icon: MessageCircle },
   { id: "equipment", name: "Medical Equipment", Icon: Battery },
 ];
 
@@ -525,6 +527,7 @@ const PatientFile = () => {
           />
         )}
         {currentTab === "medical-documents" && <DiagnosticsTab key={location.key} patient={patient} initialSub={location.state?.diagnosticsSub || "documents"} />}
+        {currentTab === "communications" && <PatientCommunicationsTab patient={patient} uhid={uhid} portal={portal} />}
         {currentTab === "visit-history" && (
           <VisitHistoryTab patient={patient} uhid={uhid} prescriptions={prescriptions} />
         )}

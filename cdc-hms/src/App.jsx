@@ -109,6 +109,9 @@ const AdmissionDetail    = lazy(() => import("./pages/inpatient/AdmissionDetail"
 const InpatientAdmissions = lazy(() => import("./pages/staff/InpatientAdmissions"));
 // External lab reports pulled from the clinic mailbox — pair each to a patient.
 const LabInbox           = lazy(() => import("./pages/staff/LabInbox"));
+// Communications Inbox — WhatsApp + Lab reports + Reminders. The old
+// /<portal>/lab-inbox paths redirect to its Lab reports tab.
+const Inbox              = lazy(() => import("./pages/shared/Inbox"));
 
 // Loading fallback shown while a lazy chunk is downloading
 const PageLoader = () => (
@@ -182,7 +185,8 @@ function App() {
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="stock" element={<Stocks />} />
                   <Route path="inpatient-admissions" element={<InpatientAdmissions />} />
-                  <Route path="lab-inbox" element={<LabInbox />} />
+                  <Route path="inbox" element={<Inbox />} />
+                  <Route path="lab-inbox" element={<Navigate to="../inbox?tab=lab" replace />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -209,7 +213,8 @@ function App() {
                   <Route path="appointments" element={<DoctorAppointmentsList />} />
                   <Route path="my-schedule" element={<MySchedule />} />
                   <Route path="stock" element={<Stocks />} />
-                  <Route path="lab-inbox" element={<LabInbox />} />
+                  <Route path="inbox" element={<Inbox />} />
+                  <Route path="lab-inbox" element={<Navigate to="../inbox?tab=lab" replace />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -240,7 +245,8 @@ function App() {
                   <Route path="test-history" element={<TestHistory />} />
                   <Route path="generate-reports" element={<GenerateReports />} />
                   <Route path="critical-alerts" element={<CriticalAlerts />} />
-                  <Route path="lab-inbox" element={<LabInbox />} />
+                  <Route path="inbox" element={<Inbox />} />
+                  <Route path="lab-inbox" element={<Navigate to="../inbox?tab=lab" replace />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -250,6 +256,7 @@ function App() {
                   element={<ProtectedRoute requiredRole="admin" requiredPortal="portal.admin"><MainLayout userRole="Admin" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<AdminDashboard />} />
+                  <Route path="inbox" element={<Inbox />} />
                   <Route path="create-users" element={<CreateUsers />} />
                   {/* Old per-role URLs redirect into the combined page */}
                   <Route path="create-doctor" element={<Navigate to="/admin/create-users?role=doctor" replace />} />
@@ -305,6 +312,7 @@ function App() {
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="queue" element={<QueueManagement />} />
                   <Route path="triage" element={<Triage />} />
+                  <Route path="inbox" element={<Inbox />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>

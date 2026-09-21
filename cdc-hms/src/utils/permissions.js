@@ -45,6 +45,13 @@ export const PERMISSIONS = {
   LABINBOX_VIEW:    'labinbox.view',
   LABINBOX_WRITE:   'labinbox.write',
 
+  // Communications Inbox — patient messages on the clinic's WhatsApp number
+  // (and later Facebook / Instagram). VIEW reads threads; WRITE replies, links,
+  // files, books, escalates and sets reminders. Front desk, doctors and nurses
+  // by role; lab by grant. Kept identical to the backend.
+  COMMS_VIEW:       'comms.view',
+  COMMS_WRITE:      'comms.write',
+
   // The clinical record, as opposed to the patient's identity and
   // administration. Reception needs to know who a patient is, where they are in
   // the queue and what they owe; they have no reason to read the consultation

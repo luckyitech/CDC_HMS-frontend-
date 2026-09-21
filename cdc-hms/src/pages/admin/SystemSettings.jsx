@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Check, Inbox } from 'lucide-react';
+import { KeyRound, Check, Inbox, MessageCircle } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -7,12 +7,14 @@ import Toggle from '../../components/shared/Toggle';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
 import LabInboxSettingsTab from '../../components/admin/settings/LabInboxSettingsTab';
+import WhatsAppSettingsTab from '../../components/admin/settings/WhatsAppSettingsTab';
 
 // The settings page is tabbed — one tab per settings area. Add an entry here
 // (and a component) to grow it; the password policy stays the first tab.
 const SETTINGS_TABS = [
   { id: 'password', label: 'Password policy', Icon: KeyRound },
   { id: 'labInbox', label: 'Lab Inbox',       Icon: Inbox },
+  { id: 'whatsapp', label: 'WhatsApp',        Icon: MessageCircle },
 ];
 import settingsService from '../../services/settingsService';
 import { notify } from '../../utils/notify';
@@ -95,6 +97,7 @@ const SystemSettings = () => {
       <SwitcherTabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} className="mb-4" />
 
       {tab === 'labInbox' && <LabInboxSettingsTab />}
+      {tab === 'whatsapp' && <WhatsAppSettingsTab />}
 
       {/* Card is used without its `title` prop so the switch can sit on the
           header row itself, which is where a settings toggle belongs. */}

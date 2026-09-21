@@ -1,11 +1,22 @@
-import { Printer } from "lucide-react";
+import { useState } from "react";
+import { Printer, MessageCircle } from "lucide-react";
 import PrintLetterhead from "../shared/PrintLetterhead";
 import usePrint from "../../hooks/usePrint";
+import usePdfFromPrint from "../../hooks/usePdfFromPrint";
+import SendViaWhatsAppModal from "../shared/SendViaWhatsAppModal";
 
 const PrescriptionPrint = ({ prescription, onClose }) => {
   const { printRef, handlePrint } = usePrint();
+  const getPdf = usePdfFromPrint(printRef);
+  const [waOpen, setWaOpen] = useState(false);
 
   if (!prescription) return null;
+
+  const patient = {
+    uhid: prescription.patientUhid || prescription.uhid,
+    name: prescription.patientName,
+    phone: prescription.patientPhone,
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -20,6 +31,14 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
             >
               <Printer className="w-4 h-4" /> Print
             </button>
+            {patient.uhid && (
+              <button
+                onClick={() => setWaOpen(true)}
+                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold transition flex items-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" /> Send via WhatsApp
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold transition"
@@ -137,6 +156,16 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
         </div>
 
       </div>
+      {waOpen && (
+        <SendViaWhatsAppModal
+          isOpen
+          onClose={() => setWaOpen(false)}
+          patient={patient}
+          getPdf={getPdf}
+          label="prescription"
+          defaultCaption="Your prescription from the Comprehensive Diabetes Centre"
+        />
+      )}
     </div>
   );
 };

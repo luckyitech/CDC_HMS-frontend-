@@ -41,6 +41,20 @@ export const settingsService = {
    * @returns {Promise} - { ok, mailbox, messages, unseen }
    */
   testLabInbox: (values) => api.post('/settings/lab-inbox/test', values),
+
+  // ---- Communications Inbox: WhatsApp (Meta Cloud API) ----
+
+  /** Redacted config (has* booleans, not secrets) + rate card + configured numbers. */
+  getComms: () => api.get('/settings/comms'),
+
+  /** Save any subset of the WhatsApp connection/behaviour. Blank secrets are left as-is. Real-admin only. */
+  setComms: (changes) => api.put('/settings/comms', changes),
+
+  /** Subscribe the app to the WABA and pull its numbers (upserts channels). */
+  testComms: (values) => api.post('/settings/comms/test', values),
+
+  /** Save the cost rate card + monthly budget. */
+  setCommsCosts: (data) => api.put('/settings/comms/costs', data),
 };
 
 export default settingsService;

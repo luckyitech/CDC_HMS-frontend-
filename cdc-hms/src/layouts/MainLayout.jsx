@@ -54,7 +54,7 @@ import {
   Inbox,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
-import labInboxService from "../services/labInboxService";
+import commsService from "../services/commsService";
 
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
@@ -101,41 +101,50 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // keep their own ward-board home.
   const homeRole = userRole.toLowerCase();
 
-  // Lab Inbox badge — how many external lab reports are waiting to be paired.
-  // Staff portal only. Refreshed when the poller imports something (SSE
-  // `lab_inbox_new`), whenever the route changes (a pair/discard on the inbox
-  // page changes the count), and on a slow timer as a fallback.
-  const [labInboxCount, setLabInboxCount] = useState(0);
-  // Who has a Lab Inbox entry in their sidebar: staff and lab by role (unless
-  // withdrawn), a doctor only when granted. Mirrors the route gate.
-  const labInboxInNav =
-    !isWithdrawn(currentUser, PERMISSIONS.LABINBOX_VIEW)
-    && (['staff', 'lab'].includes(homeRole)
-        || (homeRole === 'doctor' && passesAdminGate(currentUser, PERMISSIONS.LABINBOX_VIEW)));
-  const refreshLabInboxCount = useCallback(() => {
-    labInboxService.count()
-      .then((r) => setLabInboxCount(r?.data?.count || 0))
-      .catch(() => { /* not granted or not set up — badge stays hidden */ });
+  // Inbox badge — everything waiting: WhatsApp unread + unpaired lab reports +
+  // due reminders (GET /api/comms/badge returns the sum). Refreshed on the SSE
+  // events, on route change, on the window fan-out events, and on a slow timer.
+  const [inboxCount, setInboxCount] = useState(0);
+  // Who has an Inbox entry in their sidebar. WhatsApp is held by role by staff,
+  // doctors and nurses (and admin); the Lab reports tab is held by role by staff
+  // and lab; either can be granted to anyone or withdrawn. Mirrors the gates.
+  const commsByRole = ['staff', 'doctor', 'nurse', 'admin'].includes(homeRole);
+  const labByRole = ['staff', 'lab', 'admin'].includes(homeRole);
+  const inboxInNav =
+    (commsByRole && !isWithdrawn(currentUser, PERMISSIONS.COMMS_VIEW))
+    || (!commsByRole && passesAdminGate(currentUser, PERMISSIONS.COMMS_VIEW))
+    || (!isWithdrawn(currentUser, PERMISSIONS.LABINBOX_VIEW)
+        && (labByRole || passesAdminGate(currentUser, PERMISSIONS.LABINBOX_VIEW)));
+  const refreshInboxCount = useCallback(() => {
+    commsService.badge()
+      .then((r) => setInboxCount(r?.data?.total || 0))
+      .catch(() => { /* not granted — badge stays hidden */ });
   }, []);
   // route change → refresh (cheap: one GET)
   useEffect(() => {
-    if (labInboxInNav) refreshLabInboxCount();
-  }, [labInboxInNav, location.pathname, refreshLabInboxCount]);
-  // one SSE subscription + slow fallback timer for the life of the layout
+    if (inboxInNav) refreshInboxCount();
+  }, [inboxInNav, location.pathname, refreshInboxCount]);
+  // one SSE subscription + slow fallback timer for the life of the layout. The
+  // SSE events fan out to window events so the Inbox pages refresh without each
+  // opening its own EventSource (nine already exist; add none).
   useEffect(() => {
-    if (!labInboxInNav) return undefined;
-    const timer = setInterval(refreshLabInboxCount, 2 * 60 * 1000);
+    if (!inboxInNav) return undefined;
+    const timer = setInterval(refreshInboxCount, 2 * 60 * 1000);
     const SSE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/sse`;
     const source = new EventSource(SSE_URL);
-    source.addEventListener('lab_inbox_new', refreshLabInboxCount);
-    // The inbox page announces a pair/discard/pull (no route change, no SSE).
-    window.addEventListener('lab-inbox:changed', refreshLabInboxCount);
+    const onComms = () => window.dispatchEvent(new CustomEvent('comms:changed'));
+    const onLab = () => { window.dispatchEvent(new CustomEvent('lab-inbox:changed')); window.dispatchEvent(new CustomEvent('comms:changed')); };
+    source.addEventListener('comms_new', onComms);
+    source.addEventListener('lab_inbox_new', onLab);
+    window.addEventListener('comms:changed', refreshInboxCount);
+    window.addEventListener('lab-inbox:changed', refreshInboxCount);
     return () => {
       clearInterval(timer);
       source.close();
-      window.removeEventListener('lab-inbox:changed', refreshLabInboxCount);
+      window.removeEventListener('comms:changed', refreshInboxCount);
+      window.removeEventListener('lab-inbox:changed', refreshInboxCount);
     };
-  }, [labInboxInNav, refreshLabInboxCount]);
+  }, [inboxInNav, refreshInboxCount]);
   // Only these portals actually mount an /{portal}/inpatient-board route (App.jsx).
   // The nurse and inpatient portals do NOT: a nurse's own dashboard IS the ward
   // board, and the inpatient workspace has /inpatient/board. Generating the tab
@@ -373,17 +382,18 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // Appointments group entry — Book Appointment + Patient Visits are its tabs.
       { name: "Appointments", path: "/staff/appointments", icon: Calendar },
       { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
-      // External lab reports pulled from the clinic mailbox, waiting to be
-      // paired to a patient. The badge is the number still unpaired.
-      { name: "Lab Inbox", path: "/staff/lab-inbox", icon: Inbox, badge: labInboxCount, withdrawnBy: PERMISSIONS.LABINBOX_VIEW },
+      // Everything reaching the clinic from outside: patient WhatsApp messages,
+      // external lab reports (email + WhatsApp) and reminders. The badge is the
+      // sum still needing attention. Held by role; hidden only if withdrawn.
+      { name: "Inbox", path: "/staff/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
     ],
     doctor: [
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
       { name: "Patients", path: "/doctor/patients", icon: Users },
-      // Not a doctor's job by default — appears only if an admin grants it on the Permissions tab.
-      { name: "Lab Inbox", path: "/doctor/lab-inbox", icon: Inbox, badge: labInboxCount, permission: PERMISSIONS.LABINBOX_VIEW },
+      // Doctors hold the Inbox (WhatsApp) by role; hidden only if withdrawn.
+      { name: "Inbox", path: "/doctor/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
       // {
       //   name: "Consultations",
       //   path: "/doctor/consultations",
@@ -428,8 +438,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
       },
       { name: "Enter Results", path: "/lab/enter-results", icon: Edit },
       { name: "Test History", path: "/lab/test-history", icon: Search },
-      // Emailed lab reports waiting to be paired to a patient (by role; hidden if withdrawn).
-      { name: "Lab Inbox", path: "/lab/lab-inbox", icon: Inbox, badge: labInboxCount, withdrawnBy: PERMISSIONS.LABINBOX_VIEW },
+      // The lab reaches the Inbox for its Lab reports tab (by role); WhatsApp
+      // needs a comms grant. Hidden if lab-inbox access is withdrawn.
+      { name: "Inbox", path: "/lab/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.LABINBOX_VIEW },
       {
         name: "Generate Reports",
         path: "/lab/generate-reports",
@@ -447,6 +458,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Ward Board", path: "/nurse/dashboard", icon: BedDouble },
       // Triage is the second tab inside Queue Management now, not a nav item.
       { name: "Queue Management", path: "/nurse/queue", icon: ClipboardList },
+      { name: "Inbox", path: "/nurse/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [
@@ -462,6 +474,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     admin: [
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
       { name: "Users", path: "/admin/manage-users", icon: Users, permission: PERMISSIONS.USERS_VIEW },
+      { name: "Inbox", path: "/admin/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Radiology Queue", path: "/admin/unassigned-ultrasound", icon: Waves },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill, permission: PERMISSIONS.CONFIG_WRITE },
