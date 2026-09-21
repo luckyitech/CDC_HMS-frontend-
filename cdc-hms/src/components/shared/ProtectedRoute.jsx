@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useUserContext } from '../../contexts/UserContext';
-import { canOpenPortal, hasPermission, isTrueAdmin } from '../../utils/permissions';
+import { canOpenPortal, passesAdminGate, isTrueAdmin } from '../../utils/permissions';
 import { landingFor } from '../../utils/landing';
 import { portalDeniedMessage, PORTAL_LABELS, NO_PORTAL_MESSAGE } from '../../constants/accessMessages';
 import NoAccess from './NoAccess';
@@ -84,9 +84,11 @@ const ProtectedRoute = ({ requiredRole, requiredRoles, requiredPermission, requi
 
   // A route may also be reached by a granted capability, not only a role — e.g.
   // the inpatient workspace is open to doctors/nurses by role, plus anyone the
-  // admin has granted inpatient.access. Mirrors the backend's permission-aware
-  // authorize().
-  if (requiredPermission && hasPermission(currentUser, requiredPermission)) return children;
+  // admin has granted inpatient.access (or holds it via admin.access). Mirrors
+  // the backend's permission-aware authorize(), which admits an admin.access
+  // holder to any gate — so passesAdminGate, not hasPermission, or a covered
+  // capability would refuse in the UI what the API allows.
+  if (requiredPermission && passesAdminGate(currentUser, requiredPermission)) return children;
 
   // Multi-role support (HMIS V3): a route may allow several roles (e.g. the
   // inpatient workspace is entered by both doctors and nurses). Falls back to

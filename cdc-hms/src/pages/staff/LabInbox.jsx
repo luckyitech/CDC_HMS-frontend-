@@ -13,7 +13,7 @@ import LabInboxPreviewModal from '../../components/shared/LabInboxPreviewModal';
 import labInboxService from '../../services/labInboxService';
 import { useUserContext } from '../../contexts/UserContext';
 import NoAccess from '../../components/shared/NoAccess';
-import { PERMISSIONS, hasPermission, isWithdrawn } from '../../utils/permissions';
+import { canViewLabInbox, canWriteLabInbox } from '../../utils/permissions';
 import { notify } from '../../utils/notify';
 import { formatDateTime } from '../../utils/dateUtils';
 import {
@@ -39,14 +39,12 @@ const LabInbox = ({ embedded = false }) => {
   const navigate = useNavigate();
   const { currentUser } = useUserContext();
   const isAdmin = currentUser?.role === 'admin';
-  // Mirrors routes/labInbox.js: staff + lab (+ admin) by role, a doctor/nurse when
-  // granted; either capability can be withdrawn by an admin. The server enforces
-  // this too — the checks here only decide what to draw.
-  const byRole = ['staff', 'lab', 'admin'].includes(currentUser?.role);
-  const canView = !isWithdrawn(currentUser, PERMISSIONS.LABINBOX_VIEW)
-    && (byRole || hasPermission(currentUser, PERMISSIONS.LABINBOX_VIEW));
-  const canWrite = canView && !isWithdrawn(currentUser, PERMISSIONS.LABINBOX_WRITE)
-    && (byRole || hasPermission(currentUser, PERMISSIONS.LABINBOX_WRITE));
+  // Shared capability gates (utils/permissions), the same ones the sidebar and
+  // the Inbox tab use: staff + lab (+ admin) by role, a doctor/nurse or any
+  // admin.access holder when granted or covered; withdrawable. The server
+  // enforces this too — the checks here only decide what to draw.
+  const canView = canViewLabInbox(currentUser);
+  const canWrite = canView && canWriteLabInbox(currentUser);
 
   const [tab, setTab] = useState('New');
   const [items, setItems] = useState([]);

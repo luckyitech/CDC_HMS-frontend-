@@ -180,6 +180,32 @@ export const passesAdminGate = (user, permission) => {
   return hasPermission(user, PERMISSIONS.ADMIN_ACCESS) || hasPermission(user, permission);
 };
 
+// ---------------------------------------------------------------------------
+// Capability gates for areas some roles hold by default and others are granted.
+//
+// ONE definition of "who may see/use this", so the sidebar, the page and every
+// tab agree — the drift that hid the Lab reports tab from an admin.access holder
+// while the sidebar still showed it came from three files each rolling their own
+// `(role-list || hasPermission) && !isWithdrawn` check, and `hasPermission`
+// silently ignores the admin.access bypass the API honours.
+//
+// A capability is usable when it has NOT been withdrawn AND the user either
+// holds it by role, holds it explicitly, or holds admin.access (passesAdminGate
+// mirrors the backend's authorize('admin', …) bypass). The role lists mirror the
+// backend route guards; this is their single frontend copy.
+// ---------------------------------------------------------------------------
+export const COMMS_DEFAULT_ROLES = ['staff', 'doctor', 'nurse', 'admin'];
+export const LABINBOX_DEFAULT_ROLES = ['staff', 'lab', 'admin'];
+
+export const canUseCapability = (user, permission, defaultRoles = []) =>
+  !isWithdrawn(user, permission)
+  && ((defaultRoles.includes(user?.role)) || passesAdminGate(user, permission));
+
+export const canViewComms     = (user) => canUseCapability(user, PERMISSIONS.COMMS_VIEW,     COMMS_DEFAULT_ROLES);
+export const canWriteComms    = (user) => canUseCapability(user, PERMISSIONS.COMMS_WRITE,    COMMS_DEFAULT_ROLES);
+export const canViewLabInbox  = (user) => canUseCapability(user, PERMISSIONS.LABINBOX_VIEW,  LABINBOX_DEFAULT_ROLES);
+export const canWriteLabInbox = (user) => canUseCapability(user, PERMISSIONS.LABINBOX_WRITE, LABINBOX_DEFAULT_ROLES);
+
 /** Can this user use the admin portal — as the admin, or by grant? */
 export const canAccessAdmin = (user) => canOpenPortal(user, PERMISSIONS.PORTAL_ADMIN);
 

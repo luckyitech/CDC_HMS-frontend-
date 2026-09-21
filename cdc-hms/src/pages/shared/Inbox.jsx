@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MessageCircle, FlaskConical, Bell, BarChart3, Clock } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
-import { hasPermission, isWithdrawn, PERMISSIONS } from '../../utils/permissions';
+import { canViewComms as canViewCommsCap, canWriteComms as canWriteCommsCap, canViewLabInbox as canViewLabInboxCap, hasPermission, PERMISSIONS } from '../../utils/permissions';
 import commsService from '../../services/commsService';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import WhatsAppTab from '../../components/inbox/WhatsAppTab';
@@ -19,11 +19,12 @@ const Inbox = () => {
   const [badge, setBadge] = useState(null);
 
   const role = currentUser?.role;
-  const commsByRole = ['staff', 'doctor', 'nurse', 'admin'].includes(role);
-  const labByRole = ['staff', 'lab', 'admin'].includes(role);
-  const canViewComms = (commsByRole || hasPermission(currentUser, PERMISSIONS.COMMS_VIEW)) && !isWithdrawn(currentUser, PERMISSIONS.COMMS_VIEW);
-  const canWriteComms = (commsByRole || hasPermission(currentUser, PERMISSIONS.COMMS_WRITE)) && !isWithdrawn(currentUser, PERMISSIONS.COMMS_WRITE);
-  const canViewLab = (labByRole || hasPermission(currentUser, PERMISSIONS.LABINBOX_VIEW)) && !isWithdrawn(currentUser, PERMISSIONS.LABINBOX_VIEW);
+  // Shared capability gates (utils/permissions) so this tab strip, the sidebar
+  // entry and the standalone Lab Inbox page agree — and honour the admin.access
+  // bypass the API grants. See canUseCapability.
+  const canViewComms = canViewCommsCap(currentUser);
+  const canWriteComms = canWriteCommsCap(currentUser);
+  const canViewLab = canViewLabInboxCap(currentUser);
   const isAdmin = role === 'admin' || hasPermission(currentUser, PERMISSIONS.ADMIN_ACCESS);
 
   const refreshBadge = useCallback(() => { commsService.badge().then((r) => setBadge(r.data)).catch(() => {}); }, []);

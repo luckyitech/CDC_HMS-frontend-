@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, hasPermission, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -105,16 +105,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // due reminders (GET /api/comms/badge returns the sum). Refreshed on the SSE
   // events, on route change, on the window fan-out events, and on a slow timer.
   const [inboxCount, setInboxCount] = useState(0);
-  // Who has an Inbox entry in their sidebar. WhatsApp is held by role by staff,
-  // doctors and nurses (and admin); the Lab reports tab is held by role by staff
-  // and lab; either can be granted to anyone or withdrawn. Mirrors the gates.
-  const commsByRole = ['staff', 'doctor', 'nurse', 'admin'].includes(homeRole);
-  const labByRole = ['staff', 'lab', 'admin'].includes(homeRole);
-  const inboxInNav =
-    (commsByRole && !isWithdrawn(currentUser, PERMISSIONS.COMMS_VIEW))
-    || (!commsByRole && passesAdminGate(currentUser, PERMISSIONS.COMMS_VIEW))
-    || (!isWithdrawn(currentUser, PERMISSIONS.LABINBOX_VIEW)
-        && (labByRole || passesAdminGate(currentUser, PERMISSIONS.LABINBOX_VIEW)));
+  // Who has an Inbox entry in their sidebar — the SAME shared gates the Inbox
+  // tabs and the standalone Lab Inbox page use, so the menu, the tab strip and
+  // the page can never disagree (comms held by role by staff/doctor/nurse/admin,
+  // lab reports by staff/lab/admin, either granted or covered by admin.access,
+  // and withdrawable). See utils/permissions.
+  const inboxInNav = canViewComms(currentUser) || canViewLabInbox(currentUser);
   const refreshInboxCount = useCallback(() => {
     commsService.badge()
       .then((r) => setInboxCount(r?.data?.total || 0))
@@ -153,7 +149,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const PORTALS_WITH_INPATIENT_BOARD = ['staff', 'doctor', 'lab'];
   const canSeeInpatientTab =
     PORTALS_WITH_INPATIENT_BOARD.includes(homeRole) &&
-    (currentUser?.role === 'doctor' || hasPermission(currentUser, PERMISSIONS.INPATIENT_ACCESS));
+    (currentUser?.role === 'doctor' || passesAdminGate(currentUser, PERMISSIONS.INPATIENT_ACCESS));
 
   // Hide any nav entry or tab this person cannot use. A real admin holds every
   // capability implicitly, so hasPermission keeps the full menu for them.
