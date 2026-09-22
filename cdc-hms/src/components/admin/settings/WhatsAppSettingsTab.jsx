@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { RefreshCw, PlugZap, Phone, KeyRound, Save } from 'lucide-react';
+import { RefreshCw, PlugZap, Phone, KeyRound, Save, Facebook, Instagram } from 'lucide-react';
 import settingsService from '../../../services/settingsService';
 import commsService from '../../../services/commsService';
 
@@ -12,6 +12,11 @@ import commsService from '../../../services/commsService';
 const WhatsAppSettingsTab = () => {
   const [cfg, setCfg] = useState(null);
   const [form, setForm] = useState({ wabaId: '', appId: '', appSecret: '', accessToken: '', verifyToken: '' });
+  // Messenger + Instagram share the same app, app secret and verify token as
+  // WhatsApp above; all they add is the connected Facebook Page id, the linked
+  // Instagram account id, and that Page's access token (used to send on both).
+  const [meta, setMeta] = useState({ pageId: '', igId: '', pageAccessToken: '' });
+  const [savingMeta, setSavingMeta] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [templates, setTemplates] = useState([]);
@@ -23,6 +28,7 @@ const WhatsAppSettingsTab = () => {
       const r = await settingsService.getComms();
       setCfg(r.data);
       setForm((f) => ({ ...f, wabaId: r.data.wabaId || '', appId: r.data.appId || '' }));
+      setMeta((m) => ({ ...m, pageId: r.data.pageId || '', igId: r.data.igId || '' }));
       setBudget(String(r.data.monthlyBudgetKes || ''));
     } catch { /* interceptor */ }
   }, []);
@@ -42,6 +48,19 @@ const WhatsAppSettingsTab = () => {
       load();
     } catch (e) { toast.error(e.message || 'Save failed.'); }
     finally { setSaving(false); }
+  };
+
+  const saveMeta = async () => {
+    setSavingMeta(true);
+    try {
+      const changes = { pageId: meta.pageId.trim(), igId: meta.igId.trim() };
+      if (meta.pageAccessToken) changes.pageAccessToken = meta.pageAccessToken;
+      await settingsService.setComms(changes);
+      toast.success('Saved.');
+      setMeta((m) => ({ ...m, pageAccessToken: '' }));
+      load();
+    } catch (e) { toast.error(e.message || 'Save failed.'); }
+    finally { setSavingMeta(false); }
   };
 
   const saveBehaviour = async (patch) => {
@@ -108,6 +127,22 @@ const WhatsAppSettingsTab = () => {
             {cfg.channels.map((c) => <li key={c.id} className="flex items-center justify-between py-1.5"><span>{c.displayPhone || c.externalId} <span className="text-xs text-gray-400">{c.label}</span></span><span className={`text-xs ${c.qualityRating === 'GREEN' ? 'text-emerald-600' : 'text-gray-400'}`}>{c.qualityRating || '—'}</span></li>)}
           </ul>
         )}
+      </section>
+
+      {/* Messenger + Instagram */}
+      <section className="rounded-lg border p-4">
+        <h3 className="mb-1 flex items-center gap-2 font-semibold text-gray-800"><Facebook size={16} /> Facebook Messenger &amp; <Instagram size={16} /> Instagram</h3>
+        <p className="mb-3 text-xs text-gray-500">
+          Messages from your Facebook Page and linked Instagram account land in the Inbox alongside WhatsApp. These use the same Meta app, app secret and webhook verify token you set above — add the Page below and its access token. Status: Messenger {cfg.isMessengerConfigured ? <span className="text-emerald-600">connected</span> : <span className="text-amber-600">not connected</span>}, Instagram {cfg.isInstagramConfigured ? <span className="text-emerald-600">connected</span> : <span className="text-amber-600">not connected</span>}.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Facebook Page ID" value={meta.pageId} onChange={(e) => setMeta({ ...meta, pageId: e.target.value })} placeholder="e.g. 1029384756" />
+          <Field label="Instagram account ID (optional)" value={meta.igId} onChange={(e) => setMeta({ ...meta, igId: e.target.value })} placeholder="linked professional account" />
+          <div className="sm:col-span-2"><Field label={`Page access token ${cfg.hasPageAccessToken ? '(set — leave blank to keep)' : ''}`} value={meta.pageAccessToken} onChange={(e) => setMeta({ ...meta, pageAccessToken: e.target.value })} placeholder={cfg.hasPageAccessToken ? '••••••' : 'long-lived Page token'} /></div>
+        </div>
+        <div className="mt-3">
+          <button type="button" onClick={saveMeta} disabled={savingMeta} className="inline-flex items-center gap-1 rounded bg-emerald-600 px-4 py-2 text-white disabled:opacity-40"><Save size={15} /> {savingMeta ? 'Saving…' : 'Save'}</button>
+        </div>
       </section>
 
       {/* Behaviour */}

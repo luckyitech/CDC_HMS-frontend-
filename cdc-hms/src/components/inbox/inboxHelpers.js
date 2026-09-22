@@ -1,5 +1,15 @@
 // Small presentation helpers shared across the Inbox components.
 
+// A conversation's display name. Prefers the linked patient, then the profile
+// name Meta gave us, then the formatted phone (WhatsApp only). Messenger and
+// Instagram contacts have no phone and often no profile name, so fall back to
+// the channel label ("Messenger" / "Instagram") rather than an opaque id.
+export const contactName = (c) => {
+  if (!c) return 'Unknown';
+  if (c.patient) return `${c.patient.firstName} ${c.patient.lastName}`.trim();
+  return c.profileName || c.displayNumber || c.channel?.label || 'Unknown';
+};
+
 export const fmtTime = (d) => {
   if (!d) return '';
   const date = new Date(d);

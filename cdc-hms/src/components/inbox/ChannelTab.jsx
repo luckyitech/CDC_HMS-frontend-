@@ -5,9 +5,12 @@ import useDebounce from '../../hooks/useDebounce';
 import ConversationList from './ConversationList';
 import Thread from './Thread';
 
-// The WhatsApp tab: a conversation list beside the open thread. On phones the
-// list collapses to the thread once one is opened (a Back control returns).
-const WhatsAppTab = ({ canWrite }) => {
+// One channel's inbox: a conversation list beside the open thread. Channel-
+// generic — `channel` scopes the list to WhatsApp, Messenger or Instagram, so
+// the same component backs every tab (each tab mounts its own instance, so
+// switching channels resets the active thread and filters cleanly). On phones
+// the list collapses to the thread once one is opened (a Back control returns).
+const ChannelTab = ({ canWrite, channel = 'whatsapp' }) => {
   const [conversations, setConversations] = useState([]);
   const [active, setActive] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -18,11 +21,11 @@ const WhatsAppTab = ({ canWrite }) => {
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await commsService.listConversations({ filter, search: debouncedSearch || undefined });
+      const r = await commsService.listConversations({ channel, filter, search: debouncedSearch || undefined });
       setConversations(r.data.conversations || []);
     } catch { /* handled by the interceptor */ }
     finally { setLoading(false); }
-  }, [filter, debouncedSearch]);
+  }, [channel, filter, debouncedSearch]);
 
   useEffect(() => { fetchList(); }, [fetchList]);
 
@@ -59,4 +62,4 @@ const WhatsAppTab = ({ canWrite }) => {
   );
 };
 
-export default WhatsAppTab;
+export default ChannelTab;

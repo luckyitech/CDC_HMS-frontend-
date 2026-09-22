@@ -9,7 +9,7 @@ import FileToRecordModal from './FileToRecordModal';
 import BookFromChat from './BookFromChat';
 import EscalateForm from './EscalateForm';
 import ReminderForm from './ReminderForm';
-import { fmtDay } from './inboxHelpers';
+import { fmtDay, contactName } from './inboxHelpers';
 
 const Thread = ({ conversationId, canWrite, onChanged }) => {
   const [conversation, setConversation] = useState(null);
@@ -69,7 +69,7 @@ const Thread = ({ conversationId, canWrite, onChanged }) => {
   };
 
   if (loading || !conversation) return <div className="flex flex-1 items-center justify-center text-sm text-gray-400">Loading…</div>;
-  const name = conversation.patient ? `${conversation.patient.firstName} ${conversation.patient.lastName}` : conversation.profileName || conversation.displayNumber;
+  const name = contactName(conversation);
   const lastInbound = [...messages].reverse().find((m) => m.direction === 'in');
 
   let lastDay = '';
@@ -80,7 +80,7 @@ const Thread = ({ conversationId, canWrite, onChanged }) => {
         <div className="flex items-center justify-between border-b bg-white px-4 py-2">
           <div>
             <div className="font-semibold text-gray-800">{name}</div>
-            <div className="text-xs text-gray-400">{conversation.displayNumber} · {conversation.channel?.label || 'WhatsApp'}</div>
+            <div className="text-xs text-gray-400">{[conversation.displayNumber, conversation.channel?.label || 'WhatsApp'].filter(Boolean).join(' · ')}</div>
           </div>
           {canWrite && (
             <div className="flex items-center gap-2 text-gray-500">

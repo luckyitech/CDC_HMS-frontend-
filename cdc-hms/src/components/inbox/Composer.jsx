@@ -11,6 +11,11 @@ const Composer = ({ conversation, templates = [], onSendText, onSendTemplate, on
   const [templateName, setTemplateName] = useState('');
   const fileRef = useRef(null);
   const windowOpen = conversation?.windowOpen;
+  // Only WhatsApp has approved templates and media send. On Messenger/Instagram
+  // a closed 24 h window means no reply is possible until the person writes
+  // again — offering a template picker there would only produce a server error,
+  // so we show a plain notice instead, and hide the attach control.
+  const isWhatsApp = (conversation?.channel?.channel || 'whatsapp') === 'whatsapp';
 
   const submit = (e) => {
     e.preventDefault();
@@ -44,10 +49,14 @@ const Composer = ({ conversation, templates = [], onSendText, onSendTemplate, on
           <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} />
           <StickyNote size={13} /> Internal note
         </label>
-        {!windowOpen && !internal && <span className="inline-flex items-center gap-1 text-amber-600"><Lock size={12} /> Window closed — templates only</span>}
+        {!windowOpen && !internal && (
+          <span className="inline-flex items-center gap-1 text-amber-600">
+            <Lock size={12} /> {isWhatsApp ? 'Window closed — templates only' : 'Window closed — reply once they message again'}
+          </span>
+        )}
       </div>
 
-      {(!windowOpen && !internal) ? (
+      {(!windowOpen && !internal && isWhatsApp) ? (
         <div className="flex items-center gap-2">
           <select value={templateName} onChange={(e) => setTemplateName(e.target.value)} className="flex-1 rounded-lg border-gray-300 text-sm">
             <option value="">Choose an approved template…</option>
@@ -57,9 +66,13 @@ const Composer = ({ conversation, templates = [], onSendText, onSendTemplate, on
           </select>
           <button type="submit" disabled={!templateName || sending} className="rounded-lg bg-emerald-600 px-3 py-2 text-white disabled:opacity-40"><Send size={16} /></button>
         </div>
+      ) : (!windowOpen && !internal && !isWhatsApp) ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          The 24-hour reply window has closed. You can reply again once this person sends a new message.
+        </div>
       ) : (
         <div className="flex items-end gap-2">
-          {!internal && (
+          {!internal && isWhatsApp && (
             <>
               <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100" title="Attach a file"><Paperclip size={18} /></button>
               <input ref={fileRef} type="file" className="hidden" onChange={pickFile} />

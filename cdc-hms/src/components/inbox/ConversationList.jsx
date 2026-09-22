@@ -1,5 +1,5 @@
 import { Search, Pin, FlaskConical, User } from 'lucide-react';
-import { fmtRelative } from './inboxHelpers';
+import { fmtRelative, contactName } from './inboxHelpers';
 
 // "All" is the everyday default and stays a one-tap button; the narrower filters
 // live in a dropdown beside it so the list header stays a single tidy row.
@@ -9,7 +9,7 @@ const MORE_FILTERS = [
 ];
 
 const initials = (c) => {
-  const n = (c.patient ? `${c.patient.firstName} ${c.patient.lastName}` : c.profileName || c.displayNumber || '?').trim();
+  const n = contactName(c);
   return n.split(/\s+/).slice(0, 2).map((s) => s[0]).join('').toUpperCase();
 };
 
@@ -43,7 +43,7 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
       {loading && <div className="p-4 text-center text-sm text-gray-400">Loading…</div>}
       {!loading && conversations.length === 0 && <div className="p-6 text-center text-sm text-gray-400">No conversations here.</div>}
       {conversations.map((c) => {
-        const name = c.patient ? `${c.patient.firstName} ${c.patient.lastName}` : c.profileName || c.displayNumber;
+        const name = contactName(c);
         const active = c.id === activeId;
         return (
           <button key={c.id} type="button" onClick={() => onSelect(c)} className={`flex w-full items-start gap-2 border-b px-3 py-2 text-left hover:bg-gray-50 ${active ? 'bg-emerald-50' : ''}`}>
