@@ -26,6 +26,7 @@ import {
   User,
   Calendar,
   CalendarCheck,
+  CalendarDays,
   Upload,
   TestTube,
   FileCheck,
@@ -188,6 +189,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
         { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
         { label: 'Patient Visits', path: '/doctor/patient-visits', Icon: TrendingUp },
+        { label: 'Attendance', path: '/doctor/attendance', Icon: CalendarDays },
       ],
     },
     {
@@ -197,6 +199,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         { label: 'Appointments', path: '/staff/appointments', Icon: Calendar },
         { label: 'Book Appointment', path: '/staff/book-appointment', Icon: CalendarCheck },
         { label: 'Patient Visits', path: '/staff/patient-visits', Icon: TrendingUp },
+        { label: 'Attendance', path: '/staff/attendance', Icon: CalendarDays },
       ],
     },
     {
@@ -222,6 +225,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         { label: 'Activity Log', path: '/admin/activity-log', Icon: ShieldAlert, permission: PERMISSIONS.MONITORING_VIEW },
         { label: 'Analytics', path: '/admin/analytics', Icon: TrendingUp, permission: PERMISSIONS.MONITORING_VIEW },
         { label: 'Patient Visits', path: '/admin/patient-visits', Icon: ClipboardList, permission: PERMISSIONS.MONITORING_VIEW },
+        { label: 'Attendance', path: '/admin/attendance', Icon: CalendarDays, permission: PERMISSIONS.MONITORING_VIEW },
       ],
     },
     {

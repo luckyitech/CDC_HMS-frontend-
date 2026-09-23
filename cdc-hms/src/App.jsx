@@ -32,6 +32,7 @@ import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 // Shared pages (lazy)
 const MedicalDocuments = lazy(() => import("./pages/shared/MedicalDocuments"));
 const PatientVisitsReport = lazy(() => import("./pages/shared/PatientVisitsReport"));
+const AttendanceRegister = lazy(() => import("./pages/shared/AttendanceRegister"));
 const ChangePasswordPage = lazy(() => import("./pages/shared/ChangePasswordPage"));
 const Stocks = lazy(() => import("./pages/shared/Stocks"));
 
@@ -183,6 +184,7 @@ function App() {
                   <Route path="book-appointment" element={<StaffBookAppointment />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
+                  <Route path="attendance" element={<AttendanceRegister />} />
                   <Route path="stock" element={<Stocks />} />
                   <Route path="inpatient-admissions" element={<InpatientAdmissions />} />
                   <Route path="inbox" element={<Inbox />} />
@@ -207,6 +209,7 @@ function App() {
                   <Route path="reports" element={<Reports />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
+                  <Route path="attendance" element={<AttendanceRegister />} />
                   <Route path="physical-exam" element={<PhysicalExamination />} />
                   <Route path="glycemic-charts" element={<GlycemicCharts />} />
                   <Route path="ultrasound-studio" element={<UltrasoundStudio />} />
@@ -273,6 +276,7 @@ function App() {
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
+                  <Route path="attendance" element={<AttendanceRegister />} />
                   <Route path="catalog" element={<ClinicalCatalog />} />
                   <Route path="stock" element={<Stocks />} />
                   <Route path="duplicate-patients" element={<DuplicatePatients />} />
