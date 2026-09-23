@@ -10,6 +10,7 @@ import { useUserContext } from '../../contexts/UserContext';
 import { useQueueContext } from '../../contexts/QueueContext';
 import useNotificationSound from '../../hooks/useNotificationSound';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
+import CallOrderConfirmModal from '../../components/shared/CallOrderConfirmModal';
 import { isConsultationDone, isPendingInjection } from '../../utils/queueStatus';
 
 const QUEUE_PER_PAGE = 15;
@@ -108,7 +109,7 @@ const DoctorDashboard = () => {
   // Status colours and labels live in utils/queueStatus so the doctor's queue,
   // the badges and the action column all agree on what a status means.
 
-  const handleStartConsultation = (queueId, uhid, alreadyWithDoctor) => {
+  const doStart = (queueId, uhid, alreadyWithDoctor) => {
     // Only transition to "With Doctor" on the first click.
     // If status is already "With Doctor" the doctor is continuing — no state change needed.
     // If status is "Awaiting Doctor" (e.g. after a referral) we must call startConsultation
@@ -118,8 +119,37 @@ const DoctorDashboard = () => {
     navigate(`/doctor/consultation/${uhid}`);
   };
 
+  // Manual-bump guard: starting a consultation on one of my Awaiting-Doctor
+  // patients who isn't next in the booking-priority order pops a confirm.
+  const [bump, setBump] = useState(null); // { selected, next }
+
+  const handleStartConsultation = (queueId, uhid, alreadyWithDoctor) => {
+    const selected = queue.find((q) => q.id === queueId);
+    if (!alreadyWithDoctor && selected?.status === 'Awaiting Doctor') {
+      // queue is already in booking-priority order — first of my Awaiting-Doctor list is next
+      const myAwaiting = queue.filter(
+        (q) => q.status === 'Awaiting Doctor' && Number(q.assignedDoctorId) === myId
+      );
+      const next = myAwaiting[0];
+      if (next && next.id !== queueId) {
+        setBump({ selected, next });
+        return;
+      }
+    }
+    doStart(queueId, uhid, alreadyWithDoctor);
+  };
+
   return (
     <div>
+      <CallOrderConfirmModal
+        isOpen={!!bump}
+        onClose={() => setBump(null)}
+        selected={bump?.selected}
+        next={bump?.next}
+        verb="see"
+        onProceed={() => { const p = bump.selected; setBump(null); doStart(p.id, p.uhid, p.status === 'With Doctor'); }}
+        onSeeNext={() => { const p = bump.next; setBump(null); doStart(p.id, p.uhid, p.status === 'With Doctor'); }}
+      />
       <PageHeader
         title="Doctor Dashboard"
         subtitle={`Welcome back, ${currentUser?.name || 'Doctor'}`}

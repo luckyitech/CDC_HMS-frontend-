@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Stethoscope, CheckCircle, FolderOpen } from "lucide-react";
 import Card from "../shared/Card";
 import Button from "../shared/Button";
 import { NURSE_QUEUE_STATUSES, isInjectionReturn, queueStatusColor } from "../../utils/queueStatus";
+import { QueueBookingBadge } from "../shared/QueueBooking";
+import CallOrderConfirmModal from "../shared/CallOrderConfirmModal";
 import { useQueueContext } from "../../contexts/QueueContext";
 
 // Triage worklist — the patients waiting for a nurse, plus everyone already
@@ -43,7 +46,10 @@ const Row = ({ patient, cta, onOpen, showStatus = false, variant = "primary" }) 
         </span>
       )}
     </td>
-    <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">{patient.arrivalTime}</td>
+    <td className="hidden md:table-cell px-4 lg:px-6 py-4 text-sm">
+      {patient.arrivalTime}
+      <QueueBookingBadge patient={patient} className="mt-1 block w-fit" />
+    </td>
     <td className="px-4 lg:px-6 py-4">
       {showStatus ? (
         <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${queueStatusColor(patient)}`}>
@@ -84,8 +90,31 @@ const TriageWorklist = () => {
     });
   };
 
+  // Manual-bump guard: starting triage on a patient who isn't next in the
+  // booking-priority order pops a confirm naming who is actually next.
+  const awaitingTriage = getQueueByStatus("Awaiting Triage");
+  const [bump, setBump] = useState(null); // { selected, next }
+
+  const startTriage = (patient) => {
+    const next = awaitingTriage[0];
+    if (next && next.id !== patient.id) {
+      setBump({ selected: patient, next });
+    } else {
+      openTriage(patient);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <CallOrderConfirmModal
+        isOpen={!!bump}
+        onClose={() => setBump(null)}
+        selected={bump?.selected}
+        next={bump?.next}
+        verb="triage"
+        onProceed={() => { const p = bump.selected; setBump(null); openTriage(p); }}
+        onSeeNext={() => { const p = bump.next; setBump(null); openTriage(p); }}
+      />
       <Card title={
         <span className="flex items-center gap-2">
           <Stethoscope className="w-5 h-5" />
@@ -98,7 +127,7 @@ const TriageWorklist = () => {
               <Head />
               <tbody className="divide-y divide-gray-200">
                 {waitingPatients.map((patient) => (
-                  <Row key={patient.id} patient={patient} cta="Start Triage" onOpen={openTriage} />
+                  <Row key={patient.id} patient={patient} cta="Start Triage" onOpen={startTriage} />
                 ))}
               </tbody>
             </table>

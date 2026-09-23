@@ -28,6 +28,7 @@ import { useAppointmentContext } from '../../contexts/AppointmentContext';
 import { BatchScanBox } from '../../components/stock/stockUi';
 import stockService from '../../services/stockService';
 import TriageWorklist from '../../components/nursing/TriageWorklist';
+import { QueueBookingBadge, QueuePriorityLegend } from '../../components/shared/QueueBooking';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
 
 const formatArrival = (iso) => {
@@ -341,6 +342,10 @@ const QueueManagement = () => {
             );
           })}
         </div>
+
+        {/* Booking-priority rules — visible so the order the queue serves in is clear */}
+        <QueuePriorityLegend className="mb-4" />
+
         {loading && filteredQueue.length === 0 ? (
           <div className="flex items-center justify-center gap-3 py-12 text-gray-500">
             <Loader2 className="w-6 h-6 animate-spin" />
@@ -387,6 +392,9 @@ const QueueManagement = () => {
                       <StatusBadge size="xs" tone={QUEUE_PRIORITY_TONES[patient.priority] || 'success'}>
                         {patient.priority}
                       </StatusBadge>
+                    </Field>
+                    <Field label="Booking">
+                      <QueueBookingBadge patient={patient} />
                     </Field>
                     <Field label="Est. Wait">
                       <p className="text-sm text-gray-600 flex items-center gap-1">
@@ -446,6 +454,7 @@ const QueueManagement = () => {
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Arrival</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Est. Wait</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Priority</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Booking</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Assigned Doctor</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reason</th>
@@ -473,6 +482,9 @@ const QueueManagement = () => {
                         <StatusBadge tone={QUEUE_PRIORITY_TONES[patient.priority] || 'success'}>
                           {patient.priority}
                         </StatusBadge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <QueueBookingBadge patient={patient} />
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge tone={QUEUE_STATUS_TONES[patient.status]}>
