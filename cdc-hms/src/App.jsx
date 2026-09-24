@@ -116,6 +116,7 @@ const LabInbox           = lazy(() => import("./pages/staff/LabInbox"));
 const HrDashboard        = lazy(() => import("./pages/hr/HrDashboard"));
 const TimeRegister       = lazy(() => import("./pages/hr/TimeRegister"));
 const HrSettings         = lazy(() => import("./pages/hr/HrSettings"));
+const StaffDirectory     = lazy(() => import("./pages/hr/StaffDirectory"));
 const TapLanding         = lazy(() => import("./pages/hr/TapLanding"));
 // Communications Inbox — WhatsApp + Lab reports + Reminders. The old
 // /<portal>/lab-inbox paths redirect to its Lab reports tab.
@@ -315,6 +316,8 @@ function App() {
                   <Route index element={<Navigate to="/hr/dashboard" replace />} />
                   <Route path="dashboard" element={<HrDashboard />} />
                   <Route path="register" element={<TimeRegister />} />
+                  <Route path="staff" element={<StaffDirectory />} />
+                  <Route path="staff/:employeeId" element={<StaffFile />} />
                   <Route path="settings" element={<HrSettings />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>

@@ -470,6 +470,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     hr: [
       { name: "Dashboard", path: "/hr/dashboard", icon: LayoutDashboard },
       { name: "Time & Attendance", path: "/hr/register", icon: Clock },
+      { name: "Staff", path: "/hr/staff", icon: Users, permission: PERMISSIONS.USERS_VIEW },
       { name: "Settings", path: "/hr/settings", icon: Settings, permission: PERMISSIONS.HR_WRITE },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)

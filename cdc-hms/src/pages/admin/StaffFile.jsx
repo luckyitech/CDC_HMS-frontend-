@@ -84,6 +84,14 @@ const StaffFile = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // The same file is mounted under /admin (from Manage Users) and /hr (from
+  // the HR Suite staff directory). Send Back and the post-archive redirect
+  // to wherever it was opened from, so neither entry point strands the user
+  // in the other portal.
+  const fromHr    = location.pathname.startsWith('/hr/');
+  const backPath  = fromHr ? '/hr/staff' : '/admin/manage-users';
+  const backLabel = fromHr ? 'Back to Staff' : 'Back to Users';
+
   const [staff, setStaff]         = useState(null);
   const [loading, setLoading]     = useState(true);
   const [overviewOpen, setOverviewOpen] = useState(true);
@@ -140,7 +148,7 @@ const StaffFile = () => {
     try {
       await staffService.archive(employeeId);
       toast.success(`${staff.name} archived`);
-      navigate('/admin/manage-users');
+      navigate(backPath);
     } catch (err) {
       toast.error(err.message || 'Failed to archive');
       setBusy(false);
@@ -173,7 +181,7 @@ const StaffFile = () => {
       <div className="text-center py-12">
         <p className="text-2xl font-bold text-red-600">Staff member not found</p>
         <p className="text-gray-600 mt-2">Employee ID: {employeeId}</p>
-        <Button onClick={() => navigate('/admin/manage-users')} className="mt-4">← Back to Users</Button>
+        <Button onClick={() => navigate(backPath)} className="mt-4">← {backLabel}</Button>
       </div>
     );
   }
@@ -200,8 +208,8 @@ const StaffFile = () => {
       <PageHeader
         title="Staff File"
         actions={
-          <Button variant="outline" onClick={() => navigate('/admin/manage-users')} className="flex items-center gap-2">
-            <ArrowLeft className="w-5 h-5" /> <span>Back to Users</span>
+          <Button variant="outline" onClick={() => navigate(backPath)} className="flex items-center gap-2">
+            <ArrowLeft className="w-5 h-5" /> <span>{backLabel}</span>
           </Button>
         }
       />
