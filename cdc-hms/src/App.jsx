@@ -19,6 +19,7 @@ import { ConsultationNotesProvider } from './contexts/ConsultationNotesContext';
 import { Glp1Provider } from './contexts/Glp1Context';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { StockProvider } from './contexts/StockContext';
+import { HrProvider } from './contexts/HrContext';
 
 // Layouts & shared (always needed — keep eager)
 import MainLayout from "./layouts/MainLayout";
@@ -110,6 +111,12 @@ const AdmissionDetail    = lazy(() => import("./pages/inpatient/AdmissionDetail"
 const InpatientAdmissions = lazy(() => import("./pages/staff/InpatientAdmissions"));
 // External lab reports pulled from the clinic mailbox — pair each to a patient.
 const LabInbox           = lazy(() => import("./pages/staff/LabInbox"));
+
+// HR Suite (B21) — staff time & attendance
+const HrDashboard        = lazy(() => import("./pages/hr/HrDashboard"));
+const TimeRegister       = lazy(() => import("./pages/hr/TimeRegister"));
+const HrSettings         = lazy(() => import("./pages/hr/HrSettings"));
+const TapLanding         = lazy(() => import("./pages/hr/TapLanding"));
 // Communications Inbox — WhatsApp + Lab reports + Reminders. The old
 // /<portal>/lab-inbox paths redirect to its Lab reports tab.
 const Inbox              = lazy(() => import("./pages/shared/Inbox"));
@@ -137,7 +144,9 @@ const AuthenticatedLayout = () => (
                     <TreatmentPlanProvider>
                       <Glp1Provider>
                         <StockProvider>
-                          <Outlet />
+                          <HrProvider>
+                            <Outlet />
+                          </HrProvider>
                         </StockProvider>
                       </Glp1Provider>
                     </TreatmentPlanProvider>
@@ -164,6 +173,11 @@ function App() {
               {/* Public (auth) routes — no data providers active here */}
               <Route path="/" element={<LoginPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              {/* HR Suite (B21) — the page an entrance NFC tag opens. Outside
+                  MainLayout and ProtectedRoute on purpose: it handles its own
+                  session (remembered phone → device-session, else a one-time
+                  login) because a URL opened from a tag always lands logged out. */}
+              <Route path="/hr/tap" element={<TapLanding />} />
 
               {/* Authenticated portal routes — data providers mount only here */}
               <Route element={<AuthenticatedLayout />}>
@@ -289,6 +303,19 @@ function App() {
                   <Route path="reports" element={<Reports />} />
                   <Route path="settings" element={<SystemSettings />} />
                   <Route path="ward-config" element={<WardConfig />} />
+                  <Route path="change-password" element={<ChangePasswordPage />} />
+                </Route>
+
+                {/* HR Suite (B21) — one portal, two views. Every internal role
+                    opens it; hr.view / hr.write unlock the HR blocks per item. */}
+                <Route
+                  path="/hr"
+                  element={<ProtectedRoute requiredPortal="portal.hr"><MainLayout userRole="HR" /></ProtectedRoute>}
+                >
+                  <Route index element={<Navigate to="/hr/dashboard" replace />} />
+                  <Route path="dashboard" element={<HrDashboard />} />
+                  <Route path="register" element={<TimeRegister />} />
+                  <Route path="settings" element={<HrSettings />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

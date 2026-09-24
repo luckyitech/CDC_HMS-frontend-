@@ -53,6 +53,8 @@ import {
   Scan,
   Footprints,
   Inbox,
+  IdCard,
+  Clock,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
@@ -259,6 +261,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
     { label: 'Staff Portal', path: '/staff/dashboard', icon: Users, portal: PERMISSIONS.PORTAL_STAFF },
     { label: 'Lab Portal', path: '/lab/dashboard', icon: TestTube, portal: PERMISSIONS.PORTAL_LAB },
     { label: 'Radiology Suite', path: '/radiology/dashboard', icon: Scan, portal: PERMISSIONS.PORTAL_RADIOLOGY },
+    // HR Suite (B21) — every internal role by default; the person's own time &
+    // attendance record, plus the clinic's for hr.view holders.
+    { label: 'HR Suite', path: '/hr/dashboard', icon: IdCard, portal: PERMISSIONS.PORTAL_HR },
   ];
 
   // Portals this person may open, other than the one they are already in.
@@ -459,6 +464,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // Triage is the second tab inside Queue Management now, not a nav item.
       { name: "Queue Management", path: "/nurse/queue", icon: ClipboardList },
       { name: "Inbox", path: "/nurse/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
+    ],
+    // HR Suite (B21) — one portal, two views. Dashboard and the register are
+    // open to everyone in the portal (own rows); Settings only to hr.write.
+    hr: [
+      { name: "Dashboard", path: "/hr/dashboard", icon: LayoutDashboard },
+      { name: "Time & Attendance", path: "/hr/register", icon: Clock },
+      { name: "Settings", path: "/hr/settings", icon: Settings, permission: PERMISSIONS.HR_WRITE },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [

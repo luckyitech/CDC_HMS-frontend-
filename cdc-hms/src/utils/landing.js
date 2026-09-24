@@ -15,6 +15,9 @@ export const PORTAL_DASHBOARDS = {
   [PERMISSIONS.PORTAL_LAB]:       '/lab/dashboard',
   [PERMISSIONS.PORTAL_INPATIENT]: '/inpatient/dashboard',
   [PERMISSIONS.PORTAL_RADIOLOGY]: '/radiology/suite',
+  // Last on purpose: a person lands here only when every other portal has been
+  // withdrawn — the HR Suite is a mirror of their own record, not a workplace.
+  [PERMISSIONS.PORTAL_HR]:        '/hr/dashboard',
 };
 
 // Which portal a role is sent to FIRST when it can open more than one. A doctor

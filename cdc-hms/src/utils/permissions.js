@@ -23,6 +23,8 @@ export const PERMISSIONS = {
   PORTAL_LAB:       'portal.lab',
   PORTAL_INPATIENT: 'portal.inpatient',
   PORTAL_RADIOLOGY: 'portal.radiology',
+  // HR Suite — staff time & attendance (B21). Every internal role by default.
+  PORTAL_HR:        'portal.hr',
 
   ADMIN_ACCESS:    'admin.access',
   USERS_VIEW:      'users.view',
@@ -68,6 +70,14 @@ export const PERMISSIONS = {
   // or runs a drug round differs between clinics.
   RADIOLOGY_WRITE:  'radiology.write',
   MAR_ADMINISTER:   'mar.administer',
+
+  // HR Suite (B21). CHECKIN = tap the entrance tag, remember a phone, see one's
+  // own record (every internal role by role). VIEW = everyone's attendance,
+  // who is in, flags, the register. WRITE = amend, manual entry, working hours,
+  // tags. VIEW/WRITE default to the admin role and are covered by admin.access.
+  HR_CHECKIN:       'hr.checkin',
+  HR_VIEW:          'hr.view',
+  HR_WRITE:         'hr.write',
 };
 
 // Clinical or non-clinical, mirroring the backend's STAFF_TYPES.
@@ -101,11 +111,11 @@ export const isClinical = (user) => user?.staffType !== STAFF_TYPES.NON_CLINICAL
 // A list per role: a doctor reaches their own portal, the ward and the
 // Radiology Suite, so one "home" portal was never enough.
 const ROLE_DEFAULT_PORTALS = {
-  admin:  [PERMISSIONS.PORTAL_ADMIN],
-  doctor: [PERMISSIONS.PORTAL_DOCTOR, PERMISSIONS.PORTAL_INPATIENT, PERMISSIONS.PORTAL_RADIOLOGY],
-  staff:  [PERMISSIONS.PORTAL_STAFF,  PERMISSIONS.PORTAL_RADIOLOGY],
-  lab:    [PERMISSIONS.PORTAL_LAB],
-  nurse:  [PERMISSIONS.PORTAL_INPATIENT],
+  admin:  [PERMISSIONS.PORTAL_ADMIN, PERMISSIONS.PORTAL_HR],
+  doctor: [PERMISSIONS.PORTAL_DOCTOR, PERMISSIONS.PORTAL_INPATIENT, PERMISSIONS.PORTAL_RADIOLOGY, PERMISSIONS.PORTAL_HR],
+  staff:  [PERMISSIONS.PORTAL_STAFF,  PERMISSIONS.PORTAL_RADIOLOGY, PERMISSIONS.PORTAL_HR],
+  lab:    [PERMISSIONS.PORTAL_LAB, PERMISSIONS.PORTAL_HR],
+  nurse:  [PERMISSIONS.PORTAL_INPATIENT, PERMISSIONS.PORTAL_HR],
 };
 
 /**
@@ -205,6 +215,14 @@ export const canViewComms     = (user) => canUseCapability(user, PERMISSIONS.COM
 export const canWriteComms    = (user) => canUseCapability(user, PERMISSIONS.COMMS_WRITE,    COMMS_DEFAULT_ROLES);
 export const canViewLabInbox  = (user) => canUseCapability(user, PERMISSIONS.LABINBOX_VIEW,  LABINBOX_DEFAULT_ROLES);
 export const canWriteLabInbox = (user) => canUseCapability(user, PERMISSIONS.LABINBOX_WRITE, LABINBOX_DEFAULT_ROLES);
+
+// HR Suite (B21). Mirrors routes/hr.js: CHECKIN lists every internal role;
+// VIEW/WRITE list 'admin' only (admin.access reaches them through the bypass).
+export const HR_DEFAULT_ROLES         = ['admin'];
+export const HR_CHECKIN_DEFAULT_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
+export const canViewHr  = (user) => canUseCapability(user, PERMISSIONS.HR_VIEW,    HR_DEFAULT_ROLES);
+export const canWriteHr = (user) => canUseCapability(user, PERMISSIONS.HR_WRITE,   HR_DEFAULT_ROLES);
+export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKIN, HR_CHECKIN_DEFAULT_ROLES);
 
 /** Can this user use the admin portal — as the admin, or by grant? */
 export const canAccessAdmin = (user) => canOpenPortal(user, PERMISSIONS.PORTAL_ADMIN);

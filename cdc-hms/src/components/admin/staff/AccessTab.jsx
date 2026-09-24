@@ -9,7 +9,8 @@ import api from '../../../services/api';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import AccordionPanel from '../../shared/AccordionPanel';
 import { formatDateTime } from './staffFormat';
-import { STAFF_TYPES } from '../../../utils/permissions';
+import { STAFF_TYPES, canWriteHr } from '../../../utils/permissions';
+import RememberedPhones from '../../hr/RememberedPhones';
 
 // Keyed off the server's group keys. An unknown group still renders, with the
 // generic shield — a group added on the server is never invisible here.
@@ -451,6 +452,12 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           </select>
         </div>
       </div>
+
+      {/* Remembered phones (HR Suite, B21) — listed only for people who may
+          revoke them; the API refuses the list otherwise. */}
+      {canWriteHr(currentUser) && staff.userId && (
+        <RememberedPhones userId={staff.userId} canRevoke />
+      )}
 
       {/* Clinical or non-clinical.
           Above the permission groups on purpose: for almost everyone this is

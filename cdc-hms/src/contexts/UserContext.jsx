@@ -97,6 +97,17 @@ export const UserProvider = ({ children }) => {
     });
   };
 
+  // Adopt a session that was opened outside the login form — the HR Suite tap
+  // page (B21) gets a JWT from POST /auth/device-session (a remembered phone)
+  // or from /auth/login with rememberDevice. Stores exactly what
+  // authService.login stores so every other part of the app sees a normal login.
+  const adoptSession = ({ token, user }) => {
+    if (!token || !user) return;
+    sessionStorage.setItem('token', token);
+    sessionStorage.setItem('currentUser', JSON.stringify(user));
+    setCurrentUser(user);
+  };
+
   // Get all users combined
   const getAllUsers = () => {
     return [
@@ -246,6 +257,7 @@ export const UserProvider = ({ children }) => {
     isAuthenticated,
     hasRole,
     patchCurrentUser,
+    adoptSession,
     
     // User Query Functions
     getAllUsers,
