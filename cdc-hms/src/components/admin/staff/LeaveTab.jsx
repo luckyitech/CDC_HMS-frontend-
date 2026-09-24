@@ -16,7 +16,12 @@ const STATUS_TONES = {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-const LeaveTab = ({ staff, isAdmin }) => {
+// canDecide: this viewer may approve leave FOR THIS PERSON — users.write
+// (admin.access included) and not their own file. Nobody approves their own
+// leave, so a manager on their own file records a request like anyone else.
+// The API applies the same rule (leaveController.canDecideLeaveFor).
+const LeaveTab = ({ staff, canDecide }) => {
+  const isAdmin = canDecide;
   const [year, setYear]       = useState(new Date().getFullYear());
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);

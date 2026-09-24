@@ -81,6 +81,10 @@ export const PERMISSIONS = {
   HR_CHECKIN:       'hr.checkin',
   HR_VIEW:          'hr.view',
   HR_WRITE:         'hr.write',
+  // The confidential drawer of a staff file (contracts, appraisals,
+  // disciplinary letters, archived files). Like permissions.grant it is NOT
+  // covered by admin.access and held by nobody by role.
+  HR_CONFIDENTIAL:  'hr.confidential',
 };
 
 // Clinical or non-clinical, mirroring the backend's STAFF_TYPES.
@@ -245,3 +249,16 @@ export const isTrueAdmin = (user) => user?.role === 'admin';
  */
 export const canGrantPermissions = (user) =>
   isTrueAdmin(user) || hasPermission(user, PERMISSIONS.PERMISSIONS_GRANT);
+
+/**
+ * May this person open the confidential drawer of a staff file?
+ *
+ * An explicit grant of hr.confidential, or the true admin account. NOT
+ * satisfied by admin.access — an administrator manages the file, reading a
+ * colleague's contract is a separate trust. Mirrors backend canViewConfidential
+ * (constants/permissions.js); the API enforces it regardless. The session's
+ * `permissions` list arrives already resolved minus withdrawals, so a withdrawn
+ * grant is simply absent here.
+ */
+export const canViewConfidential = (user) =>
+  isTrueAdmin(user) || hasPermission(user, PERMISSIONS.HR_CONFIDENTIAL);

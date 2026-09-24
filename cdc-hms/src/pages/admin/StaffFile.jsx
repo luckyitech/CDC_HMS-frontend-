@@ -17,6 +17,7 @@ import LeaveTab from '../../components/admin/staff/LeaveTab';
 import DocumentsTab from '../../components/admin/staff/DocumentsTab';
 import ActivityTab from '../../components/admin/staff/ActivityTab';
 import { formatDate } from '../../components/admin/staff/staffFormat';
+import { PERMISSIONS, passesAdminGate, canViewConfidential } from '../../utils/permissions';
 
 // The staff record "file".
 //
@@ -99,14 +100,26 @@ const StaffFile = () => {
   const [busy, setBusy]           = useState(false);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
 
-  // Read from the session rather than refetched: it decides whether the
-  // permission toggles are offered. The server enforces the same rule
-  // regardless, so this is UX only.
+  // Read from the session rather than refetched: it decides which tabs and
+  // controls are offered. The server enforces the same rules regardless, so
+  // this is UX only.
+  //
+  // Three separate questions, each mirroring the API gate on the routes it
+  // unlocks — never `role === 'admin'`, which refused a doctor holding
+  // admin.access (the way the clinic runs once the true admin account is
+  // benched):
+  //   canView     users.view  — the Permissions and Activity tabs
+  //   canManage   users.write — editing the file, recording/deciding leave,
+  //                             managing documents
+  //   canSeeConfidential  hr.confidential — the confidential drawer of the
+  //                             Documents tab; NOT carried by admin.access
   const currentUser = (() => {
     try { return JSON.parse(sessionStorage.getItem('currentUser') || 'null'); }
     catch { return null; }
   })();
-  const isAdmin = currentUser?.role === 'admin';
+  const canView   = passesAdminGate(currentUser, PERMISSIONS.USERS_VIEW);
+  const canManage = passesAdminGate(currentUser, PERMISSIONS.USERS_WRITE);
+  const canSeeConfidential = canViewConfidential(currentUser);
 
   const loadStaff = useCallback(async () => {
     try {
@@ -190,8 +203,8 @@ const StaffFile = () => {
     { id: 'credentials', name: 'Credentials', Icon: Award,      show: CREDENTIALLED_ROLES.includes(staff.role) },
     { id: 'documents',   name: 'Documents',   Icon: FolderOpen, show: true },
     { id: 'leave',       name: 'Leave',       Icon: Calendar,   show: true },
-    { id: 'access',      name: 'Permissions', Icon: Lock,       show: isAdmin },
-    { id: 'activity',    name: 'Activity',    Icon: Activity,   show: isAdmin },
+    { id: 'access',      name: 'Permissions', Icon: Lock,       show: canView },
+    { id: 'activity',    name: 'Activity',    Icon: Activity,   show: canView },
   ].filter((t) => t.show);
 
   // Credentials is hidden for front desk, so the default tab has to fall back
@@ -201,7 +214,7 @@ const StaffFile = () => {
   const subline = [ROLE_LABEL[staff.role] || staff.role, staff.department, staff.employmentType]
     .filter(Boolean).join(' · ');
 
-  const canEdit = isAdmin && !staff.isArchived;
+  const canEdit = canManage && !staff.isArchived;
 
   return (
     <div>
@@ -319,8 +332,12 @@ const StaffFile = () => {
           </div>
         )}
 
-        {currentTab === 'documents' && <DocumentsTab staff={staff} isAdmin={isAdmin} />}
-        {currentTab === 'leave'     && <LeaveTab staff={staff} isAdmin={isAdmin} />}
+        {currentTab === 'documents' && (
+          <DocumentsTab staff={staff} canManage={canManage} canSeeConfidential={canSeeConfidential} />
+        )}
+        {currentTab === 'leave'     && (
+          <LeaveTab staff={staff} canDecide={canManage && staff.userId !== currentUser?.id} />
+        )}
 
         {currentTab === 'access' && (
           <AccessTab

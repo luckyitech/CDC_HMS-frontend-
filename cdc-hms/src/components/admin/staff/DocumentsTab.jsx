@@ -10,9 +10,9 @@ const CATEGORIES = [
   'Sick Note', 'Appraisal', 'Disciplinary', 'Other',
 ];
 
-// Categories that should not be visible to the staff member by default. The
-// admin can still change it, but the default matters more than the option —
-// nobody remembers to set it on every upload.
+// Categories that should not be visible to the staff member by default. A
+// holder of the confidential drawer can still change it, but the default
+// matters more than the option — nobody remembers to set it on every upload.
 const ADMIN_ONLY_BY_DEFAULT = new Set(['Employment Contract', 'Appraisal', 'Disciplinary']);
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
@@ -23,7 +23,13 @@ const EXPIRING_CATEGORIES = new Set([
   'Practising Licence', 'Training Certificate', 'National ID', 'Employment Contract',
 ]);
 
-const DocumentsTab = ({ staff, isAdmin }) => {
+// canManage           users.write — upload, reclassify, archive/restore
+// canSeeConfidential  hr.confidential — the "Admin only" documents, the archive,
+//                     and the visibility toggle. Deliberately separate: an
+//                     administrator without the grant sees and manages only
+//                     what the staff member themselves can see. The API
+//                     enforces both regardless (staffDocumentController).
+const DocumentsTab = ({ staff, canManage, canSeeConfidential }) => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -55,7 +61,9 @@ const DocumentsTab = ({ staff, isAdmin }) => {
       await staffService.uploadDocument(staff.employeeId, file, {
         category,
         expiryDate: expiryDate || undefined,
-        visibility: ADMIN_ONLY_BY_DEFAULT.has(category) ? 'Admin only' : 'Staff',
+        // Only a confidential-drawer holder may file into it; the server
+        // forces 'Staff' for everyone else, so don't ask for what it will refuse.
+        visibility: canSeeConfidential && ADMIN_ONLY_BY_DEFAULT.has(category) ? 'Admin only' : 'Staff',
       });
       toast.success('Document uploaded');
       setExpiryDate('');
@@ -133,7 +141,7 @@ const DocumentsTab = ({ staff, isAdmin }) => {
           <h3 className="text-sm font-semibold text-gray-800">
             {showArchived ? 'Archived files' : 'Files'}
           </h3>
-          {isAdmin && (
+          {canSeeConfidential && (
             <button
               onClick={() => setShowArchived((v) => !v)}
               className="text-xs text-gray-500 hover:text-blue-700 underline"
@@ -217,7 +225,7 @@ const DocumentsTab = ({ staff, isAdmin }) => {
                 </span>
               )}
 
-              {isAdmin && !showArchived && (
+              {canSeeConfidential && !showArchived && (
                 <button
                   onClick={() => toggleVisibility(doc)}
                   title={doc.visibility === 'Staff'
@@ -242,7 +250,7 @@ const DocumentsTab = ({ staff, isAdmin }) => {
                 <Download className="w-4 h-4" />
               </button>
 
-              {isAdmin && (
+              {canManage && (
                 showArchived ? (
                   <button
                     onClick={() => restore(doc)}
