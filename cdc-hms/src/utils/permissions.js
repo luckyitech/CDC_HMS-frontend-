@@ -27,6 +27,9 @@ export const PERMISSIONS = {
   PORTAL_HR:        'portal.hr',
 
   ADMIN_ACCESS:    'admin.access',
+  // The right to grant/withdraw capabilities on others. NOT covered by
+  // admin.access and cannot be self-granted — mirrors the backend exactly.
+  PERMISSIONS_GRANT: 'permissions.grant',
   USERS_VIEW:      'users.view',
   USERS_WRITE:     'users.write',
   CONFIG_WRITE:    'config.write',
@@ -229,3 +232,16 @@ export const canAccessAdmin = (user) => canOpenPortal(user, PERMISSIONS.PORTAL_A
 
 /** The admin ACCOUNT, as opposed to someone granted admin capabilities. */
 export const isTrueAdmin = (user) => user?.role === 'admin';
+
+/**
+ * May this person grant or withdraw capabilities on someone else?
+ *
+ * A permissions.grant holder, or the true admin account as the no-lockout
+ * fallback. Deliberately NOT satisfied by admin.access: an administrator runs
+ * the clinic, a permissions administrator decides who else may. Mirrors
+ * backend constants/permissions.js canGrantPermissions — UI only; the API
+ * enforces the same rule regardless. Uses hasPermission (explicit grant) on
+ * purpose, not passesAdminGate: the admin bypass must NOT apply here.
+ */
+export const canGrantPermissions = (user) =>
+  isTrueAdmin(user) || hasPermission(user, PERMISSIONS.PERMISSIONS_GRANT);

@@ -9,7 +9,7 @@ import api from '../../../services/api';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import AccordionPanel from '../../shared/AccordionPanel';
 import { formatDateTime } from './staffFormat';
-import { STAFF_TYPES, canWriteHr } from '../../../utils/permissions';
+import { STAFF_TYPES, canWriteHr, canGrantPermissions } from '../../../utils/permissions';
 import RememberedPhones from '../../hr/RememberedPhones';
 
 // Keyed off the server's group keys. An unknown group still renders, with the
@@ -111,11 +111,13 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   const [openGroups, setOpenGroups] = useState({});
   const toggleGroup = (key) => setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  // Granting is restricted server-side to a real admin ACCOUNT rather than
-  // anyone holding admin.access, so that the capability cannot propagate on its
-  // own and become impossible to revoke. The controls mirror that rule rather
-  // than offering an action that would be refused.
-  const canGrant = currentUser?.role === 'admin';
+  // Granting is restricted server-side to a PERMISSIONS ADMINISTRATOR — a
+  // permissions.grant holder, or the true admin account as fallback — rather
+  // than anyone holding admin.access, so that the capability cannot propagate
+  // on its own and become impossible to revoke. The controls mirror that rule
+  // (one shared helper, same as the API) rather than offering an action that
+  // would be refused.
+  const canGrant = canGrantPermissions(currentUser);
   const locked = !canGrant || staff.isArchived;
 
   useEffect(() => {
