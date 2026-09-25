@@ -135,6 +135,9 @@ export const PatientProvider = ({ children }) => {
   };
 
   // Add new patient (via API)
+  // On a possible-duplicate 409 the resolved object carries
+  // { success:false, possibleDuplicate:true, candidates } so the caller can
+  // show the chooser and resubmit with { force:true }.
   const addPatient = async (patientData) => {
     setLoading(true);
     try {
@@ -144,6 +147,9 @@ export const PatientProvider = ({ children }) => {
       }
       return { success: false, message: response.message };
     } catch (err) {
+      if (err?.status === 409 && err?.data?.code === 'POSSIBLE_DUPLICATE') {
+        return { success: false, possibleDuplicate: true, candidates: err.data.candidates || [], message: err.message };
+      }
       return { success: false, message: err.message };
     } finally {
       setLoading(false);
