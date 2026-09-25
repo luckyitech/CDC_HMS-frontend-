@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Check, Inbox, MessageCircle } from 'lucide-react';
+import { KeyRound, Check, Inbox, MessageCircle, Layers } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -8,6 +8,8 @@ import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
 import LabInboxSettingsTab from '../../components/admin/settings/LabInboxSettingsTab';
 import WhatsAppSettingsTab from '../../components/admin/settings/WhatsAppSettingsTab';
+import PermissionPresetsTab from '../../components/admin/settings/PermissionPresetsTab';
+import { useUserContext } from '../../contexts/UserContext';
 
 // The settings page is tabbed — one tab per settings area. Add an entry here
 // (and a component) to grow it; the password policy stays the first tab.
@@ -15,6 +17,7 @@ const SETTINGS_TABS = [
   { id: 'password', label: 'Password policy', Icon: KeyRound },
   { id: 'labInbox', label: 'Lab Inbox',       Icon: Inbox },
   { id: 'whatsapp', label: 'WhatsApp',        Icon: MessageCircle },
+  { id: 'presets',  label: 'Permission presets', Icon: Layers },
 ];
 import settingsService from '../../services/settingsService';
 import { notify } from '../../utils/notify';
@@ -22,6 +25,7 @@ import { notify } from '../../utils/notify';
 const ROLE_LABELS = { doctor: 'Doctors', staff: 'Staff', lab: 'Lab technicians', nurse: 'Nurses' };
 
 const SystemSettings = () => {
+  const { currentUser } = useUserContext();
   const [tab, setTab] = useState('password');
   const [rotation, setRotation] = useState(null);  // null = loading
   const [saving, setSaving] = useState(false);
@@ -98,6 +102,7 @@ const SystemSettings = () => {
 
       {tab === 'labInbox' && <LabInboxSettingsTab />}
       {tab === 'whatsapp' && <WhatsAppSettingsTab />}
+      {tab === 'presets'  && <PermissionPresetsTab currentUser={currentUser} />}
 
       {/* Card is used without its `title` prop so the switch can sit on the
           header row itself, which is where a settings toggle belongs. */}

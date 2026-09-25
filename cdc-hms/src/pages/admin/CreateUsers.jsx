@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { HeartPulse, Users, TestTube, UserPlus, BedDouble } from 'lucide-react';
 import Card from '../../components/shared/Card';
@@ -40,7 +40,12 @@ const CreateUsers = () => {
   const activeRole = ROLES.find((r) => r.key === searchParams.get('role')) || ROLES[0];
   const ActiveForm = activeRole.Form;
 
-  const switchRole = (key) => setSearchParams({ role: key }, { replace: true });
+  const switchRole = (key) => setSearchParams({ role: key, legacy: '1' }, { replace: true });
+
+  // The onboarding wizard (/admin/onboard) replaced this screen. The five
+  // per-cadre forms stay reachable for one release behind ?legacy=1 as a
+  // fallback; old bookmarks and the sidebar land on the wizard.
+  if (searchParams.get('legacy') !== '1') return <Navigate to="/admin/onboard" replace />;
 
   return (
     <div>

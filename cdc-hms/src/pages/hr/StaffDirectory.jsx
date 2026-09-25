@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Search, Loader, Users } from 'lucide-react';
+import { Search, Loader, Users, UserPlus } from 'lucide-react';
 import PageHeader from '../../components/shared/PageHeader';
 import StatusBadge from '../../components/shared/StatusBadge';
 import staffService from '../../services/staffService';
 import { ROLE_TONES } from '../../utils/statusStyles';
+import { passesAdminGate, PERMISSIONS } from '../../utils/permissions';
 
 // The staff directory, surfaced inside the HR Suite.
 //
@@ -76,15 +77,32 @@ const StaffDirectory = () => {
 
   const openFile = (employeeId) => navigate(`/hr/staff/${employeeId}`);
 
+  // Same gate as the create endpoints (users.write, via admin.access too).
+  const currentUser = (() => {
+    try { return JSON.parse(sessionStorage.getItem('currentUser') || 'null'); } catch { return null; }
+  })();
+  const canAdd = passesAdminGate(currentUser, PERMISSIONS.USERS_WRITE);
+
   return (
     <div>
       <PageHeader
         title="Staff"
         subtitle="Everyone on the clinic roster. Select a name to open their file."
         actions={
-          <span className="text-sm text-gray-400 flex-shrink-0">
-            {loading ? '' : `${filtered.length} ${filtered.length === 1 ? 'person' : 'people'}`}
-          </span>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span className="text-sm text-gray-400">
+              {loading ? '' : `${filtered.length} ${filtered.length === 1 ? 'person' : 'people'}`}
+            </span>
+            {canAdd && (
+              <button
+                type="button"
+                onClick={() => navigate('/hr/onboard')}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90"
+              >
+                <UserPlus className="w-4 h-4" />Add staff
+              </button>
+            )}
+          </div>
         }
       />
 

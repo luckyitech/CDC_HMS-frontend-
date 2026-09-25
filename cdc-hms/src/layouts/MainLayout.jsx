@@ -216,7 +216,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     {
       show: homeRole === 'admin',
       tabs: [
-        { label: 'Create Users', path: '/admin/create-users', Icon: UserPlus, permission: PERMISSIONS.USERS_WRITE },
+        { label: 'Onboard', path: '/admin/onboard', Icon: UserPlus, permission: PERMISSIONS.USERS_WRITE },
         { label: 'Manage Users', path: '/admin/manage-users', Icon: UserCog, permission: PERMISSIONS.USERS_VIEW },
         { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy, permission: PERMISSIONS.USERS_WRITE },
       ],

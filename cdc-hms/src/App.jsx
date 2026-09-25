@@ -79,6 +79,7 @@ const CriticalAlerts = lazy(() => import("./pages/lab/CriticalAlerts"));
 // Admin pages (lazy)
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const CreateUsers = lazy(() => import("./pages/admin/CreateUsers"));
+const Onboarding = lazy(() => import("./pages/admin/Onboarding"));
 const ClinicalCatalog = lazy(() => import("./pages/admin/ClinicalCatalog"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 // The staff file — one page for every cadre. Its shell (collapsible name bar,
@@ -275,6 +276,9 @@ function App() {
                 >
                   <Route path="dashboard" element={<AdminDashboard />} />
                   <Route path="inbox" element={<Inbox />} />
+                  {/* Onboarding wizard (staff + patient). Create Users now
+                      redirects here unless opened with ?legacy=1. */}
+                  <Route path="onboard" element={<Onboarding />} />
                   <Route path="create-users" element={<CreateUsers />} />
                   {/* Old per-role URLs redirect into the combined page */}
                   <Route path="create-doctor" element={<Navigate to="/admin/create-users?role=doctor" replace />} />
@@ -318,6 +322,7 @@ function App() {
                   <Route path="register" element={<TimeRegister />} />
                   <Route path="staff" element={<StaffDirectory />} />
                   <Route path="staff/:employeeId" element={<StaffFile />} />
+                  <Route path="onboard" element={<Onboarding />} />
                   <Route path="settings" element={<HrSettings />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
