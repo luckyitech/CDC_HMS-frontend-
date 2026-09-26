@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -58,6 +58,8 @@ import {
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
+import mailService from "../services/mailService";
+import MailNudge from "../components/mail/MailNudge";
 
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
@@ -113,7 +115,25 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // the page can never disagree (comms held by role by staff/doctor/nurse/admin,
   // lab reports by staff/lab/admin, either granted or covered by admin.access,
   // and withdrawable). See utils/permissions.
-  const inboxInNav = canViewComms(currentUser) || canViewLabInbox(currentUser);
+  //
+  // Staff Email (B26): My mail lives in the Inbox too, and every internal role
+  // holds it — so the Inbox entry now shows for anyone who can use ANY tab.
+  // Personal unread mail is a separate dot, never added to the clinic count.
+  const clinicInbox = canViewComms(currentUser) || canViewLabInbox(currentUser);
+  const mailInNav = canUseMail(currentUser);
+  const inboxInNav = clinicInbox || mailInNav;
+  const [mailState, setMailState] = useState(null);   // { connected, status, unread, canSetUp }
+  const refreshMail = useCallback(() => {
+    mailService.unread().then((r) => setMailState(r?.data || null)).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!mailInNav) return undefined;
+    refreshMail();
+    const t = setInterval(refreshMail, 2 * 60 * 1000);
+    window.addEventListener('mail:changed', refreshMail);
+    return () => { clearInterval(t); window.removeEventListener('mail:changed', refreshMail); };
+  }, [mailInNav, refreshMail]);
+  const mailDot = !!(mailState && mailState.connected && mailState.unread > 0);
   const refreshInboxCount = useCallback(() => {
     commsService.badge()
       .then((r) => setInboxCount(r?.data?.total || 0))
@@ -121,13 +141,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
   }, []);
   // route change → refresh (cheap: one GET)
   useEffect(() => {
-    if (inboxInNav) refreshInboxCount();
-  }, [inboxInNav, location.pathname, refreshInboxCount]);
+    if (clinicInbox) refreshInboxCount();
+  }, [clinicInbox, location.pathname, refreshInboxCount]);
   // one SSE subscription + slow fallback timer for the life of the layout. The
   // SSE events fan out to window events so the Inbox pages refresh without each
   // opening its own EventSource (nine already exist; add none).
   useEffect(() => {
-    if (!inboxInNav) return undefined;
+    if (!clinicInbox) return undefined;
     const timer = setInterval(refreshInboxCount, 2 * 60 * 1000);
     const SSE_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/sse`;
     const source = new EventSource(SSE_URL);
@@ -143,7 +163,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       window.removeEventListener('comms:changed', refreshInboxCount);
       window.removeEventListener('lab-inbox:changed', refreshInboxCount);
     };
-  }, [inboxInNav, refreshInboxCount]);
+  }, [clinicInbox, refreshInboxCount]);
   // Only these portals actually mount an /{portal}/inpatient-board route (App.jsx).
   // The nurse and inpatient portals do NOT: a nurse's own dashboard IS the ward
   // board, and the inpatient workspace has /inpatient/board. Generating the tab
@@ -160,8 +180,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // `permission`  — shown only when GRANTED (or admin.access): for areas nobody holds by role.
   // `withdrawnBy` — shown by ROLE DEFAULT, hidden only when an admin has WITHDRAWN that
   //                 capability from this person (the server refuses them anyway).
+  // `show`        — an explicit boolean computed from the shared gates (the Inbox:
+  //                 visible when ANY of its tabs is usable — see inboxInNav).
   const allowedEntry = (item) =>
-    (!item.permission || passesAdminGate(currentUser, item.permission))
+    item.show !== false
+    && (!item.permission || passesAdminGate(currentUser, item.permission))
     && !(item.withdrawnBy && isWithdrawn(currentUser, item.withdrawnBy));
 
   const dashboardTabs = [
@@ -390,7 +413,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // Everything reaching the clinic from outside: patient WhatsApp messages,
       // external lab reports (email + WhatsApp) and reminders. The badge is the
       // sum still needing attention. Held by role; hidden only if withdrawn.
-      { name: "Inbox", path: "/staff/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
+      { name: "Inbox", path: "/staff/inbox", icon: Inbox, badge: inboxCount, dot: mailDot, show: inboxInNav },
       // { name: "Medical Documents", path: "/staff/medical-documents", icon: FileStack },
       { name: "Change Password", path: "/staff/change-password", icon: KeyRound },
     ],
@@ -398,7 +421,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Dashboard", path: "/doctor/dashboard", icon: LayoutDashboard },
       { name: "Patients", path: "/doctor/patients", icon: Users },
       // Doctors hold the Inbox (WhatsApp) by role; hidden only if withdrawn.
-      { name: "Inbox", path: "/doctor/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
+      { name: "Inbox", path: "/doctor/inbox", icon: Inbox, badge: inboxCount, dot: mailDot, show: inboxInNav },
       // {
       //   name: "Consultations",
       //   path: "/doctor/consultations",
@@ -445,7 +468,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Test History", path: "/lab/test-history", icon: Search },
       // The lab reaches the Inbox for its Lab reports tab (by role); WhatsApp
       // needs a comms grant. Hidden if lab-inbox access is withdrawn.
-      { name: "Inbox", path: "/lab/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.LABINBOX_VIEW },
+      { name: "Inbox", path: "/lab/inbox", icon: Inbox, badge: inboxCount, dot: mailDot, show: inboxInNav },
       {
         name: "Generate Reports",
         path: "/lab/generate-reports",
@@ -463,7 +486,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Ward Board", path: "/nurse/dashboard", icon: BedDouble },
       // Triage is the second tab inside Queue Management now, not a nav item.
       { name: "Queue Management", path: "/nurse/queue", icon: ClipboardList },
-      { name: "Inbox", path: "/nurse/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
+      { name: "Inbox", path: "/nurse/inbox", icon: Inbox, badge: inboxCount, dot: mailDot, show: inboxInNav },
     ],
     // HR Suite (B21) — one portal, two views. Dashboard and the register are
     // open to everyone in the portal (own rows); Settings only to hr.write.
@@ -487,7 +510,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     admin: [
       { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
       { name: "Users", path: "/admin/manage-users", icon: Users, permission: PERMISSIONS.USERS_VIEW },
-      { name: "Inbox", path: "/admin/inbox", icon: Inbox, badge: inboxCount, withdrawnBy: PERMISSIONS.COMMS_VIEW },
+      { name: "Inbox", path: "/admin/inbox", icon: Inbox, badge: inboxCount, dot: mailDot, show: inboxInNav },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
       { name: "Radiology Queue", path: "/admin/unassigned-ultrasound", icon: Waves },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill, permission: PERMISSIONS.CONFIG_WRITE },
@@ -590,6 +613,18 @@ const MainLayout = ({ userRole = "Staff" }) => {
           </span>
           {/* Count badge (e.g. unpaired lab reports). A pill when the rail is
               expanded; a small dot on the icon when collapsed. */}
+          {/* Personal mail (Staff Email, B26): a small separate dot, never folded
+              into the clinic count above — newsletters must not make the clinic
+              queue look busy. */}
+          {item.dot && !(item.badge > 0) && (
+            <span
+              title="Unread mail in My mail"
+              className={`ml-auto h-2.5 w-2.5 rounded-full bg-sky-300 ${isCollapsed ? "md:absolute md:top-1.5 md:right-1.5 md:ml-0" : ""}`}
+            />
+          )}
+          {item.dot && item.badge > 0 && (
+            <span title="Unread mail in My mail" className={`ml-1.5 h-2 w-2 rounded-full bg-sky-300 ${isCollapsed ? "md:hidden" : ""}`} />
+          )}
           {item.badge > 0 && (
             <>
               <span
@@ -911,6 +946,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
             clears the home-indicator on installed iOS. */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar overscroll-contain px-4 pt-3 lg:px-8 lg:pt-4 bg-gray-50 mt-[calc(4.75rem+env(safe-area-inset-top,0px))] md:mt-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] lg:pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
           {pageTabs && <PageTabs tabs={pageTabs} />}
+          {mailInNav && <MailNudge state={mailState} userId={currentUser?.id} role={homeRole} />}
           <Outlet />
         </main>
       </div>

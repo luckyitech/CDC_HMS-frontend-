@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Check, Inbox, MessageCircle, Layers } from 'lucide-react';
+import { KeyRound, Check, Inbox, MessageCircle, Layers, Mail } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -9,6 +9,7 @@ import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
 import LabInboxSettingsTab from '../../components/admin/settings/LabInboxSettingsTab';
 import WhatsAppSettingsTab from '../../components/admin/settings/WhatsAppSettingsTab';
 import PermissionPresetsTab from '../../components/admin/settings/PermissionPresetsTab';
+import EmailSettingsTab from '../../components/admin/settings/EmailSettingsTab';
 import { useUserContext } from '../../contexts/UserContext';
 
 // The settings page is tabbed — one tab per settings area. Add an entry here
@@ -17,6 +18,7 @@ const SETTINGS_TABS = [
   { id: 'password', label: 'Password policy', Icon: KeyRound },
   { id: 'labInbox', label: 'Lab Inbox',       Icon: Inbox },
   { id: 'whatsapp', label: 'WhatsApp',        Icon: MessageCircle },
+  { id: 'email',    label: 'Email',           Icon: Mail },
   { id: 'presets',  label: 'Permission presets', Icon: Layers },
 ];
 import settingsService from '../../services/settingsService';
@@ -102,6 +104,7 @@ const SystemSettings = () => {
 
       {tab === 'labInbox' && <LabInboxSettingsTab />}
       {tab === 'whatsapp' && <WhatsAppSettingsTab />}
+      {tab === 'email'    && <EmailSettingsTab />}
       {tab === 'presets'  && <PermissionPresetsTab currentUser={currentUser} />}
 
       {/* Card is used without its `title` prop so the switch can sit on the

@@ -56,6 +56,7 @@ export const PERMISSIONS = {
   // by role; lab by grant. Kept identical to the backend.
   COMMS_VIEW:       'comms.view',
   COMMS_WRITE:      'comms.write',
+  EMAIL_USE:        'email.use',   // Staff Email (B26) — own mailbox in the Inbox
 
   // The clinical record, as opposed to the patient's identity and
   // administration. Reception needs to know who a patient is, where they are in
@@ -230,6 +231,11 @@ export const HR_CHECKIN_DEFAULT_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'adm
 export const canViewHr  = (user) => canUseCapability(user, PERMISSIONS.HR_VIEW,    HR_DEFAULT_ROLES);
 export const canWriteHr = (user) => canUseCapability(user, PERMISSIONS.HR_WRITE,   HR_DEFAULT_ROLES);
 export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKIN, HR_CHECKIN_DEFAULT_ROLES);
+
+// Staff Email (B26). Mirrors routes/mail.js: every internal role by default,
+// withdrawable per person. Only ever the user's OWN mailbox.
+export const MAIL_DEFAULT_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
+export const canUseMail = (user) => canUseCapability(user, PERMISSIONS.EMAIL_USE, MAIL_DEFAULT_ROLES);
 
 /** Can this user use the admin portal — as the admin, or by grant? */
 export const canAccessAdmin = (user) => canOpenPortal(user, PERMISSIONS.PORTAL_ADMIN);

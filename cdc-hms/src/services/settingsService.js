@@ -55,6 +55,14 @@ export const settingsService = {
 
   /** Save the cost rate card + monthly budget. */
   setCommsCosts: (data) => api.put('/settings/comms/costs', data),
+
+  // ---- Staff Email (B26): which domains staff may connect, and their servers ----
+
+  /** { enabled, domains[], blockedAddresses[], systemAddresses[], providers[] } */
+  getEmail: () => api.get('/settings/email'),
+
+  /** Save any subset of enabled, domains[], blockedAddresses[]. */
+  setEmail: (changes) => api.put('/settings/email', changes),
 };
 
 export default settingsService;
