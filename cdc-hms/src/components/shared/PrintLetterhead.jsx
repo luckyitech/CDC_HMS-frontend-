@@ -17,7 +17,7 @@ const PrintLetterhead = ({ show = false }) => (
           <span className="text-gray-400">|</span>
           <span>0711 781299</span>
           <span className="text-gray-400">|</span>
-          <span>info@comprehensivediabetescentre.com</span>
+          <span>info@cdiabetescentre.com</span>
         </div>
       </div>
       {/* Sized to sit level with the address block rather than tower over it —

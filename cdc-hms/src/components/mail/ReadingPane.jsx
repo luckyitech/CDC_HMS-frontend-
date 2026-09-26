@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { ArrowLeft, Loader2, ImageOff, Paperclip, Eye, Download, MailOpen, Mail as MailIcon, Reply, ReplyAll, Forward } from 'lucide-react';
+import { ArrowLeft, Loader2, ImageOff, Paperclip, Eye, Download, MailOpen, Mail as MailIcon, Reply, ReplyAll, Forward, FolderPlus } from 'lucide-react';
 import mailService from '../../services/mailService';
 import { notify } from '../../utils/notify';
 import SafeHtmlFrame from './SafeHtmlFrame';
+import SaveToPatientPanel, { canSaveAttachment } from './SaveToPatientPanel';
+import { useUserContext } from '../../contexts/UserContext';
+import { canFilePatientDocuments } from '../../utils/permissions';
 import { longDate, personName, formatBytes } from './mailFormat';
 
 const PREVIEWABLE = /^(application\/pdf|image\/(png|jpe?g|gif|webp))$/i;
@@ -22,6 +25,9 @@ const Addr = ({ a }) => (
 const ReadingPane = ({ message, loading, folder, account, onBack, onMarkUnread, onTrustSender, onCompose, composeBusy }) => {
   const [allowImages, setAllowImages] = useState(false);
   const [busyPart, setBusyPart] = useState(null);
+  const [savingPart, setSavingPart] = useState(null);      // the attachment whose "Save to patient file" panel is open
+  const { currentUser } = useUserContext();
+  const canFile = canFilePatientDocuments(currentUser);
 
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>;
@@ -130,9 +136,26 @@ const ReadingPane = ({ message, loading, folder, account, onBack, onMarkUnread, 
                 <button type="button" onClick={() => openAttachment(att, 'download')} disabled={!!busyPart} className="inline-flex items-center gap-0.5 font-semibold text-primary hover:underline disabled:opacity-50">
                   {busyPart === `${att.part}:download` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Download
                 </button>
+                {canFile && canSaveAttachment(att) && (
+                  <button
+                    type="button" onClick={() => setSavingPart((p) => (p === `${message.uid}:${att.part}` ? null : `${message.uid}:${att.part}`))}
+                    className="inline-flex items-center gap-0.5 font-semibold text-primary hover:underline" aria-expanded={savingPart === `${message.uid}:${att.part}`}
+                  >
+                    <FolderPlus className="h-3 w-3" /> Save to patient file
+                  </button>
+                )}
               </div>
             ))}
           </div>
+        )}
+        {savingPart && message.attachments?.some((a) => `${message.uid}:${a.part}` === savingPart) && (
+          <SaveToPatientPanel
+            key={savingPart}
+            message={message}
+            attachment={message.attachments.find((a) => `${message.uid}:${a.part}` === savingPart)}
+            folder={folder}
+            onClose={() => setSavingPart(null)}
+          />
         )}
       </div>
       <div className="min-h-0 flex-1">

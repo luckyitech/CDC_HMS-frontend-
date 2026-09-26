@@ -204,13 +204,13 @@ const LabTestPrint = ({ test, onClose }) => {
             <ul className="list-disc list-inside ml-4 space-y-1">
               <li>Results should be verified by an authorized laboratory personnel</li>
               <li>Results should be interpreted in conjunction with clinical findings</li>
-              <li>For any queries, please contact the laboratory at (+254) 711781299 or info@comprehensivediabetescentre.com</li>
+              <li>For any queries, please contact the laboratory at (+254) 711781299 or info@cdiabetescentre.com</li>
               <li>This report is confidential and for the use of the named patient only</li>
             </ul>
           </div>
           <div className="mt-4 text-center">
             <p className="text-xs text-gray-400">
-              Comprehensive Diabetes Centre Laboratory &middot; Doctors Park, Parklands, Nairobi - Kenya &middot; info@comprehensivediabetescentre.com
+              Comprehensive Diabetes Centre Laboratory &middot; Doctors Park, Parklands, Nairobi - Kenya &middot; info@cdiabetescentre.com
             </p>
             <p className="text-xs text-gray-400 mt-1">
               Generated on {new Date().toLocaleString()} &middot; Page 1 of 1

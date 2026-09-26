@@ -10,12 +10,26 @@ import patientService from '../../services/patientService';
  *  - placeholder        — input placeholder text
  *  - selectedPatient    — currently selected patient (to show name in input)
  *  - onClear()          — called when the user clears the selection
+ *  - searchFn(term)     — optional: resolves to an array of patients instead of
+ *                         the general patient list (Staff Email uses its own
+ *                         merge-collapsed, phone-normalised search). Each needs
+ *                         at least { uhid, name }; age/gender/yearOfBirth/phone
+ *                         and riskLevel are shown when present.
+ *  - autoFocus          — focus the search box on mount
  */
+/** "54 yrs · Female" for list results; "b. 1971 · 0722 418 903" for a searchFn's. */
+const detailLine = (p) => [
+  p.age != null ? `${p.age} yrs` : (p.yearOfBirth ? `b. ${p.yearOfBirth}` : null),
+  p.gender || p.phone || null,
+].filter(Boolean).join(' · ');
+
 const PatientSearchInput = ({
   onSelect,
   placeholder = 'Search by name or UHID...',
   selectedPatient = null,
   onClear,
+  searchFn = null,
+  autoFocus = false,
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -48,6 +62,11 @@ const PatientSearchInput = ({
     }
     setLoading(true);
     try {
+      if (searchFn) {
+        setResults(await searchFn(term));
+        setOpen(true);
+        return;
+      }
       const response = await patientService.getAll({ search: term, limit: 10 });
       if (response.success) {
         const patients = response.data.patients || response.data || [];
@@ -59,7 +78,7 @@ const PatientSearchInput = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchFn]);
 
   const handleChange = (e) => {
     const val = e.target.value;
@@ -90,7 +109,7 @@ const PatientSearchInput = ({
           <div className="flex-1">
             <p className="font-bold text-primary text-sm">{selectedPatient.uhid}</p>
             <p className="font-semibold text-gray-800 text-sm">{selectedPatient.name}</p>
-            <p className="text-xs text-gray-500">{selectedPatient.age} yrs · {selectedPatient.gender}</p>
+            <p className="text-xs text-gray-500">{detailLine(selectedPatient)}</p>
           </div>
           <button
             type="button"
@@ -108,6 +127,7 @@ const PatientSearchInput = ({
           <input
             type="text"
             value={query}
+            autoFocus={autoFocus}
             onChange={handleChange}
             onFocus={() => query && results.length > 0 && setOpen(true)}
             placeholder={placeholder}
@@ -126,7 +146,7 @@ const PatientSearchInput = ({
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
           {results.map((patient) => (
             <button
-              key={patient.id}
+              key={patient.id || patient.uhid}
               type="button"
               onClick={() => handleSelect(patient)}
               className="w-full text-left px-4 py-3 hover:bg-blue-50 transition border-b border-gray-100 last:border-0"
@@ -135,9 +155,9 @@ const PatientSearchInput = ({
                 <div>
                   <p className="font-bold text-primary text-sm">{patient.uhid}</p>
                   <p className="font-semibold text-gray-800 text-sm">{patient.name}</p>
-                  <p className="text-xs text-gray-500">{patient.age} yrs · {patient.gender}</p>
+                  <p className="text-xs text-gray-500">{detailLine(patient)}</p>
                 </div>
-                <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                {patient.riskLevel && <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
                   patient.riskLevel === 'High'
                     ? 'bg-red-100 text-red-700'
                     : patient.riskLevel === 'Medium'
@@ -145,7 +165,7 @@ const PatientSearchInput = ({
                     : 'bg-green-100 text-green-700'
                 }`}>
                   {patient.riskLevel}
-                </span>
+                </span>}
               </div>
             </button>
           ))}

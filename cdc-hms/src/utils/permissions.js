@@ -236,6 +236,11 @@ export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKI
 // withdrawable per person. Only ever the user's OWN mailbox.
 export const MAIL_DEFAULT_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
 export const canUseMail = (user) => canUseCapability(user, PERMISSIONS.EMAIL_USE, MAIL_DEFAULT_ROLES);
+// Adding a document to a patient's file — mirrors POST /api/documents
+// (authorize('doctor','staff','admin','documents.write')). Used by Staff
+// Email's "Save to patient file"; the server checks the same gate.
+export const DOCUMENTS_WRITE_DEFAULT_ROLES = ['doctor', 'staff', 'admin'];
+export const canFilePatientDocuments = (user) => canUseCapability(user, PERMISSIONS.DOCUMENTS_WRITE, DOCUMENTS_WRITE_DEFAULT_ROLES);
 
 /** Can this user use the admin portal — as the admin, or by grant? */
 export const canAccessAdmin = (user) => canOpenPortal(user, PERMISSIONS.PORTAL_ADMIN);

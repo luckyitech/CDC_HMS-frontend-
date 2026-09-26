@@ -198,6 +198,7 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
         </div>
         <button
           type="button" onClick={() => startCompose('new')} disabled={account.status !== 'connected'}
+          aria-label="New message" title="New message"
           className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
         >
           <PenSquare className="h-4 w-4" /> <span className="hidden sm:inline">New message</span>

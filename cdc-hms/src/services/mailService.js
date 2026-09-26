@@ -22,6 +22,12 @@ import api from './api';
  * - POST   /mail/drafts                  — multipart: save / replace a draft
  * - DELETE /mail/drafts/:uid             — discard a draft (moves it to Trash)
  * - GET    /mail/signature               — { html } preview of the signature added on send
+ * Phase 3a (HMS / patient tie-ins — patient data gated like the patient + document routes):
+ * - GET    /mail/suggest?q                — { recent, staff, patients, patientsShown }
+ * - GET    /mail/patients?q               — the patient picker (name / UHID / phone / email / ID)
+ * - GET    /mail/patients/:uhid/documents — the documents on a patient's file (whole merge family)
+ * - POST   /mail/messages/:uid/attachments/:part/save-to-patient — { folder, uhid, category, testDate, notes }
+ * Composer payloads carry `patientDocuments: [documentId]` — read from the HMS at send time.
  * Admin (config.write): GET /mail/admin/accounts, POST /mail/admin/accounts/:userId/disconnect
  */
 // The api instance defaults to JSON; multipart must be named so axios hands the
@@ -58,6 +64,12 @@ export const mailService = {
   send: (message, files = []) => api.post('/mail/send', composeForm(message, files), MULTIPART),
   saveDraft: (message, files = []) => api.post('/mail/drafts', composeForm(message, files), MULTIPART),
   discardDraft: (uid) => api.delete(`/mail/drafts/${uid}`),
+
+  suggest: (q) => api.get('/mail/suggest', { params: { q } }),
+  patients: (q) => api.get('/mail/patients', { params: { q } }),
+  patientDocuments: (uhid) => api.get(`/mail/patients/${encodeURIComponent(uhid)}/documents`),
+  saveToPatient: (uid, part, folder, data) =>
+    api.post(`/mail/messages/${uid}/attachments/${part}/save-to-patient`, { folder, ...data }),
 
   adminAccounts: () => api.get('/mail/admin/accounts'),
   adminDisconnect: (userId) => api.post(`/mail/admin/accounts/${userId}/disconnect`),

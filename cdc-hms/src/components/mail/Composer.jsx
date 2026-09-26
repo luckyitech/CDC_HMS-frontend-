@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Send, Loader2, Paperclip, Bold, Italic, Underline, List, ListOrdered, Link2, RemoveFormatting,
-  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine,
+  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen,
 } from 'lucide-react';
 import mailService, { announceMailChange } from '../../services/mailService';
 import { notify } from '../../utils/notify';
 import ConfirmActionModal from '../shared/ConfirmActionModal';
 import RecipientField from './RecipientField';
 import SafeHtmlFrame from './SafeHtmlFrame';
+import AttachFromPatientModal from './AttachFromPatientModal';
 import { formatBytes, isExternalAddress, errorCode } from './mailFormat';
 
 const MAX_TOTAL = 25 * 1024 * 1024;
@@ -40,6 +41,10 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
   const [subject, setSubject] = useState(init.subject || '');
   const [files, setFiles] = useState([]);                  // new uploads: { id, file }
   const [refs, setRefs] = useState(init.attachments || []); // carried parts: { folder, uid, part, filename, type, size }
+  // Documents from a patient file (phase 3a): references only — the server reads
+  // each file from the HMS at send time and a draft stores just their ids.
+  const [patientDocs, setPatientDocs] = useState(init.patientDocuments || []); // { documentId, fileName, type, size, uhid, patientName }
+  const [pickingFromFile, setPickingFromFile] = useState(false);
   const [includeQuote, setIncludeQuote] = useState(true);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [draftUid, setDraftUid] = useState(init.draftUid || null);
@@ -65,7 +70,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
 
   const quotedHtml = init.quotedHtml || '';
   const isForward = init.mode === 'forward';
-  stateRef.current = { to, cc, bcc, subject, files, refs, includeQuote, draftUid };
+  stateRef.current = { to, cc, bcc, subject, files, refs, patientDocs, includeQuote, draftUid };
 
   // The editable body is set ONCE; after that it belongs to the user.
   useEffect(() => {
@@ -98,7 +103,23 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
     return () => { live = false; };
   }, []);
 
+  // A reopened draft whose patient documents have since gone (archived, file
+  // missing, or no longer yours to open) — say so rather than failing quietly.
+  useEffect(() => {
+    const n = init.patientDocumentsDropped || 0;
+    if (n) notify('warning', `${n} document${n === 1 ? '' : 's'} from a patient file ${n === 1 ? 'is' : 'are'} no longer available and ${n === 1 ? 'was' : 'were'} removed from this draft.`, { duration: 9000 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const markDirty = () => { setDirty(true); setTick((n) => n + 1); setProblem(null); };
+
+  const addPatientDocs = (list) => {
+    setPatientDocs((ds) => {
+      const have = new Set(ds.map((d) => d.documentId));
+      return [...ds, ...list.filter((d) => !have.has(d.documentId))];
+    });
+    markDirty();
+  };
 
   const payload = useCallback(() => {
     const s = stateRef.current;
@@ -111,6 +132,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
       inReplyTo: init.inReplyTo || null,
       references: init.references || [],
       attachments: s.refs.map(({ folder, uid, part }) => ({ folder, uid, part })),
+      patientDocuments: s.patientDocs.map((d) => d.documentId),
       draftUid: s.draftUid,
       source: init.source || null,
     };
@@ -118,7 +140,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
 
   const hasContent = () => {
     const s = stateRef.current;
-    return s.to.length || s.cc.length || s.bcc.length || s.subject.trim() || s.files.length || s.refs.length
+    return s.to.length || s.cc.length || s.bcc.length || s.subject.trim() || s.files.length || s.refs.length || s.patientDocs.length
       || hasText(editorRef.current?.innerHTML);
   };
 
@@ -126,6 +148,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
   const saveDraft = useCallback(async () => {
     if (savingRef.current) await savingRef.current.catch(() => {});
     const sentFiles = stateRef.current.files;
+    const sentDocIds = new Set(stateRef.current.patientDocs.map((d) => d.documentId));
     const run = (async () => {
       setSaving(true);
       try {
@@ -137,6 +160,14 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
         const sentIds = new Set(sentFiles.map((f) => f.id));
         setFiles((fs) => fs.filter((f) => !sentIds.has(f.id)));
         setRefs(d.attachments || []);
+        // Merge, don't replace: a document attached WHILE this save was in
+        // flight isn't in the reply and must stay; one the server dropped goes.
+        if (Array.isArray(d.patientDocuments)) {
+          const fresh = new Map(d.patientDocuments.map((x) => [x.documentId, x]));
+          setPatientDocs((ds) => ds
+            .filter((x) => !sentDocIds.has(x.documentId) || fresh.has(x.documentId))
+            .map((x) => fresh.get(x.documentId) || x));
+        }
         setSavedAt(new Date(d.savedAt));
         setDirty(false);
         announceMailChange();
@@ -171,7 +202,9 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
   }, [dirty]);
 
   // ---- attachments -------------------------------------------------------
-  const totalBytes = files.reduce((n, f) => n + f.file.size, 0) + refs.reduce((n, r) => n + (r.size || 0), 0);
+  const totalBytes = files.reduce((n, f) => n + f.file.size, 0) + refs.reduce((n, r) => n + (r.size || 0), 0)
+    + patientDocs.reduce((n, d) => n + (d.size || 0), 0);
+  const attachmentCount = files.length + refs.length + patientDocs.length;
 
   const addFiles = (list) => {
     const incoming = [...(list || [])];
@@ -179,7 +212,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
     let total = totalBytes;
     const accepted = [];
     for (const file of incoming) {
-      if (files.length + refs.length + accepted.length >= MAX_FILES) { notify('error', `At most ${MAX_FILES} attachments.`); break; }
+      if (attachmentCount + accepted.length >= MAX_FILES) { notify('error', `At most ${MAX_FILES} attachments.`); break; }
       if (total + file.size > MAX_TOTAL) { notify('error', `${file.name} would take the message over 25 MB.`); continue; }
       total += file.size;
       accepted.push({ id: nextFileId.current++, file });
@@ -339,6 +372,12 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
           >
             <Paperclip className="h-3.5 w-3.5" /> Attach
           </button>
+          <button
+            type="button" onClick={() => setPickingFromFile(true)} disabled={sending}
+            className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            <FolderOpen className="h-3.5 w-3.5" /> From patient file
+          </button>
           <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
         </div>
         {linkBox && (
@@ -410,8 +449,13 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
           </div>
         )}
 
-        {(files.length > 0 || refs.length > 0) && (
+        {attachmentCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t px-3 py-2">
+            {patientDocs.map((d) => (
+              <AttachmentChip key={`p${d.documentId}`} name={d.fileName} size={d.size} type={d.type} disabled={busy}
+                badge={d.uhid} badgeTitle={d.patientName ? `From ${d.patientName}’s file (${d.uhid})` : d.uhid}
+                onRemove={() => { setPatientDocs((ds) => ds.filter((x) => x.documentId !== d.documentId)); markDirty(); }} />
+            ))}
             {refs.map((r) => (
               <AttachmentChip key={refKey(r)} name={r.filename} size={r.size} type={r.type} disabled={busy}
                 onRemove={() => { setRefs((rs) => rs.filter((x) => refKey(x) !== refKey(r))); markDirty(); }} />
@@ -454,6 +498,13 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
         </span>
       </div>
 
+      <AttachFromPatientModal
+        isOpen={pickingFromFile}
+        onClose={() => setPickingFromFile(false)}
+        onAttach={addPatientDocs}
+        budget={{ bytes: Math.max(0, MAX_TOTAL - totalBytes), files: Math.max(0, MAX_FILES - attachmentCount) }}
+        alreadyIds={new Set(patientDocs.map((d) => d.documentId))}
+      />
       <ConfirmActionModal
         isOpen={confirm === 'discard'}
         onClose={() => setConfirm(null)}
@@ -475,12 +526,13 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
   );
 };
 
-const AttachmentChip = ({ name, size, type, onRemove, disabled }) => {
+const AttachmentChip = ({ name, size, type, onRemove, disabled, badge = null, badgeTitle = '' }) => {
   const Icon = /^image\//.test(type || '') ? ImageIcon : FileText;
   return (
     <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border px-2 py-1 text-xs">
       <Icon className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
       <span className="max-w-[12rem] truncate font-medium text-gray-700" title={name}>{name}</span>
+      {badge && <span className="rounded bg-violet-50 px-1 text-[10px] font-semibold text-violet-800" title={badgeTitle}>{badge}</span>}
       <span className="text-gray-400">{formatBytes(size)}</span>
       <button type="button" onClick={onRemove} disabled={disabled} aria-label={`Remove ${name}`} className="text-gray-400 hover:text-red-600 disabled:opacity-40">
         <X className="h-3.5 w-3.5" />

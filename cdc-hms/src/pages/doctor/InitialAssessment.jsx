@@ -622,7 +622,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                     <div>
                       <h1 className="text-3xl font-bold text-primary">CDC DIABETES CLINIC</h1>
                       <p className="text-sm text-gray-600 mt-2">Comprehensive Diabetes Centre &middot; Excellence in Diabetes Care</p>
-                      <p className="text-sm text-gray-600">Tel: (+254) 711781299 &middot; Doctors Park, Parklands, Nairobi - Kenya &middot; Email: info@comprehensivediabetescentre.com</p>
+                      <p className="text-sm text-gray-600">Tel: (+254) 711781299 &middot; Doctors Park, Parklands, Nairobi - Kenya &middot; Email: info@cdiabetescentre.com</p>
                     </div>
                     <img src={cdcLogo} alt="CDC Logo" className="w-40 h-40 object-contain py-4" />
                   </div>
