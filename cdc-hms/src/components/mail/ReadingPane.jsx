@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Loader2, ImageOff, Paperclip, Eye, Download, MailOpen, Mail as MailIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, ImageOff, Paperclip, Eye, Download, MailOpen, Mail as MailIcon, Reply, ReplyAll, Forward } from 'lucide-react';
 import mailService from '../../services/mailService';
 import { notify } from '../../utils/notify';
 import SafeHtmlFrame from './SafeHtmlFrame';
@@ -19,7 +19,7 @@ const Addr = ({ a }) => (
  * External — both anti-phishing. Remote images stay blocked until the user
  * asks, per message or per sender.
  */
-const ReadingPane = ({ message, loading, folder, account, onBack, onMarkUnread, onTrustSender }) => {
+const ReadingPane = ({ message, loading, folder, account, onBack, onMarkUnread, onTrustSender, onCompose, composeBusy }) => {
   const [allowImages, setAllowImages] = useState(false);
   const [busyPart, setBusyPart] = useState(null);
 
@@ -78,12 +78,27 @@ const ReadingPane = ({ message, loading, folder, account, onBack, onMarkUnread, 
               {message.date && <> · {longDate(message.date)}</>}
             </div>
           </div>
-          <button
-            type="button" onClick={() => onMarkUnread(message)} title="Mark as unread"
-            className="rounded p-1.5 text-gray-500 hover:bg-gray-100" aria-label="Mark as unread"
-          >
-            <MailOpen className="h-5 w-5" />
-          </button>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            {[
+              ['reply', 'Reply', Reply],
+              ['replyAll', 'Reply all', ReplyAll],
+              ['forward', 'Forward', Forward],
+            ].map(([mode, label, Icon]) => (
+              <button
+                key={mode} type="button" onClick={() => onCompose(mode)} disabled={!!composeBusy} title={label} aria-label={label}
+                className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {composeBusy === mode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+                <span className="hidden xl:inline">{label}</span>
+              </button>
+            ))}
+            <button
+              type="button" onClick={() => onMarkUnread(message)} title="Mark as unread"
+              className="rounded p-1.5 text-gray-500 hover:bg-gray-100" aria-label="Mark as unread"
+            >
+              <MailOpen className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {message.hasRemoteContent && !imagesOn && (

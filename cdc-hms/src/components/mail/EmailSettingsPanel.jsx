@@ -1,21 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, ShieldCheck, AlertTriangle, X, Unplug } from 'lucide-react';
 import Toggle from '../shared/Toggle';
 import ConfirmActionModal from '../shared/ConfirmActionModal';
 import mailService from '../../services/mailService';
 import { notify } from '../../utils/notify';
 import MailSetupCard from './MailSetupCard';
-import { longDate } from './mailFormat';
+import SafeHtmlFrame from './SafeHtmlFrame';
+import { longDate, signatureTextToHtml, signatureHtmlToText } from './mailFormat';
 
 const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary';
 
 /**
  * The user's own email settings (gear in the My mail toolbar). Connection
- * status, reconnect with a new password, the name people see, image privacy,
- * and Disconnect. Only ever the signed-in person's own mailbox.
+ * status, reconnect with a new password, the name people see, the signature,
+ * image privacy, and Disconnect. Only ever the signed-in person's own mailbox.
  */
 const EmailSettingsPanel = ({ account, setup, onChange, onClose }) => {
   const [displayName, setDisplayName] = useState(account.displayName || '');
+  const savedSignature = signatureHtmlToText(account.signatureHtml);
+  const [signature, setSignature] = useState(savedSignature);
+  const [preview, setPreview] = useState(null);
+  const loadPreview = useCallback(() => {
+    mailService.signature().then((r) => setPreview(r.data.html || '')).catch(() => setPreview(''));
+  }, []);
+  useEffect(() => { loadPreview(); }, [loadPreview, account.signatureHtml]);
   const [saving, setSaving] = useState(false);
   const [confirmOff, setConfirmOff] = useState(false);
   const [showReconnect, setShowReconnect] = useState(account.status !== 'connected');
@@ -87,6 +95,32 @@ const EmailSettingsPanel = ({ account, setup, onChange, onClose }) => {
             </button>
           </div>
           <p className="mt-1 text-[11px] text-gray-400">Used on mail you send from the HMS.</p>
+        </section>
+
+        <section>
+          <label htmlFor="mail-signature" className="mb-1 block text-xs font-semibold text-gray-600">Your signature</label>
+          <textarea
+            id="mail-signature" rows={4} maxLength={1000} value={signature} onChange={(e) => setSignature(e.target.value)}
+            className={inputCls} placeholder={'Dr. Jane Doe\nConsultant Physician\nDirect line 07xx xxx xxx'}
+          />
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className="text-[11px] text-gray-400">Your name, title and direct line. The clinic&apos;s logo, name, address and contacts are added under it automatically on every email you send.</p>
+            <button
+              type="button" disabled={saving || signature === savedSignature}
+              onClick={() => save({ signatureHtml: signatureTextToHtml(signature) }, signature.trim() ? 'Signature saved.' : 'Signature removed.')}
+              className="rounded-lg border border-gray-300 px-4 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+          {preview && (
+            <div className="mt-3">
+              <p className="mb-1 text-xs font-semibold text-gray-600">How it looks at the end of your emails</p>
+              <div className="h-44 overflow-hidden rounded-lg border">
+                <SafeHtmlFrame html={preview} title="Signature preview" />
+              </div>
+            </div>
+          )}
         </section>
 
         <section>

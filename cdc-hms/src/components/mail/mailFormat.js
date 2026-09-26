@@ -35,3 +35,25 @@ export const formatBytes = (n) => {
 
 /** A thrown API error → the backend's `code`, when there is one. */
 export const errorCode = (err) => err?.data?.code || null;
+
+const escapeHtml = (s) => String(s || '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** Signature as typed in settings (plain text) → the HTML stored and inserted. */
+export const signatureTextToHtml = (text) => escapeHtml(String(text || '').trim()).replace(/\r?\n/g, '<br>');
+
+/** Stored signature HTML → plain text for the settings box. */
+export const signatureHtmlToText = (html) => {
+  // DOMParser builds an inert document — nothing in it loads or runs.
+  const doc = new DOMParser().parseFromString(String(html || '').replace(/<br\s*\/?>/gi, '\n'), 'text/html');
+  return doc.body.textContent || '';
+};
+
+/** "Dr A <a@b.org>" for a chip title; the name alone for its label. */
+export const recipientLabel = (r) => (r ? (r.name || r.address) : '');
+
+/** Is this address outside every clinic domain? Drives the External tag in the composer. */
+export const isExternalAddress = (address, domains) => {
+  const d = String(address || '').toLowerCase().split('@')[1] || '';
+  return !(domains || []).map((x) => String(x).toLowerCase()).includes(d);
+};

@@ -16,8 +16,26 @@ import api from './api';
  * - GET    /mail/messages/:uid?folder&peek
  * - GET    /mail/messages/:uid/attachments/:part?folder   (Blob)
  * - POST   /mail/messages/seen           — { folder, uids, seen }
+ * Phase 2 (send):
+ * - GET    /mail/messages/:uid/compose?folder&mode — reply | replyAll | forward | draft
+ * - POST   /mail/send                    — multipart: message (JSON) + files[]
+ * - POST   /mail/drafts                  — multipart: save / replace a draft
+ * - DELETE /mail/drafts/:uid             — discard a draft (moves it to Trash)
+ * - GET    /mail/signature               — { html } preview of the signature added on send
  * Admin (config.write): GET /mail/admin/accounts, POST /mail/admin/accounts/:userId/disconnect
  */
+// The api instance defaults to JSON; multipart must be named so axios hands the
+// FormData to the browser, which adds the boundary itself.
+const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
+
+/** The composer's state → multipart: `message` (JSON) + each new file as `files`. */
+const composeForm = (message, files) => {
+  const form = new FormData();
+  form.append('message', JSON.stringify(message));
+  files.forEach((f) => form.append('files', f, f.name));
+  return form;
+};
+
 export const mailService = {
   getAccount: () => api.get('/mail/account'),
   testAccount: (emailAddress, password) => api.post('/mail/account/test', { emailAddress, password }),
@@ -34,6 +52,12 @@ export const mailService = {
   attachment: (uid, part, folder = 'INBOX') =>
     api.get(`/mail/messages/${uid}/attachments/${part}`, { params: { folder }, responseType: 'blob' }),
   setSeen: (folder, uids, seen) => api.post('/mail/messages/seen', { folder, uids, seen }),
+
+  signature: () => api.get('/mail/signature'),
+  composeContext: (uid, folder, mode) => api.get(`/mail/messages/${uid}/compose`, { params: { folder, mode } }),
+  send: (message, files = []) => api.post('/mail/send', composeForm(message, files), MULTIPART),
+  saveDraft: (message, files = []) => api.post('/mail/drafts', composeForm(message, files), MULTIPART),
+  discardDraft: (uid) => api.delete(`/mail/drafts/${uid}`),
 
   adminAccounts: () => api.get('/mail/admin/accounts'),
   adminDisconnect: (userId) => api.post(`/mail/admin/accounts/${userId}/disconnect`),

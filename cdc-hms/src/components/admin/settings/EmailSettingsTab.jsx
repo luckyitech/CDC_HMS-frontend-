@@ -6,6 +6,7 @@ import Button from '../../shared/Button';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import settingsService from '../../../services/settingsService';
 import mailService from '../../../services/mailService';
+import ClinicSignatureCard from './ClinicSignatureCard';
 import { notify } from '../../../utils/notify';
 
 const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary';
@@ -163,6 +164,13 @@ const EmailSettingsTab = () => {
           </Button>
         </div>
       </Card>
+
+      {cfg.signature && (
+        <ClinicSignatureCard
+          key={JSON.stringify({ ...cfg.signature, logoDataUri: undefined })}
+          signature={cfg.signature} saving={saving} onSave={save}
+        />
+      )}
 
       <Card>
         <div className="flex items-center gap-3 pb-4 border-b">

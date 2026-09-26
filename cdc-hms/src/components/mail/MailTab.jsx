@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, Search, RefreshCw, Settings, AlertTriangle } from 'lucide-react';
+import { Loader2, Search, RefreshCw, Settings, AlertTriangle, PenSquare } from 'lucide-react';
 import mailService, { announceMailChange } from '../../services/mailService';
 import useDebounce from '../../hooks/useDebounce';
 import { notify } from '../../utils/notify';
@@ -8,6 +8,7 @@ import EmailSettingsPanel from './EmailSettingsPanel';
 import FolderRail from './FolderRail';
 import MessageList from './MessageList';
 import ReadingPane from './ReadingPane';
+import Composer from './Composer';
 import { errorCode } from './mailFormat';
 
 /**
@@ -16,7 +17,8 @@ import { errorCode } from './mailFormat';
  *
  * Not connected → the guided setup card. Connected → folders · list · reading
  * pane (one pane at a time on phones). The gear opens the user's own email
- * settings. Phase 1 reads; compose and reply arrive in phase 2.
+ * settings. Phase 2 adds the Composer (new / reply / reply all / forward /
+ * continue a draft), which opens in place of the reading pane.
  */
 const MailTab = () => {
   const [state, setState] = useState(null);           // { account, setup }
@@ -55,11 +57,12 @@ const MailTab = () => {
       onOpenSettings={() => setShowSettings(true)}
       onAccountChange={setAccount}
       onNeedsPassword={loadAccount}
+      domains={setup?.domains || []}
     />
   );
 };
 
-const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword }) => {
+const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, domains }) => {
   const [folders, setFolders] = useState([]);
   const [folder, setFolder] = useState('INBOX');
   const [page, setPage] = useState(1);
@@ -71,6 +74,8 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword }) 
   const [openUid, setOpenUid] = useState(null);
   const [msgLoading, setMsgLoading] = useState(false);
   const [problem, setProblem] = useState(null);
+  const [compose, setCompose] = useState(null);      // the Composer's starting state, or null
+  const [composeBusy, setComposeBusy] = useState(null);
   const listReq = useRef(0);
 
   const handleError = useCallback((err, fallback) => {
@@ -115,7 +120,36 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword }) 
     announceMailChange();
   };
 
+  /** Open the Composer: new, or built from a message (reply / reply all / forward / a draft). */
+  const startCompose = async (mode, uid = null) => {
+    if (compose) { notify('info', 'Send or close the message you are writing first.'); return; }
+    if (mode === 'new') { setCompose({ mode: 'new', key: Date.now() }); return; }
+    setComposeBusy(mode);
+    try {
+      const res = await mailService.composeContext(uid, folder, mode);
+      setCompose({ ...res.data, key: Date.now() });
+    } catch (err) {
+      handleError(err, 'Could not open that message to reply.');
+    } finally {
+      setComposeBusy(null);
+    }
+  };
+
+  const closeCompose = (changed) => {
+    setCompose(null);
+    if (changed) { loadFolders(); loadList(); }
+  };
+
   const openMessage = async (item) => {
+    // One message at a time: the Composer is never swapped out from under
+    // unsaved work — closing it (the X) keeps a draft.
+    if (compose) { notify('info', 'Send or close the message you are writing first.'); return; }
+    // A draft opens straight into the Composer to carry on writing.
+    if (current?.special === 'drafts') {
+      setOpen(null); setOpenUid(item.uid);
+      await startCompose('draft', item.uid);
+      return;
+    }
     setOpenUid(item.uid);
     setMsgLoading(true);
     try {
@@ -150,6 +184,7 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword }) 
   };
 
   const selectFolder = (path) => { setFolder(path); setOpen(null); setOpenUid(null); };
+  const paneOpen = !!(openUid || compose);
 
   return (
     <div className="flex h-[calc(100vh-13rem)] min-h-[26rem] flex-col overflow-hidden rounded-lg border bg-white">
@@ -161,6 +196,12 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword }) 
             className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
+        <button
+          type="button" onClick={() => startCompose('new')} disabled={account.status !== 'connected'}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
+        >
+          <PenSquare className="h-4 w-4" /> <span className="hidden sm:inline">New message</span>
+        </button>
         <span className="hidden truncate text-xs text-gray-500 sm:inline" title="Your mailbox">{account.emailAddress}</span>
         <button type="button" onClick={() => { loadFolders(); loadList(); }} className="rounded p-2 text-gray-500 hover:bg-gray-100" aria-label="Refresh" title="Refresh">
           <RefreshCw className={`h-4 w-4 ${listLoading ? 'animate-spin' : ''}`} />
@@ -186,19 +227,29 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword }) 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <FolderRail folders={folders} active={folder} onSelect={selectFolder} />
         <div className="flex min-h-0 flex-1">
-          <div className={`w-full border-r md:w-80 md:flex-shrink-0 ${openUid ? 'hidden md:block' : 'block'}`}>
+          <div className={`w-full border-r md:w-80 md:flex-shrink-0 ${paneOpen ? 'hidden md:block' : 'block'}`}>
             <MessageList
               data={list} loading={listLoading} activeUid={openUid} onOpen={openMessage}
               onPage={setPage} special={current?.special} query={q}
             />
           </div>
-          <div className={`min-w-0 flex-1 ${openUid ? 'flex' : 'hidden md:flex'}`}>
-            <ReadingPane
-              key={openUid || 'none'}
-              message={open} loading={msgLoading} folder={folder} account={account}
-              onBack={() => { setOpen(null); setOpenUid(null); }}
-              onMarkUnread={markUnread} onTrustSender={trustSender}
-            />
+          <div className={`min-w-0 flex-1 ${paneOpen ? 'flex' : 'hidden md:flex'}`}>
+            {compose ? (
+              <Composer
+                key={compose.key}
+                account={account} domains={domains} init={compose}
+                onClose={(changed) => { if (current?.special === 'drafts') setOpenUid(null); closeCompose(changed); }}
+                onSent={() => { if (current?.special === 'drafts') setOpenUid(null); closeCompose(true); }}
+              />
+            ) : (
+              <ReadingPane
+                key={openUid || 'none'}
+                message={open} loading={msgLoading || (composeBusy === 'draft')} folder={folder} account={account}
+                onBack={() => { setOpen(null); setOpenUid(null); }}
+                onMarkUnread={markUnread} onTrustSender={trustSender}
+                onCompose={(mode) => startCompose(mode, open?.uid)} composeBusy={composeBusy}
+              />
+            )}
           </div>
         </div>
       </div>
