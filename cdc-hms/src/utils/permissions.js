@@ -57,6 +57,7 @@ export const PERMISSIONS = {
   COMMS_VIEW:       'comms.view',
   COMMS_WRITE:      'comms.write',
   EMAIL_USE:        'email.use',   // Staff Email (B26) — own mailbox in the Inbox
+  PATIENT_EMAIL_VIEW: 'patientemail.view', // Staff Email phase 5 — read patient email threads
 
   // The clinical record, as opposed to the patient's identity and
   // administration. Reception needs to know who a patient is, where they are in
@@ -236,6 +237,10 @@ export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKI
 // withdrawable per person. Only ever the user's OWN mailbox.
 export const MAIL_DEFAULT_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
 export const canUseMail = (user) => canUseCapability(user, PERMISSIONS.EMAIL_USE, MAIL_DEFAULT_ROLES);
+// Phase 5 — reading the text of a patient's email threads. Mirrors
+// routes/comms.js PATIENT_EMAIL_VIEW: doctors, nurses, admins by role; others by grant.
+export const PATIENT_EMAIL_DEFAULT_ROLES = ['doctor', 'nurse', 'admin'];
+export const canViewPatientEmail = (user) => canUseCapability(user, PERMISSIONS.PATIENT_EMAIL_VIEW, PATIENT_EMAIL_DEFAULT_ROLES);
 // Adding a document to a patient's file — mirrors POST /api/documents
 // (authorize('doctor','staff','admin','documents.write')). Used by Staff
 // Email's "Save to patient file"; the server checks the same gate.

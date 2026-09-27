@@ -64,9 +64,17 @@ export const commsService = {
   // analytics
   analyticsOperations: (params) => api.get('/comms/analytics/operations', { params }),
   analyticsCosts: (params) => api.get('/comms/analytics/costs', { params }),
+  // Staff Email phase 5 — admin / monitoring.view
+  analyticsEmail: (params) => api.get('/comms/analytics/email', { params }),
 
   // patient communications trail (Patient file → Communications tab)
   patientTrail: (uhid, params) => api.get(`/comms/patients/${uhid}/trail`, { params }),
+  // Staff Email phase 5 — the patient's email threads (patientemail.view) and
+  // an admin-only soft removal of one message from the trail.
+  patientEmailThreads: (uhid, params) => api.get(`/comms/patients/${encodeURIComponent(uhid)}/email-threads`, { params }),
+  // Phase 5b — save one attachment of a patient-thread email into the patient's Documents (mailbox owner only).
+  savePatientEmailAttachment: (uhid, id, index, data) => api.post(`/comms/patients/${encodeURIComponent(uhid)}/email-messages/${id}/attachments/${index}/save`, data),
+  removePatientEmail: (uhid, id, reason) => api.post(`/comms/patients/${encodeURIComponent(uhid)}/email-messages/${id}/remove`, { reason }),
 };
 
 export default commsService;

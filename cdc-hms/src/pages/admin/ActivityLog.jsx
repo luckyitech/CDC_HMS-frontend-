@@ -46,9 +46,14 @@ const ACTION_TYPES = [
   { value: 'lab_report_discarded',  label: 'Discarded Lab Report' },
   { value: 'setting_changed',       label: 'Changed Setting' },
   // Staff Email (B26). The two groups filter several types at once (backend ACTION_GROUPS).
-  { value: 'mail_patient_docs',     label: 'Email — Patients (emailed, documents sent + saved)' },
+  { value: 'mail_patient_docs',     label: 'Email — Patients (emailed, linked, documents sent + saved)' },
   { value: 'mail_all',              label: 'Email — All Events' },
   { value: 'mail_sent',             label: 'Sent Email' },
+  // Phase 5: every message a connected mailbox sent elsewhere or received.
+  { value: 'mail_sent_elsewhere',   label: 'Sent Email (outside the HMS)' },
+  { value: 'mail_received',         label: 'Email Received' },
+  { value: 'mail_linked_to_patient', label: 'Linked Email to Patient' },
+  { value: 'mail_patient_email_removed', label: 'Removed Email from Patient File' },
   { value: 'mail_patient_emailed',  label: 'Emailed Patient' },
   { value: 'patient_docs_emailed',  label: 'Emailed Patient Documents' },
   { value: 'mail_saved_to_patient', label: 'Saved Email Attachment to Patient' },

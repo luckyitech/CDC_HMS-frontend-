@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Send, Loader2, Paperclip, Bold, Italic, Underline, List, ListOrdered, Link2, RemoveFormatting,
-  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen, ExternalLink,
+  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen, ExternalLink, Plus,
 } from 'lucide-react';
 import mailService, { announceMailChange } from '../../services/mailService';
 import { notify } from '../../utils/notify';
@@ -9,6 +9,9 @@ import ConfirmActionModal from '../shared/ConfirmActionModal';
 import RecipientField from './RecipientField';
 import SafeHtmlFrame from './SafeHtmlFrame';
 import AttachFromPatientModal from './AttachFromPatientModal';
+import PatientSearchInput from '../shared/PatientSearchInput';
+import { useUserContext } from '../../contexts/UserContext';
+import { canWriteComms } from '../../utils/permissions';
 import { formatBytes, isExternalAddress, errorCode } from './mailFormat';
 
 const MAX_TOTAL = 25 * 1024 * 1024;
@@ -16,6 +19,7 @@ const MAX_FILES = 20;
 const AUTOSAVE_MS = 5000;
 
 const TITLES = { new: 'New message', reply: 'Reply', replyAll: 'Reply all', forward: 'Forward', draft: 'Draft' };
+const searchPatients = async (q) => (await mailService.patients(q)).data.patients || [];
 
 const hasText = (html) => !!String(html || '').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
 const refKey = (r) => `${r.folder}:${r.uid}:${r.part}`;
@@ -51,6 +55,14 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
   // each file from the HMS at send time and a draft stores just their ids.
   const [patientDocs, setPatientDocs] = useState(init.patientDocuments || []); // { documentId, fileName, type, size, uhid, patientName }
   const [pickingFromFile, setPickingFromFile] = useState(false);
+  // Phase 5 — the "Patient file" row: patients this message is LINKED to
+  // (its thread goes on their Communications tab even though they are not a
+  // recipient — an insurer pre-authorisation, a referral). Recipients picked
+  // as a patient are shown there too, automatically.
+  const { currentUser } = useUserContext();
+  const canLink = canWriteComms(currentUser);
+  const [links, setLinks] = useState(init.linkPatients || []);   // [{ uhid, name }]
+  const [linkPicking, setLinkPicking] = useState(false);
   const [includeQuote, setIncludeQuote] = useState(true);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [draftUid, setDraftUid] = useState(init.draftUid || null);
@@ -77,7 +89,7 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
 
   const quotedHtml = init.quotedHtml || '';
   const isForward = init.mode === 'forward';
-  stateRef.current = { to, cc, bcc, subject, files, refs, patientDocs, includeQuote, draftUid };
+  stateRef.current = { to, cc, bcc, subject, files, refs, patientDocs, includeQuote, draftUid, links };
 
   // The editable body is set ONCE; after that it belongs to the user.
   useEffect(() => {
@@ -143,6 +155,7 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
       attachments: s.refs.map(({ folder, uid, part }) => ({ folder, uid, part })),
       patientDocuments: s.patientDocs.map((d) => d.documentId),
       patientRecipients,
+      linkPatients: (s.links || []).map((l) => l.uhid),
       draftUid: s.draftUid,
       source: init.source || null,
     };
@@ -397,6 +410,46 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
             className="min-w-0 flex-1 border-0 bg-transparent py-1 text-sm focus:outline-none focus:ring-0"
           />
         </div>
+
+        {(() => {
+          const tagged = [...new Map([...to, ...cc, ...bcc].filter((r) => r.valid !== false && r.patient?.uhid)
+            .map((r) => [r.patient.uhid, { uhid: r.patient.uhid, name: r.name || r.address }])).values()];
+          const taggedIds = new Set(tagged.map((p) => p.uhid));
+          const extra = links.filter((l) => !taggedIds.has(l.uhid));
+          if (!tagged.length && !extra.length && !canLink) return null;
+          return (
+            <div className="flex flex-wrap items-center gap-1.5 border-b px-3 py-1.5 text-sm" data-testid="patient-file-row">
+              <span className="w-14 flex-shrink-0 text-xs text-gray-500">Patient file</span>
+              {tagged.map((p) => (
+                <span key={`t${p.uhid}`} className="inline-flex items-center gap-1 rounded bg-violet-50 px-1.5 py-0.5 text-xs text-violet-800" title="A recipient — this email goes on their Communications tab">
+                  <Link2 className="h-3 w-3" /> {p.name} · {p.uhid} <span className="text-violet-500">(recipient)</span>
+                </span>
+              ))}
+              {extra.map((l) => (
+                <span key={`l${l.uhid}`} className="inline-flex items-center gap-1 rounded bg-violet-50 px-1.5 py-0.5 text-xs text-violet-800" title="Linked — this email goes on their Communications tab">
+                  <Link2 className="h-3 w-3" /> {l.name} · {l.uhid}
+                  <button type="button" onClick={() => { setLinks((ls) => ls.filter((x) => x.uhid !== l.uhid)); markDirty(); }} aria-label={`Unlink ${l.name}`} className="text-violet-500 hover:text-red-600"><X className="h-3 w-3" /></button>
+                </span>
+              ))}
+              {canLink && !linkPicking && (
+                <button type="button" onClick={() => setLinkPicking(true)} className="inline-flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline">
+                  <Plus className="h-3.5 w-3.5" /> Link to patient
+                </button>
+              )}
+              {!tagged.length && !extra.length && !linkPicking && <span className="text-xs text-gray-400">— not on a patient’s file</span>}
+              {linkPicking && (
+                <div className="w-full">
+                  <PatientSearchInput
+                    autoFocus searchFn={searchPatients} placeholder="Link to patient — name, UHID or phone"
+                    selectedPatient={null}
+                    onSelect={(p) => { setLinks((ls) => (ls.some((x) => x.uhid === p.uhid) ? ls : [...ls, { uhid: p.uhid, name: p.name }])); setLinkPicking(false); markDirty(); }}
+                    onClear={() => setLinkPicking(false)}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         <div className="flex flex-wrap items-center gap-0.5 border-b px-2 py-1" onMouseDown={keepSelection}>
           <button type="button" className={toolBtn} onMouseDown={(e) => e.preventDefault()} onClick={() => format('bold')} aria-label="Bold" title="Bold"><Bold className="h-4 w-4" /></button>

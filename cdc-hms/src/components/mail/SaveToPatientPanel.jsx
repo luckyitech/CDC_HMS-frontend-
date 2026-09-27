@@ -21,10 +21,11 @@ export const canSaveAttachment = (att) => SAVEABLE.test(att?.type || '') || /\.(
  * pre-selected — but it is only a suggestion; nothing is saved until you press
  * Save.
  */
-const SaveToPatientPanel = ({ message, attachment, folder, onClose, onSaved }) => {
+const SaveToPatientPanel = ({ message, attachment, folder, onClose, onSaved, preferredPatient = null }) => {
   const { DOCUMENT_CATEGORIES } = usePatientContext();
-  const [patient, setPatient] = useState(null);
-  const [suggested, setSuggested] = useState(false);
+  // Phase 5b: an email already on a patient's trail pre-selects that patient.
+  const [patient, setPatient] = useState(preferredPatient);
+  const [suggested, setSuggested] = useState(preferredPatient ? 'thread' : false);
   const [category, setCategory] = useState('Lab Report - External');
   const [testDate, setTestDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -34,12 +35,13 @@ const SaveToPatientPanel = ({ message, attachment, folder, onClose, onSaved }) =
   // Suggest the patient whose file carries the sender's address.
   useEffect(() => {
     const from = message?.from?.address;
-    if (!from) return undefined;
+    if (!from || preferredPatient) return undefined;
     let live = true;
     searchPatients(from)
       .then((list) => { if (live && list.length === 1) { setPatient(list[0]); setSuggested(true); } })
       .catch(() => {});
     return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message?.from?.address]);
 
   const save = async () => {
@@ -74,7 +76,7 @@ const SaveToPatientPanel = ({ message, attachment, folder, onClose, onSaved }) =
         <div>
           <div className="mb-1 flex items-center gap-2 text-xs text-gray-500">
             Patient
-            {suggested && patient && <span className="rounded bg-violet-50 px-1 text-[10px] font-semibold text-violet-800">suggested from sender</span>}
+            {suggested && patient && <span className="rounded bg-violet-50 px-1 text-[10px] font-semibold text-violet-800">{suggested === 'thread' ? 'this email is on their file' : 'suggested from sender'}</span>}
           </div>
           <PatientSearchInput
             searchFn={searchPatients}

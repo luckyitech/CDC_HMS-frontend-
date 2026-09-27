@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { ArrowLeft, Loader2, ImageOff, Paperclip, Eye, Download, Mail as MailIcon, Reply, ReplyAll, Forward, FolderPlus, Archive, Trash2, Undo2, Flag } from 'lucide-react';
+import { ArrowLeft, Loader2, ImageOff, Paperclip, Eye, Download, Mail as MailIcon, Reply, ReplyAll, Forward, FolderPlus, Archive, Trash2, Undo2, Flag, Link2 } from 'lucide-react';
 import MoveMenu from './MoveMenu';
 import mailService from '../../services/mailService';
 import { notify } from '../../utils/notify';
 import SafeHtmlFrame from './SafeHtmlFrame';
 import SaveToPatientPanel, { canSaveAttachment } from './SaveToPatientPanel';
+import LinkToPatientModal from './LinkToPatientModal';
 import { useUserContext } from '../../contexts/UserContext';
-import { canFilePatientDocuments } from '../../utils/permissions';
+import { canFilePatientDocuments, canWriteComms } from '../../utils/permissions';
 import { longDate, personName, formatBytes } from './mailFormat';
 
 const PREVIEWABLE = /^(application\/pdf|image\/(png|jpe?g|gif|webp))$/i;
@@ -32,6 +33,11 @@ const ReadingPane = ({
   const [savingPart, setSavingPart] = useState(null);      // the attachment whose "Save to patient file" panel is open
   const { currentUser } = useUserContext();
   const canFile = canFilePatientDocuments(currentUser);
+  // Phase 5: linking an email to a patient's trail = the comms.write capability.
+  const canLink = canWriteComms(currentUser);
+  const [linking, setLinking] = useState(false);
+  // Phase 5b: attachments saved to the file during this view (the banner drops them).
+  const [filedNow, setFiledNow] = useState(() => new Set());
 
   if (loading) {
     return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>;
@@ -118,6 +124,11 @@ const ReadingPane = ({
           <button type="button" onClick={() => onMarkUnread(message)} disabled={organiseBusy} className={btn} title="Mark as unread" aria-label="Mark as unread">
             <MailIcon className="h-3.5 w-3.5" /><span className="hidden sm:inline">Unread</span>
           </button>
+          {canLink && !inTrash && (
+            <button type="button" onClick={() => setLinking(true)} className={`${btn} border-violet-300 text-violet-800`} title="Add this email to a patient’s Communications tab" aria-label="Link to patient">
+              <Link2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">Link to patient</span>
+            </button>
+          )}
           {organiseBusy && <Loader2 className="ml-1 h-4 w-4 animate-spin text-gray-400" />}
         </div>
         <div className="min-w-0">
@@ -149,6 +160,33 @@ const ReadingPane = ({
           </div>
         )}
 
+        {/* Phase 5b — this email is on a patient's Communications trail and
+            has attachments that are not yet in their Documents: prompt to save. */}
+        {(() => {
+          const threads = (message.patientThreads || []).map((t) => ({
+            ...t, pending: (t.pending || []).filter((p) => !filedNow.has(`${t.uhid}|${p.part || p.name}`)),
+          })).filter((t) => t.pending.length);
+          if (!threads.length || !canFile) return null;
+          return threads.map((t) => (
+            <div key={t.uhid} className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="save-prompt" role="status">
+              <FolderPlus className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
+              This email is on <b>{t.name}</b>’s file ({t.uhid}). {t.pending.length === 1 ? '1 attachment is' : `${t.pending.length} attachments are`} not in their Documents yet:
+              {t.pending.map((p) => {
+                const att = (message.attachments || []).find((a) => (p.part && a.part === p.part) || a.filename === p.name);
+                return att ? (
+                  <button
+                    key={p.part || p.name} type="button"
+                    onClick={() => setSavingPart(`${message.uid}:${att.part}|${t.uhid}`)}
+                    className="ml-2 font-semibold text-primary hover:underline"
+                  >
+                    Save “{p.name}”
+                  </button>
+                ) : null;
+              })}
+            </div>
+          ));
+        })()}
+
         {message.attachments?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {message.attachments.map((att) => (
@@ -176,19 +214,32 @@ const ReadingPane = ({
             ))}
           </div>
         )}
-        {savingPart && message.attachments?.some((a) => `${message.uid}:${a.part}` === savingPart) && (
-          <SaveToPatientPanel
-            key={savingPart}
-            message={message}
-            attachment={message.attachments.find((a) => `${message.uid}:${a.part}` === savingPart)}
-            folder={folder}
-            onClose={() => setSavingPart(null)}
-          />
-        )}
+        {(() => {
+          // "uid:part" from an attachment chip, or "uid:part|UHID" from the
+          // patient-file prompt (that patient pre-selected).
+          if (!savingPart) return null;
+          const [key, preferUhid] = savingPart.split('|');
+          const att = message.attachments?.find((a) => `${message.uid}:${a.part}` === key);
+          if (!att) return null;
+          const onThread = (message.patientThreads || []).find((t) => t.uhid === preferUhid)
+            || ((message.patientThreads || []).length === 1 ? message.patientThreads[0] : null);
+          return (
+            <SaveToPatientPanel
+              key={savingPart}
+              message={message}
+              attachment={att}
+              folder={folder}
+              preferredPatient={onThread ? { uhid: onThread.uhid, name: onThread.name } : null}
+              onSaved={(r) => setFiledNow((s) => new Set([...s, `${r?.patient?.uhid || onThread?.uhid}|${att.part}`, `${r?.patient?.uhid || onThread?.uhid}|${att.filename}`]))}
+              onClose={() => setSavingPart(null)}
+            />
+          );
+        })()}
       </div>
       <div className="min-h-0 flex-1">
         <SafeHtmlFrame key={`${message.uid}:${imagesOn}`} html={message.html} allowRemote={imagesOn} title={message.subject || 'Email message'} />
       </div>
+      <LinkToPatientModal isOpen={linking} onClose={() => setLinking(false)} message={message} folder={folder} />
     </div>
   );
 };

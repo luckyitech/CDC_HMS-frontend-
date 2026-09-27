@@ -32,6 +32,8 @@ import api from './api';
  * - GET    /mail/patients/:uhid/contact   — { uhid, name, yearOfBirth, address } (merged UHID → 409)
  * Composer payloads also carry `patientRecipients: [uhid]` — the chips picked AS a patient;
  * the server confirms each against the file and notes the email there.
+ * Phase 5: `linkPatients: [uhid]` (the Composer's "Patient file" row) and
+ * - POST   /mail/messages/:uid/link-patient — { folder, uhid, scope: thread | message }
  * Admin (config.write): GET /mail/admin/accounts, POST /mail/admin/accounts/:userId/disconnect
  */
 // The api instance defaults to JSON; multipart must be named so axios hands the
@@ -74,6 +76,8 @@ export const mailService = {
 
   signature: () => api.get('/mail/signature'),
   patientContact: (uhid) => api.get(`/mail/patients/${encodeURIComponent(uhid)}/contact`),
+  // Phase 5 — put a message (or its whole conversation) on a patient's Communications trail.
+  linkToPatient: (uid, folder, uhid, scope = 'thread') => api.post(`/mail/messages/${uid}/link-patient`, { folder, uhid, scope }),
   composeContext: (uid, folder, mode) => api.get(`/mail/messages/${uid}/compose`, { params: { folder, mode } }),
   send: (message, files = []) => api.post('/mail/send', composeForm(message, files), MULTIPART),
   saveDraft: (message, files = []) => api.post('/mail/drafts', composeForm(message, files), MULTIPART),

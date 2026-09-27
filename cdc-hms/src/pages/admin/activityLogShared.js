@@ -51,6 +51,11 @@ export const ACTION_STYLE = {
   mail_patient_emailed:  { color: 'bg-violet-100 text-violet-700', icon: Mail },
   patient_docs_emailed:  { color: 'bg-violet-100 text-violet-700', icon: FileUp },
   mail_saved_to_patient: { color: 'bg-violet-100 text-violet-700', icon: FileDown },
+  // Phase 5
+  mail_received:          { color: 'bg-emerald-100 text-emerald-700', icon: Mail },
+  mail_sent_elsewhere:    { color: 'bg-sky-100 text-sky-700',         icon: Send },
+  mail_linked_to_patient: { color: 'bg-violet-100 text-violet-700',   icon: Link2 },
+  mail_patient_email_removed: { color: 'bg-red-100 text-red-700',     icon: Trash2 },
 };
 
 export const formatDateTime = (iso) => {

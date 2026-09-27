@@ -542,7 +542,7 @@ const PatientFile = () => {
           />
         )}
         {currentTab === "medical-documents" && <DiagnosticsTab key={location.key} patient={patient} initialSub={location.state?.diagnosticsSub || "documents"} onEmailDocument={emailDocument} />}
-        {currentTab === "communications" && <PatientCommunicationsTab uhid={uhid} portal={portal} onEmailPatient={emailPatient} />}
+        {currentTab === "communications" && <PatientCommunicationsTab uhid={uhid} patientName={patient.name} portal={portal} onEmailPatient={emailPatient} />}
         {currentTab === "visit-history" && (
           <VisitHistoryTab patient={patient} uhid={uhid} prescriptions={prescriptions} />
         )}
