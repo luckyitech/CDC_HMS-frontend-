@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { UserPlus, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import patientService from '../../services/patientService';
+import DuplicateWarningModal from '../shared/DuplicateWarningModal';
 
 /**
  * Inline quick-registration panel for new patients calling to book.
@@ -17,39 +18,64 @@ const QuickRegisterForm = ({ onRegistered }) => {
   const [lastName, setLastName]   = useState('');
   const [phone, setPhone]         = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [dupCandidates, setDupCandidates] = useState(null);
 
   const reset = () => {
     setFirstName('');
     setLastName('');
     setPhone('');
     setOpen(false);
+    setDupCandidates(null);
   };
 
-  const handleSubmit = async () => {
-    if (!firstName.trim()) return toast.error('First name is required');
-    if (!lastName.trim())  return toast.error('Last name is required');
-    if (!phone.trim())     return toast.error('Phone number is required');
-
+  const submit = async (force = false) => {
     setSubmitting(true);
     try {
       const res = await patientService.quickCreate({
         firstName: firstName.trim(),
         lastName:  lastName.trim(),
         phone:     phone.trim(),
+        ...(force ? { force: true } : {}),
       });
       const patient = res.data;
       toast.success(`Registered ${patient.name} · ${patient.uhid}`);
       reset();
       onRegistered(patient);
     } catch (err) {
-      toast.error(err.message || 'Failed to register patient');
+      if (err?.status === 409 && err?.data?.code === 'POSSIBLE_DUPLICATE') {
+        setDupCandidates(err.data.candidates || []);
+      } else {
+        toast.error(err.message || 'Failed to register patient');
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleSubmit = async () => {
+    if (!firstName.trim()) return toast.error('First name is required');
+    if (!lastName.trim())  return toast.error('Last name is required');
+    if (!phone.trim())     return toast.error('Phone number is required');
+    await submit(false);
+  };
+
+  // When the existing file IS the person being booked, select it and close.
+  const openExisting = (candidate) => {
+    setDupCandidates(null);
+    onRegistered({ uhid: candidate.uhid, name: candidate.name, id: candidate.id, phone: candidate.phone });
+    reset();
+  };
+
   return (
     <div className="mt-3 border-t border-gray-100 pt-3">
+      {dupCandidates && (
+        <DuplicateWarningModal
+          candidates={dupCandidates}
+          onOpenExisting={openExisting}
+          onCreateAnyway={() => { setDupCandidates(null); submit(true); }}
+          onClose={() => setDupCandidates(null)}
+        />
+      )}
       {!open ? (
         <button
           type="button"

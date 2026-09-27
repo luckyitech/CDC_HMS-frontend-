@@ -6,6 +6,7 @@ import Card from './Card';
 import Button from './Button';
 import Input from './Input';
 import PageHeader from './PageHeader';
+import DuplicateWarningModal from './DuplicateWarningModal';
 import { useNavigate } from 'react-router-dom';
 import { notify } from '../../utils/notify';
 import { usePatientContext } from '../../contexts/PatientContext';
@@ -81,6 +82,10 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExistingPatient, setIsExistingPatient] = useState(false);
   const [existingUHID, setExistingUHID] = useState('');
+  // Possible-duplicate chooser: candidates from a 409, and the payload to retry
+  // with force:true if staff confirm it's a new person.
+  const [dupCandidates, setDupCandidates] = useState(null);
+  const [pendingPayload, setPendingPayload] = useState(null);
 
   const { status: idStatus, existing: idDuplicate } = useIdNumberCheck(patientData.idNumber);
 
@@ -146,10 +151,19 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
       } : null,
     };
 
+    await submitPayload(apiPatientData);
+  };
+
+  // Shared submit: handles success, the possible-duplicate 409, and errors.
+  // force:true is set when staff confirm (via the chooser) it's a new person.
+  const submitPayload = async (payload) => {
+    setIsSubmitting(true);
     try {
-      const result = await addPatient(apiPatientData);
+      const result = await addPatient(payload);
 
       if (result.success) {
+        setDupCandidates(null);
+        setPendingPayload(null);
         notify('success', 'Patient Account Created Successfully!');
         notify('info', `UHID: ${result.patient.uhid}\nName: ${patientData.firstName} ${patientData.lastName}\nEmail: ${patientData.email}\nTemp Password: ${result.patient.tempPassword}`, { duration: 8000 });
 
@@ -165,6 +179,10 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
         setIsExistingPatient(false);
         setExistingUHID('');
         onCreated?.(result.patient);
+      } else if (result.possibleDuplicate) {
+        // Surface the chooser; stash the payload so "create anyway" can retry.
+        setDupCandidates(result.candidates || []);
+        setPendingPayload(payload);
       } else {
         notify('error', result.message || 'Failed to create patient');
       }
@@ -173,6 +191,12 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCreateAnyway = () => {
+    if (!pendingPayload) return;
+    setDupCandidates(null);
+    submitPayload({ ...pendingPayload, force: true });
   };
 
   // TODO: Uncomment when username field is re-enabled
@@ -195,6 +219,13 @@ const PatientForm = ({ embedded = false, backPath = '/admin/dashboard', onCreate
 
   return (
     <div>
+      {dupCandidates && (
+        <DuplicateWarningModal
+          candidates={dupCandidates}
+          onCreateAnyway={handleCreateAnyway}
+          onClose={() => { setDupCandidates(null); setPendingPayload(null); }}
+        />
+      )}
       {/* Page header — hidden when hosted inside Create Users */}
       {!embedded && (
         <PageHeader
