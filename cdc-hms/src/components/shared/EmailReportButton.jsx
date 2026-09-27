@@ -3,7 +3,7 @@ import { Mail, Loader2 } from 'lucide-react';
 import usePdfFromPrint from '../../hooks/usePdfFromPrint';
 import PatientEmailPanel from '../mail/PatientEmailPanel';
 import { useUserContext } from '../../contexts/UserContext';
-import { canUseMail, canFilePatientDocuments } from '../../utils/permissions';
+import { canUseMail } from '../../utils/permissions';
 import { notify } from '../../utils/notify';
 
 const PORTALS = { doctor: 'doctor', nurse: 'doctor', staff: 'staff', admin: 'admin', lab: 'lab' };
@@ -21,20 +21,22 @@ const reportFileName = (stem, uhid) => {
  * debt pass, Emu 27 Sep). Turns exactly what the preview shows into a PDF in
  * the browser (the same usePdfFromPrint the WhatsApp send uses — no server PDF,
  * no new dependency) and opens the side-panel Composer on the patient with it
- * attached. When the email goes, the server files a copy on the patient's
- * Documents as Sent Correspondence (Reviewed).
+ * attached. Nothing is filed in the patient's Documents (Emu, 27 Sep evening):
+ * the printout can be rebuilt from Visit History; the email is linked to the
+ * patient so it shows on their Communications tab.
  *
- * Shown only to someone who can use mail AND add documents to a patient file
- * (the copy is a document write). Props: printRef, uhid, title (e.g.
- * "Lab result — HbA1c"), fileStem (e.g. "Lab-result"), className.
+ * Shown to anyone who can use mail (the server re-checks patient access).
+ * Props: printRef, uhid, title (e.g. "Referral letter"), fileStem (e.g.
+ * "Referral-letter"), addressPatient (default true — false for letters meant
+ * for another clinician: the To line starts empty), className.
  */
-const EmailReportButton = ({ printRef, uhid, title, fileStem, className = '' }) => {
+const EmailReportButton = ({ printRef, uhid, title, fileStem, addressPatient = true, className = '' }) => {
   const { currentUser } = useUserContext();
   const getPdf = usePdfFromPrint(printRef);
   const [busy, setBusy] = useState(false);
   const [reports, setReports] = useState(null);
 
-  if (!uhid || !canUseMail(currentUser) || !canFilePatientDocuments(currentUser)) return null;
+  if (!uhid || !canUseMail(currentUser)) return null;
 
   const start = async () => {
     if (busy) return;
@@ -54,7 +56,7 @@ const EmailReportButton = ({ printRef, uhid, title, fileStem, className = '' }) 
       <button
         type="button" onClick={start} disabled={busy}
         className={className || 'px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-semibold transition flex items-center gap-2 disabled:opacity-60'}
-        title="Email this as a PDF — a copy is saved to the patient's Documents when sent"
+        title="Email this as a PDF"
       >
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />} {busy ? 'Making PDF…' : 'Email'}
       </button>
@@ -63,6 +65,7 @@ const EmailReportButton = ({ printRef, uhid, title, fileStem, className = '' }) 
           uhid={uhid}
           portal={PORTALS[currentUser?.role] || 'doctor'}
           reports={reports}
+          addressPatient={addressPatient}
           onClose={() => setReports(null)}
         />
       )}

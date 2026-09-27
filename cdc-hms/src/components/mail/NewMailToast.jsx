@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { TOAST_Z } from '../../constants/layers';
 import { Mail, X } from 'lucide-react';
 import { personName } from './mailFormat';
 
@@ -18,10 +20,12 @@ const NewMailToast = ({ message, onOpen, onDismiss }) => {
   }, [message, onDismiss]);
 
   if (!message) return null;
-  return (
+  // Portal to <body> on the toast layer, so no open window can cover it.
+  return createPortal(
     <div
       role="status" aria-live="polite"
-      className="fixed bottom-4 right-4 z-50 flex w-[calc(100%-2rem)] max-w-sm items-center gap-3 rounded-lg border bg-white px-3 py-2.5 shadow-lg"
+      style={{ zIndex: TOAST_Z }}
+      className="fixed bottom-4 right-4 flex w-[calc(100%-2rem)] max-w-sm items-center gap-3 rounded-lg border bg-white px-3 py-2.5 shadow-lg"
     >
       <Mail className="h-5 w-5 flex-shrink-0 text-primary" aria-hidden="true" />
       <div className="min-w-0 flex-1">
@@ -32,7 +36,8 @@ const NewMailToast = ({ message, onOpen, onDismiss }) => {
       <button type="button" onClick={onDismiss} className="rounded p-1 text-gray-400 hover:bg-gray-100" aria-label="Dismiss">
         <X className="h-4 w-4" />
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

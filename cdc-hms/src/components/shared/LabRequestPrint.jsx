@@ -1,9 +1,12 @@
 // LabRequestPrint.jsx — the printable laboratory requisition (the preview that
 // opens on Save & print). Reuses the shared clinic letterhead (PrintLetterhead,
 // DRY). This is a REQUEST, not a report: no results column, and no prices ever.
-import { FlaskConical } from "lucide-react";
+import { useState } from "react";
+import { FlaskConical, MessageCircle } from "lucide-react";
 import EmailReportButton from "./EmailReportButton";
 import usePrint from "../../hooks/usePrint";
+import usePdfFromPrint from "../../hooks/usePdfFromPrint";
+import SendViaWhatsAppModal from "./SendViaWhatsAppModal";
 import PrintLetterhead from "./PrintLetterhead";
 import {
   PrintPreviewModal, PrintDocHeader, PrintPatientLine, PrintSection, PrintTable,
@@ -24,12 +27,15 @@ const fmtDay = (d) =>
  *     onBehalfOfDoctor,   // "Dr. …" when a nurse raised it (else null)
  *     tests: [{ testType, sampleType }]
  *   }
- *   patient  — { name, uhid, gender }
+ *   patient  — { name, uhid, gender, phone }
+ * Toolbar like the prescription (27 Sep evening): Print · Email · Send via WhatsApp.
  *   onClose
  *   onBackToEdit  (optional) — reopen the request in the form for editing
  */
 const LabRequestPrint = ({ request, patient, onClose, onBackToEdit }) => {
   const { printRef, handlePrint } = usePrint();
+  const getPdf = usePdfFromPrint(printRef);
+  const [waOpen, setWaOpen] = useState(false);
   if (!request) return null;
 
   const tests = request.tests || [];
@@ -41,13 +47,24 @@ const LabRequestPrint = ({ request, patient, onClose, onBackToEdit }) => {
   ];
 
   return (
+    <>
     <PrintPreviewModal
       title="Laboratory Request Preview"
       onPrint={handlePrint}
       onClose={onClose}
       closeLabel="Done"
       maxWidth="max-w-3xl"
-      trailingActions={<EmailReportButton printRef={printRef} uhid={patient?.uhid} title="Laboratory request" fileStem="Lab-request" />}
+      trailingActions={patient?.uhid && (
+        <>
+          <EmailReportButton printRef={printRef} uhid={patient.uhid} title={`Laboratory request${request.requisitionNumber ? ` ${request.requisitionNumber}` : ''}`} fileStem="Lab-request" />
+          <button
+            onClick={() => setWaOpen(true)}
+            className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold transition flex items-center gap-2"
+          >
+            <MessageCircle className="w-4 h-4" /> Send via WhatsApp
+          </button>
+        </>
+      )}
       leadingActions={onBackToEdit && (
         <button
           onClick={onBackToEdit}
@@ -94,6 +111,17 @@ const LabRequestPrint = ({ request, patient, onClose, onBackToEdit }) => {
         </PrintSignatures>
       </div>
     </PrintPreviewModal>
+    {waOpen && (
+      <SendViaWhatsAppModal
+        isOpen
+        onClose={() => setWaOpen(false)}
+        patient={patient}
+        getPdf={getPdf}
+        label="lab request"
+        defaultCaption="Your laboratory request form from the Comprehensive Diabetes Centre"
+      />
+    )}
+    </>
   );
 };
 

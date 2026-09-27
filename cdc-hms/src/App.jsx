@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { TOAST_Z } from "./constants/layers";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./components/shared/ErrorFallback";
 import NotFound from "./pages/shared/NotFound";
@@ -166,7 +167,8 @@ const AuthenticatedLayout = () => (
 function App() {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" />
+      {/* Toasts sit above every modal and panel (constants/layers.js). */}
+      <Toaster position="top-right" containerStyle={{ zIndex: TOAST_Z }} />
       {/* UserProvider stays at the top level — needed by ProtectedRoute and login pages */}
       <UserProvider>
         <ErrorBoundary FallbackComponent={ErrorFallback}>

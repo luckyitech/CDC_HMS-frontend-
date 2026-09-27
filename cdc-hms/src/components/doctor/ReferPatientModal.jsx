@@ -1,19 +1,20 @@
 import { useState } from 'react';
-import { X, UserCheck, ExternalLink, AlertCircle, Printer } from 'lucide-react';
+import { X, UserCheck, ExternalLink, AlertCircle, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUserContext } from '../../contexts/UserContext';
 import queueService from '../../services/queueService';
-import usePrint from '../../hooks/usePrint';
-import PrintRoot from '../shared/PrintRoot';
+import LetterPrint from '../shared/LetterPrint';
 
 /**
  * ReferPatientModal — doctor REFERS a patient during the consultation.
  *
  * Mirrors the admission flow (single screen, no inline billing):
  *   • Referral details — Internal (receiving doctor) or External (facility) + reason
- *   • An editable REFERRAL NOTE, pre-filled from the consultation (`defaultNote`),
- *     printable on the shared clinic letterhead (PrintRoot).
- *   • Save & Print documents the note to the Visit History (no billing move).
+ *   • An editable REFERRAL NOTE, pre-filled from the consultation (`defaultNote`).
+ *   • Save & preview (27 Sep evening) saves the letter — note, destination and
+ *     reason — to the Visit History (no billing move), then opens it on the
+ *     clinic letterhead like the prescription: Print · Email · Send via WhatsApp.
+ *     Printing happens inside the preview, in its own tap (iPad-safe).
  *   • "Send referral" hands off to the shared Complete-Consultation billing modal
  *     (`onSendToBilling`) — the doctor enters billing there, and submitting it
  *     finalises the referral and completes the visit. Referral never skips billing.
@@ -26,7 +27,7 @@ import PrintRoot from '../shared/PrintRoot';
  *   onSendToBilling(payload) — parent opens the billing modal in referral mode
  */
 const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSendToBilling }) => {
-  const { getDoctors } = useUserContext();
+  const { getDoctors, currentUser } = useUserContext();
 
   const [referralType, setReferralType]         = useState('Internal');
   const [referralReason, setReferralReason]     = useState('');
@@ -34,8 +35,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
   const [externalTarget, setExternalTarget]     = useState('');
   const [referralNote, setReferralNote]         = useState(defaultNote);
   const [saving, setSaving]                     = useState(false);
-
-  const { printRef, handlePrint } = usePrint();
+  const [preview, setPreview]                   = useState(null);   // the saved letter, shown in LetterPrint
 
   const isInternal = referralType === 'Internal';
   const doctors    = getDoctors();
@@ -55,17 +55,26 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
     return true;
   };
 
-  // Save & Print — documents the referral note to the visit history (no billing).
-  const saveAndPrint = async () => {
+  // Save & preview — documents the letter to the visit history (no billing),
+  // then opens the letterhead preview. What is previewed is exactly what was
+  // saved, so a reprint from Visit History later matches it.
+  const saveAndPreview = async () => {
     if (!validate()) return;
     if (!queueItem?.id) return toast.error('No active queue visit for this patient.');
-    // Print FIRST, synchronously in the tap — iPad Safari ignores print() once an
-    // await has run (see usePrint). The note on paper is exactly what is saved next.
-    handlePrint();
     setSaving(true);
     try {
-      await queueService.saveReferralNote(queueItem.id, { referralNote, referralType });
-      toast.success('Referral note saved to visit history.');
+      await queueService.saveReferralNote(queueItem.id, {
+        referralNote, referralType,
+        referralReason: referralReason.trim(),
+        ...(isInternal
+          ? { referredToDoctorName: selectedDoctor ? selectedDoctor.name : '' }
+          : { externalReferralTarget: externalTarget.trim() }),
+      });
+      toast.success('Referral letter saved to visit history.');
+      setPreview({
+        note: referralNote, date: new Date().toISOString(), doctorName: currentUser?.name || '',
+        referralType, destination, reason: referralReason.trim(),
+      });
     } catch (err) {
       toast.error(err.message || 'Failed to save referral note');
     } finally {
@@ -209,7 +218,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                Pre-filled from this visit's vitals, notes and diagnosis. Save &amp; Print files it in the visit history.
+                Pre-filled from this visit's vitals, notes and diagnosis. Save &amp; preview files it in the visit history, ready to print, email or WhatsApp.
               </p>
             </div>
 
@@ -227,11 +236,11 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
           <div className="flex flex-wrap justify-between items-center gap-2 px-6 py-4 border-t flex-shrink-0">
             <button
               type="button"
-              onClick={saveAndPrint}
+              onClick={saveAndPreview}
               disabled={saving}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-primary text-primary text-sm font-semibold hover:bg-blue-50 transition disabled:opacity-50"
             >
-              <Printer className="w-4 h-4" /> {saving ? 'Saving…' : 'Save & Print'}
+              <Eye className="w-4 h-4" /> {saving ? 'Saving…' : 'Save & preview'}
             </button>
             <div className="flex gap-2">
               <button
@@ -254,27 +263,15 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
         </form>
       </div>
 
-      {/* Print target — shared clinic letterhead */}
-      <PrintRoot printRef={printRef}>
-        <div className="border-b border-gray-300 pb-3 mb-4">
-          <p className="text-sm text-gray-700"><b>{patient?.name}</b>{patient?.uhid ? ` · ${patient.uhid}` : ''}</p>
-          <p className="text-xs text-gray-500">Referral Note · {new Date().toLocaleString()}</p>
-        </div>
-        {destination && (
-          <>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Referred to</p>
-            <p className="text-sm mb-3">{destination}{isInternal ? ' (Internal)' : ' (External)'}</p>
-          </>
-        )}
-        {referralReason.trim() && (
-          <>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Reason</p>
-            <p className="text-sm mb-3">{referralReason}</p>
-          </>
-        )}
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Referral note</p>
-        <p className="text-sm whitespace-pre-wrap">{referralNote}</p>
-      </PrintRoot>
+      {/* The saved letter — letterhead preview with Print · Email · WhatsApp */}
+      {preview && (
+        <LetterPrint
+          kind="referral"
+          letter={preview}
+          patient={{ name: patient?.name, uhid: patient?.uhid, phone: patient?.phone, gender: patient?.gender }}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 };

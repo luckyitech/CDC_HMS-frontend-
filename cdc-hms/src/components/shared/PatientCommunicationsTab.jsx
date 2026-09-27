@@ -11,6 +11,7 @@ import FileToRecordModal from '../inbox/FileToRecordModal';
 import { PATIENT_MAIL_SENT_EVENT } from '../mail/PatientEmailPanel';
 import { useUserContext } from '../../contexts/UserContext';
 import { canViewPatientEmail, canWriteComms, hasPermission, PERMISSIONS } from '../../utils/permissions';
+import Tag from './Tag';
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const DAYS_PER_PAGE = 10;
@@ -256,9 +257,6 @@ const PatientCommunicationsTab = ({ uhid, patientName = '', portal = 'doctor', o
   );
 };
 
-const Tag = ({ className, Icon, children }) => (
-  <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${className}`}>{Icon && <Icon size={11} aria-hidden="true" />}{children}</span>
-);
 
 // One day of communications — the Visit History accordion pattern: a header
 // with the date, tags for what is inside and who was involved; opened, a tab

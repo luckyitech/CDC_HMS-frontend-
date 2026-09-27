@@ -26,15 +26,19 @@ const typeOf = (name) => TYPES[String(name || '').split('.').pop().toLowerCase()
  * - "Open in My mail" saves the draft and continues it in the Inbox (not
  *   offered in portals without an Inbox, e.g. Radiology).
  *
- * - `reports` (debt pass): PDFs made from an HMS printout (lab result,
- *   prescription…) — attached as uploads and filed on the patient as Sent
- *   Correspondence once sent. With reports, a patient with no email address on
- *   file can still be written about (to an insurer, a colleague): the To line
- *   simply starts empty. Rendered in a portal so it stacks above a print preview.
+ * - `reports` (debt pass): PDFs made from an HMS printout (prescription, lab
+ * request, referral letter…) — attached as uploads, NOT filed on the patient
+ * (27 Sep evening). With reports, a patient with no email address on file can
+ * still be written about (to an insurer, a colleague): the To line simply
+ * starts empty; `addressPatient={false}` (letters to another clinician) always
+ * starts it empty. The email is linked to the patient ("Patient file" row), so
+ * it is on their Communications tab whoever it goes to. Rendered in a portal
+ * so it stacks above a print preview.
  *
- * Props: uhid, portal, documents? [{ id, fileName }], reports? [{ file, title }], onClose.
+ * Props: uhid, portal, documents? [{ id, fileName }], reports? [{ file, title }],
+ * addressPatient? (default true), onClose.
  */
-const PatientEmailPanel = ({ uhid, portal, documents = [], reports = [], onClose }) => {
+const PatientEmailPanel = ({ uhid, portal, documents = [], reports = [], addressPatient = true, onClose }) => {
   const navigate = useNavigate();
   const [state, setState] = useState(null);   // { account, setup, contact, problem }
   const [composeKey] = useState(() => Date.now());
@@ -68,7 +72,8 @@ const PatientEmailPanel = ({ uhid, portal, documents = [], reports = [], onClose
   const init = ready ? {
     mode: 'new',
     key: composeKey,
-    to: contact.address ? [{ name: contact.name, address: contact.address, patient: { uhid: contact.uhid } }] : [],
+    to: contact.address && addressPatient ? [{ name: contact.name, address: contact.address, patient: { uhid: contact.uhid } }] : [],
+    linkPatients: hasReports ? [{ uhid: contact.uhid, name: contact.name }] : [],
     subject: hasReports && reports.length === 1 ? reports[0].title : '',
     reports: reports.map((r, i) => ({ id: i + 1, file: r.file, title: r.title, uhid: contact.uhid, patientName: contact.name })),
     patientDocuments: documents.map((d) => ({

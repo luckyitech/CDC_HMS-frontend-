@@ -601,7 +601,7 @@ const LabRequest = ({ patient, onDirtyChange = () => {} }) => {
       {printReq && (
         <LabRequestPrint
           request={printReq}
-          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender }}
+          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender, phone: patient?.phone }}
           onClose={() => setPrintReq(null)}
           onBackToEdit={() => {
             const g = groups.find((x) => x.reqNo === printReq.requisitionNumber);

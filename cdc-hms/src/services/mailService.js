@@ -36,8 +36,8 @@ import api from './api';
  * - POST   /mail/messages/:uid/link-patient — { folder, uhid, scope: thread | message }
  * Debt pass (27 Sep): POST /mail/folders, /mail/folders/rename, /mail/folders/delete;
  * organise + seen accept `all` in place of `uids`; send accepts
- * `hmsReports: [{ uhid, filename, title }]` — uploads that are also filed on the
- * patient as Sent Correspondence once the email has gone (never kept in drafts).
+ * `hmsReports: [{ uhid, filename, title }]` — PDFs of HMS printouts, checked by
+ * the server, never kept in drafts, and (27 Sep evening) not filed on the patient.
  * Admin (config.write): GET /mail/admin/accounts, POST /mail/admin/accounts/:userId/disconnect
  */
 // The api instance defaults to JSON; multipart must be named so axios hands the

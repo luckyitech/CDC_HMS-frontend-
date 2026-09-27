@@ -7,6 +7,10 @@ import {
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
 import PrintRoot from './PrintRoot';
+import LetterPrint from './LetterPrint';
+import Tag from './Tag';
+import { referralLetter, admissionLetter } from '../../utils/letters';
+import { groupLabRequests, labRequestForPrint, LAB_HISTORY_LIMIT } from '../../utils/labRequests';
 import PrescriptionPrint from '../doctor/PrescriptionPrint';
 import LabRequestPrint from './LabRequestPrint';
 import SwitcherTabs from './SwitcherTabs';
@@ -84,39 +88,19 @@ const DATE_FIELD_MAP = {
 const fmtDay = (d) =>
   d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
-// Collapse the patient's flat lab-test rows into one record per requisition, so
-// a multi-test request reads as a single "Lab request" on the chart. authorRole
-// (from the row that raised it) routes it: doctor-raised → Actions tab,
-// nurse-raised → Nursing Kardex.
-const groupLabRequests = (rows) => {
-  const map = new Map();
-  (rows || []).forEach((r) => {
-    const key = r.requisitionNumber || `single-${r.id}`;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(r);
-  });
-  return [...map.entries()].map(([reqNo, list]) => {
-    const first = list[0] || {};
-    return {
-      id: reqNo,
-      requisitionNumber: first.requisitionNumber || null,
-      orderedDate: first.orderedDate,
-      orderedTime: first.orderedTime,
-      createdAt: first.createdAt,
-      time: first.orderedTime,
-      priority: first.priority,
-      notes: first.notes,
-      orderedBy: first.orderedBy,
-      orderedByRole: first.orderedByRole,
-      authorRole: first.orderedByRole,
-      onBehalfOfDoctor: first.onBehalfOfDoctor,
-      supersedesRequisition: first.supersedesRequisition,
-      tests: list.map((t) => ({
-        testType: t.testType, sampleType: t.sampleType, status: t.status, packageName: t.packageName,
-      })),
-    };
-  });
-};
+// The pills on a visit-day card (27 Sep evening, Emu): each opens the
+// document's preview — Print · Email · Send via WhatsApp — straight from the
+// card. Styled like the Communications tab's pills (shared Tag).
+const DAY_PILLS = [
+  { key: 'rx',  label: 'Rx',  Icon: Pill,         cls: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+    list: (r) => r.prescriptions || [],   open: (x, h) => h.setViewArtifact({ type: 'prescription', data: x }) },
+  { key: 'lab', label: 'Lab', Icon: FlaskConical, cls: 'border border-cyan-200 bg-cyan-50 text-cyan-700',
+    list: (r) => r.labRequests || [],     open: (x, h) => h.setViewLabReq(x) },
+  { key: 'ref', label: 'Ref', Icon: Share2,       cls: 'border border-sky-200 bg-sky-50 text-sky-700',
+    list: (r) => r.referrals || [],       open: (x, h) => h.setViewArtifact({ type: 'referral', data: x }) },
+  { key: 'adm', label: 'Adm', Icon: BedDouble,    cls: 'border border-indigo-200 bg-indigo-50 text-indigo-700',
+    list: (r) => r.admissions || [],      open: (x, h) => h.setViewArtifact({ type: 'admission', data: x }) },
+];
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -689,49 +673,16 @@ const ArtifactMeta = ({ patient, sub }) => (
   </div>
 );
 
-// Note viewer for admission and referral actions (prescriptions use the shared
-// PrescriptionPrint instead). Both are just a note + a one-line meta, printed on
-// the shared clinic letterhead.
+// Note viewer for admission and referral actions — the shared LetterPrint
+// (27 Sep evening): the same letterhead preview as the prescription, with
+// Print · Email · Send via WhatsApp. Prescriptions use PrescriptionPrint.
 const ArtifactModal = ({ artifact, patient, onClose }) => {
-  const { printRef, handlePrint } = usePrint();
   if (!artifact) return null;
   const { type, data } = artifact;
-  const isReferral = type === 'referral';
-  const title = isReferral ? 'Referral Note' : 'Admission Note';
-  const sub = isReferral
-    ? [data.referralType, data.destination, data.doctorName, fmtDay(data.savedAt)].filter(Boolean).join(' · ')
-    : [data.admissionType, data.doctorName, fmtDay(data.savedAt)].filter(Boolean).join(' · ')
-        + (data.sent ? ' · sent for admission' : ' · documented only')
-        + (data.cancelledAt ? ' · cancelled' : '');
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      {/* Capped to the viewport with a scrolling body — long notes scroll inside
-          the card instead of overflowing the page. Header + footer stay pinned. */}
-      <div className="bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 flex-shrink-0 border-b border-gray-100">
-          <div className="min-w-0">
-            <h3 className="text-lg font-bold text-gray-800">{title}</h3>
-            <p className="text-sm text-gray-500 mt-0.5">{sub}</p>
-          </div>
-          <button onClick={onClose} className="flex-shrink-0" aria-label="Close"><X className="w-5 h-5 text-gray-400" /></button>
-        </div>
-        <div className="overflow-y-auto overflow-x-hidden px-5 py-4 flex-1 min-h-0">
-          <div className="whitespace-pre-wrap break-words text-sm text-gray-700 border border-gray-200 rounded-lg p-3 bg-gray-50">{data.note || '—'}</div>
-        </div>
-        <div className="flex justify-end gap-2 px-5 py-3 flex-shrink-0 border-t border-gray-100">
-          <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Close</button>
-          <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
-        </div>
-      </div>
-
-      {/* Print target — shared clinic letterhead */}
-      <PrintRoot printRef={printRef}>
-        <ArtifactMeta patient={patient} sub={`${title} · ${sub}`} />
-        <p className="text-sm whitespace-pre-wrap">{data.note || '—'}</p>
-      </PrintRoot>
-    </div>
-  );
+  const who = { name: patient?.name, uhid: patient?.uhid, phone: patient?.phone, gender: patient?.gender };
+  return type === 'referral'
+    ? <LetterPrint kind="referral" patient={who} onClose={onClose} letter={referralLetter(data)} />
+    : <LetterPrint kind="admission" patient={who} onClose={onClose} letter={admissionLetter(data)} />;
 };
 
 // ── Nursing actions ───────────────────────────────────────────────────────────
@@ -1197,7 +1148,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           glp1Service.getWeekNotes({ uhid }).catch(() => ({ data: { notes: [] } })),
           nursingNoteService.getByPatient(uhid).catch(() => ({ data: { nursingNotes: [] } })),
           queueService.patientHistory(uhid).catch(() => ({ data: { visits: [] } })),
-          labService.getByPatient(uhid).catch(() => ({ success: false, data: { labTests: [] } })),
+          labService.getByPatient(uhid, { limit: LAB_HISTORY_LIMIT }).catch(() => ({ success: false, data: { labTests: [] } })),
           neuropathyService.getByPatient(uhid).catch(() => ({ data: { data: [] } })),
           glucoseService.getBatches(uhid).catch(() => ({ data: [] })),
         ]);
@@ -1659,9 +1610,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           <div key={group.key} className={`bg-white border rounded-xl overflow-hidden shadow-sm ${group.ongoing ? 'border-amber-300' : 'border-gray-200'}`}>
 
             {/* Header row */}
-            <button
+            {/* A div, not a <button>: the pills inside are buttons of their own. */}
+            <div
+              role="button" tabIndex={0} aria-expanded={isOpen}
               onClick={() => toggleHistoryGroup(group)}
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleHistoryGroup(group); } }}
+              className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <HeaderIcon className={`w-5 h-5 flex-shrink-0 ${group.ongoing ? 'text-amber-500' : isOpen ? 'text-primary' : 'text-gray-400'}`} />
@@ -1673,12 +1627,24 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
                     Not checked out
                   </span>
                 )}
-                {rxCount > 0 && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200 whitespace-nowrap">Rx</span>
-                )}
-                {labCount > 0 && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-50 text-cyan-700 border border-cyan-200 whitespace-nowrap">Lab</span>
-                )}
+                {/* Document pills (Communications-tab style). One of a kind that
+                    day → the pill opens it; several → the pill opens the day. */}
+                {DAY_PILLS.map(({ key, label, Icon, cls, list, open }) => {
+                  const items = list(records);
+                  if (!items.length) return null;
+                  const one = items.length === 1;
+                  return (
+                    <Tag key={key} Icon={Icon} className={cls}
+                      title={one ? `Open this ${label === 'Rx' ? 'prescription' : label === 'Lab' ? 'lab request' : label === 'Ref' ? 'referral letter' : 'admission note'}` : 'Show this visit'}
+                      onClick={() => {
+                        if (one) open(items[0], { setViewArtifact, setViewLabReq });
+                        else if (!isOpen) toggleHistoryGroup(group);
+                      }}
+                    >
+                      {label}{one ? '' : ` ${items.length}`}
+                    </Tag>
+                  );
+                })}
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 whitespace-nowrap">
                   {summary}
                 </span>
@@ -1687,7 +1653,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
                 ? <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
                 : <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               }
-            </button>
+            </div>
 
             {group.ongoing && (
               <p className="px-5 -mt-2 pb-2 text-xs text-gray-400">
@@ -1847,17 +1813,8 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       {/* Lab request viewer — view / reprint the requisition on the clinic letterhead */}
       {viewLabReq && (
         <LabRequestPrint
-          request={{
-            requisitionNumber: viewLabReq.requisitionNumber,
-            orderedDate: viewLabReq.orderedDate,
-            orderedTime: viewLabReq.orderedTime,
-            priority: viewLabReq.priority,
-            notes: viewLabReq.notes,
-            requestedBy: viewLabReq.orderedBy,
-            onBehalfOfDoctor: viewLabReq.onBehalfOfDoctor,
-            tests: (viewLabReq.tests || []).filter((t) => t.status !== 'Cancelled'),
-          }}
-          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender }}
+          request={labRequestForPrint(viewLabReq)}
+          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender, phone: patient?.phone }}
           onClose={() => setViewLabReq(null)}
         />
       )}

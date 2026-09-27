@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Send, Loader2, Paperclip, Bold, Italic, Underline, List, ListOrdered, Link2, RemoveFormatting,
-  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen, ExternalLink, Plus, FolderCheck,
+  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen, ExternalLink, Plus, History,
 } from 'lucide-react';
 import mailService, { announceMailChange } from '../../services/mailService';
 import { notify } from '../../utils/notify';
@@ -56,8 +56,8 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
   const [patientDocs, setPatientDocs] = useState(init.patientDocuments || []); // { documentId, fileName, type, size, uhid, patientName }
   const [pickingFromFile, setPickingFromFile] = useState(false);
   // HMS reports (debt pass): PDFs made from a printout in the browser. Sent as
-  // ordinary uploads, filed on the patient as Sent Correspondence once the
-  // email has gone, and NEVER kept in a draft (no PHI parked in one.com).
+  // ordinary uploads and NEVER kept in a draft (no PHI parked in one.com). Not
+  // filed on the patient (Emu, 27 Sep evening) — Visit History rebuilds them.
   const [reports, setReports] = useState(init.reports || []);   // { id, file, uhid, title, patientName }
   const reportWarned = useRef(false);
   // Phase 5 — the "Patient file" row: patients this message is LINKED to
@@ -292,12 +292,8 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
       setDirty(false);
       const noted = (r.loggedToPatients || []).length
         ? ` · noted on ${r.loggedToPatients.length === 1 ? 'the patient’s file' : `${r.loggedToPatients.length} patient files`}` : '';
-      if (r.reportCopiesFailed) {
-        notify('warning', `Sent${noted}, but ${r.reportCopiesFailed === 1 ? 'the report copy' : `${r.reportCopiesFailed} report copies`} could not be saved to the patient’s Documents. The PDF is in your Sent folder.`, { duration: 10000 });
-      }
-      const filed = r.reportCopies ? ` · copy saved to Documents` : '';
       if (r.sentCopy) {
-        notify('success', `Sent${noted}${filed}`);
+        notify('success', `Sent${noted}`);
       } else {
         const why = r.sentCopyReason === 'full'
           ? 'Sent, but your Sent folder is full, so no copy was saved.'
@@ -582,8 +578,8 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
             </span>
             {reports.length > 0 && (
               <p className="flex w-full items-center gap-1 text-xs text-gray-600">
-                <FolderCheck className="h-3.5 w-3.5 flex-shrink-0 text-emerald-600" />
-                When sent, a copy of {reports.length === 1 ? 'this PDF' : 'these PDFs'} is saved to {[...new Set(reports.map((r) => r.patientName || r.uhid))].join(', ')}’s Documents — Sent Correspondence, Reviewed.
+                <History className="h-3.5 w-3.5 flex-shrink-0 text-gray-500" />
+                {reports.length === 1 ? 'This PDF is' : 'These PDFs are'} not saved to Documents — reopen it in the HMS to print or send it again.
               </p>
             )}
           </div>

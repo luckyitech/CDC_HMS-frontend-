@@ -25,6 +25,7 @@ import InactivePatientBanner from "../../components/shared/InactivePatientBanner
 import BarcodeActions from "../../components/shared/BarcodeActions";
 import PatientSummaryCard from "../../components/shared/PatientSummaryCard";
 import VisitHistoryPanel from "../../components/shared/VisitHistoryPanel";
+import { LabRequestsHistory, ReferralLettersHistory } from "../../components/shared/VisitHistoryDocuments";
 import StockDispenseHistory from "../../components/shared/StockDispenseHistory";
 import MedicalDocumentsTab from "../../components/shared/MedicalDocumentsTab";
 import UltrasoundTab from "../../components/shared/UltrasoundTab";
@@ -149,9 +150,10 @@ const DiagnosticsTab = ({ patient, initialSub = "documents", onEmailDocument = n
   );
 };
 
-// Visit History tab body — the master record. A Visits/Prescriptions sub-toggle:
-// "Visits" is the day-by-day timeline (doctor's notes, actions, nursing);
-// "Prescriptions" hosts the prescriptions view, moved here unchanged.
+// Visit History tab body — the master record. Sub-tabs: "Visits" is the
+// day-by-day timeline (doctor's notes, actions, nursing); "Prescriptions" the
+// prescriptions view; "Lab requests" and "Referral letters" (27 Sep evening)
+// list every request form / letter to reprint, email or WhatsApp again.
 const VisitHistoryTab = ({ patient, uhid, prescriptions }) => {
   const [sub, setSub] = useState("visits");
   return (
@@ -160,16 +162,22 @@ const VisitHistoryTab = ({ patient, uhid, prescriptions }) => {
         className="mb-4"
         active={sub}
         onChange={setSub}
-        tabs={[{ id: "visits", label: "Visits" }, { id: "prescriptions", label: "Prescriptions" }]}
+        tabs={[
+          { id: "visits", label: "Visits" },
+          { id: "prescriptions", label: "Prescriptions" },
+          { id: "lab-requests", label: "Lab requests" },
+          { id: "referral-letters", label: "Referral letters" },
+        ]}
       />
-      {sub === "visits" ? (
+      {sub === "visits" && (
         <>
           <VisitHistoryPanel patient={patient} />
           <StockDispenseHistory uhid={uhid} />
         </>
-      ) : (
-        <PrescriptionManagement patient={patient} patientPrescriptions={prescriptions} readOnly />
       )}
+      {sub === "prescriptions" && <PrescriptionManagement patient={patient} patientPrescriptions={prescriptions} readOnly />}
+      {sub === "lab-requests" && <LabRequestsHistory patient={patient} />}
+      {sub === "referral-letters" && <ReferralLettersHistory patient={patient} />}
     </div>
   );
 };
