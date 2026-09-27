@@ -9,6 +9,15 @@ import commsService from '../../../services/commsService';
 // the browser — only has* booleans), the clinic numbers (pulled from Meta on
 // Test connection), behaviour switches, message templates, and the cost rate
 // card. Nothing ships pre-filled. Writing credentials is real-admin only.
+
+// Defined at module scope, NOT inside the component: a component declared in
+// the render body is a new type on every render, so React unmounts and
+// remounts the <input> on each keystroke and focus is lost after the first
+// character (paste worked because it is a single input event).
+const Field = ({ label, value, onChange, type = 'text', placeholder }) => (
+  <div><label className="text-xs text-gray-500">{label}</label><input type={type} value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded border-gray-300" /></div>
+);
+
 const WhatsAppSettingsTab = () => {
   const [cfg, setCfg] = useState(null);
   const [form, setForm] = useState({ wabaId: '', appId: '', appSecret: '', accessToken: '', verifyToken: '' });
@@ -93,9 +102,6 @@ const WhatsAppSettingsTab = () => {
   };
 
   if (!cfg) return <div className="py-8 text-center text-sm text-gray-400">Loading…</div>;
-  const Field = ({ label, value, onChange, type = 'text', placeholder }) => (
-    <div><label className="text-xs text-gray-500">{label}</label><input type={type} value={value} onChange={onChange} placeholder={placeholder} className="w-full rounded border-gray-300" /></div>
-  );
 
   return (
     <div className="space-y-6 text-sm">
