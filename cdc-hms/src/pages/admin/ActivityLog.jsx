@@ -45,6 +45,17 @@ const ACTION_TYPES = [
   { value: 'lab_report_paired',     label: 'Paired Lab Report' },
   { value: 'lab_report_discarded',  label: 'Discarded Lab Report' },
   { value: 'setting_changed',       label: 'Changed Setting' },
+  // Staff Email (B26). The two groups filter several types at once (backend ACTION_GROUPS).
+  { value: 'mail_patient_docs',     label: 'Email — Patient Documents (sent + saved)' },
+  { value: 'mail_all',              label: 'Email — All Events' },
+  { value: 'mail_sent',             label: 'Sent Email' },
+  { value: 'patient_docs_emailed',  label: 'Emailed Patient Documents' },
+  { value: 'mail_saved_to_patient', label: 'Saved Email Attachment to Patient' },
+  { value: 'mail_connected',        label: 'Connected Mailbox' },
+  { value: 'mail_disconnected',     label: 'Disconnected Mailbox' },
+  { value: 'mail_auth_failed',      label: 'Mailbox Login Refused' },
+  { value: 'mail_wiped',            label: 'Mailbox Removed (Staff Archived)' },
+  { value: 'mail_trash_emptied',    label: 'Emptied Mail Trash' },
 ];
 
 // `type` is the underlying event type (matches ACTION_STYLE / ACTION_TYPES and

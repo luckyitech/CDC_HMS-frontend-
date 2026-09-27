@@ -1,16 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MessageCircle, FlaskConical, Bell, BarChart3, Facebook, Instagram, Lock } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { canViewComms as canViewCommsCap, canWriteComms as canWriteCommsCap, canViewLabInbox as canViewLabInboxCap, canUseMail as canUseMailCap, hasPermission, PERMISSIONS } from '../../utils/permissions';
 import commsService from '../../services/commsService';
-import mailService from '../../services/mailService';
+import { MAIL_STATE_EVENT } from '../../services/mailService';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import ChannelTab from '../../components/inbox/ChannelTab';
 import LabReportsTab from '../../components/inbox/LabReportsTab';
 import RemindersTab from '../../components/inbox/RemindersTab';
 import InboxAnalytics from '../../components/inbox/InboxAnalytics';
 import MailTab from '../../components/mail/MailTab';
+import NewMailToast from '../../components/mail/NewMailToast';
 
 // One "Inbox" for everything reaching the clinic from outside: patient messages
 // on WhatsApp, Facebook Messenger and Instagram, external lab reports (email +
@@ -34,9 +35,33 @@ const Inbox = () => {
   const isAdmin = role === 'admin' || hasPermission(currentUser, PERMISSIONS.ADMIN_ACCESS);
 
   const refreshBadge = useCallback(() => { if (canViewComms || canViewLab) commsService.badge().then((r) => setBadge(r.data)).catch(() => {}); }, [canViewComms, canViewLab]);
+  // My mail count + new-mail toast (phase 3b). No polling of its own: MainLayout
+  // asks the server every 30 s and re-broadcasts the answer as `mail:state`.
+  // The toast shows only here, on the Inbox page (Emu, 26 Sep). The newest
+  // unread message seen since this page opened is the baseline — anything newer
+  // (same mailbox generation, higher UID) toasts once; the first answer never does.
   const [mailUnread, setMailUnread] = useState(0);
-  const refreshMail = useCallback(() => { if (canUseMail) mailService.unread().then((r) => setMailUnread(r.data?.unread || 0)).catch(() => {}); }, [canUseMail]);
-  useEffect(() => { refreshMail(); window.addEventListener('mail:changed', refreshMail); const t = setInterval(refreshMail, 120000); return () => { window.removeEventListener('mail:changed', refreshMail); clearInterval(t); }; }, [refreshMail]);
+  const [toast, setToast] = useState(null);
+  const [openRequest, setOpenRequest] = useState(null);   // { uid } for My mail to open
+  const baseline = useRef(null);                            // { uidValidity, uid }
+  useEffect(() => {
+    if (!canUseMail) return undefined;
+    const onState = (e) => {
+      const s = e.detail || {};
+      setMailUnread(s.connected ? (s.unread || 0) : 0);
+      const latest = s.connected ? s.latest : null;
+      if (!latest) return;
+      const b = baseline.current;
+      if (b && b.uidValidity === latest.uidValidity && latest.uid > b.uid) setToast(latest);
+      if (!b || b.uidValidity !== latest.uidValidity || latest.uid > b.uid) {
+        baseline.current = { uidValidity: latest.uidValidity, uid: latest.uid };
+      }
+    };
+    window.addEventListener(MAIL_STATE_EVENT, onState);
+    window.dispatchEvent(new CustomEvent('mail:changed'));   // ask once now for the count
+    return () => window.removeEventListener(MAIL_STATE_EVENT, onState);
+  }, [canUseMail]);
+  const dismissToast = useCallback(() => setToast(null), []);
   useEffect(() => { refreshBadge(); const h = () => refreshBadge(); window.addEventListener('comms:changed', h); window.addEventListener('lab-inbox:changed', h); const t = setInterval(refreshBadge, 60000); return () => { window.removeEventListener('comms:changed', h); window.removeEventListener('lab-inbox:changed', h); clearInterval(t); }; }, [refreshBadge]);
 
   // The tabs the user can open. WhatsApp, Messenger and Instagram all render the
@@ -69,7 +94,16 @@ const Inbox = () => {
         {liveTabs.length > 0 && <SwitcherTabs tabs={liveTabs} active={tab} onChange={setTab} />}
       </div>
 
-      {tab === 'mail' && canUseMail && <MailTab />}
+      {tab === 'mail' && canUseMail && (
+        <MailTab openRequest={openRequest} onOpenHandled={() => setOpenRequest(null)} />
+      )}
+      {canUseMail && (
+        <NewMailToast
+          message={toast}
+          onDismiss={dismissToast}
+          onOpen={() => { setOpenRequest({ uid: toast.uid, at: Date.now() }); setToast(null); setTab('mail'); }}
+        />
+      )}
 
       {tab === 'whatsapp' && canViewComms && <ChannelTab channel="whatsapp" canWrite={canWriteComms} />}
       {tab === 'messenger' && canViewComms && <ChannelTab channel="messenger" canWrite={canWriteComms} />}

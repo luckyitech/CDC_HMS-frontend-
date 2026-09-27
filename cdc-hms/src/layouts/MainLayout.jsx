@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
-import mailService from "../services/mailService";
+import mailService, { MAIL_STATE_EVENT } from "../services/mailService";
 import MailNudge from "../components/mail/MailNudge";
 
 const MainLayout = ({ userRole = "Staff" }) => {
@@ -122,17 +122,27 @@ const MainLayout = ({ userRole = "Staff" }) => {
   const clinicInbox = canViewComms(currentUser) || canViewLabInbox(currentUser);
   const mailInNav = canUseMail(currentUser);
   const inboxInNav = clinicInbox || mailInNav;
-  const [mailState, setMailState] = useState(null);   // { connected, status, unread, canSetUp }
+  const [mailState, setMailState] = useState(null);   // { connected, status, unread, canSetUp, latest }
   const refreshMail = useCallback(() => {
-    mailService.unread().then((r) => setMailState(r?.data || null)).catch(() => {});
+    mailService.unread().then((r) => {
+      const state = r?.data || null;
+      setMailState(state);
+      // One ask for the whole app: the Inbox page and My mail listen for this.
+      window.dispatchEvent(new CustomEvent(MAIL_STATE_EVENT, { detail: state }));
+    }).catch(() => {});
   }, []);
+  // Phase 3b: every 30 s while the mailbox is connected — the server answers
+  // from its live INBOX watcher, and these asks are what keep that watcher
+  // alive (it closes ~3 min after they stop). Someone not connected is asked
+  // only every 2 min, just to keep the setup nudge current.
+  const mailConnected = !!(mailState && mailState.connected);
   useEffect(() => {
     if (!mailInNav) return undefined;
     refreshMail();
-    const t = setInterval(refreshMail, 2 * 60 * 1000);
+    const t = setInterval(refreshMail, mailConnected ? 30 * 1000 : 2 * 60 * 1000);
     window.addEventListener('mail:changed', refreshMail);
     return () => { clearInterval(t); window.removeEventListener('mail:changed', refreshMail); };
-  }, [mailInNav, refreshMail]);
+  }, [mailInNav, refreshMail, mailConnected]);
   const mailDot = !!(mailState && mailState.connected && mailState.unread > 0);
   const refreshInboxCount = useCallback(() => {
     commsService.badge()

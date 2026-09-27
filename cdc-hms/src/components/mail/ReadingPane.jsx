@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ArrowLeft, Loader2, ImageOff, Paperclip, Eye, Download, MailOpen, Mail as MailIcon, Reply, ReplyAll, Forward, FolderPlus } from 'lucide-react';
+import { ArrowLeft, Loader2, ImageOff, Paperclip, Eye, Download, Mail as MailIcon, Reply, ReplyAll, Forward, FolderPlus, Archive, Trash2, Undo2, Flag } from 'lucide-react';
+import MoveMenu from './MoveMenu';
 import mailService from '../../services/mailService';
 import { notify } from '../../utils/notify';
 import SafeHtmlFrame from './SafeHtmlFrame';
@@ -22,7 +23,10 @@ const Addr = ({ a }) => (
  * External — both anti-phishing. Remote images stay blocked until the user
  * asks, per message or per sender.
  */
-const ReadingPane = ({ message, loading, folder, account, onBack, onMarkUnread, onTrustSender, onCompose, composeBusy }) => {
+const ReadingPane = ({
+  message, loading, folder, account, onBack, onMarkUnread, onTrustSender, onCompose, composeBusy,
+  special, folders, onOrganise, organiseBusy,
+}) => {
   const [allowImages, setAllowImages] = useState(false);
   const [busyPart, setBusyPart] = useState(null);
   const [savingPart, setSavingPart] = useState(null);      // the attachment whose "Save to patient file" panel is open
@@ -40,6 +44,8 @@ const ReadingPane = ({ message, loading, folder, account, onBack, onMarkUnread, 
     );
   }
 
+  const inTrash = special === 'trash';
+  const btn = 'inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50';
   const senderTrusted = (account?.trustedImageSenders || []).includes(message.from?.address);
   const imagesOn = allowImages || account?.remoteImagesDefault || senderTrusted;
 
@@ -66,44 +72,66 @@ const ReadingPane = ({ message, loading, folder, account, onBack, onMarkUnread, 
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
       <div className="border-b px-4 py-3">
-        <div className="flex items-start gap-2">
-          <button type="button" onClick={onBack} className="-ml-1 rounded p-1 text-gray-500 hover:bg-gray-100 md:hidden" aria-label="Back to list">
+        {/* Phase 3b toolbar: answer on the left, organise on the right. */}
+        <div className="mb-2 flex flex-wrap items-center gap-1">
+          <button type="button" onClick={onBack} className="-ml-1 mr-1 rounded p-1 text-gray-500 hover:bg-gray-100 md:hidden" aria-label="Back to list">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="min-w-0 flex-1">
-            <h2 className="break-words text-base font-semibold text-gray-900">{message.subject || '(no subject)'}</h2>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-gray-700">
-              {message.from ? <Addr a={message.from} /> : <span>(no sender)</span>}
-              {message.external && (
-                <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">External</span>
-              )}
-            </div>
-            <div className="mt-0.5 text-xs text-gray-500">
-              {message.to?.length > 0 && <>To: {message.to.map(personName).join(', ')}</>}
-              {message.cc?.length > 0 && <> · Cc: {message.cc.map(personName).join(', ')}</>}
-              {message.date && <> · {longDate(message.date)}</>}
-            </div>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
-            {[
-              ['reply', 'Reply', Reply],
-              ['replyAll', 'Reply all', ReplyAll],
-              ['forward', 'Forward', Forward],
-            ].map(([mode, label, Icon]) => (
-              <button
-                key={mode} type="button" onClick={() => onCompose(mode)} disabled={!!composeBusy} title={label} aria-label={label}
-                className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {composeBusy === mode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
-                <span className="hidden xl:inline">{label}</span>
-              </button>
-            ))}
+          {[
+            ['reply', 'Reply', Reply],
+            ['replyAll', 'Reply all', ReplyAll],
+            ['forward', 'Forward', Forward],
+          ].map(([mode, label, Icon]) => (
             <button
-              type="button" onClick={() => onMarkUnread(message)} title="Mark as unread"
-              className="rounded p-1.5 text-gray-500 hover:bg-gray-100" aria-label="Mark as unread"
+              key={mode} type="button" onClick={() => onCompose(mode)} disabled={!!composeBusy} title={label} aria-label={label}
+              className={btn}
             >
-              <MailOpen className="h-5 w-5" />
+              {composeBusy === mode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
+              <span className="hidden xl:inline">{label}</span>
             </button>
+          ))}
+          <span className="mx-1 h-5 w-px bg-gray-200" aria-hidden="true" />
+          {inTrash ? (
+            <button type="button" onClick={() => onOrganise('restore')} disabled={organiseBusy} className={btn} title="Restore to Inbox" aria-label="Restore to Inbox">
+              <Undo2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">Restore</span>
+            </button>
+          ) : (
+            <>
+              {special !== 'archive' && (
+                <button type="button" onClick={() => onOrganise('archive')} disabled={organiseBusy} className={btn} title="Archive" aria-label="Archive">
+                  <Archive className="h-3.5 w-3.5" /><span className="hidden sm:inline">Archive</span>
+                </button>
+              )}
+              <MoveMenu folders={folders} current={folder} disabled={organiseBusy} onMove={(to, name) => onOrganise('move', { to, name })} />
+              <button type="button" onClick={() => onOrganise('trash')} disabled={organiseBusy} className={btn} title="Delete (move to Trash)" aria-label="Delete (move to Trash)">
+                <Trash2 className="h-3.5 w-3.5" /><span className="hidden sm:inline">Delete</span>
+              </button>
+            </>
+          )}
+          <button
+            type="button" onClick={() => onOrganise('flag', { flagged: !message.flagged })} disabled={organiseBusy}
+            className={`${btn} ${message.flagged ? 'border-red-300 text-red-600' : ''}`}
+            title={message.flagged ? 'Remove flag' : 'Flag'} aria-label={message.flagged ? 'Remove flag' : 'Flag'} aria-pressed={!!message.flagged}
+          >
+            <Flag className={`h-3.5 w-3.5 ${message.flagged ? 'fill-current' : ''}`} /><span className="hidden sm:inline">{message.flagged ? 'Flagged' : 'Flag'}</span>
+          </button>
+          <button type="button" onClick={() => onMarkUnread(message)} disabled={organiseBusy} className={btn} title="Mark as unread" aria-label="Mark as unread">
+            <MailIcon className="h-3.5 w-3.5" /><span className="hidden sm:inline">Unread</span>
+          </button>
+          {organiseBusy && <Loader2 className="ml-1 h-4 w-4 animate-spin text-gray-400" />}
+        </div>
+        <div className="min-w-0">
+          <h2 className="break-words text-base font-semibold text-gray-900">{message.subject || '(no subject)'}</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-gray-700">
+            {message.from ? <Addr a={message.from} /> : <span>(no sender)</span>}
+            {message.external && (
+              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">External</span>
+            )}
+          </div>
+          <div className="mt-0.5 text-xs text-gray-500">
+            {message.to?.length > 0 && <>To: {message.to.map(personName).join(', ')}</>}
+            {message.cc?.length > 0 && <> · Cc: {message.cc.map(personName).join(', ')}</>}
+            {message.date && <> · {longDate(message.date)}</>}
           </div>
         </div>
 

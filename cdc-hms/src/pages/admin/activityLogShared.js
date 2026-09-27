@@ -1,4 +1,4 @@
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Inbox, Trash2, SlidersHorizontal, MessageCircle, Link2, CheckCircle, AlertTriangle, Paperclip } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Inbox, Trash2, SlidersHorizontal, MessageCircle, Link2, CheckCircle, AlertTriangle, Paperclip, Mail, MailX, Send, KeyRound, FileUp, FileDown } from 'lucide-react';
 
 // Shared by ActivityLog and its drilldown modal, so an event tagged "Triaged"
 // looks identical whether it's a row in the main table or in the popup
@@ -41,6 +41,15 @@ export const ACTION_STYLE = {
   comms_escalated:       { color: 'bg-amber-100 text-amber-800',   icon: AlertTriangle },
   comms_filed:           { color: 'bg-indigo-100 text-indigo-700', icon: Paperclip },
   setting_changed:       { color: 'bg-amber-100 text-amber-800',   icon: SlidersHorizontal },
+  // Staff Email (B26) — metadata only: own mailbox, counts, recipient domains.
+  mail_connected:        { color: 'bg-sky-100 text-sky-700',       icon: Mail },
+  mail_disconnected:     { color: 'bg-gray-100 text-gray-700',     icon: MailX },
+  mail_auth_failed:      { color: 'bg-amber-100 text-amber-800',   icon: KeyRound },
+  mail_wiped:            { color: 'bg-gray-100 text-gray-700',     icon: MailX },
+  mail_sent:             { color: 'bg-sky-100 text-sky-700',       icon: Send },
+  mail_trash_emptied:    { color: 'bg-red-100 text-red-700',       icon: Trash2 },
+  patient_docs_emailed:  { color: 'bg-violet-100 text-violet-700', icon: FileUp },
+  mail_saved_to_patient: { color: 'bg-violet-100 text-violet-700', icon: FileDown },
 };
 
 export const formatDateTime = (iso) => {

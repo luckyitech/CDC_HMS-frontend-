@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, Search, RefreshCw, Settings, AlertTriangle, PenSquare } from 'lucide-react';
-import mailService, { announceMailChange } from '../../services/mailService';
+import { Loader2, Search, RefreshCw, Settings, AlertTriangle, PenSquare, Trash2 } from 'lucide-react';
+import mailService, { announceMailChange, MAIL_STATE_EVENT } from '../../services/mailService';
 import useDebounce from '../../hooks/useDebounce';
 import { notify } from '../../utils/notify';
 import MailSetupCard from './MailSetupCard';
@@ -9,6 +9,7 @@ import FolderRail from './FolderRail';
 import MessageList from './MessageList';
 import ReadingPane from './ReadingPane';
 import Composer from './Composer';
+import EmptyTrashDialog from './EmptyTrashDialog';
 import { errorCode } from './mailFormat';
 
 /**
@@ -20,7 +21,7 @@ import { errorCode } from './mailFormat';
  * settings. Phase 2 adds the Composer (new / reply / reply all / forward /
  * continue a draft), which opens in place of the reading pane.
  */
-const MailTab = () => {
+const MailTab = ({ openRequest = null, onOpenHandled = () => {} }) => {
   const [state, setState] = useState(null);           // { account, setup }
   const [showSettings, setShowSettings] = useState(false);
 
@@ -58,11 +59,13 @@ const MailTab = () => {
       onAccountChange={setAccount}
       onNeedsPassword={loadAccount}
       domains={setup?.domains || []}
+      openRequest={openRequest}
+      onOpenHandled={onOpenHandled}
     />
   );
 };
 
-const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, domains }) => {
+const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, domains, openRequest, onOpenHandled }) => {
   const [folders, setFolders] = useState([]);
   const [folder, setFolder] = useState('INBOX');
   const [page, setPage] = useState(1);
@@ -76,6 +79,9 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
   const [problem, setProblem] = useState(null);
   const [compose, setCompose] = useState(null);      // the Composer's starting state, or null
   const [composeBusy, setComposeBusy] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());   // UIDs ticked on this page
+  const [organiseBusy, setOrganiseBusy] = useState(false);
+  const [emptying, setEmptying] = useState(false);
   const listReq = useRef(0);
 
   const handleError = useCallback((err, fallback) => {
@@ -108,11 +114,33 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
   useEffect(() => { loadList(); }, [loadList]);
   // A search or a folder switch starts from the first page.
   useEffect(() => { setPage(1); }, [q, folder]);
-  // Light refresh while the tab is open; the IDLE push arrives in phase 3.
+  // A different page / folder / search is a different set of rows — ticks don't carry over.
+  useEffect(() => { setSelected(new Set()); }, [folder, page, q]);
+
+  // Live (phase 3b): MainLayout re-broadcasts the server's INBOX watcher every
+  // 30 s. When the unread count or the newest unread message changes, refresh
+  // the folder counts, and the list if it is the first page of the Inbox (not
+  // mid-search, not mid-selection — rows must not jump under a tick).
+  const lastState = useRef(null);
+  const liveView = useRef({});
+  liveView.current = { folder, page, q, selecting: selected.size > 0 };
   useEffect(() => {
-    const t = setInterval(() => { loadFolders(); if (page === 1 && !q) loadList(); }, 90_000);
-    return () => clearInterval(t);
-  }, [loadFolders, loadList, page, q]);
+    const onState = (e) => {
+      const s = e.detail || {};
+      if (!s.connected) return;
+      const sig = `${s.unread}|${s.latest ? `${s.latest.uidValidity}:${s.latest.uid}` : ''}`;
+      if (lastState.current === null) { lastState.current = sig; return; }
+      if (sig === lastState.current) return;
+      lastState.current = sig;
+      loadFolders();
+      const v = liveView.current;
+      if (v.folder === 'INBOX' && v.page === 1 && !v.q && !v.selecting) loadList();
+    };
+    window.addEventListener(MAIL_STATE_EVENT, onState);
+    // Slow safety net for the other folders (Sent after sending elsewhere, etc.).
+    const t = setInterval(() => { loadFolders(); }, 3 * 60 * 1000);
+    return () => { window.removeEventListener(MAIL_STATE_EVENT, onState); clearInterval(t); };
+  }, [loadFolders, loadList]);
 
   const current = folders.find((f) => f.path === folder);
   const bumpUnseen = (delta) => {
@@ -183,6 +211,73 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
     } catch (err) { notify('error', err?.message || 'Could not save that.'); }
   };
 
+  // -------------------------------------------------------------------------
+  // Phase 3b — organise. Optimistic: rows leave the list (or change) at once;
+  // if the server refuses, the list is reloaded and the reason shown. Delete
+  // is always "move to Trash"; nothing here is permanent (Empty Trash is).
+  // -------------------------------------------------------------------------
+  const LEAVES = { move: true, archive: true, trash: true, restore: true };
+  const DONE = {
+    archive: (n) => `${n === 1 ? 'Message' : `${n} messages`} archived`,
+    trash: (n) => `${n === 1 ? 'Message' : `${n} messages`} moved to Trash`,
+    restore: (n) => `${n === 1 ? 'Message' : `${n} messages`} restored to Inbox`,
+  };
+  const organise = async (action, uids, opts = {}) => {
+    if (!uids.length || organiseBusy) return;
+    const before = list;
+    const unseenLeaving = (list?.messages || []).filter((m) => uids.includes(m.uid) && !m.seen).length;
+    setOrganiseBusy(true);
+    // Optimistic update.
+    if (LEAVES[action]) {
+      setList((l) => (l ? { ...l, total: Math.max(0, l.total - uids.length), messages: l.messages.filter((m) => !uids.includes(m.uid)) } : l));
+      if (uids.includes(openUid)) { setOpen(null); setOpenUid(null); }
+    } else if (action === 'flag') {
+      setList((l) => (l ? { ...l, messages: l.messages.map((m) => (uids.includes(m.uid) ? { ...m, flagged: !!opts.flagged } : m)) } : l));
+      setOpen((o) => (o && uids.includes(o.uid) ? { ...o, flagged: !!opts.flagged } : o));
+    } else if (action === 'seen') {
+      setList((l) => (l ? { ...l, messages: l.messages.map((m) => (uids.includes(m.uid) ? { ...m, seen: !!opts.seen } : m)) } : l));
+    }
+    setSelected(new Set());
+    try {
+      if (action === 'move') await mailService.move(folder, uids, opts.to);
+      else if (action === 'archive') await mailService.archive(folder, uids);
+      else if (action === 'trash') await mailService.trash(folder, uids);
+      else if (action === 'restore') await mailService.restore(folder, uids);
+      else if (action === 'flag') await mailService.flag(folder, uids, !!opts.flagged);
+      else if (action === 'seen') await mailService.setSeen(folder, uids, !!opts.seen);
+      if (action === 'move') notify('success', `${uids.length === 1 ? 'Message' : `${uids.length} messages`} moved to ${opts.name || opts.to}`);
+      else if (DONE[action]) notify('success', DONE[action](uids.length));
+      if (LEAVES[action] || action === 'seen') {
+        if (LEAVES[action] && unseenLeaving) bumpUnseen(-unseenLeaving);
+        loadFolders();
+        announceMailChange();
+      }
+    } catch (err) {
+      setList(before);
+      handleError(err, 'That didn\'t work. Your mailbox is unchanged.');
+      loadList();
+    } finally {
+      setOrganiseBusy(false);
+    }
+  };
+
+  const toggle = (uid) => setSelected((s) => { const n = new Set(s); if (n.has(uid)) n.delete(uid); else n.add(uid); return n; });
+  const toggleAll = () => setSelected((s) => (s.size ? new Set() : new Set((list?.messages || []).map((m) => m.uid))));
+
+  // The toast's "Open" (Inbox page): show INBOX and open that message.
+  useEffect(() => {
+    if (!openRequest || compose) return;
+    onOpenHandled();
+    if (folder !== 'INBOX') { setFolder('INBOX'); setSearch(''); }
+    setOpenUid(openRequest.uid);
+    setMsgLoading(true);
+    mailService.message(openRequest.uid, 'INBOX')
+      .then((res) => { setOpen(res.data); announceMailChange(); loadList(); })
+      .catch((err) => { setOpen(null); setOpenUid(null); handleError(err, 'Could not open that message.'); })
+      .finally(() => setMsgLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest]);
+
   const selectFolder = (path) => { setFolder(path); setOpen(null); setOpenUid(null); };
   const paneOpen = !!(openUid || compose);
 
@@ -228,10 +323,27 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <FolderRail folders={folders} active={folder} onSelect={selectFolder} />
         <div className="flex min-h-0 flex-1">
-          <div className={`w-full border-r md:w-80 md:flex-shrink-0 ${paneOpen ? 'hidden md:block' : 'block'}`}>
+          <div className={`w-full flex-col border-r md:w-80 md:flex-shrink-0 ${paneOpen ? 'hidden md:flex' : 'flex'}`}>
+            {current?.special === 'trash' && (list?.total || 0) > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <span className="flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  Your mailbox keeps no backup — emptying Trash is permanent.
+                </span>
+                <button
+                  type="button" onClick={() => setEmptying(true)}
+                  className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-1 font-semibold text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Empty Trash
+                </button>
+              </div>
+            )}
             <MessageList
               data={list} loading={listLoading} activeUid={openUid} onOpen={openMessage}
               onPage={setPage} special={current?.special} query={q}
+              selected={selected} onToggle={toggle} onToggleAll={toggleAll} onClearSelection={() => setSelected(new Set())}
+              onBulk={(action, opts) => organise(action, [...selected], opts)}
+              folders={folders} folder={folder} busy={organiseBusy}
             />
           </div>
           <div className={`min-w-0 flex-1 ${paneOpen ? 'flex' : 'hidden md:flex'}`}>
@@ -249,11 +361,23 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
                 onBack={() => { setOpen(null); setOpenUid(null); }}
                 onMarkUnread={markUnread} onTrustSender={trustSender}
                 onCompose={(mode) => startCompose(mode, open?.uid)} composeBusy={composeBusy}
+                special={current?.special} folders={folders}
+                onOrganise={(action, opts) => organise(action, [open.uid], opts)} organiseBusy={organiseBusy}
               />
             )}
           </div>
         </div>
       </div>
+      <EmptyTrashDialog
+        isOpen={emptying}
+        onClose={() => setEmptying(false)}
+        onEmptied={(n) => {
+          setEmptying(false);
+          notify('success', `Trash emptied — ${n} message${n === 1 ? '' : 's'} deleted`);
+          setOpen(null); setOpenUid(null);
+          loadFolders(); loadList();
+        }}
+      />
     </div>
   );
 };

@@ -330,6 +330,13 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
         <button type="button" onClick={close} disabled={sending} className="hidden rounded p-1 text-gray-500 hover:bg-gray-100 md:block" aria-label="Close and keep as draft" title="Close (kept in Drafts)">
           <X className="h-5 w-5" />
         </button>
+        {/* Phase 3b: on a phone Send lives up here, never below the fold. */}
+        <button
+          type="button" onClick={trySend} disabled={sending}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 md:hidden"
+        >
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {sending ? 'Sending…' : 'Send'}
+        </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -491,7 +498,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
           </button>
           <button
             type="button" onClick={trySend} disabled={sending}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
+            className="hidden items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60 md:inline-flex"
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {sending ? 'Sending…' : 'Send'}
           </button>

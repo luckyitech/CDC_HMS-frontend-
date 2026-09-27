@@ -59,6 +59,15 @@ export const mailService = {
     api.get(`/mail/messages/${uid}/attachments/${part}`, { params: { folder }, responseType: 'blob' }),
   setSeen: (folder, uids, seen) => api.post('/mail/messages/seen', { folder, uids, seen }),
 
+  // Phase 3b — organise. Delete = move to Trash; only emptyTrash is permanent.
+  move: (folder, uids, to) => api.post('/mail/messages/move', { folder, uids, to }),
+  archive: (folder, uids) => api.post('/mail/messages/archive', { folder, uids }),
+  trash: (folder, uids) => api.post('/mail/messages/trash', { folder, uids }),
+  restore: (folder, uids) => api.post('/mail/messages/restore', { folder, uids }),
+  flag: (folder, uids, flagged) => api.post('/mail/messages/flag', { folder, uids, flagged }),
+  trashInfo: () => api.get('/mail/trash'),
+  emptyTrash: (count) => api.post('/mail/trash/empty', { confirm: 'EMPTY', count }),
+
   signature: () => api.get('/mail/signature'),
   composeContext: (uid, folder, mode) => api.get(`/mail/messages/${uid}/compose`, { params: { folder, mode } }),
   send: (message, files = []) => api.post('/mail/send', composeForm(message, files), MULTIPART),
@@ -77,5 +86,13 @@ export const mailService = {
 
 /** Tell the sidebar badge (MainLayout) something changed. */
 export const announceMailChange = () => window.dispatchEvent(new CustomEvent('mail:changed'));
+
+/**
+ * Phase 3b: MainLayout asks GET /mail/unread every 30 s (the server answers
+ * from its live INBOX watcher) and re-broadcasts each answer as `mail:state`,
+ * so the Inbox page and My mail react without asking again themselves.
+ * detail = { connected, status, unread, latest: { uid, uidValidity, from, subject } | null }
+ */
+export const MAIL_STATE_EVENT = 'mail:state';
 
 export default mailService;
