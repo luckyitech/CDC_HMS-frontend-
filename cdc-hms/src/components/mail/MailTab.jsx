@@ -10,6 +10,7 @@ import MessageList from './MessageList';
 import ReadingPane from './ReadingPane';
 import Composer from './Composer';
 import EmptyTrashDialog from './EmptyTrashDialog';
+import FolderDialog from './FolderDialog';
 import { errorCode } from './mailFormat';
 
 /**
@@ -80,8 +81,10 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
   const [compose, setCompose] = useState(null);      // the Composer's starting state, or null
   const [composeBusy, setComposeBusy] = useState(null);
   const [selected, setSelected] = useState(() => new Set());   // UIDs ticked on this page
+  const [allSelected, setAllSelected] = useState(false);          // "all N in this folder / search"
   const [organiseBusy, setOrganiseBusy] = useState(false);
   const [emptying, setEmptying] = useState(false);
+  const [folderDialog, setFolderDialog] = useState(null);   // { mode, folder }
   const listReq = useRef(0);
 
   const handleError = useCallback((err, fallback) => {
@@ -115,7 +118,7 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
   // A search or a folder switch starts from the first page.
   useEffect(() => { setPage(1); }, [q, folder]);
   // A different page / folder / search is a different set of rows — ticks don't carry over.
-  useEffect(() => { setSelected(new Set()); }, [folder, page, q]);
+  useEffect(() => { setSelected(new Set()); setAllSelected(false); }, [folder, page, q]);
 
   // Live (phase 3b): MainLayout re-broadcasts the server's INBOX watcher every
   // 30 s. When the unread count or the newest unread message changes, refresh
@@ -123,7 +126,7 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
   // mid-search, not mid-selection — rows must not jump under a tick).
   const lastState = useRef(null);
   const liveView = useRef({});
-  liveView.current = { folder, page, q, selecting: selected.size > 0 };
+  liveView.current = { folder, page, q, selecting: selected.size > 0 || allSelected };
   useEffect(() => {
     const onState = (e) => {
       const s = e.detail || {};
@@ -261,8 +264,41 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
     }
   };
 
-  const toggle = (uid) => setSelected((s) => { const n = new Set(s); if (n.has(uid)) n.delete(uid); else n.add(uid); return n; });
-  const toggleAll = () => setSelected((s) => (s.size ? new Set() : new Set((list?.messages || []).map((m) => m.uid))));
+  // Select all across pages: the server re-finds exactly what this list showed
+  // (UIDs up to uidMax, the same search) and reports mail that arrived since.
+  const organiseAll = async (action, opts = {}) => {
+    if (organiseBusy || !list?.uidMax) return;
+    const target = { all: { uidMax: list.uidMax, uidValidity: list.uidValidity || undefined, q: q || undefined } };
+    setOrganiseBusy(true);
+    try {
+      let res;
+      if (action === 'move') res = await mailService.move(folder, target, opts.to);
+      else if (action === 'archive') res = await mailService.archive(folder, target);
+      else if (action === 'trash') res = await mailService.trash(folder, target);
+      else if (action === 'restore') res = await mailService.restore(folder, target);
+      else if (action === 'flag') res = await mailService.flag(folder, target, !!opts.flagged);
+      else if (action === 'seen') res = await mailService.setSeen(folder, target, !!opts.seen);
+      const n = res?.data?.count ?? 0;
+      const newer = res?.data?.newerLeft || 0;
+      const what = action === 'move' ? `${n === 1 ? 'Message' : `${n} messages`} moved to ${opts.name || opts.to}`
+        : DONE[action] ? DONE[action](n)
+          : action === 'flag' ? `${n} message${n === 1 ? '' : 's'} ${opts.flagged ? 'flagged' : 'unflagged'}`
+            : `${n} message${n === 1 ? '' : 's'} marked ${opts.seen ? 'read' : 'unread'}`;
+      const note = newer && LEAVES[action] ? ` ${newer} new message${newer === 1 ? '' : 's'} arrived while this ran and ${newer === 1 ? 'was' : 'were'} left in ${current?.name || 'this folder'}.` : '';
+      notify('success', `${what}.${note}`);
+      if (LEAVES[action] && open) { setOpen(null); setOpenUid(null); }
+    } catch (err) {
+      handleError(err, 'That didn\'t work. Your mailbox is unchanged.');
+    } finally {
+      setSelected(new Set()); setAllSelected(false);
+      setOrganiseBusy(false);
+      setPage(1);
+      loadFolders(); loadList(); announceMailChange();
+    }
+  };
+
+  const toggle = (uid) => { setAllSelected(false); setSelected((s) => { const n = new Set(s); if (n.has(uid)) n.delete(uid); else n.add(uid); return n; }); };
+  const toggleAll = () => { setAllSelected(false); setSelected((s) => (s.size ? new Set() : new Set((list?.messages || []).map((m) => m.uid)))); };
 
   // The toast's "Open" (Inbox page): show INBOX and open that message.
   // Phase 4: { draft: true } — a message begun on a patient file, saved as a
@@ -333,7 +369,7 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
       )}
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <FolderRail folders={folders} active={folder} onSelect={selectFolder} />
+        <FolderRail folders={folders} active={folder} onSelect={selectFolder} onManage={(mode, f = null) => setFolderDialog({ mode, folder: f })} />
         <div className="flex min-h-0 flex-1">
           <div className={`w-full flex-col border-r md:w-80 md:flex-shrink-0 ${paneOpen ? 'hidden md:flex' : 'flex'}`}>
             {current?.special === 'trash' && (list?.total || 0) > 0 && (
@@ -353,8 +389,9 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
             <MessageList
               data={list} loading={listLoading} activeUid={openUid} onOpen={openMessage}
               onPage={setPage} special={current?.special} query={q}
-              selected={selected} onToggle={toggle} onToggleAll={toggleAll} onClearSelection={() => setSelected(new Set())}
-              onBulk={(action, opts) => organise(action, [...selected], opts)}
+              selected={selected} onToggle={toggle} onToggleAll={toggleAll} onClearSelection={() => { setSelected(new Set()); setAllSelected(false); }}
+              onBulk={(action, opts) => (allSelected ? organiseAll(action, opts) : organise(action, [...selected], opts))}
+              allSelected={allSelected} onSelectAllInFolder={list?.uidMax ? () => setAllSelected(true) : null} folderName={current?.name || 'this folder'}
               folders={folders} folder={folder} busy={organiseBusy}
             />
           </div>
@@ -380,6 +417,26 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
           </div>
         </div>
       </div>
+      {folderDialog && (
+        <FolderDialog
+          mode={folderDialog.mode} folder={folderDialog.folder} folders={folders}
+          onClose={() => setFolderDialog(null)}
+          onDone={(mode, data) => {
+            const was = folderDialog.folder;
+            setFolderDialog(null);
+            if (mode === 'create') notify('success', `Folder "${data.name}" created`);
+            if (mode === 'rename') {
+              notify('success', `Folder renamed to "${data.name}"`);
+              if (was && folder === was.path && data.path) setFolder(data.path);
+            }
+            if (mode === 'delete') {
+              notify('success', `Folder "${was?.name}" deleted`);
+              if (was && folder === was.path) selectFolder('INBOX');
+            }
+            loadFolders();
+          }}
+        />
+      )}
       <EmptyTrashDialog
         isOpen={emptying}
         onClose={() => setEmptying(false)}

@@ -15,6 +15,7 @@ const DOCUMENT_CATEGORIES = [
   "Neuropathy Screening Test",
   "Specialist Consultation Report",
   "Patient File",
+  "Sent Correspondence",
   "Other Medical Document",
 ];
 

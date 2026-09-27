@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Send, Loader2, Paperclip, Bold, Italic, Underline, List, ListOrdered, Link2, RemoveFormatting,
-  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen, ExternalLink, Plus,
+  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen, ExternalLink, Plus, FolderCheck,
 } from 'lucide-react';
 import mailService, { announceMailChange } from '../../services/mailService';
 import { notify } from '../../utils/notify';
@@ -55,6 +55,11 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
   // each file from the HMS at send time and a draft stores just their ids.
   const [patientDocs, setPatientDocs] = useState(init.patientDocuments || []); // { documentId, fileName, type, size, uhid, patientName }
   const [pickingFromFile, setPickingFromFile] = useState(false);
+  // HMS reports (debt pass): PDFs made from a printout in the browser. Sent as
+  // ordinary uploads, filed on the patient as Sent Correspondence once the
+  // email has gone, and NEVER kept in a draft (no PHI parked in one.com).
+  const [reports, setReports] = useState(init.reports || []);   // { id, file, uhid, title, patientName }
+  const reportWarned = useRef(false);
   // Phase 5 — the "Patient file" row: patients this message is LINKED to
   // (its thread goes on their Communications tab even though they are not a
   // recipient — an insurer pre-authorisation, a referral). Recipients picked
@@ -89,7 +94,7 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
 
   const quotedHtml = init.quotedHtml || '';
   const isForward = init.mode === 'forward';
-  stateRef.current = { to, cc, bcc, subject, files, refs, patientDocs, includeQuote, draftUid, links };
+  stateRef.current = { to, cc, bcc, subject, files, refs, patientDocs, includeQuote, draftUid, links, reports };
 
   // The editable body is set ONCE; after that it belongs to the user.
   useEffect(() => {
@@ -156,6 +161,7 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
       patientDocuments: s.patientDocs.map((d) => d.documentId),
       patientRecipients,
       linkPatients: (s.links || []).map((l) => l.uhid),
+      hmsReports: (s.reports || []).map((r) => ({ uhid: r.uhid, filename: r.file.name, title: r.title })),
       draftUid: s.draftUid,
       source: init.source || null,
     };
@@ -163,7 +169,7 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
 
   const hasContent = () => {
     const s = stateRef.current;
-    return s.to.length || s.cc.length || s.bcc.length || s.subject.trim() || s.files.length || s.refs.length || s.patientDocs.length
+    return s.to.length || s.cc.length || s.bcc.length || s.subject.trim() || s.files.length || s.refs.length || s.patientDocs.length || s.reports.length
       || hasText(editorRef.current?.innerHTML);
   };
 
@@ -227,8 +233,8 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
 
   // ---- attachments -------------------------------------------------------
   const totalBytes = files.reduce((n, f) => n + f.file.size, 0) + refs.reduce((n, r) => n + (r.size || 0), 0)
-    + patientDocs.reduce((n, d) => n + (d.size || 0), 0);
-  const attachmentCount = files.length + refs.length + patientDocs.length;
+    + patientDocs.reduce((n, d) => n + (d.size || 0), 0) + reports.reduce((n, r) => n + r.file.size, 0);
+  const attachmentCount = files.length + refs.length + patientDocs.length + reports.length;
 
   const addFiles = (list) => {
     const incoming = [...(list || [])];
@@ -281,13 +287,17 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
     setProblem(null);
     try {
       const s = stateRef.current;
-      const res = await mailService.send(payload(), s.files.map((f) => f.file));
+      const res = await mailService.send(payload(), [...s.files, ...s.reports].map((f) => f.file));
       const r = res.data;
       setDirty(false);
       const noted = (r.loggedToPatients || []).length
         ? ` · noted on ${r.loggedToPatients.length === 1 ? 'the patient’s file' : `${r.loggedToPatients.length} patient files`}` : '';
+      if (r.reportCopiesFailed) {
+        notify('warning', `Sent${noted}, but ${r.reportCopiesFailed === 1 ? 'the report copy' : `${r.reportCopiesFailed} report copies`} could not be saved to the patient’s Documents. The PDF is in your Sent folder.`, { duration: 10000 });
+      }
+      const filed = r.reportCopies ? ` · copy saved to Documents` : '';
       if (r.sentCopy) {
-        notify('success', `Sent${noted}`);
+        notify('success', `Sent${noted}${filed}`);
       } else {
         const why = r.sentCopyReason === 'full'
           ? 'Sent, but your Sent folder is full, so no copy was saved.'
@@ -326,6 +336,11 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
 
   /** Close: keep the work as a draft if there is any, then leave. */
   const close = async () => {
+    if (stateRef.current.reports.length && !reportWarned.current) {
+      reportWarned.current = true;
+      setProblem('The report PDF isn’t kept in drafts. Send the message now, or close again to leave without it.');
+      return;
+    }
     if (dirty && hasContent()) {
       const ok = await saveDraft();
       if (!ok) return;   // the problem bar explains; the composer stays open
@@ -364,7 +379,7 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
           {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</>
             : savedAt && !dirty ? <><Check className="h-3.5 w-3.5" /> Draft saved {savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</> : null}
         </span>
-        {onPopOut && (
+        {onPopOut && !reports.length && (
           <button
             type="button" onClick={popOut} disabled={busy}
             className="hidden items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 sm:inline-flex"
@@ -549,6 +564,11 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
                 badge={d.uhid} badgeTitle={d.patientName ? `From ${d.patientName}’s file (${d.uhid})` : d.uhid}
                 onRemove={() => { setPatientDocs((ds) => ds.filter((x) => x.documentId !== d.documentId)); markDirty(); }} />
             ))}
+            {reports.map((r) => (
+              <AttachmentChip key={`r${r.id}`} name={r.file.name} size={r.file.size} type="application/pdf" disabled={busy}
+                badge="From HMS" badgeTitle={`Made from the HMS${r.patientName ? ` for ${r.patientName}` : ''} (${r.uhid})`}
+                onRemove={() => { setReports((rs) => rs.filter((x) => x.id !== r.id)); markDirty(); }} />
+            ))}
             {refs.map((r) => (
               <AttachmentChip key={refKey(r)} name={r.filename} size={r.size} type={r.type} disabled={busy}
                 onRemove={() => { setRefs((rs) => rs.filter((x) => refKey(x) !== refKey(r))); markDirty(); }} />
@@ -560,6 +580,12 @@ const Composer = ({ account, domains, init, onClose, onSent, title = null, fileP
             <span className={`ml-auto text-xs ${totalBytes > MAX_TOTAL ? 'font-semibold text-red-600' : 'text-gray-500'}`}>
               {formatBytes(totalBytes)} of 25 MB
             </span>
+            {reports.length > 0 && (
+              <p className="flex w-full items-center gap-1 text-xs text-gray-600">
+                <FolderCheck className="h-3.5 w-3.5 flex-shrink-0 text-emerald-600" />
+                When sent, a copy of {reports.length === 1 ? 'this PDF' : 'these PDFs'} is saved to {[...new Set(reports.map((r) => r.patientName || r.uhid))].join(', ')}’s Documents — Sent Correspondence, Reviewed.
+              </p>
+            )}
           </div>
         )}
       </div>

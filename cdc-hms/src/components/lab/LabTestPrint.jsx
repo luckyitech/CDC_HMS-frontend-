@@ -1,5 +1,6 @@
 // LabTestPrint.jsx - Print component for lab reports
 import usePrint from "../../hooks/usePrint";
+import EmailReportButton from "../shared/EmailReportButton";
 import PrintLetterhead from "../shared/PrintLetterhead";
 
 const LabTestPrint = ({ test, onClose }) => {
@@ -26,6 +27,7 @@ const LabTestPrint = ({ test, onClose }) => {
           >
             🖨️ Print
           </button>
+          <EmailReportButton printRef={printRef} uhid={test.uhid} title={`Lab result — ${test.testType || 'laboratory report'}`} fileStem="Lab-result" />
           <button
             onClick={onClose}
             className="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 font-semibold"

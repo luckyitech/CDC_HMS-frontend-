@@ -16,11 +16,14 @@ const Box = ({ state, onClick, label }) => (
  * The message list for one folder page. Unread rows are bold; in Sent and
  * Drafts the row shows who it went TO. External senders get a small tag.
  * Phase 3b: a preview line under the subject, and checkboxes — ticking any
- * row turns the header into the bulk bar (this page only, up to 50).
+ * row turns the header into the bulk bar. With the whole page ticked, a banner
+ * offers "Select all N in <folder>" (debt pass): the server then acts on those
+ * messages only — never on mail that arrives while it runs.
  */
 const MessageList = ({
   data, loading, activeUid, onOpen, onPage, special, query,
   selected, onToggle, onToggleAll, onClearSelection, onBulk, folders, folder, busy,
+  allSelected = false, onSelectAllInFolder = null, folderName = 'this folder',
 }) => {
   const messages = data?.messages || [];
   const total = data?.total || 0;
@@ -32,10 +35,14 @@ const MessageList = ({
   const inTrash = special === 'trash';
 
   const picked = messages.filter((m) => selected.has(m.uid));
-  const count = picked.length;
-  const allState = count === 0 ? false : count === messages.length ? true : 'mixed';
-  const allFlagged = count > 0 && picked.every((m) => m.flagged);
-  const anyUnread = picked.some((m) => !m.seen);
+  const count = allSelected ? total : picked.length;
+  const allState = count === 0 ? false : (allSelected || picked.length === messages.length) ? true : 'mixed';
+  // Across a whole folder we can't see every row: Flag and Mark read are the
+  // actions offered (the page's own mix decides only for a page selection).
+  const allFlagged = !allSelected && count > 0 && picked.every((m) => m.flagged);
+  const anyUnread = allSelected || picked.some((m) => !m.seen);
+  const where = query ? `matching "${query}"` : `in ${folderName}`;
+  const offerAll = !allSelected && onSelectAllInFolder && picked.length > 0 && picked.length === messages.length && total > messages.length;
   const act = 'rounded p-1.5 hover:bg-white/60 disabled:opacity-40';
 
   return (
@@ -47,7 +54,7 @@ const MessageList = ({
             <span className="text-xs">Select</span>
           ) : (
             <>
-              <span className="flex-1 font-semibold">{count} selected</span>
+              <span className="flex-1 font-semibold">{allSelected ? `All ${count}` : count} selected</span>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {inTrash ? (
                 <button type="button" disabled={busy} onClick={() => onBulk('restore')} className={act} aria-label="Restore to Inbox" title="Restore to Inbox">
@@ -78,6 +85,15 @@ const MessageList = ({
                 <X className="h-4 w-4" />
               </button>
             </>
+          )}
+        </div>
+      )}
+      {(offerAll || allSelected) && (
+        <div className="border-b bg-blue-50 px-3 py-1.5 text-center text-xs text-primary">
+          {allSelected ? (
+            <>All {total} {where} are selected. <button type="button" onClick={onClearSelection} className="font-semibold underline">Clear selection</button></>
+          ) : (
+            <>All {picked.length} on this page are selected. <button type="button" onClick={onSelectAllInFolder} className="font-semibold underline">Select all {total} {where}</button></>
           )}
         </div>
       )}

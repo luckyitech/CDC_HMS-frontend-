@@ -1,4 +1,5 @@
 import usePrint from "../../hooks/usePrint";
+import EmailReportButton from "../shared/EmailReportButton";
 import PrintLetterhead from "../shared/PrintLetterhead";
 import { parseDiagnoses } from "../shared/DiagnosisInput";
 
@@ -18,6 +19,8 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
             >
               🖨️ Print
             </button>
+            <EmailReportButton printRef={printRef} uhid={patient?.uhid} title="Treatment plan" fileStem="Treatment-plan"
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 font-semibold transition flex items-center gap-2 disabled:opacity-60" />
             <button
               onClick={onClose}
               className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold transition"

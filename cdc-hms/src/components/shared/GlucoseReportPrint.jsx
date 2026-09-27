@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import EmailReportButton from './EmailReportButton';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
 import {
@@ -59,6 +60,7 @@ const GlucoseReportPrint = ({ data, patient, unit = 'mmol', sections = [], onClo
           </div>
           <div className="flex gap-3">
             <button onClick={handlePrint} className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 font-semibold transition flex items-center gap-2">🖨️ Print / Save PDF</button>
+            <EmailReportButton printRef={printRef} uhid={patient?.uhid} title="Glucose report" fileStem="Glucose-report" />
             <button onClick={onClose} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold transition">Done</button>
           </div>
         </div>

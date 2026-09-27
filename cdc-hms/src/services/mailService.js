@@ -34,6 +34,10 @@ import api from './api';
  * the server confirms each against the file and notes the email there.
  * Phase 5: `linkPatients: [uhid]` (the Composer's "Patient file" row) and
  * - POST   /mail/messages/:uid/link-patient — { folder, uhid, scope: thread | message }
+ * Debt pass (27 Sep): POST /mail/folders, /mail/folders/rename, /mail/folders/delete;
+ * organise + seen accept `all` in place of `uids`; send accepts
+ * `hmsReports: [{ uhid, filename, title }]` — uploads that are also filed on the
+ * patient as Sent Correspondence once the email has gone (never kept in drafts).
  * Admin (config.write): GET /mail/admin/accounts, POST /mail/admin/accounts/:userId/disconnect
  */
 // The api instance defaults to JSON; multipart must be named so axios hands the
@@ -47,6 +51,8 @@ const composeForm = (message, files) => {
   files.forEach((f) => form.append('files', f, f.name));
   return form;
 };
+
+const pick = (target) => (Array.isArray(target) ? { uids: target } : { all: target.all });
 
 export const mailService = {
   getAccount: () => api.get('/mail/account'),
@@ -63,14 +69,22 @@ export const mailService = {
     api.get(`/mail/messages/${uid}`, { params: { folder, peek: peek ? 1 : undefined } }),
   attachment: (uid, part, folder = 'INBOX') =>
     api.get(`/mail/messages/${uid}/attachments/${part}`, { params: { folder }, responseType: 'blob' }),
-  setSeen: (folder, uids, seen) => api.post('/mail/messages/seen', { folder, uids, seen }),
+  // `target` is a page's UIDs, or { all: { uidMax, uidValidity, q } } — "select
+  // all N in this folder": the server re-finds exactly those (never newer mail)
+  // and answers with { count, newerLeft }.
+  setSeen: (folder, target, seen) => api.post('/mail/messages/seen', { folder, ...pick(target), seen }),
 
   // Phase 3b — organise. Delete = move to Trash; only emptyTrash is permanent.
-  move: (folder, uids, to) => api.post('/mail/messages/move', { folder, uids, to }),
-  archive: (folder, uids) => api.post('/mail/messages/archive', { folder, uids }),
-  trash: (folder, uids) => api.post('/mail/messages/trash', { folder, uids }),
-  restore: (folder, uids) => api.post('/mail/messages/restore', { folder, uids }),
-  flag: (folder, uids, flagged) => api.post('/mail/messages/flag', { folder, uids, flagged }),
+  move: (folder, target, to) => api.post('/mail/messages/move', { folder, ...pick(target), to }),
+  archive: (folder, target) => api.post('/mail/messages/archive', { folder, ...pick(target) }),
+  trash: (folder, target) => api.post('/mail/messages/trash', { folder, ...pick(target) }),
+  restore: (folder, target) => api.post('/mail/messages/restore', { folder, ...pick(target) }),
+  flag: (folder, target, flagged) => api.post('/mail/messages/flag', { folder, ...pick(target), flagged }),
+
+  // Folders — the caller's own only: create, rename, delete (only when empty).
+  createFolder: (name) => api.post('/mail/folders', { name }),
+  renameFolder: (path, name) => api.post('/mail/folders/rename', { path, name }),
+  deleteFolder: (path) => api.post('/mail/folders/delete', { path }),
   trashInfo: () => api.get('/mail/trash'),
   emptyTrash: (count) => api.post('/mail/trash/empty', { confirm: 'EMPTY', count }),
 

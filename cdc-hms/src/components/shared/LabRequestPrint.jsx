@@ -2,6 +2,7 @@
 // opens on Save & print). Reuses the shared clinic letterhead (PrintLetterhead,
 // DRY). This is a REQUEST, not a report: no results column, and no prices ever.
 import { FlaskConical } from "lucide-react";
+import EmailReportButton from "./EmailReportButton";
 import usePrint from "../../hooks/usePrint";
 import PrintLetterhead from "./PrintLetterhead";
 import {
@@ -46,6 +47,7 @@ const LabRequestPrint = ({ request, patient, onClose, onBackToEdit }) => {
       onClose={onClose}
       closeLabel="Done"
       maxWidth="max-w-3xl"
+      trailingActions={<EmailReportButton printRef={printRef} uhid={patient?.uhid} title="Laboratory request" fileStem="Lab-request" />}
       leadingActions={onBackToEdit && (
         <button
           onClick={onBackToEdit}

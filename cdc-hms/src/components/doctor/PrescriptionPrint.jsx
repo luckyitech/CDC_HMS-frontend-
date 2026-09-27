@@ -8,6 +8,7 @@ import {
 import usePrint from "../../hooks/usePrint";
 import usePdfFromPrint from "../../hooks/usePdfFromPrint";
 import SendViaWhatsAppModal from "../shared/SendViaWhatsAppModal";
+import EmailReportButton from "../shared/EmailReportButton";
 
 const PrescriptionPrint = ({ prescription, onClose }) => {
   const { printRef, handlePrint } = usePrint();
@@ -38,12 +39,15 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
         onPrint={handlePrint}
         onClose={onClose}
         trailingActions={patient.uhid && (
+          <>
+          <EmailReportButton printRef={printRef} uhid={patient.uhid} title={`Prescription ${prescription.prescriptionNumber || ''}`.trim()} fileStem="Prescription" />
           <button
             onClick={() => setWaOpen(true)}
             className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold transition flex items-center gap-2"
           >
             <MessageCircle className="w-4 h-4" /> Send via WhatsApp
           </button>
+          </>
         )}
       >
         <div ref={printRef} className="print-prescription p-6">

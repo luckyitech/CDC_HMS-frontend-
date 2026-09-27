@@ -197,6 +197,7 @@ const RecipientField = ({ label, value, onChange, domains, autoFocus = false, id
                     >
                       <Icon className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" aria-hidden="true" />
                       <span className={`truncate ${r.pickable ? 'text-gray-800' : ''}`}>{r.name || r.address}</span>
+                      {r.fuzzy && <span className="flex-shrink-0 rounded bg-amber-50 px-1 text-[10px] font-semibold text-amber-800" title="Not an exact match for what you typed — check the name and UHID">Similar name</span>}
                       <span className="truncate text-xs text-gray-500">{detail}</span>
                     </div>
                   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, X, AlertTriangle, Mail } from 'lucide-react';
 import mailService from '../../services/mailService';
@@ -25,9 +26,15 @@ const typeOf = (name) => TYPES[String(name || '').split('.').pop().toLowerCase()
  * - "Open in My mail" saves the draft and continues it in the Inbox (not
  *   offered in portals without an Inbox, e.g. Radiology).
  *
- * Props: uhid, portal, documents? [{ id, fileName }], onClose.
+ * - `reports` (debt pass): PDFs made from an HMS printout (lab result,
+ *   prescription…) — attached as uploads and filed on the patient as Sent
+ *   Correspondence once sent. With reports, a patient with no email address on
+ *   file can still be written about (to an insurer, a colleague): the To line
+ *   simply starts empty. Rendered in a portal so it stacks above a print preview.
+ *
+ * Props: uhid, portal, documents? [{ id, fileName }], reports? [{ file, title }], onClose.
  */
-const PatientEmailPanel = ({ uhid, portal, documents = [], onClose }) => {
+const PatientEmailPanel = ({ uhid, portal, documents = [], reports = [], onClose }) => {
   const navigate = useNavigate();
   const [state, setState] = useState(null);   // { account, setup, contact, problem }
   const [composeKey] = useState(() => Date.now());
@@ -54,13 +61,16 @@ const PatientEmailPanel = ({ uhid, portal, documents = [], onClose }) => {
 
   const contact = state?.contact;
   const account = state?.account;
-  const ready = account && account.status === 'connected' && contact && contact.address;
+  const hasReports = reports.length > 0;
+  const ready = account && account.status === 'connected' && contact && (contact.address || hasReports);
   const title = contact ? `Email ${contact.name}` : 'Email patient';
 
   const init = ready ? {
     mode: 'new',
     key: composeKey,
-    to: [{ name: contact.name, address: contact.address, patient: { uhid: contact.uhid } }],
+    to: contact.address ? [{ name: contact.name, address: contact.address, patient: { uhid: contact.uhid } }] : [],
+    subject: hasReports && reports.length === 1 ? reports[0].title : '',
+    reports: reports.map((r, i) => ({ id: i + 1, file: r.file, title: r.title, uhid: contact.uhid, patientName: contact.name })),
     patientDocuments: documents.map((d) => ({
       documentId: d.id, fileName: d.fileName, type: typeOf(d.fileName), size: d.size || 0,
       uhid: contact.uhid, patientName: contact.name,
@@ -89,7 +99,7 @@ const PatientEmailPanel = ({ uhid, portal, documents = [], onClose }) => {
     body = <>{header}<div className="flex-1 overflow-y-auto p-3"><MailSetupCard setup={state.setup} onConnected={() => { notify('success', 'Your mailbox is connected.'); load(); }} /></div></>;
   } else if (account.status === 'needs_password') {
     body = <>{header}<div className="flex-1 overflow-y-auto p-3"><MailSetupCard setup={state.setup} account={account} reconnect onConnected={() => { notify('success', 'Reconnected.'); load(); }} /></div></>;
-  } else if (!contact.address) {
+  } else if (!contact.address && !hasReports) {
     body = (
       <>{header}
         <Notice>
@@ -115,13 +125,14 @@ const PatientEmailPanel = ({ uhid, portal, documents = [], onClose }) => {
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label={title}>
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex justify-end" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/30" onClick={ready ? undefined : onClose} aria-hidden="true" />
       <div className="relative flex h-full w-full max-w-2xl flex-col bg-white shadow-xl">
         {body}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
