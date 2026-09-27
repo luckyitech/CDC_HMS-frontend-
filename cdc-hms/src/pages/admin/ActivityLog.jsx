@@ -46,9 +46,10 @@ const ACTION_TYPES = [
   { value: 'lab_report_discarded',  label: 'Discarded Lab Report' },
   { value: 'setting_changed',       label: 'Changed Setting' },
   // Staff Email (B26). The two groups filter several types at once (backend ACTION_GROUPS).
-  { value: 'mail_patient_docs',     label: 'Email — Patient Documents (sent + saved)' },
+  { value: 'mail_patient_docs',     label: 'Email — Patients (emailed, documents sent + saved)' },
   { value: 'mail_all',              label: 'Email — All Events' },
   { value: 'mail_sent',             label: 'Sent Email' },
+  { value: 'mail_patient_emailed',  label: 'Emailed Patient' },
   { value: 'patient_docs_emailed',  label: 'Emailed Patient Documents' },
   { value: 'mail_saved_to_patient', label: 'Saved Email Attachment to Patient' },
   { value: 'mail_connected',        label: 'Connected Mailbox' },

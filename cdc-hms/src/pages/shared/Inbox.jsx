@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation, useNavigate } from 'react-router-dom';
 import { MessageCircle, FlaskConical, Bell, BarChart3, Facebook, Instagram, Lock } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { canViewComms as canViewCommsCap, canWriteComms as canWriteCommsCap, canViewLabInbox as canViewLabInboxCap, canUseMail as canUseMailCap, hasPermission, PERMISSIONS } from '../../utils/permissions';
@@ -42,7 +42,18 @@ const Inbox = () => {
   // (same mailbox generation, higher UID) toasts once; the first answer never does.
   const [mailUnread, setMailUnread] = useState(0);
   const [toast, setToast] = useState(null);
-  const [openRequest, setOpenRequest] = useState(null);   // { uid } for My mail to open
+  const [openRequest, setOpenRequest] = useState(null);   // { uid } for My mail to open, or { uid, folder, draft } to continue
+  // Phase 4: "Open in My mail" from a patient file arrives with the saved
+  // draft in the navigation state — continue it here, once.
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const d = location.state?.openDraft;
+    if (!d || !d.uid) return;
+    setOpenRequest({ uid: d.uid, folder: d.folder, draft: true });
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
   const baseline = useRef(null);                            // { uidValidity, uid }
   useEffect(() => {
     if (!canUseMail) return undefined;

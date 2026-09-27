@@ -265,9 +265,21 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
   const toggleAll = () => setSelected((s) => (s.size ? new Set() : new Set((list?.messages || []).map((m) => m.uid))));
 
   // The toast's "Open" (Inbox page): show INBOX and open that message.
+  // Phase 4: { draft: true } — a message begun on a patient file, saved as a
+  // draft and handed over ("Open in My mail"): continue it in the Composer.
   useEffect(() => {
     if (!openRequest || compose) return;
     onOpenHandled();
+    if (openRequest.draft) {
+      const draftFolder = openRequest.folder || folder;
+      if (openRequest.folder && folder !== openRequest.folder) { setFolder(openRequest.folder); setSearch(''); }
+      setComposeBusy('draft');
+      mailService.composeContext(openRequest.uid, draftFolder, 'draft')
+        .then((res) => setCompose({ ...res.data, draftFolder, key: Date.now() }))
+        .catch((err) => handleError(err, 'Could not open that draft. It is in your Drafts folder.'))
+        .finally(() => setComposeBusy(null));
+      return;
+    }
     if (folder !== 'INBOX') { setFolder('INBOX'); setSearch(''); }
     setOpenUid(openRequest.uid);
     setMsgLoading(true);

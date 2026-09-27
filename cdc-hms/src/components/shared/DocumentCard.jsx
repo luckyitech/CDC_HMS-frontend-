@@ -1,9 +1,11 @@
-import { Eye, Download, FileText, EyeOff, Archive, RotateCcw } from 'lucide-react';
+import { Eye, Download, FileText, EyeOff, Archive, RotateCcw, Mail } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
 import { formatDate, getStatusBadge, getCategoryIcon } from '../../utils/documentHelpers';
 
-const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasViewed = false, onView, onDownload, onMarkReviewed, onArchive, onArchiveFile, onRestore }) => {
+// onEmail (Staff Email phase 4, optional): opens the patient-email panel with
+// this document attached. Not offered on an archived document.
+const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasViewed = false, onView, onDownload, onMarkReviewed, onArchive, onArchiveFile, onRestore, onEmail = null }) => {
   return (
     <Card className="hover:shadow-lg transition">
       <div className="flex flex-col lg:flex-row gap-4">
@@ -120,6 +122,16 @@ const DocumentCard = ({ doc, showPatientBadge = false, isDoctor, isAdmin, hasVie
             <Download className="w-4 h-4" />
             Download
           </Button>
+          {onEmail && !doc.isArchived && (
+            <Button
+              variant="outline"
+              className="w-full lg:w-auto text-sm flex items-center justify-center gap-2"
+              onClick={onEmail}
+            >
+              <Mail className="w-4 h-4" />
+              Email
+            </Button>
+          )}
           {isDoctor && doc.status === 'Pending Review' && !hasViewed && (
             <Button
               variant="outline"

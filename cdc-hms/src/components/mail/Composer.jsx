@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Send, Loader2, Paperclip, Bold, Italic, Underline, List, ListOrdered, Link2, RemoveFormatting,
-  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen,
+  AlertTriangle, Check, ArrowLeft, FileText, Image as ImageIcon, ChevronDown, ChevronUp, PenLine, FolderOpen, ExternalLink,
 } from 'lucide-react';
 import mailService, { announceMailChange } from '../../services/mailService';
 import { notify } from '../../utils/notify';
@@ -32,8 +32,14 @@ const refKey = (r) => `${r.folder}:${r.uid}:${r.part}`;
  *   the draft, and later saves / the send carry it from there.
  * - Send goes through the user's own mailbox. The server says whether a copy
  *   reached the Sent folder; nothing is ever sent twice.
+ * - Phase 4: recipients picked AS a patient (the Patient tag) travel with the
+ *   message as UHIDs; the server confirms each against the patient's file and
+ *   notes the email there. Opened from a patient file, the Composer can carry
+ *   a `title`, start "From patient file" on that patient (`filePatient`), and
+ *   offer `onPopOut({ uid, folder } | null)` — the work is saved as a draft first, then
+ *   continued in My mail.
  */
-const Composer = ({ account, domains, init, onClose, onSent }) => {
+const Composer = ({ account, domains, init, onClose, onSent, title = null, filePatient = null, onPopOut = null }) => {
   const [to, setTo] = useState(() => (init.to || []).map((r) => ({ ...r, valid: true })));
   const [cc, setCc] = useState(() => (init.cc || []).map((r) => ({ ...r, valid: true })));
   const [bcc, setBcc] = useState(() => (init.bcc || []).map((r) => ({ ...r, valid: true })));
@@ -67,6 +73,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
   const nextFileId = useRef(1);
   const stateRef = useRef({});
   const touchedRef = useRef(false);                         // has the user put the caret in the body yet?
+  const draftFolderRef = useRef(init.draftFolder || null);  // where the draft lives (for "Open in My mail")
 
   const quotedHtml = init.quotedHtml || '';
   const isForward = init.mode === 'forward';
@@ -124,6 +131,8 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
   const payload = useCallback(() => {
     const s = stateRef.current;
     const strip = (list) => list.filter((r) => r.valid !== false).map(({ name, address }) => ({ name, address }));
+    const patientRecipients = [...new Set([...s.to, ...s.cc, ...s.bcc]
+      .filter((r) => r.valid !== false && r.patient && r.patient.uhid).map((r) => r.patient.uhid))];
     return {
       to: strip(s.to), cc: strip(s.cc), bcc: strip(s.bcc),
       subject: s.subject,
@@ -133,6 +142,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
       references: init.references || [],
       attachments: s.refs.map(({ folder, uid, part }) => ({ folder, uid, part })),
       patientDocuments: s.patientDocs.map((d) => d.documentId),
+      patientRecipients,
       draftUid: s.draftUid,
       source: init.source || null,
     };
@@ -156,6 +166,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
         const d = res.data;
         setDraftUid(d.draftUid);
         stateRef.current.draftUid = d.draftUid;
+        draftFolderRef.current = d.folder || draftFolderRef.current;
         // The uploaded files now live in the draft: carry them from there.
         const sentIds = new Set(sentFiles.map((f) => f.id));
         setFiles((fs) => fs.filter((f) => !sentIds.has(f.id)));
@@ -260,8 +271,10 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
       const res = await mailService.send(payload(), s.files.map((f) => f.file));
       const r = res.data;
       setDirty(false);
+      const noted = (r.loggedToPatients || []).length
+        ? ` · noted on ${r.loggedToPatients.length === 1 ? 'the patient’s file' : `${r.loggedToPatients.length} patient files`}` : '';
       if (r.sentCopy) {
-        notify('success', 'Sent');
+        notify('success', `Sent${noted}`);
       } else {
         const why = r.sentCopyReason === 'full'
           ? 'Sent, but your Sent folder is full, so no copy was saved.'
@@ -308,6 +321,17 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
     onClose(!!stateRef.current.draftUid);
   };
 
+  /** Phase 4: carry on in My mail — the message is saved as a draft first, then reopened there. */
+  const popOut = async () => {
+    if (hasContent() && (dirty || !stateRef.current.draftUid)) {
+      const ok = await saveDraft();
+      if (!ok) return;
+    }
+    setDirty(false);
+    const uid = stateRef.current.draftUid;
+    onPopOut(uid ? { uid, folder: draftFolderRef.current } : null);
+  };
+
   const busy = saving || sending;
   const toolBtn = 'rounded p-1.5 text-gray-600 hover:bg-gray-100';
 
@@ -322,11 +346,20 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
         <button type="button" onClick={close} className="-ml-1 rounded p-1 text-gray-500 hover:bg-gray-100 md:hidden" aria-label="Close and keep as draft">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{subject.trim() || TITLES[init.mode] || 'New message'}</h2>
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-800">{title || subject.trim() || TITLES[init.mode] || 'New message'}</h2>
         <span className="flex items-center gap-1 text-xs text-gray-500" aria-live="polite">
           {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</>
             : savedAt && !dirty ? <><Check className="h-3.5 w-3.5" /> Draft saved {savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</> : null}
         </span>
+        {onPopOut && (
+          <button
+            type="button" onClick={popOut} disabled={busy}
+            className="hidden items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 sm:inline-flex"
+            title="Save as a draft and carry on in My mail"
+          >
+            Open in My mail <ExternalLink className="h-3.5 w-3.5" />
+          </button>
+        )}
         <button type="button" onClick={close} disabled={sending} className="hidden rounded p-1 text-gray-500 hover:bg-gray-100 md:block" aria-label="Close and keep as draft" title="Close (kept in Drafts)">
           <X className="h-5 w-5" />
         </button>
@@ -511,6 +544,7 @@ const Composer = ({ account, domains, init, onClose, onSent }) => {
         onAttach={addPatientDocs}
         budget={{ bytes: Math.max(0, MAX_TOTAL - totalBytes), files: Math.max(0, MAX_FILES - attachmentCount) }}
         alreadyIds={new Set(patientDocs.map((d) => d.documentId))}
+        initialPatient={filePatient}
       />
       <ConfirmActionModal
         isOpen={confirm === 'discard'}

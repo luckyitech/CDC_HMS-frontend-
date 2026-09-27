@@ -28,6 +28,10 @@ import api from './api';
  * - GET    /mail/patients/:uhid/documents — the documents on a patient's file (whole merge family)
  * - POST   /mail/messages/:uid/attachments/:part/save-to-patient — { folder, uhid, category, testDate, notes }
  * Composer payloads carry `patientDocuments: [documentId]` — read from the HMS at send time.
+ * Phase 4 ("Email this patient" from the patient file):
+ * - GET    /mail/patients/:uhid/contact   — { uhid, name, yearOfBirth, address } (merged UHID → 409)
+ * Composer payloads also carry `patientRecipients: [uhid]` — the chips picked AS a patient;
+ * the server confirms each against the file and notes the email there.
  * Admin (config.write): GET /mail/admin/accounts, POST /mail/admin/accounts/:userId/disconnect
  */
 // The api instance defaults to JSON; multipart must be named so axios hands the
@@ -69,6 +73,7 @@ export const mailService = {
   emptyTrash: (count) => api.post('/mail/trash/empty', { confirm: 'EMPTY', count }),
 
   signature: () => api.get('/mail/signature'),
+  patientContact: (uhid) => api.get(`/mail/patients/${encodeURIComponent(uhid)}/contact`),
   composeContext: (uid, folder, mode) => api.get(`/mail/messages/${uid}/compose`, { params: { folder, mode } }),
   send: (message, files = []) => api.post('/mail/send', composeForm(message, files), MULTIPART),
   saveDraft: (message, files = []) => api.post('/mail/drafts', composeForm(message, files), MULTIPART),

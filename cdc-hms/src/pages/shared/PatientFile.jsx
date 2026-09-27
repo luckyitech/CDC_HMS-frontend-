@@ -4,14 +4,14 @@ import toast from "react-hot-toast";
 import {
   ChevronDown, ArrowLeft, Zap, Radio, Battery, Calendar,
   FileText, Pencil, ClipboardEdit, AlertTriangle,
-  KeyRound, UserCheck, UserX, Trash2, UserCog, Stethoscope, Footprints, MessageCircle,
+  KeyRound, UserCheck, UserX, Trash2, UserCog, Stethoscope, Footprints, MessageCircle, Mail,
 } from "lucide-react";
 import { formatDOB } from "../../utils/dateUtils";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useUserContext } from "../../contexts/UserContext";
-import { hasPermission, PERMISSIONS } from "../../utils/permissions";
+import { hasPermission, PERMISSIONS, canUseMail } from "../../utils/permissions";
 import { patientService } from "../../services/patientService";
 import api from "../../services/api";
 
@@ -40,6 +40,7 @@ import EditVitalsModal from "../../components/doctor/EditVitalsModal";
 import EditPatientModal from "../../components/staff/EditPatientModal";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import ScanActionModal from "../../components/staff/ScanActionModal";
+import PatientEmailPanel from "../../components/mail/PatientEmailPanel";
 
 const fmtDate = (d) => {
   if (!d) return "—";
@@ -125,7 +126,7 @@ const ROLE_CONFIG = {
 // it's always available to every role that can see the patient file.
 // `initialSub` lets a deep link land on one sub-tab (the consultation's Glucose
 // card opens Charts here via location.state.diagnosticsSub).
-const DiagnosticsTab = ({ patient, initialSub = "documents" }) => {
+const DiagnosticsTab = ({ patient, initialSub = "documents", onEmailDocument = null }) => {
   const [sub, setSub] = useState(initialSub);
   return (
     <div>
@@ -140,7 +141,7 @@ const DiagnosticsTab = ({ patient, initialSub = "documents" }) => {
           { id: "charts", label: "Sugars" },
         ]}
       />
-      {sub === "documents" && <MedicalDocumentsTab patient={patient} />}
+      {sub === "documents" && <MedicalDocumentsTab patient={patient} onEmailDocument={onEmailDocument} />}
       {sub === "ultrasound" && <UltrasoundTab patient={patient} />}
       {sub === "neuropathy" && <NeuropathyStudyList patient={patient} />}
       {sub === "charts" && <GlucoseManagementCentre patient={patient} />}
@@ -173,14 +174,14 @@ const VisitHistoryTab = ({ patient, uhid, prescriptions }) => {
   );
 };
 
-const InfoRow = ({ label, value, valueClass = "text-gray-800" }) => (
+const InfoRow = ({ label, value, valueClass = "text-gray-800", action = null }) => (
   <div>
     <p className="text-sm text-gray-600">{label}</p>
-    <p className={`font-semibold ${valueClass}`}>{value || "—"}</p>
+    <p className={`font-semibold ${valueClass}`}>{value || "—"}{value && action}</p>
   </div>
 );
 
-const OverviewPanel = ({ patient }) => (
+const OverviewPanel = ({ patient, onEmailPatient = null }) => (
   <div className="space-y-6">
     <PatientSummaryCard patient={patient} shadow={false} />
 
@@ -192,7 +193,14 @@ const OverviewPanel = ({ patient }) => (
           <InfoRow label="Age / Gender" value={`${patient.age ?? "—"} yrs · ${patient.gender ?? "—"}`} />
           {patient.dateOfBirth && <InfoRow label="Date of Birth" value={formatDOB(patient.dateOfBirth)} />}
           <InfoRow label="Phone" value={patient.phone} />
-          <InfoRow label="Email" value={patient.email} />
+          <InfoRow
+            label="Email" value={patient.email}
+            action={onEmailPatient && (
+              <button type="button" onClick={() => onEmailPatient()} className="ml-2 inline-flex items-center gap-1 align-middle text-xs font-semibold text-primary hover:underline">
+                <Mail className="h-3.5 w-3.5" /> Email
+              </button>
+            )}
+          />
           <InfoRow label="Address" value={patient.address} />
         </div>
       </Card>
@@ -364,6 +372,12 @@ const PatientFile = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showScanModal, setShowScanModal] = useState(!!location.state?.scanned);
+  // Staff Email phase 4: "Email patient" opens the Composer over the file.
+  // null = closed; { documents } = open (documents pre-attached from a row).
+  const [emailPanel, setEmailPanel] = useState(null);
+  const mailAllowed = canUseMail(currentUser);
+  const emailPatient = mailAllowed ? (documents = []) => setEmailPanel({ documents }) : null;
+  const emailDocument = mailAllowed ? (doc) => setEmailPanel({ documents: [{ id: doc.id, fileName: doc.fileName }] }) : null;
 
   const loadPatient = () => fetchPatientByUHID(uhid).then((p) => { setPatient(p || null); setLoading(false); return p; });
 
@@ -503,7 +517,7 @@ const PatientFile = () => {
       <div className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${overviewOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden min-h-0">
           <div className="py-4">
-            <OverviewPanel patient={patient} />
+            <OverviewPanel patient={patient} onEmailPatient={emailPatient} />
           </div>
         </div>
       </div>
@@ -527,8 +541,8 @@ const PatientFile = () => {
             onDone={() => (portal === "staff" || portal === "nurse") ? navigate(`/${portal}/queue`) : loadPatient()}
           />
         )}
-        {currentTab === "medical-documents" && <DiagnosticsTab key={location.key} patient={patient} initialSub={location.state?.diagnosticsSub || "documents"} />}
-        {currentTab === "communications" && <PatientCommunicationsTab patient={patient} uhid={uhid} portal={portal} />}
+        {currentTab === "medical-documents" && <DiagnosticsTab key={location.key} patient={patient} initialSub={location.state?.diagnosticsSub || "documents"} onEmailDocument={emailDocument} />}
+        {currentTab === "communications" && <PatientCommunicationsTab uhid={uhid} portal={portal} onEmailPatient={emailPatient} />}
         {currentTab === "visit-history" && (
           <VisitHistoryTab patient={patient} uhid={uhid} prescriptions={prescriptions} />
         )}
@@ -586,6 +600,12 @@ const PatientFile = () => {
       )}
       {showScanModal && (
         <ScanActionModal patient={patient} onClose={() => setShowScanModal(false)} />
+      )}
+      {emailPanel && (
+        <PatientEmailPanel
+          uhid={patient.uhid} portal={portal} documents={emailPanel.documents}
+          onClose={() => setEmailPanel(null)}
+        />
       )}
     </div>
   );

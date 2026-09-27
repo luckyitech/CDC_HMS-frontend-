@@ -48,6 +48,7 @@ export const ACTION_STYLE = {
   mail_wiped:            { color: 'bg-gray-100 text-gray-700',     icon: MailX },
   mail_sent:             { color: 'bg-sky-100 text-sky-700',       icon: Send },
   mail_trash_emptied:    { color: 'bg-red-100 text-red-700',       icon: Trash2 },
+  mail_patient_emailed:  { color: 'bg-violet-100 text-violet-700', icon: Mail },
   patient_docs_emailed:  { color: 'bg-violet-100 text-violet-700', icon: FileUp },
   mail_saved_to_patient: { color: 'bg-violet-100 text-violet-700', icon: FileDown },
 };

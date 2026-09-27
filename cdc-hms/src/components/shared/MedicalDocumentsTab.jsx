@@ -10,7 +10,9 @@ import { useUserContext } from '../../contexts/UserContext';
 import { showNotification } from '../../utils/documentHelpers';
 import documentService from '../../services/documentService';
 
-const MedicalDocumentsTab = ({ patient }) => {
+// onEmailDocument (Staff Email phase 4, optional): "Email" on each document
+// opens the patient-email panel with that document attached.
+const MedicalDocumentsTab = ({ patient, onEmailDocument = null }) => {
   const { currentUser } = useUserContext();
   const {
     DOCUMENT_CATEGORIES,
@@ -275,6 +277,7 @@ const MedicalDocumentsTab = ({ patient }) => {
               onMarkReviewed={() => handleMarkAsReviewed(doc.id)}
               onArchive={() => setPendingAction({ type: 'hide', doc })}
               onArchiveFile={() => setPendingAction({ type: 'archive', doc })}
+              onEmail={onEmailDocument ? () => onEmailDocument(doc) : null}
             />
           ))}
         </div>

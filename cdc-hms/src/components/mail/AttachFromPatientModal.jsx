@@ -23,9 +23,11 @@ const searchPatients = async (q) => (await mailService.patients(q)).data.patient
  * Documents tab; nothing is kept once the dialog closes.
  *
  * Props: isOpen, onClose, onAttach(refs), budget { bytes, files } left in the
- *        message, alreadyIds (Set of documentIds already attached).
+ *        message, alreadyIds (Set of documentIds already attached),
+ *        initialPatient ({ uhid, name, … } — phase 4: opened from a patient's
+ *        file, the dialog starts on that patient; another can still be picked).
  */
-const AttachFromPatientModal = ({ isOpen, onClose, onAttach, budget, alreadyIds }) => {
+const AttachFromPatientModal = ({ isOpen, onClose, onAttach, budget, alreadyIds, initialPatient = null }) => {
   const [patient, setPatient] = useState(null);
   const [data, setData] = useState(null);          // { patient, documents, mergedUhids }
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,8 @@ const AttachFromPatientModal = ({ isOpen, onClose, onAttach, budget, alreadyIds 
   // Start clean every time it opens.
   useEffect(() => {
     if (!isOpen) return;
-    setPatient(null); setData(null); setProblem(null); setPicked(new Set()); setPreview(null);
+    setPatient(initialPatient || null); setData(null); setProblem(null); setPicked(new Set()); setPreview(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   // A preview's blob URL lives only while it is shown.
@@ -90,7 +93,7 @@ const AttachFromPatientModal = ({ isOpen, onClose, onAttach, budget, alreadyIds 
     <Modal isOpen={isOpen} onClose={onClose} title="Attach from patient file" size="lg">
       <div className="space-y-3">
         <PatientSearchInput
-          autoFocus
+          autoFocus={!initialPatient}
           searchFn={searchPatients}
           placeholder="Name, UHID or phone number"
           selectedPatient={patient}
