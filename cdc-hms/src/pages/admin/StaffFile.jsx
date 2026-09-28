@@ -17,7 +17,9 @@ import LeaveTab from '../../components/admin/staff/LeaveTab';
 import DocumentsTab from '../../components/admin/staff/DocumentsTab';
 import ActivityTab from '../../components/admin/staff/ActivityTab';
 import { formatDate } from '../../components/admin/staff/staffFormat';
-import { PERMISSIONS, passesAdminGate, canViewConfidential } from '../../utils/permissions';
+import {
+  PERMISSIONS, passesAdminGate, canViewConfidential, canManageLeave, canSetLeavePolicy,
+} from '../../utils/permissions';
 
 // The staff record "file".
 //
@@ -109,8 +111,9 @@ const StaffFile = () => {
   // admin.access (the way the clinic runs once the true admin account is
   // benched):
   //   canView     users.view  — the Permissions and Activity tabs
-  //   canManage   users.write — editing the file, recording/deciding leave,
-  //                             managing documents
+  //   canManage   users.write — editing the file, managing documents
+  //   leave       leave.manage decides and records leave for others,
+  //               leave.policy sets entitlement (B27, D8 — were users.write)
   //   canSeeConfidential  hr.confidential — the confidential drawer of the
   //                             Documents tab; NOT carried by admin.access
   const currentUser = (() => {
@@ -336,7 +339,11 @@ const StaffFile = () => {
           <DocumentsTab staff={staff} canManage={canManage} canSeeConfidential={canSeeConfidential} />
         )}
         {currentTab === 'leave'     && (
-          <LeaveTab staff={staff} canDecide={canManage && staff.userId !== currentUser?.id} />
+          <LeaveTab
+            staff={staff}
+            canDecide={canManageLeave(currentUser) && staff.userId !== currentUser?.id}
+            canSetBalances={canSetLeavePolicy(currentUser)}
+          />
         )}
 
         {currentTab === 'access' && (

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { useHrContext } from '../../contexts/HrContext';
-import { canWriteHr, passesAdminGate, PERMISSIONS } from '../../utils/permissions';
+import { canWriteHr, canChangeHrSettings } from '../../utils/permissions';
 import hrService from '../../services/hrService';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -18,8 +18,9 @@ import { Pill, hhmmOf, dayLabel } from '../../components/hr/hrFormat';
  * check-in rules and clinic-wide hours, working hours per person, and the
  * recent-changes audit (SettingChangeLogs, area "HR Suite").
  *
- * Gates: hr.write to open the page; config.write (admin / admin.access) to
- * save rules or register a tag — the same split the API enforces.
+ * Gates: hr.write to open the page; hr.settings (admin / admin.access / a
+ * grant — was config.write until B27) to save rules or register a tag — the
+ * same split the API enforces.
  *
  * `Field` lives at module scope on purpose: defined inside render it would
  * remount the input on every keystroke (the WhatsAppSettingsTab bug, A5).
@@ -83,7 +84,7 @@ const HrSettings = () => {
   const { currentUser } = useUserContext();
   const { settings, loadSettings, setSettings, invalidate } = useHrContext();
   const canOpen = canWriteHr(currentUser);
-  const canConfig = passesAdminGate(currentUser, PERMISSIONS.CONFIG_WRITE);
+  const canConfig = canChangeHrSettings(currentUser);
 
   const [form, setForm] = useState(null);
   const [hoursForm, setHoursForm] = useState(null);
@@ -213,7 +214,7 @@ const HrSettings = () => {
 
             <div className="border-t border-gray-200 pt-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Register a tag</h4>
-              {!canConfig && <p className="text-xs text-amber-700 mb-2">Registering a tag (its key) needs the configuration permission — an administrator can do this.</p>}
+              {!canConfig && <p className="text-xs text-amber-700 mb-2">Registering a tag (its key) needs the "HR Suite settings" permission — an administrator can do this.</p>}
               <form onSubmit={saveTag} className="space-y-3">
                 <div className="grid sm:grid-cols-2 gap-3">
                   <Field label="Label"><input value={tagForm.label} onChange={(e) => setTagForm((f) => ({ ...f, label: e.target.value }))} placeholder="Main entrance" className={inputCls} disabled={!canConfig} required /></Field>
@@ -253,7 +254,7 @@ const HrSettings = () => {
           <Section title="Rules">
             {!form || !hoursForm ? <Spinner /> : (
               <div className="space-y-3">
-                {!canConfig && <p className="text-xs text-amber-700">Changing rules needs the configuration permission — an administrator can do this.</p>}
+                {!canConfig && <p className="text-xs text-amber-700">Changing rules needs the "HR Suite settings" permission — an administrator can do this.</p>}
                 <Toggle label="First tap of the day checks in immediately" checked={form.autoCheckin} onChange={(v) => set('autoCheckin', v)} disabled={!canConfig} />
                 <Toggle label="Check-out asks for confirmation" checked={form.confirmCheckout} onChange={(v) => set('confirmCheckout', v)} disabled={!canConfig} />
                 <Toggle label="Positive feedback on tap (mood lines)" checked={form.positiveFeedback} onChange={(v) => set('positiveFeedback', v)} disabled={!canConfig} />

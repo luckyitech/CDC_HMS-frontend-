@@ -87,6 +87,16 @@ export const PERMISSIONS = {
   // disciplinary letters, archived files). Like permissions.grant it is NOT
   // covered by admin.access and held by nobody by role.
   HR_CONFIDENTIAL:  'hr.confidential',
+  // HR Suite phase 2 — leave (B27, D8). All default to the admin role and are
+  // covered by admin.access. LEAVE_APPROVE = be an approver on a colleague's
+  // request; LEAVE_MANAGE = see, record and cancel everyone's leave;
+  // LEAVE_POLICY = the yearly policy, holidays and entitlements (implies
+  // LEAVE_MANAGE); HR_SETTINGS = HR Suite settings and tag keys (was
+  // config.write).
+  LEAVE_APPROVE:    'leave.approve',
+  LEAVE_MANAGE:     'leave.manage',
+  LEAVE_POLICY:     'leave.policy',
+  HR_SETTINGS:      'hr.settings',
 };
 
 // Clinical or non-clinical, mirroring the backend's STAFF_TYPES.
@@ -232,6 +242,15 @@ export const HR_CHECKIN_DEFAULT_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'adm
 export const canViewHr  = (user) => canUseCapability(user, PERMISSIONS.HR_VIEW,    HR_DEFAULT_ROLES);
 export const canWriteHr = (user) => canUseCapability(user, PERMISSIONS.HR_WRITE,   HR_DEFAULT_ROLES);
 export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKIN, HR_CHECKIN_DEFAULT_ROLES);
+// B27 — leave and HR settings. Mirrors routes/staff.js LEAVE_DECIDE /
+// LEAVE_POLICY and routes/hr.js SETTINGS: the admin role, admin.access, or a
+// grant. Who may decide WHICH request is still the server's call (never your
+// own; leave.approve only when listed as an approver).
+export const canApproveLeave      = (user) => canUseCapability(user, PERMISSIONS.LEAVE_APPROVE, HR_DEFAULT_ROLES);
+export const canManageLeave       = (user) => canUseCapability(user, PERMISSIONS.LEAVE_MANAGE,  HR_DEFAULT_ROLES)
+  || canSetLeavePolicy(user);   // leave.policy implies leave.manage
+export const canSetLeavePolicy    = (user) => canUseCapability(user, PERMISSIONS.LEAVE_POLICY,  HR_DEFAULT_ROLES);
+export const canChangeHrSettings  = (user) => canUseCapability(user, PERMISSIONS.HR_SETTINGS,   HR_DEFAULT_ROLES);
 
 // Staff Email (B26). Mirrors routes/mail.js: every internal role by default,
 // withdrawable per person. Only ever the user's OWN mailbox.

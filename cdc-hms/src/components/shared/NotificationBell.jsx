@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, FileText, X } from 'lucide-react';
+import { Bell, FileText, CalendarDays, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationContext } from '../../contexts/NotificationContext';
 
@@ -23,6 +23,11 @@ const NotificationBell = ({ userRole = 'doctor' }) => {
   const handleNotificationClick = (n) => {
     if (!n.isRead) markAsRead(n.id);
     setOpen(false);
+    // B27: HR alerts (and anything newer) carry their own in-app path.
+    if (n.link && n.link.startsWith('/')) {
+      navigate(n.link);
+      return;
+    }
     const base = PROFILE_BASE[String(userRole).toLowerCase()];
     if (base && n.patientUhid) {
       navigate(`${base}/patient-profile/${n.patientUhid}`, { state: { activeTab: 'medical-documents' } });
@@ -105,16 +110,26 @@ const NotificationBell = ({ userRole = 'doctor' }) => {
                     className={`w-full text-left flex items-start gap-3 px-4 py-3 border-b border-gray-50 hover:bg-blue-50 transition-colors ${!n.isRead ? 'bg-blue-50' : ''}`}
                   >
                     <div className={`mt-0.5 p-2 rounded-lg shrink-0 ${!n.isRead ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                      <FileText className={`w-4 h-4 ${!n.isRead ? 'text-blue-600' : 'text-gray-500'}`} />
+                      {n.category && n.category !== 'document'
+                        ? <CalendarDays className={`w-4 h-4 ${!n.isRead ? 'text-blue-600' : 'text-gray-500'}`} />
+                        : <FileText className={`w-4 h-4 ${!n.isRead ? 'text-blue-600' : 'text-gray-500'}`} />}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold truncate ${!n.isRead ? 'text-gray-900' : 'text-gray-600'}`}>
-                        {n.patientName}
-                        <span className="text-gray-400 font-normal ml-1">· {n.patientUhid}</span>
-                      </p>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{n.documentCategory}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Uploaded by {n.uploadedBy} · {timeAgo(n.createdAt)}</p>
-                    </div>
+                    {n.category && n.category !== 'document' ? (
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${!n.isRead ? 'text-gray-900' : 'text-gray-600'}`}>{n.title}</p>
+                        {n.body && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>}
+                        <p className="text-xs text-gray-400 mt-0.5">{timeAgo(n.createdAt)}</p>
+                      </div>
+                    ) : (
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold truncate ${!n.isRead ? 'text-gray-900' : 'text-gray-600'}`}>
+                          {n.patientName}
+                          <span className="text-gray-400 font-normal ml-1">· {n.patientUhid}</span>
+                        </p>
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{n.documentCategory}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Uploaded by {n.uploadedBy} · {timeAgo(n.createdAt)}</p>
+                      </div>
+                    )}
                     {!n.isRead && (
                       <span className="mt-1.5 w-2 h-2 rounded-full bg-blue-500 shrink-0" />
                     )}

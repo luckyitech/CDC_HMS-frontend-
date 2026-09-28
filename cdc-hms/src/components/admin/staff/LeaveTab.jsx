@@ -5,22 +5,29 @@ import staffService from '../../../services/staffService';
 import StatusBadge from '../../shared/StatusBadge';
 import { formatDate } from './staffFormat';
 
+// Fallback only — the live list is the leave types the API returns in the
+// summary (LeaveTypes is data since B27; HR can add types).
 const LEAVE_TYPES = ['Annual', 'Sick', 'Maternity', 'Paternity', 'Compassionate', 'Study', 'Unpaid'];
 
 const STATUS_TONES = {
-  Approved:  'success',
-  Pending:   'warning',
-  Rejected:  'danger',
-  Cancelled: 'neutral',
+  Approved:        'success',
+  Pending:         'warning',
+  InfoRequested:   'warning',
+  CancelRequested: 'warning',
+  Rejected:        'danger',
+  Withdrawn:       'neutral',
+  Cancelled:       'neutral',
 };
+const STATUS_LABELS = { Rejected: 'Declined', InfoRequested: 'Info requested', CancelRequested: 'Cancel requested' };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-// canDecide: this viewer may approve leave FOR THIS PERSON — users.write
+// canSetBalances: leave.policy — setting this person's entitlement (B27).
+// canDecide: this viewer may approve leave FOR THIS PERSON — leave.manage since B27 (was users.write)
 // (admin.access included) and not their own file. Nobody approves their own
 // leave, so a manager on their own file records a request like anyone else.
 // The API applies the same rule (leaveController.canDecideLeaveFor).
-const LeaveTab = ({ staff, canDecide }) => {
+const LeaveTab = ({ staff, canDecide, canSetBalances = false }) => {
   const isAdmin = canDecide;
   const [year, setYear]       = useState(new Date().getFullYear());
   const [data, setData]       = useState(null);
@@ -124,6 +131,13 @@ const LeaveTab = ({ staff, canDecide }) => {
 
   const summary = data?.summary || [];
   const leaves  = data?.leaves || [];
+  const policyPublished = !!data?.policyPublished;
+  // The types on offer: the API's list (HR may add types and hide some from
+  // staff — a manager recording leave still sees the hidden ones), never the
+  // redacted "Private" row.
+  const typeOptions = summary.length
+    ? summary.filter((s) => (canDecide || s.visible !== false) && s.leaveType !== 'Private').map((s) => ({ key: s.leaveType, name: s.name || s.leaveType }))
+    : LEAVE_TYPES.map((t) => ({ key: t, name: t }));
 
   // Types with no entitlement and nothing taken are hidden — showing seven rows
   // of zeroes buries the two that matter.
@@ -146,7 +160,7 @@ const LeaveTab = ({ staff, canDecide }) => {
         </select>
 
         <div className="flex items-center gap-2">
-          {isAdmin && !editingBalances && (
+          {canSetBalances && !editingBalances && (
             <button
               onClick={startEditingBalances}
               className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50"
@@ -192,7 +206,7 @@ const LeaveTab = ({ staff, canDecide }) => {
                 onChange={(e) => setForm({ ...form, leaveType: e.target.value })}
                 className={inputClass}
               >
-                {LEAVE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {typeOptions.map((t) => <option key={t.key} value={t.key}>{t.name}</option>)}
               </select>
             </div>
             <div>
@@ -222,13 +236,19 @@ const LeaveTab = ({ staff, canDecide }) => {
             />
           </div>
 
-          <label className="flex items-center gap-2 text-xs text-gray-600">
-            <input
-              type="checkbox" checked={form.excludeWeekends}
-              onChange={(e) => setForm({ ...form, excludeWeekends: e.target.checked })}
-            />
-            Don&apos;t count weekends towards the days used
-          </label>
+          {policyPublished ? (
+            <p className="text-xs text-gray-500">
+              Days are counted by the {year} leave policy — weekdays as HR valued them, public holidays never counted.
+            </p>
+          ) : (
+            <label className="flex items-center gap-2 text-xs text-gray-600">
+              <input
+                type="checkbox" checked={form.excludeWeekends}
+                onChange={(e) => setForm({ ...form, excludeWeekends: e.target.checked })}
+              />
+              Don&apos;t count weekends towards the days used
+            </label>
+          )}
 
           <div className="flex gap-2">
             <button
@@ -256,7 +276,7 @@ const LeaveTab = ({ staff, canDecide }) => {
                 <div className="mt-1.5">
                   <label className="block text-[10px] text-gray-400 mb-1">Days entitled</label>
                   <input
-                    type="number" min="0"
+                    type="number" min="0" step="0.25"
                     value={balanceDraft[s.leaveType] ?? 0}
                     onChange={(e) => setBalanceDraft((d) => ({ ...d, [s.leaveType]: e.target.value }))}
                     className={inputClass}
@@ -264,14 +284,25 @@ const LeaveTab = ({ staff, canDecide }) => {
                 </div>
               ) : (
                 <>
-                  <p className="text-2xl font-bold text-gray-800 mt-0.5">
-                    {s.remaining}
-                    <span className="text-xs font-normal text-gray-400"> left</span>
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {s.taken} taken of {s.entitled + s.carriedOver}
-                    {s.carriedOver > 0 && ` (incl. ${s.carriedOver} carried over)`}
-                  </p>
+                  {s.unlimited ? (
+                    <>
+                      <p className="text-sm font-semibold text-gray-700 mt-1.5">No fixed allowance</p>
+                      <p className="text-xs text-gray-400">{s.taken} taken</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-gray-800 mt-0.5">
+                        {s.remaining}
+                        <span className="text-xs font-normal text-gray-400"> left</span>
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {s.taken} taken of {s.entitled + s.carriedOver}
+                        {s.carriedOver > 0 && ` (incl. ${s.carriedOver} carried over)`}
+                        {s.proRated && ' · pro-rata'}
+                      </p>
+                    </>
+                  )}
+                  {s.booked > 0 && <p className="text-xs text-amber-600">{s.booked} waiting for approval</p>}
                 </>
               )}
             </div>
@@ -307,7 +338,7 @@ const LeaveTab = ({ staff, canDecide }) => {
                     <td className="py-2.5 text-gray-600">{l.days}</td>
                     <td className="py-2.5">
                       <StatusBadge shape="tag" size="xs" tone={STATUS_TONES[l.status] || 'neutral'}>
-                        {l.status}
+                        {STATUS_LABELS[l.status] || l.status}
                       </StatusBadge>
                       {l.approvedBy && (
                         <p className="text-xs text-gray-400 mt-0.5">by {l.approvedBy}</p>

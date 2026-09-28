@@ -19,12 +19,15 @@ export const useNotificationContext = () => {
 export const NotificationProvider = ({ children }) => {
   const { currentUser } = useUserContext();
   const isDoctor = currentUser?.role === 'doctor';
+  // Since B27 every member of staff has a bell (HR alerts: leave to approve,
+  // decisions, expiries). The live document toast below stays doctor-only.
+  const hasBell = ['doctor', 'staff', 'nurse', 'lab', 'admin'].includes(currentUser?.role);
 
   const [notifications, setNotifications]   = useState([]);
   const [unreadCount,   setUnreadCount]     = useState(0);
 
   const fetchNotifications = useCallback(async () => {
-    if (!isDoctor) return;
+    if (!hasBell) return;
     try {
       const res = await notificationService.getAll();
       setNotifications(res.data?.notifications ?? []);
@@ -32,7 +35,7 @@ export const NotificationProvider = ({ children }) => {
     } catch {
       // silent — bell just shows 0
     }
-  }, [isDoctor]);
+  }, [hasBell]);
 
   // Load on mount
   useEffect(() => {
