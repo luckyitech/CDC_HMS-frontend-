@@ -15,7 +15,8 @@ import './hr.css';
  *
  * Props:
  *   month    'YYYY-MM'
- *   days     [{ date, in, out, leave, off, future, absent }]
+ *   days     [{ date, in, out, leave, off, future, absent, holiday? }]
+ *            holiday = the public holiday's name (B27): "H" unless they came in
  *   today    'YYYY-MM-DD'
  *   compact  smaller cells (tap page)
  *   pendingSide  'in' | 'out' — pre-render today's star on that side as outlined
@@ -97,6 +98,7 @@ const StarCalendar = forwardRef(function StarCalendar({ month, days = [], today,
         }
         let inner, title;
         if (c.leave) { inner = <span className="text-[9px] font-semibold text-blue-700">L</span>; title = 'On leave'; }
+        else if (c.holiday && !inColour && !outColour) { inner = <span className="text-[9px] font-semibold text-gray-500">H</span>; title = c.holiday; }
         else if (c.future) { inner = <span className="text-gray-200">·</span>; title = 'Coming up'; }
         else if (c.off && !inColour && !outColour) { inner = <span className="text-gray-300">·</span>; title = 'Day off'; }
         else if (c.absent && !inColour && !outColour) { inner = <span className="text-gray-300">–</span>; title = 'No check-in recorded'; }
@@ -136,6 +138,7 @@ export const StarLegend = ({ className = '' }) => (
     <span><span className="text-[#D4A017]">★</span> Early in · past hours out</span>
     <span><span className="text-red-700">★</span> Late in · early out</span>
     <span><span className="text-blue-700 font-semibold">L</span> = leave</span>
+    <span><span className="text-gray-500 font-semibold">H</span> = public holiday</span>
   </div>
 );
 

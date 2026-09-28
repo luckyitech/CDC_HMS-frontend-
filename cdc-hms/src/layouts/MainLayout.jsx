@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -55,6 +55,7 @@ import {
   Inbox,
   IdCard,
   Clock,
+  CalendarCog,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
@@ -505,6 +506,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Time & Attendance", path: "/hr/register", icon: Clock },
       { name: "Staff", path: "/hr/staff", icon: Users, permission: PERMISSIONS.USERS_VIEW },
       { name: "Settings", path: "/hr/settings", icon: Settings, permission: PERMISSIONS.HR_WRITE },
+      // B27: the leave policy, holidays, entitlements (leave.policy) and the
+      // alert channels (hr.settings).
+      { name: "Leave settings", path: "/hr/leave-settings", icon: CalendarCog, show: canSetLeavePolicy(currentUser) || canChangeHrSettings(currentUser) },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [

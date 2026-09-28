@@ -118,6 +118,7 @@ const LabInbox           = lazy(() => import("./pages/staff/LabInbox"));
 const HrDashboard        = lazy(() => import("./pages/hr/HrDashboard"));
 const TimeRegister       = lazy(() => import("./pages/hr/TimeRegister"));
 const HrSettings         = lazy(() => import("./pages/hr/HrSettings"));
+const LeaveSettings      = lazy(() => import("./pages/hr/LeaveSettings"));
 const StaffDirectory     = lazy(() => import("./pages/hr/StaffDirectory"));
 const TapLanding         = lazy(() => import("./pages/hr/TapLanding"));
 // Communications Inbox — WhatsApp + Lab reports + Reminders. The old
@@ -326,6 +327,7 @@ function App() {
                   <Route path="staff/:employeeId" element={<StaffFile />} />
                   <Route path="onboard" element={<Onboarding />} />
                   <Route path="settings" element={<HrSettings />} />
+                  <Route path="leave-settings" element={<LeaveSettings />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

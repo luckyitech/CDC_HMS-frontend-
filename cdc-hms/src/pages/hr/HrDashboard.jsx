@@ -125,9 +125,9 @@ const HrDashboard = () => {
   const lastToday = todayRows[0] || null;
   const expected = mine?.today?.expected || {};
   const minutesSoFar = open ? Math.max(0, Math.round((nowTick - new Date(open.checkInAt)) / 60000)) : null;
-  const state = open ? 'in' : lastToday ? 'out' : (expected.source === 'off' || !expected.start) ? 'off' : 'not_in';
-  const stateLabel = { in: 'Checked in', out: 'Checked out', off: 'Day off', not_in: 'Not yet in' }[state];
-  const statePill = { in: 'ok', out: 'n', off: 'n', not_in: 'warn' }[state];
+  const state = open ? 'in' : lastToday ? 'out' : expected.source === 'holiday' ? 'holiday' : (expected.source === 'off' || !expected.start) ? 'off' : 'not_in';
+  const stateLabel = { in: 'Checked in', out: 'Checked out', off: 'Day off', holiday: expected.holiday || 'Public holiday', not_in: 'Not yet in' }[state];
+  const statePill = { in: 'ok', out: 'n', off: 'n', holiday: 'n', not_in: 'warn' }[state];
   const punctLabel = (s) => ({ on_time: 'on time', early: 'early', late: 'late', none: null }[s] || null);
   const bigTime = open ? open.checkInHHMM : lastToday ? lastToday.checkOutHHMM || lastToday.checkInHHMM : '—';
   const bigSub = open
@@ -199,7 +199,7 @@ const HrDashboard = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-base font-bold text-gray-800">Today at the clinic</h3>
-              <p className="text-xs text-gray-500">{t ? `${dayLabel(t.clinicDate, true)} · ${hhmmOf(t.now)} · updates every minute` : 'Loading…'}</p>
+              <p className="text-xs text-gray-500">{t ? `${dayLabel(t.clinicDate, true)}${t.holiday ? ` · ${t.holiday} (public holiday — nobody is expected in unless rostered)` : ''} · ${hhmmOf(t.now)} · updates every minute` : 'Loading…'}</p>
             </div>
             <Link to="/hr/register?preset=today" className="text-sm font-semibold text-primary hover:underline">Open register</Link>
           </div>
@@ -221,7 +221,7 @@ const HrDashboard = () => {
             </Card>
             <div className="space-y-3">
               <Card title="Not yet in">
-                {notIn.length === 0 && <p className="text-sm text-gray-500">Everyone expected today is in.</p>}
+                {notIn.length === 0 && <p className="text-sm text-gray-500">{t?.holiday ? 'Public holiday — nobody is expected in.' : 'Everyone expected today is in.'}</p>}
                 {notIn.map((p) => (
                   <PersonRow key={p.person.id} person={p.person}
                     sub={[roleLabel(p.person.role), p.expected?.start ? `expected ${p.expected.start}` : null].filter(Boolean).join(' · ')}
