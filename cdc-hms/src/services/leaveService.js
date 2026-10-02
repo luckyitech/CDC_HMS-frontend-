@@ -25,6 +25,17 @@ const leaveService = {
   holidays:       (year, all = false) => api.get('/leave/holidays', { params: { year, ...(all ? { all: 1 } : {}) } }),
   createHoliday:  (body)             => api.post('/leave/holidays', body),
   updateHoliday:  (id, body)         => api.patch(`/leave/holidays/${id}`, body),
+  setObserveSunday: (on)             => api.put('/leave/holidays/observe-sunday', { on }),
+
+  // --- the leave register (HR Tier 2, leave.manage) — server-made .csv ---
+  downloadRegister: async (year) => {
+    const csv = await api.get('/leave/register', { params: { year }, responseType: 'text', transformResponse: [(d) => d] });
+    const blob = new Blob([typeof csv === 'string' ? csv : ''], { type: 'text/csv;charset=utf-8;' });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href; a.download = `leave-register-${year}.csv`; a.click();
+    URL.revokeObjectURL(href);
+  },
 
   // --- entitlements ---
   entitlements:   (year)             => api.get('/leave/entitlements', { params: { year } }),
@@ -42,6 +53,7 @@ const leaveService = {
   request:        (id)               => api.get(`/leave/requests/${id}`),
   decide:         (id, body)         => api.post(`/leave/requests/${id}/decide`, body),
   saveSplit:      (id, charges)      => api.post(`/leave/requests/${id}/split`, { charges }),
+  answerCover:    (id, answer, note) => api.post(`/leave/requests/${id}/cover`, { answer, note: note || null }),
   cancel:         (id, note)         => api.post(`/leave/requests/${id}/cancel`, { note: note || null }),
   // The supporting document, as a blob (the route is authenticated — no plain link).
   attachment:     (id)               => api.get(`/leave/requests/${id}/attachment`, { responseType: 'blob' }),

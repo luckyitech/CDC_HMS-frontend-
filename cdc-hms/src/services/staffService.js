@@ -113,6 +113,10 @@ export const staffService = {
   },
   removePhoto: (employeeId) => api.delete(`/staff/${employeeId}/photo`),
 
+  /** Required approvers (HR Tier 2): read with the Leave tab; set by leave.manage. */
+  getRequiredApprovers: (employeeId) => api.get(`/staff/${employeeId}/required-approvers`),
+  setRequiredApprovers: (employeeId, approverIds) => api.put(`/staff/${employeeId}/required-approvers`, { approverIds }),
+
   /** CPD for a year, read-only (the staff file's Credentials tab). */
   getCpd: (employeeId, year) =>
     api.get(`/staff/${employeeId}/cpd`, { params: year ? { year } : {} }),

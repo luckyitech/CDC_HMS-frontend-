@@ -12,6 +12,7 @@ import LeaveOverview from './LeaveOverview';
 import ApprovalPanel from './ApprovalPanel';
 import LeaveRequestView from './LeaveRequestView';
 import RecordLeaveModal from './RecordLeaveModal';
+import RequiredApprovers from './RequiredApprovers';
 
 /**
  * The staff file's Leave tab (B27 phase 3) — replaces the pre-B27 LeaveTab.
@@ -89,6 +90,7 @@ const StaffLeaveTab = ({ staff, currentUser }) => {
         onApply={own ? () => navigate('/hr/me/apply') : undefined}
         onOpen={own ? openOwn : (manage || canView) ? setOpenId : undefined}
       />
+      {!own && <RequiredApprovers employeeId={staff.employeeId} personName={staff.name} personUserId={staff.userId} />}
       {data.redacted && (
         <p className="text-[11px] text-gray-500">Sick leave shows as “Private”: its type and reason are seen only by the person, their approvers and whoever manages leave.</p>
       )}

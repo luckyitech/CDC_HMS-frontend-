@@ -1,5 +1,5 @@
 import { Pill } from '../hrFormat';
-import { STATUS_LABELS, STATUS_TONES } from './leaveFormat';
+import { STATUS_LABELS, STATUS_TONES, COVER_ANSWER } from './leaveFormat';
 
 /**
  * Where a request stands, as a row of pills (mockup 3, "Ahmed's view"):
@@ -22,6 +22,7 @@ const Arrow = () => <span className="text-gray-300" aria-hidden="true">→</span
 const LeaveStatusTrack = ({ application }) => {
   const approvers = (application.participants || []).filter((p) => p.kind === 'approver');
   const acknowledgers = (application.participants || []).filter((p) => p.kind === 'acknowledger');
+  const cover = (application.participants || []).find((p) => p.kind === 'cover') || null;
   const open = ['Pending', 'InfoRequested'].includes(application.status);
 
   return (
@@ -42,6 +43,13 @@ const LeaveStatusTrack = ({ application }) => {
           {open ? 'Approved' : (STATUS_LABELS[application.status] || application.status)}
         </Pill>
       </div>
+      {cover && (
+        <div className="text-[11px] text-gray-500 mt-1.5 flex flex-wrap items-center gap-1.5" data-testid="cover-status">
+          Cover: <span className="text-gray-700">{cover.name}</span>
+          <Pill tone={(COVER_ANSWER[cover.decision] || COVER_ANSWER.pending).tone}>{(COVER_ANSWER[cover.decision] || COVER_ANSWER.pending).text}</Pill>
+          {cover.note && <span className="text-gray-500">“{cover.note}”</span>}
+        </div>
+      )}
       {acknowledgers.length > 0 && (
         <div className="text-[11px] text-gray-500 mt-1.5">
           Told: {acknowledgers.map((p) => p.name).join(', ')}

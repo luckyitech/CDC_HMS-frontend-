@@ -39,7 +39,7 @@ const hrSelfService = {
   deleteCpd:     (id)            => api.delete(`/hr/me/cpd/${id}`),
 
   // --- colleagues to choose as approvers / acknowledgers ---
-  approvers:     (q)             => api.get('/hr/me/approvers', { params: q ? { q } : {} }),
+  approvers:     (q, includeSelf = false) => api.get('/hr/me/approvers', { params: { ...(q ? { q } : {}), ...(includeSelf ? { includeSelf: 1 } : {}) } }),
 };
 
 export default hrSelfService;

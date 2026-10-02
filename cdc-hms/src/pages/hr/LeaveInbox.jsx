@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { notify } from '../../utils/notify';
 import { useSearchParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Download } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { canManageLeave } from '../../utils/permissions';
 import leaveService from '../../services/leaveService';
@@ -53,6 +54,19 @@ const LeaveInbox = () => {
     setParams(next, { replace: !('id' in patch) });
   };
 
+  // The leave register (HR Tier 2): a .csv of everyone's leave for a year.
+  // It names sick leave — health data once it leaves the HMS; the server logs
+  // every download.
+  const [downloading, setDownloading] = useState(false);
+  const thisYear = new Date().getFullYear();
+  const [regYear, setRegYear] = useState(thisYear);
+  const download = async () => {
+    setDownloading(true);
+    try { await leaveService.downloadRegister(regYear); }
+    catch (err) { notify('error', err.message || 'Could not download the leave register'); }
+    finally { setDownloading(false); }
+  };
+
   const changed = () => {
     load();
     window.dispatchEvent(new CustomEvent(LEAVE_CHANGED_EVENT));
@@ -71,6 +85,18 @@ const LeaveInbox = () => {
               </button>
             ))}
           </div>
+          {tab === 'all' && manage && (
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100" data-testid="register-export">
+              <select className="rounded-md border border-gray-300 px-2 py-1 text-xs" value={regYear} onChange={(e) => setRegYear(Number(e.target.value))} aria-label="Year to download">
+                {[thisYear - 1, thisYear, thisYear + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <button type="button" onClick={download} disabled={downloading}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60">
+                <Download className="w-3.5 h-3.5" /> {downloading ? 'Preparing…' : 'Download leave register (.csv)'}
+              </button>
+              <span className="text-[11px] text-gray-500 basis-full">Opens in Excel. Names sick leave — keep the file safe. Each download is logged.</span>
+            </div>
+          )}
           {rows === null ? <div className="p-4"><Spinner /></div> : rows.length === 0 ? (
             <p className="p-4 text-sm text-gray-500">
               {tab === 'waiting' ? 'Nothing is waiting for you.' : tab === 'decided' ? 'You haven\'t decided any leave yet.' : 'No leave this year.'}
@@ -87,7 +113,7 @@ const LeaveInbox = () => {
                       <span className="block truncate text-[11px] text-gray-500">{r.typeName} · {rangeLabel(r.startDate, r.endDate)} · {fmtDays(r.days)} d</span>
                     </span>
                     {r.waitingOnMe
-                      ? <Pill tone="warn">{r.status === 'CancelRequested' ? 'cancel?' : 'you'}</Pill>
+                      ? <Pill tone="warn">{r.myKind === 'cover' ? 'cover?' : r.status === 'CancelRequested' ? 'cancel?' : 'you'}</Pill>
                       : r.myDecision === 'info_requested'
                         ? <Pill tone="n">info asked</Pill>
                         : <Pill tone={STATUS_TONES[r.status] || 'n'}>{progressLabel(r)}</Pill>}

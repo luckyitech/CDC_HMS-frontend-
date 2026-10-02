@@ -125,6 +125,15 @@ export const EVENT_LABELS = {
   recorded: 'Recorded',
   notified: 'Told',
   document_added: 'Added the supporting document',
+  cover_agreed: 'Agreed to cover',
+  cover_declined: 'Can\'t cover',
+};
+
+/** The cover person's answer (HR Tier 2) — participant decision → words + tone. */
+export const COVER_ANSWER = {
+  approved: { text: 'agreed to cover', tone: 'ok' },
+  declined: { text: 'can\'t cover', tone: 'bad' },
+  pending:  { text: 'not answered yet', tone: 'warn' },
 };
 
 /** 'Mon 7 – Fri 11 Dec' style label is built by the server; this is the day-back line. */

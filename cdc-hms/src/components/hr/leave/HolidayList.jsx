@@ -5,7 +5,7 @@ import Spinner from '../../shared/Spinner';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import { notify } from '../../../utils/notify';
 import { Pill } from '../hrFormat';
-import { Field, inputCls, cellInputCls, primaryButtonCls } from '../hrUi';
+import { Field, inputCls, cellInputCls, primaryButtonCls, SwitchRow } from '../hrUi';
 import { holidayDateLabel } from './leaveFormat';
 
 /**
@@ -14,7 +14,9 @@ import { holidayDateLabel } from './leaveFormat';
  * Holidays are never counted as leave, and nobody is expected in on one
  * (attendance shows "H") unless HR set hours for that exact date. The fixed
  * dates are seeded; HR adds Idd-ul-Fitr and any presidential declaration when
- * gazetted, and the Monday after a holiday that falls on a Sunday.
+ * gazetted. A holiday on a Sunday is also observed on the next day that isn't
+ * a holiday — added automatically ('auto' rows) while the switch is on (HR
+ * Tier 2); HR may retire one if a gazette says otherwise.
  * Retired, never deleted — re-adding a retired date brings it back.
  *
  * Props: year, canEdit
@@ -26,17 +28,29 @@ const HolidayList = ({ year, canEdit }) => {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(null);     // { id, name }
   const [confirm, setConfirm] = useState(null);     // a holiday to retire / bring back
+  const [observe, setObserve] = useState(null);     // the Sunday switch (HR Tier 2)
 
   const load = useCallback(async () => {
     setRows(null);
     try {
       const res = await leaveService.holidays(year, true);
       setRows(res?.data?.holidays || []);
+      setObserve(res?.data?.observeSundayHolidays !== false);
     } catch (e) { notify('error', e?.message || 'Could not load public holidays'); setRows([]); }
   }, [year]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setForm({ date: '', name: '' }); setEditing(null); }, [year]);
+
+  const switchObserve = async (on) => {
+    try {
+      const res = await leaveService.setObserveSunday(on);
+      notify('success', on
+        ? (res.data.added ? `Switched on — ${res.data.added} observed day${res.data.added === 1 ? '' : 's'} added.` : 'Switched on.')
+        : 'Switched off — observed days no longer count.');
+      load();
+    } catch (err) { notify('error', err?.message || 'Could not save the setting'); }
+  };
 
   const add = async (e) => {
     e.preventDefault();
@@ -103,6 +117,7 @@ const HolidayList = ({ year, canEdit }) => {
                   <span className="flex-1 min-w-0">
                     <span className={h.status === 'retired' ? 'line-through' : 'text-gray-800'}>{h.name}</span>
                     {h.source === 'hr' && <span className="ml-2"><Pill>Added by HR</Pill></span>}
+                    {h.source === 'auto' && <span className="ml-2"><Pill tone="info">{observe === false ? 'Automatic · switched off' : 'Automatic'}</Pill></span>}
                     {h.status === 'retired' && <span className="ml-2"><Pill>Retired</Pill></span>}
                   </span>
                 )}
@@ -123,6 +138,17 @@ const HolidayList = ({ year, canEdit }) => {
       </div>
 
       <div className="space-y-4">
+        {observe !== null && (
+          <div className="bg-white rounded-xl border border-gray-200 px-4 py-2" data-testid="observe-sunday">
+            <SwitchRow
+              label="When a holiday falls on a Sunday, also observe the next day"
+              hint="Adds the day after (the next one that isn't already a holiday) for every year. Retire one here if a gazette says otherwise."
+              checked={observe}
+              disabled={!canEdit}
+              onChange={switchObserve}
+            />
+          </div>
+        )}
         {canEdit && (
           <form onSubmit={add} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Add a holiday</h3>
@@ -136,7 +162,7 @@ const HolidayList = ({ year, canEdit }) => {
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-900 space-y-1.5">
           <p><b>Never counted as leave.</b> A holiday inside someone's leave costs them nothing, and nobody is expected in on one — the star calendar shows "H". Someone HR has rostered for that exact date (Working hours → a dated override) is still expected.</p>
           <p><b>Add when gazetted:</b> Idd-ul-Fitr (it follows the moon) and any day the President declares.</p>
-          <p><b>Sunday rule:</b> when a holiday falls on a Sunday, the Monday after is a public holiday. 2026 and 2027 are already in; for later years add the Monday here.</p>
+          <p><b>Sunday rule:</b> a holiday that falls on a Sunday is also observed on the next day that isn't already a holiday (Christmas on a Sunday → Tuesday, because Boxing Day is the Monday). With the switch on, these days are added for you and marked "Automatic".</p>
           <p>Changing a holiday doesn't change leave already requested — each request keeps the count it was made with.</p>
         </div>
       </div>

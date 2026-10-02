@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Search, UserPlus, X, AlertTriangle, Info } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Search, UserPlus, X, AlertTriangle, Info, Lock } from 'lucide-react';
 import hrSelfService from '../../../services/hrSelfService';
 import { notify } from '../../../utils/notify';
 import { Pill, initials } from '../hrFormat';
@@ -24,6 +24,9 @@ import {
  *
  * People: APPROVERS must ALL approve and at least one must be able to approve
  * leave; ACKNOWLEDGERS are only told. The line manager is suggested.
+ * HR Tier 2: approvers HR made required for this person arrive locked (the
+ * server forces them in anyway), and the applicant may name a COVER — asked
+ * to agree, never an approver; the preview warns if the cover is away too.
  *
  * props:
  *   data         GET /api/hr/me/leave (types, balances, employeeId, policyPublished)
@@ -81,7 +84,8 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
     contactNote: '',
   });
   const [attachment, setAttachment] = useState(null);
-  const [people, setPeople] = useState([]);       // [{ userId, name, kind, canApprove, suggested, position, role }]
+  const [people, setPeople] = useState([]);       // [{ userId, name, kind, canApprove, suggested, position, role, required }]
+  const [cover, setCover] = useState(null);       // { id, name, position, role } — HR Tier 2
   const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -101,6 +105,7 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
         const res = await hrSelfService.preview({
           leaveType: form.leaveType, startDate: form.startDate, endDate: form.endDate,
           startPart: form.startPart, endPart: form.endPart, excludeWeekends: form.excludeWeekends,
+          cover: cover?.id || null,
         });
         if (mine === seq.current) setPreview(res.data);
       } catch (err) {
@@ -110,7 +115,7 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
       }
     }, 300);
     return () => clearTimeout(id);
-  }, [form.leaveType, form.startDate, form.endDate, form.startPart, form.endPart, form.excludeWeekends]);
+  }, [form.leaveType, form.startDate, form.endDate, form.startPart, form.endPart, form.excludeWeekends, cover?.id]);
 
   // Half days only where the type (and a published policy) allows them.
   const halfDays = !!type?.halfDaysAllowed && data.policyPublished && preview?.usedPolicy !== false;
@@ -128,21 +133,31 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
       .then((res) => {
         if (!live) return;
         setColleagues(res.data.people);
-        const suggested = res.data.people.find((p) => p.suggested);
-        if (suggested) {
-          setPeople((cur) => (cur.length ? cur : [{ ...suggested, userId: suggested.id, kind: 'approver' }]));
-        }
+        // Required by HR first (locked), then the suggested line manager.
+        const required = (res.data.requiredIds || [])
+          .map((id) => res.data.people.find((p) => p.id === id)).filter(Boolean)
+          .map((p) => ({ ...p, userId: p.id, kind: 'approver', required: true }));
+        const suggested = res.data.people.find((p) => p.suggested && !required.some((r) => r.userId === p.id));
+        const start = [...required, ...(suggested ? [{ ...suggested, userId: suggested.id, kind: 'approver' }] : [])];
+        if (start.length) setPeople((cur) => (cur.length ? cur : start));
       })
       .catch(() => { if (live) setColleagues([]); });
     return () => { live = false; };
   }, []);
 
-  const chosen = new Set(people.map((p) => p.userId));
+  const chosen = new Set([...people.map((p) => p.userId), ...(cover ? [cover.id] : [])]);
   const matches = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term || !colleagues) return [];
     return colleagues.filter((c) => !chosen.has(c.id) && c.name.toLowerCase().includes(term)).slice(0, 8);
-  }, [q, colleagues, people]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, colleagues, people, cover]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [coverQ, setCoverQ] = useState('');
+  const coverMatches = useMemo(() => {
+    const term = coverQ.trim().toLowerCase();
+    if (!term || !colleagues) return [];
+    return colleagues.filter((c) => !chosen.has(c.id) && c.name.toLowerCase().includes(term)).slice(0, 8);
+  }, [coverQ, colleagues, people, cover]); // eslint-disable-line react-hooks/exhaustive-deps
+  const coverAway = (preview?.warnings || []).find((w) => w.code === 'COVER_AWAY') || null;
 
   const add = (c) => {
     // Someone who can approve leave is added as an approver, anyone else as an
@@ -172,6 +187,7 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
         endPart: form.endPart,
         excludeWeekends: form.excludeWeekends,
         participants: people.map((p) => ({ userId: p.userId, kind: p.kind })),
+        cover: cover?.id || null,
         reason: form.reason || null,
         reachable: form.reachable,
         contactNote: form.reachable ? (form.contactNote || null) : null,
@@ -185,7 +201,7 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
       // Something about the dates changed since the preview (a colleague's
       // leave, a balance) — take them back to where it can be fixed.
       if (['OVERLAP', 'INSUFFICIENT_BALANCE', 'ZERO_DAYS', 'CROSSES_YEAR', 'TYPE_OFF', 'TYPE_NOT_OFFERED'].includes(code)) setStep(1);
-      else if (['NO_APPROVER', 'NO_APPROVE_HOLDER', 'SELF', 'INACTIVE', 'DUPLICATE'].includes(code)) setStep(2);
+      else if (['NO_APPROVER', 'NO_APPROVE_HOLDER', 'SELF', 'INACTIVE', 'DUPLICATE', 'BAD_COVER', 'COVER_SELF', 'COVER_LISTED', 'COVER_INACTIVE'].includes(code)) setStep(2);
     } finally {
       setSubmitting(false);
     }
@@ -300,20 +316,61 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
                   {p.name}
                   <span className="text-gray-400"> · {p.suggested ? 'line manager · suggested' : (p.position || p.role)}</span>
                 </span>
-                <select className="rounded-md border border-gray-300 px-2 py-1 text-xs" value={p.kind} aria-label={`${p.name} is`}
+                <select className="rounded-md border border-gray-300 px-2 py-1 text-xs disabled:bg-gray-100 disabled:text-gray-500" value={p.kind} aria-label={`${p.name} is`}
+                  disabled={p.required}
                   onChange={(e) => setPeople((cur) => cur.map((x) => (x.userId === p.userId ? { ...x, kind: e.target.value } : x)))}>
                   <option value="approver">Approver</option>
                   <option value="acknowledger">Acknowledger</option>
                 </select>
                 {p.canApprove && <Pill tone="ok">can approve leave</Pill>}
-                <button type="button" onClick={() => setPeople((cur) => cur.filter((x) => x.userId !== p.userId))} className="p-1 text-gray-400 hover:text-gray-700" aria-label={`Remove ${p.name}`}>
-                  <X className="w-4 h-4" />
-                </button>
+                {p.required ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500" title="HR has made this person an approver on all your leave" data-testid="required-approver">
+                    <Lock className="w-3.5 h-3.5" /> Required by HR
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => setPeople((cur) => cur.filter((x) => x.userId !== p.userId))} className="p-1 text-gray-400 hover:text-gray-700" aria-label={`Remove ${p.name}`}>
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
           {people.length === 0 && colleagues !== null && <p className="text-sm text-gray-500">Search for the person who approves your leave.</p>}
           {peopleError && people.length > 0 && <div className="mt-2"><Messages errors={[{ code: 'people', message: peopleError }]} /></div>}
+
+          {/* HR Tier 2 — cover while away (optional; asked to agree; never an approver). */}
+          <div className="mt-5 rounded-lg border border-gray-200 p-3" data-testid="cover-box">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Cover while you are away</h4>
+            {cover ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-blue-50 text-[11px] font-semibold text-blue-700">{initials(cover.name)}</span>
+                <span className="flex-1 min-w-[8rem]">{cover.name} <span className="text-gray-400">· {cover.position || cover.role}</span></span>
+                <Pill tone="n">will be asked to agree</Pill>
+                <button type="button" onClick={() => setCover(null)} className="p-1 text-gray-400 hover:text-gray-700" aria-label={`Remove ${cover.name} as cover`}>
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                <input className={`${inputCls} pl-9`} placeholder="Who covers your work? (optional)" value={coverQ} onChange={(e) => setCoverQ(e.target.value)} aria-label="Search for your cover" />
+                {coverMatches.length > 0 && (
+                  <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-64 overflow-y-auto">
+                    {coverMatches.map((c) => (
+                      <li key={c.id}>
+                        <button type="button" onClick={() => { setCover({ id: c.id, name: c.name, position: c.position, role: c.role }); setCoverQ(''); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+                          <UserPlus className="w-4 h-4 text-gray-400" />
+                          <span className="flex-1 min-w-0 truncate">{c.name} <span className="text-gray-400">· {c.position || c.role}</span></span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            {coverAway && <div className="mt-2"><Messages warnings={[coverAway]} /></div>}
+            <p className="text-[11px] text-gray-500 mt-2">Your cover sees your dates only, never the type of leave or the reason.</p>
+          </div>
         </div>
       )}
 
@@ -369,6 +426,8 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
                 <dd className="text-gray-900">{people.filter((p) => p.kind === 'acknowledger').map((p) => p.name).join(', ')}</dd>
               </>
             )}
+            <dt className="text-gray-500">Cover</dt>
+            <dd className="text-gray-900">{cover ? `${cover.name} — will be asked to agree` : 'None'}</dd>
             {form.reason && (<><dt className="text-gray-500">Reason</dt><dd className="text-gray-900 whitespace-pre-line">{form.reason}</dd></>)}
             <dt className="text-gray-500">Document</dt>
             <dd className="text-gray-900">{attachment ? attachment.fileName : (preview.documentNeeded ? 'Owed — add it later' : 'None')}</dd>

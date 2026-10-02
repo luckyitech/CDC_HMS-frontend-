@@ -60,6 +60,7 @@ const ApprovalPanel = ({ requestId, onChanged }) => {
   const [split, setSplit] = useState([]);
   const [busy, setBusy] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [coverNote, setCoverNote] = useState('');   // HR Tier 2 — the cover person's note
 
   const show = useCallback((d) => {
     setDetail(d);
@@ -124,6 +125,22 @@ const ApprovalPanel = ({ requestId, onChanged }) => {
       onChanged?.(res.data);
     } catch (err) {
       notify('error', err.message || 'Could not save the split');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // HR Tier 2 — the cover person's answer. Never decides the request.
+  const answerCover = async (answer) => {
+    setBusy(true);
+    try {
+      const res = await leaveService.answerCover(app.id, answer, coverNote.trim() || null);
+      show(res.data);
+      setCoverNote('');
+      notify('success', answer === 'agree' ? 'Thanks — they know you will cover' : 'They know you can\'t cover');
+      onChanged?.(res.data);
+    } catch (err) {
+      notify('error', err.message || 'Could not record your answer');
     } finally {
       setBusy(false);
     }
@@ -221,6 +238,21 @@ const ApprovalPanel = ({ requestId, onChanged }) => {
       <Block title={`Who else is away · ${app.startDate === app.endDate ? longDate(app.startDate) : `${longDate(app.startDate)} – ${longDate(app.endDate)}`}`}>
         <AwayStrip away={away} applicant={applicant.name} start={app.startDate} end={app.endDate} />
       </Block>
+
+      {me.canAnswerCover && (
+        <Block title="Can you cover?">
+          <p className="text-sm text-gray-700 mb-2">
+            {applicant.name} asked you to cover their work while they are away.
+            {(() => { const c = app.participants.find((p) => p.kind === 'cover'); return c && c.decision !== 'pending' ? ` You said: ${c.decision === 'approved' ? 'I\'ll cover' : 'I can\'t cover'} — you can change it.` : ''; })()}
+          </p>
+          <textarea rows={2} className={inputCls} value={coverNote} onChange={(e) => setCoverNote(e.target.value)}
+            placeholder={`Note to ${applicant.name.split(' ')[0]} (optional)`} aria-label="Note" />
+          <div className="flex flex-wrap justify-end gap-2 mt-2" data-testid="cover-answer">
+            <button type="button" className={buttonCls} disabled={busy} onClick={() => answerCover('decline')}>I can&apos;t cover</button>
+            <button type="button" className={primaryButtonCls} disabled={busy} onClick={() => answerCover('agree')}>I&apos;ll cover</button>
+          </div>
+        </Block>
+      )}
 
       {me.canDecide && (
         <Block title="Your decision">
