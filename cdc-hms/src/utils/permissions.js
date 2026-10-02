@@ -93,6 +93,12 @@ export const PERMISSIONS = {
   // LEAVE_POLICY = the yearly policy, holidays and entitlements (implies
   // LEAVE_MANAGE); HR_SETTINGS = HR Suite settings and tag keys (was
   // config.write).
+  // hr.self (phase 2): one's OWN leave — every internal role by role.
+  HR_SELF:          'hr.self',
+  // hr.profile.approve (phase 4): decide colleagues' profile change requests.
+  HR_PROFILE_APPROVE: 'hr.profile.approve',
+  // hr.credentials (phase 5): verify CPD, receive credential expiry alerts.
+  HR_CREDENTIALS:   'hr.credentials',
   LEAVE_APPROVE:    'leave.approve',
   LEAVE_MANAGE:     'leave.manage',
   LEAVE_POLICY:     'leave.policy',
@@ -251,6 +257,13 @@ export const canManageLeave       = (user) => canUseCapability(user, PERMISSIONS
   || canSetLeavePolicy(user);   // leave.policy implies leave.manage
 export const canSetLeavePolicy    = (user) => canUseCapability(user, PERMISSIONS.LEAVE_POLICY,  HR_DEFAULT_ROLES);
 export const canChangeHrSettings  = (user) => canUseCapability(user, PERMISSIONS.HR_SETTINGS,   HR_DEFAULT_ROLES);
+// B27 phase 2 — my own leave (routes/hrSelf.js SELF): every internal role by
+// role, withdrawable per person; admin.access passes like everywhere else.
+export const canUseSelfService    = (user) => canUseCapability(user, PERMISSIONS.HR_SELF,       HR_CHECKIN_DEFAULT_ROLES);
+// B27 phase 4 — routes/hr.js PROFILE_APPROVE.
+export const canApproveProfileChanges = (user) => canUseCapability(user, PERMISSIONS.HR_PROFILE_APPROVE, HR_DEFAULT_ROLES);
+// B27 phase 5 — routes/hr.js CREDENTIALS: verify CPD, credential expiry alerts.
+export const canVerifyCpd = (user) => canUseCapability(user, PERMISSIONS.HR_CREDENTIALS, HR_DEFAULT_ROLES);
 
 // Staff Email (B26). Mirrors routes/mail.js: every internal role by default,
 // withdrawable per person. Only ever the user's OWN mailbox.

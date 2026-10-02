@@ -6,10 +6,11 @@ import { GRANT_LABELS, COUNTED_LABELS } from './leaveFormat';
  * PolicyTable — the leave types and their rules for one year (B27 mockup 1).
  *
  * One row per active leave type: switched on, days, counted as, how granted,
- * carry cap, half days, needs a document. The server checks the same rules
+ * carry cap, pro-rata, half days, needs a document, notice. The server checks the same rules
  * (utils/leavePolicyRules); this only keeps impossible combinations out of
  * reach — calendar-day leave has no half days, "no limit" has no days, only a
- * yearly allowance carries over.
+ * yearly allowance carries over or is pro-rated (phase 1b: per type — Annual
+ * yes, Sick no). Notice left blank uses the clinic's minimum notice.
  *
  * Props:
  *   types     [{ key, name, isSystem, missing, row }]
@@ -17,22 +18,25 @@ import { GRANT_LABELS, COUNTED_LABELS } from './leaveFormat';
  *   onChange  (key, patch) => void
  *   onRetire  (type) => void — offered for types HR added (never the seven)
  *   disabled
+ *   clinicNotice  the clinic's minimum notice — shown as the blank notice cell's placeholder
  */
 const selectCls = `${cellInputCls} pr-6`;
 const yearly = (grant) => grant === 'up_front' || grant === 'monthly';
 
-const PolicyTable = ({ types, rows, onChange, onRetire, disabled = false }) => (
+const PolicyTable = ({ types, rows, onChange, onRetire, disabled = false, clinicNotice = 0 }) => (
   <div className="overflow-x-auto -mx-1 px-1">
-    <table className="w-full min-w-[760px] text-sm">
+    <table className="w-full min-w-[900px] text-sm">
       <thead>
         <tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
-          <th className="text-left font-semibold py-1.5 pr-2 w-[19%]">Type</th>
-          <th className="text-left font-semibold py-1.5 px-1 w-[9%]">Days</th>
-          <th className="text-left font-semibold py-1.5 px-1 w-[15%]">Counted as</th>
-          <th className="text-left font-semibold py-1.5 px-1 w-[16%]">Granted</th>
-          <th className="text-left font-semibold py-1.5 px-1 w-[9%]">Carry cap</th>
-          <th className="text-left font-semibold py-1.5 px-1 w-[10%]">Half days</th>
-          <th className="text-left font-semibold py-1.5 px-1 w-[22%]">Needs a document</th>
+          <th className="text-left font-semibold py-1.5 pr-2 w-[17%]">Type</th>
+          <th className="text-left font-semibold py-1.5 px-1 w-[8%]">Days</th>
+          <th className="text-left font-semibold py-1.5 px-1 w-[13%]">Counted as</th>
+          <th className="text-left font-semibold py-1.5 px-1 w-[14%]">Granted</th>
+          <th className="text-left font-semibold py-1.5 px-1 w-[8%]">Carry cap</th>
+          <th className="text-left font-semibold py-1.5 px-1 w-[7%]" title="Joiners and leavers get the share of the year they are employed">Pro-rata</th>
+          <th className="text-left font-semibold py-1.5 px-1 w-[8%]">Half days</th>
+          <th className="text-left font-semibold py-1.5 px-1 w-[17%]">Needs a document</th>
+          <th className="text-left font-semibold py-1.5 px-1 w-[8%]" title="Days of notice for this type; blank uses the clinic's">Notice</th>
         </tr>
       </thead>
       <tbody>
@@ -70,7 +74,13 @@ const PolicyTable = ({ types, rows, onChange, onRetire, disabled = false }) => (
                 <select value={r.grant} disabled={disabled || off} className={selectCls} aria-label={`${t.name} granted`}
                   onChange={(e) => {
                     const grant = e.target.value;
-                    set({ grant, ...(grant === 'unlimited' ? { days: null } : {}), ...(!yearly(grant) ? { carryCap: 0 } : {}) });
+                    set({
+                      grant,
+                      ...(grant === 'unlimited' ? { days: null } : {}),
+                      ...(!yearly(grant) ? { carryCap: 0, proRate: false } : {}),
+                      // Becoming a yearly allowance: pro-rated like Annual unless HR unticks it.
+                      ...(yearly(grant) && !yearly(r.grant) ? { proRate: true } : {}),
+                    });
                   }}>
                   {Object.entries(GRANT_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
@@ -80,6 +90,12 @@ const PolicyTable = ({ types, rows, onChange, onRetire, disabled = false }) => (
                   <input type="number" min="0" max="366" step="0.25" value={r.carryCap ?? 0} disabled={disabled || off}
                     onChange={(e) => set({ carryCap: e.target.value })} className={cellInputCls} aria-label={`${t.name} carry cap`} />
                 ) : <span className="text-gray-400 pl-2">—</span>}
+              </td>
+              <td className="py-1.5 px-1">
+                {yearly(r.grant) ? (
+                  <input type="checkbox" checked={!!r.proRate} disabled={disabled || off} onChange={(e) => set({ proRate: e.target.checked })}
+                    aria-label={`${t.name} pro-rata`} className="h-4 w-4 ml-2 rounded border-gray-300 text-primary" />
+                ) : <span className="text-gray-400 pl-2" title={r.grant === 'per_event' ? 'A full allowance per event' : undefined}>—</span>}
               </td>
               <td className="py-1.5 px-1">
                 <select value={r.halfDaysAllowed ? 'yes' : 'no'} disabled={disabled || off || r.countedAs === 'calendar'} className={selectCls}
@@ -101,6 +117,12 @@ const PolicyTable = ({ types, rows, onChange, onRetire, disabled = false }) => (
                       onChange={(e) => set({ docOverDays: e.target.value })} className={`${cellInputCls} w-16`} aria-label={`${t.name} document needed over days`} />
                   )}
                 </div>
+              </td>
+              <td className="py-1.5 px-1">
+                <input type="number" min="0" max="365" step="1" value={r.minNoticeDays ?? ''} disabled={disabled || off}
+                  placeholder={`${clinicNotice}`} title="Blank = the clinic's minimum notice"
+                  onChange={(e) => set({ minNoticeDays: e.target.value === '' ? null : Number(e.target.value) })}
+                  className={`${cellInputCls} placeholder:text-gray-300`} aria-label={`${t.name} notice days`} />
               </td>
             </tr>
           );

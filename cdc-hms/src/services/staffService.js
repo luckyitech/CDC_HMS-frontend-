@@ -94,19 +94,15 @@ export const staffService = {
   // LEAVE
   // ============================================
 
-  /** Balance and history for a year. */
+  /** The person's leave for a year — the same overview as My leave (B27 phase 3). */
   getLeaves: (employeeId, year) =>
     api.get(`/staff/${employeeId}/leaves`, { params: { year } }),
 
-  /** An admin's entry is approved immediately; a staff member's is Pending. */
+  /** HR's calculator for recording on someone's behalf (leave.manage). */
+  previewLeave: (employeeId, data) => api.post(`/staff/${employeeId}/leaves/preview`, data),
+
+  /** Record on behalf (leave.manage): approved on the spot; never your own file. */
   createLeave: (employeeId, data) => api.post(`/staff/${employeeId}/leaves`, data),
-
-  /** Approve, reject or cancel. Approving a doctor's leave blocks their slots. */
-  decideLeave: (employeeId, id, status, decisionNote) =>
-    api.patch(`/staff/${employeeId}/leaves/${id}`, { status, decisionNote }),
-
-  setLeaveBalances: (employeeId, year, balances) =>
-    api.put(`/staff/${employeeId}/leave-balances`, { year, balances }),
 
   // ============================================
   // DOCUMENTS
@@ -125,10 +121,12 @@ export const staffService = {
     form.append('file', file);
     Object.entries(meta).forEach(([k, v]) => { if (v) form.append(k, v); });
 
-    // Content-Type is left unset on purpose — the browser has to add the
-    // multipart boundary, and naming the type here overwrites it and breaks
-    // the upload.
-    return api.post(`/staff/${employeeId}/documents`, form);
+    // Named explicitly (B27 phase 2 fix). The api instance defaults every
+    // request to application/json, and with that default axios 1.x serialises
+    // a FormData to JSON — the server then answered "No file uploaded". Naming
+    // multipart/form-data lets axios hand the FormData over and the browser
+    // add the boundary, as documentService.upload and mailService already do.
+    return api.post(`/staff/${employeeId}/documents`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
 
   updateDocument: (employeeId, id, data) =>

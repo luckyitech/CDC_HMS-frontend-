@@ -166,7 +166,10 @@ const EntitlementGrid = ({ year, canEdit }) => {
           <p className="text-xs text-gray-500 mt-0.5">
             {data.policyStatus === 'draft' ? `Previewing the ${year} draft — these apply once it is published. ` : ''}
             <span className="text-primary font-semibold">Blue</span> = differs from the clinic default (an override with a reason).
-            {data.proRate ? ' Joiners and leavers are pro-rated.' : ''}
+            {(() => {
+              const pr = (data.types || []).filter((t) => t.enabled && t.proRate).map((t) => t.name);
+              return pr.length ? ` Pro-rated for joiners and leavers: ${pr.join(', ')}.` : '';
+            })()}
           </p>
         </div>
         <label className="relative sm:w-56">

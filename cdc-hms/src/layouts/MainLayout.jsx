@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canManageLeave, canApproveProfileChanges, canVerifyCpd, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -56,10 +56,18 @@ import {
   IdCard,
   Clock,
   CalendarCog,
+  TreePalm,
+  UserCheck,
+  UserRound,
+  ClipboardCheck,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
 import mailService, { MAIL_STATE_EVENT } from "../services/mailService";
+import leaveService from "../services/leaveService";
+import { LEAVE_CHANGED_EVENT } from "../components/hr/leave/leaveFormat";
+import { PROFILE_REQUESTS_CHANGED } from "../components/hr/hrFormat";
+import hrService from "../services/hrService";
 import MailNudge from "../components/mail/MailNudge";
 
 const MainLayout = ({ userRole = "Staff" }) => {
@@ -145,6 +153,69 @@ const MainLayout = ({ userRole = "Staff" }) => {
     return () => { clearInterval(t); window.removeEventListener('mail:changed', refreshMail); };
   }, [mailInNav, refreshMail, mailConnected]);
   const mailDot = !!(mailState && mailState.connected && mailState.unread > 0);
+  // B27 phase 3 — leave waiting on me (approver), for the HR Suite's
+  // "Leave to approve" badge. Asked in the HR portal only: on mount, on route
+  // change, after a decision (LEAVE_CHANGED_EVENT) and every two minutes.
+  const inHr = homeRole === 'hr';
+  const [leaveWaiting, setLeaveWaiting] = useState(0);
+  const refreshLeaveWaiting = useCallback(() => {
+    leaveService.inboxCount()
+      .then((r) => setLeaveWaiting(r?.data?.waiting || 0))
+      .catch(() => { /* not on any request — badge stays hidden */ });
+  }, []);
+  useEffect(() => {
+    if (inHr) refreshLeaveWaiting();
+  }, [inHr, location.pathname, refreshLeaveWaiting]);
+  useEffect(() => {
+    if (!inHr) return undefined;
+    const t = setInterval(refreshLeaveWaiting, 2 * 60 * 1000);
+    window.addEventListener(LEAVE_CHANGED_EVENT, refreshLeaveWaiting);
+    return () => { clearInterval(t); window.removeEventListener(LEAVE_CHANGED_EVENT, refreshLeaveWaiting); };
+  }, [inHr, refreshLeaveWaiting]);
+
+  // B27 phase 4 — profile change requests waiting (hr.profile.approve), for the
+  // "Profile requests" badge. Same rhythm as the leave badge.
+  const approvesProfiles = canApproveProfileChanges(currentUser);
+  const [profileWaiting, setProfileWaiting] = useState(0);
+  const refreshProfileWaiting = useCallback(() => {
+    hrService.changeRequestCount()
+      .then((r) => setProfileWaiting(r?.data?.pending || 0))
+      .catch(() => { /* not granted — badge stays hidden */ });
+  }, []);
+  useEffect(() => {
+    if (inHr && approvesProfiles) refreshProfileWaiting();
+  }, [inHr, approvesProfiles, location.pathname, refreshProfileWaiting]);
+  useEffect(() => {
+    if (!inHr || !approvesProfiles) return undefined;
+    const t = setInterval(refreshProfileWaiting, 2 * 60 * 1000);
+    window.addEventListener(PROFILE_REQUESTS_CHANGED, refreshProfileWaiting);
+    return () => { clearInterval(t); window.removeEventListener(PROFILE_REQUESTS_CHANGED, refreshProfileWaiting); };
+  }, [inHr, approvesProfiles, refreshProfileWaiting]);
+
+  // B27 phase 5 — CPD waiting to verify (hr.credentials), shown on the same
+  // "Profile requests" badge (CPD is a tab there). Same rhythm as above.
+  const verifiesCpd = canVerifyCpd(currentUser);
+  const [cpdWaiting, setCpdWaiting] = useState(0);
+  const refreshCpdWaiting = useCallback(() => {
+    hrService.cpdCount()
+      .then((r) => setCpdWaiting(r?.data?.pending || 0))
+      .catch(() => { /* not granted — badge stays hidden */ });
+  }, []);
+  useEffect(() => {
+    if (inHr && verifiesCpd) refreshCpdWaiting();
+  }, [inHr, verifiesCpd, location.pathname, refreshCpdWaiting]);
+  useEffect(() => {
+    if (!inHr || !verifiesCpd) return undefined;
+    const t = setInterval(refreshCpdWaiting, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [inHr, verifiesCpd, refreshCpdWaiting]);
+
+  // B27 phase 4 — the avatar opens My profile (/hr/me) for anyone the server
+  // lets read their own record (routes/hrSelf.js SELF: every staff role,
+  // withdrawable per person). Patients and anyone withdrawn keep the old toggle.
+  const hasMyProfile = currentUser?.role !== 'patient' && canUseSelfService(currentUser);
+  const openMyProfile = () => { setSidebarOpen(false); navigate('/hr/me'); };
+
   const refreshInboxCount = useCallback(() => {
     commsService.badge()
       .then((r) => setInboxCount(r?.data?.total || 0))
@@ -504,7 +575,17 @@ const MainLayout = ({ userRole = "Staff" }) => {
     hr: [
       { name: "Dashboard", path: "/hr/dashboard", icon: LayoutDashboard },
       { name: "Time & Attendance", path: "/hr/register", icon: Clock },
+      // B27 phase 2: my own leave — everyone (hr.self); withdrawn per person.
+      { name: "My leave", path: "/hr/me/leave", icon: TreePalm, show: canUseSelfService(currentUser) },
+      // B27 phase 3: anyone can be chosen as an approver, so the item shows for
+      // whoever can approve or manage leave, and for anyone something waits on.
+      { name: "Leave to approve", path: "/hr/leave", icon: ClipboardCheck, badge: leaveWaiting, show: canApproveLeave(currentUser) || canManageLeave(currentUser) || leaveWaiting > 0 },
+      // B27 phase 5: the team leave calendar — every internal role (hr.self).
+      { name: "Team calendar", path: "/hr/calendar", icon: CalendarDays, show: canUseSelfService(currentUser) },
       { name: "Staff", path: "/hr/staff", icon: Users, permission: PERMISSIONS.USERS_VIEW },
+      // B27 phase 4/5: profile change requests (hr.profile.approve) and CPD to
+      // verify (hr.credentials) share this page and its badge.
+      { name: "Profile requests", path: "/hr/requests", icon: UserCheck, badge: profileWaiting + cpdWaiting, show: canApproveProfileChanges(currentUser) || canVerifyCpd(currentUser) },
       { name: "Settings", path: "/hr/settings", icon: Settings, permission: PERMISSIONS.HR_WRITE },
       // B27: the leave policy, holidays, entitlements (leave.policy) and the
       // alert channels (hr.settings).
@@ -838,27 +919,50 @@ const MainLayout = ({ userRole = "Staff" }) => {
         <div>
           {/* Profile row — clicking it (chevron expanded, avatar in the collapsed
               rail) reveals the action icons below. */}
-          <button
-            type="button"
-            onClick={() => setProfileOpen((o) => !o)}
-            aria-expanded={profileOpen}
-            aria-label="Profile menu"
-            className={`w-full flex items-center gap-2 px-4 pt-3 pb-2 text-left hover:bg-white/5 transition-colors ${isCollapsed ? "md:justify-center md:px-0" : ""}`}
-          >
-            <div className="w-9 h-9 flex-shrink-0 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-              {initials}
-            </div>
-            <div className={`min-w-0 flex-1 ${isCollapsed ? "md:hidden" : ""}`}>
-              <p className="font-semibold text-sm text-white truncate">{displayName}</p>
-              <p className="text-xs text-blue-200">{userRole} Portal</p>
-            </div>
-            <ChevronDown className={`w-4 h-4 flex-shrink-0 text-blue-200 transition-transform ${profileOpen ? "rotate-180" : ""} ${isCollapsed ? "md:hidden" : ""}`} />
-          </button>
+          {/* B27 phase 4: the avatar and name open My profile (/hr/me); the
+              chevron still reveals the icons. In the collapsed rail the avatar
+              keeps revealing them, and the stack gains a My profile icon. */}
+          <div className={`w-full flex items-center gap-2 px-4 pt-3 pb-2 ${isCollapsed ? "md:justify-center md:px-0" : ""}`}>
+            <button
+              type="button"
+              onClick={() => (hasMyProfile && !isCollapsed ? openMyProfile() : setProfileOpen((o) => !o))}
+              aria-label={hasMyProfile && !isCollapsed ? "My profile" : "Profile menu"}
+              title={hasMyProfile && !isCollapsed ? "My profile" : undefined}
+              className={`flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg hover:bg-white/5 transition-colors ${isCollapsed ? "md:justify-center md:flex-none" : ""}`}
+            >
+              <div className="w-9 h-9 flex-shrink-0 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                {initials}
+              </div>
+              <div className={`min-w-0 flex-1 ${isCollapsed ? "md:hidden" : ""}`}>
+                <p className="font-semibold text-sm text-white truncate">{displayName}</p>
+                <p className="text-xs text-blue-200">{userRole} Portal</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfileOpen((o) => !o)}
+              aria-expanded={profileOpen}
+              aria-label="Profile menu"
+              className={`p-1 rounded-md text-blue-200 hover:text-white hover:bg-white/10 ${isCollapsed ? "md:hidden" : ""}`}
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
+            </button>
+          </div>
 
           {/* Action icons — revealed by the profile row; stack in the collapsed rail */}
           {profileOpen && (
           <div className={`flex items-center gap-2 px-4 pb-3 ${isCollapsed ? "md:flex-col md:px-0" : ""}`}>
             <NotificationBell userRole={userRole} />
+            {hasMyProfile && (
+              <button
+                onClick={openMyProfile}
+                title="My profile"
+                aria-label="Open my profile"
+                className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
+              >
+                <UserRound className="w-5 h-5" />
+              </button>
+            )}
             {/* HMIS V3 — workspace switcher.
                 Nurses use it in both directions. Everyone else reaches the ward
                 board through the Outpatient/Inpatient dashboard tabs — but those

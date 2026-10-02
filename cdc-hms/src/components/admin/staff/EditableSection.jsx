@@ -18,11 +18,21 @@ import { formatDate, toDateInput, readPath } from './staffFormat';
  * `key` may be a dotted path ('emergencyContact.name'), which lets a nested
  * JSON column be edited by the same config as a flat one. The patch is
  * assembled back into nested shape on save.
+ *
+ * `requestMode` (B27 phase 4, My profile — decision D11): the person may not
+ * change these fields themselves. Editing becomes "Request change": the
+ * changed fields and a reason go to `onRequest(changes, reason)` as change
+ * requests HR decides, and `pending` ({ field: request }) shows what is
+ * already waiting. Flat fields only.
  */
-const EditableSection = ({ title, fields, values, onSave, canEdit = true, description }) => {
+const EditableSection = ({
+  title, fields, values, onSave, canEdit = true, description,
+  requestMode = false, onRequest, pending = {},
+}) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState({});
   const [saving, setSaving]   = useState(false);
+  const [reason, setReason]   = useState('');
 
   const startEditing = () => {
     const initial = {};
@@ -34,7 +44,7 @@ const EditableSection = ({ title, fields, values, onSave, canEdit = true, descri
     setEditing(true);
   };
 
-  const cancel = () => { setEditing(false); setDraft({}); };
+  const cancel = () => { setEditing(false); setDraft({}); setReason(''); };
 
   const handleSave = async () => {
     const patch = {};
@@ -65,12 +75,18 @@ const EditableSection = ({ title, fields, values, onSave, canEdit = true, descri
     Object.assign(patch, nested);
 
     if (!Object.keys(patch).length) { cancel(); return; }
+    if (requestMode && !reason.trim()) return;
 
     setSaving(true);
     try {
-      await onSave(patch);
+      if (requestMode) {
+        await onRequest(Object.entries(patch).map(([field, newValue]) => ({ field, newValue })), reason.trim());
+      } else {
+        await onSave(patch);
+      }
       setEditing(false);
       setDraft({});
+      setReason('');
     } finally {
       setSaving(false);
     }
@@ -92,7 +108,7 @@ const EditableSection = ({ title, fields, values, onSave, canEdit = true, descri
             className="flex items-center gap-1 text-xs text-gray-500 hover:text-blue-700"
             aria-label={`Edit ${title}`}
           >
-            <Pencil className="w-3.5 h-3.5" /> Edit
+            <Pencil className="w-3.5 h-3.5" /> {requestMode ? 'Request change' : 'Edit'}
           </button>
         )}
 
@@ -100,11 +116,11 @@ const EditableSection = ({ title, fields, values, onSave, canEdit = true, descri
           <div className="flex items-center gap-1">
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || (requestMode && !reason.trim())}
               className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
             >
               {saving ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-              Save
+              {requestMode ? 'Send to HR' : 'Save'}
             </button>
             <button
               onClick={cancel}
@@ -126,11 +142,17 @@ const EditableSection = ({ title, fields, values, onSave, canEdit = true, descri
             const display = field.type === 'date'
               ? formatDate(raw)
               : (raw === 0 ? '0' : raw) || '—';
+            const waiting = pending[field.key];
             return (
               <div key={field.key} className="flex items-start justify-between gap-4 text-sm">
                 <dt className="text-gray-500 flex-shrink-0">{field.label}</dt>
                 <dd className="text-gray-800 text-right break-words">
                   {display}{raw && field.suffix ? ` ${field.suffix}` : ''}
+                  {waiting && (
+                    <span className="block mt-0.5 text-[11px] font-semibold text-amber-700" title={waiting.reason || undefined}>
+                      Change pending: {field.type === 'date' ? formatDate(waiting.newValue) : (waiting.newValue ?? 'clear')}
+                    </span>
+                  )}
                 </dd>
               </div>
             );
@@ -160,6 +182,21 @@ const EditableSection = ({ title, fields, values, onSave, canEdit = true, descri
           );
         })}
       </dl>
+
+      {editing && requestMode && (
+        <div className="mt-3 text-sm">
+          <label className="block text-xs text-gray-500 mb-1" htmlFor={`reason-${title}`}>Why does this need to change?</label>
+          <textarea
+            id={`reason-${title}`}
+            rows={2}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. new ID card after marriage"
+            className={inputClass}
+          />
+          <p className="text-[11px] text-gray-400 mt-1">HR checks this before your record changes. You can attach a copy of the document on the Documents tab.</p>
+        </div>
+      )}
     </div>
   );
 };

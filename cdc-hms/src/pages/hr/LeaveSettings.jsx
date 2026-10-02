@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Lock, RefreshCw, CalendarCog, CalendarDays, Users, Bell } from 'lucide-react';
+import { Plus, Lock, RefreshCw, CalendarCog, CalendarDays, Users, Bell, GraduationCap } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { canSetLeavePolicy, canChangeHrSettings } from '../../utils/permissions';
 import leaveService from '../../services/leaveService';
@@ -16,6 +16,7 @@ import DayWeights from '../../components/hr/leave/DayWeights';
 import HolidayList from '../../components/hr/leave/HolidayList';
 import EntitlementGrid from '../../components/hr/leave/EntitlementGrid';
 import AlertChannels from '../../components/hr/leave/AlertChannels';
+import CredentialsReminders from '../../components/hr/leave/CredentialsReminders';
 import { MONTHS, DAYS_IN_MONTH } from '../../components/hr/leave/leaveFormat';
 
 /**
@@ -36,7 +37,10 @@ const TABS = [
   { id: 'holidays', label: 'Public holidays', Icon: CalendarDays },
   { id: 'entitlements', label: 'Staff entitlements', Icon: Users },
   { id: 'alerts', label: 'Alerts', Icon: Bell },
+  { id: 'credentials', label: 'Credentials & reminders', Icon: GraduationCap },
 ];
+// Tabs backed by HR Suite settings (hr.settings) rather than the leave policy.
+const SETTINGS_TABS = ['alerts', 'credentials'];
 
 /** The policy view from the API → the editable form. */
 const toForm = (view) => {
@@ -46,7 +50,6 @@ const toForm = (view) => {
     weekWeights: { ...p.weekWeights },
     countingMode: p.countingMode,
     allowNegative: !!p.allowNegative,
-    proRate: !!p.proRate,
     carryExpiry: p.carryExpiry || '',
     minNoticeDays: p.minNoticeDays ?? 0,
     maxCadreAwayPerDay: p.maxCadreAwayPerDay ?? '',
@@ -82,11 +85,13 @@ const MonthDay = ({ value, onChange, disabled }) => {
   );
 };
 
-/** "Annual has its own: 14 days" — per-type notice (seeded, kept on save; not yet editable here). */
+/** "Annual has its own: 14 days" — per-type notice is set in the table's Notice column (phase 1b). */
 const noticeHint = (types, rows) => {
   const own = types.filter((t) => rows[t.key]?.enabled && rows[t.key]?.minNoticeDays != null)
     .map((t) => `${t.name} ${rows[t.key].minNoticeDays}`);
-  return own.length ? `Applies unless a type has its own: ${own.join(', ')} days.` : 'Warns when a request is made at shorter notice.';
+  return own.length
+    ? `Warns when a request is made at shorter notice. Types with their own (Notice column): ${own.join(', ')} days.`
+    : 'Warns when a request is made at shorter notice. A type can set its own in the Notice column.';
 };
 
 /** The Leave policy trail. `refreshKey` changes after every save so it follows along. */
@@ -121,7 +126,7 @@ const LeaveSettings = () => {
   const canAlerts = canChangeHrSettings(currentUser);
   const [params, setParams] = useSearchParams();
 
-  const tabs = TABS.filter((t) => (t.id === 'alerts' ? canAlerts : canPolicy));
+  const tabs = TABS.filter((t) => (SETTINGS_TABS.includes(t.id) ? canAlerts : canPolicy));
   const tab = tabs.some((t) => t.id === params.get('tab')) ? params.get('tab') : tabs[0]?.id;
 
   const [years, setYears] = useState(null);         // [{ year, status }]
@@ -327,7 +332,7 @@ const LeaveSettings = () => {
             ? <Pill tone="ok">Published{p.publishedBy ? ` by ${p.publishedBy}` : ''}{p.publishedAt ? ` · ${dayLabel(String(p.publishedAt).slice(0, 10), true)}` : ''}</Pill>
             : <Pill tone="warn">Draft · not yet published</Pill>}
         >
-          <PolicyTable types={view.types} rows={form.types} onChange={setType} disabled={locked}
+          <PolicyTable types={view.types} rows={form.types} onChange={setType} disabled={locked} clinicNotice={form.minNoticeDays}
             onRetire={locked ? null : (t) => setConfirm({ kind: 'retireType', type: t })} />
           {!locked && (
             <form onSubmit={addType} className="flex flex-wrap items-center gap-2 mt-3">
@@ -335,7 +340,7 @@ const LeaveSettings = () => {
               <button type="submit" disabled={newType.trim().length < 2} className={`${buttonCls} inline-flex items-center gap-1`}><Plus className="w-3.5 h-3.5" /> Add leave type</button>
             </form>
           )}
-          <p className="text-[11px] text-gray-400 mt-2">Maternity and paternity are a full allowance per event and are never pro-rated. Carried days only come from a yearly allowance.</p>
+          <p className="text-[11px] text-gray-400 mt-2">Pro-rata: someone who joins or leaves during the year gets the share of it they are employed, to the quarter day. Maternity and paternity are a full allowance per event and are never pro-rated. Carried days only come from a yearly allowance. Notice left blank uses the clinic's minimum notice.</p>
         </Section>
 
         <div className="grid lg:grid-cols-2 gap-4 items-start">
@@ -350,13 +355,12 @@ const LeaveSettings = () => {
               <label className="flex items-start gap-2">
                 <input type="radio" name="mode" checked={form.countingMode === 'own_hours'} disabled={locked} onChange={() => setF('countingMode', 'own_hours')} className="mt-1" />
                 <span>Each person's working days from their HR hours (days off = 0)
-                  <span className="block text-[11px] text-amber-700">Takes effect with the application wizard (next phase) — until then everyone counts on the clinic week.</span></span>
+                  <span className="block text-[11px] text-gray-500">A day someone isn't expected in by their HR hours (Time &amp; Attendance → working hours) costs nothing. Anyone with a personal week on Staff entitlements uses that instead.</span></span>
               </label>
             </div>
             <div className="mt-3 border-t border-gray-100 pt-2">
               <SwitchRow label="Public holidays are never counted" checked disabled hint="Always on." onChange={() => {}} />
               <SwitchRow label="Allow a negative balance" checked={form.allowNegative} disabled={locked} onChange={(v) => setF('allowNegative', v)} hint="Off: a request larger than what is left is refused." />
-              <SwitchRow label="Pro-rate joiners and leavers" checked={form.proRate} disabled={locked} onChange={(v) => setF('proRate', v)} hint="By the share of the year they are employed, to the quarter day." />
             </div>
           </Section>
 
@@ -453,13 +457,14 @@ const LeaveSettings = () => {
 
   return (
     <div>
-      <PageHeader title="Leave settings" subtitle="The clinic's leave policy, public holidays, entitlements and alerts" actions={tab !== 'alerts' && canPolicy ? header : null} />
+      <PageHeader title="Leave settings" subtitle="The clinic's leave policy, public holidays, entitlements, alerts and credentials" actions={!SETTINGS_TABS.includes(tab) && canPolicy ? header : null} />
       <SwitcherTabs className="mb-4" tabs={tabs} active={tab} onChange={(id) => setParam('tab', id)} />
 
       {tab === 'policy' && (year ? policyTab() : <Spinner />)}
       {tab === 'holidays' && year && <HolidayList year={year} canEdit={canPolicy} />}
       {tab === 'entitlements' && year && <EntitlementGrid year={year} canEdit={canPolicy} />}
       {tab === 'alerts' && <AlertChannels canEdit={canAlerts} />}
+      {tab === 'credentials' && <CredentialsReminders canEdit={canAlerts} />}
 
       <ConfirmActionModal isOpen={!!confirm} onClose={() => setConfirm(null)} {...confirmProps} />
     </div>

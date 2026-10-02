@@ -4,8 +4,9 @@ import api from './api';
  * Leave (B27) — one function per /api/leave endpoint. Every call returns the
  * unwrapped { success, data } body like the other services.
  *
- * Phase 1: HR's Leave settings (all leave.policy). The application and
- * approval calls join this file in phases 2–3.
+ * Phase 1: HR's Leave settings (all leave.policy). Phase 3: the approvals
+ * inbox and the request an approver opens. Phase 5: the team calendar.
+ * Applying for one's own leave is hrSelfService (/api/hr/me).
  */
 const leaveService = {
   // --- the yearly policy ---
@@ -31,6 +32,18 @@ const leaveService = {
 
   // --- audit ---
   changes:        ()                 => api.get('/leave/changes'),
+
+  // --- team calendar (phase 5) ---
+  calendar:       (params)           => api.get('/leave/calendar', { params }),
+
+  // --- approvals (phase 3) — the request an approver opens, the inbox ---
+  inbox:          (tab = 'waiting', year) => api.get('/leave/inbox', { params: { tab, ...(year ? { year } : {}) } }),
+  inboxCount:     ()                 => api.get('/leave/inbox/count'),
+  request:        (id)               => api.get(`/leave/requests/${id}`),
+  decide:         (id, body)         => api.post(`/leave/requests/${id}/decide`, body),
+  cancel:         (id, note)         => api.post(`/leave/requests/${id}/cancel`, { note: note || null }),
+  // The supporting document, as a blob (the route is authenticated — no plain link).
+  attachment:     (id)               => api.get(`/leave/requests/${id}/attachment`, { responseType: 'blob' }),
 };
 
 export default leaveService;

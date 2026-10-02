@@ -106,3 +106,6 @@ export const greetingFor = (date = new Date()) => {
 
 export const titleFor = (user) => (user?.role === 'doctor' ? 'Dr' : '');
 export const firstNameOf = (user) => user?.firstName || (user?.name || '').split(' ')[0] || '';
+
+/** Fired on window after HR decides a profile change request, so the sidebar badge refreshes (B27 phase 4). */
+export const PROFILE_REQUESTS_CHANGED = 'hr:profile-requests-changed';

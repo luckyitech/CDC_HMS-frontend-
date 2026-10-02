@@ -119,6 +119,11 @@ const HrDashboard        = lazy(() => import("./pages/hr/HrDashboard"));
 const TimeRegister       = lazy(() => import("./pages/hr/TimeRegister"));
 const HrSettings         = lazy(() => import("./pages/hr/HrSettings"));
 const LeaveSettings      = lazy(() => import("./pages/hr/LeaveSettings"));
+const MyLeave            = lazy(() => import("./pages/hr/MyLeave"));
+const ApplyLeave         = lazy(() => import("./pages/hr/ApplyLeave"));
+const LeaveInbox         = lazy(() => import("./pages/hr/LeaveInbox"));
+const ProfileRequests    = lazy(() => import("./pages/hr/ProfileRequests"));
+const TeamCalendarPage   = lazy(() => import("./pages/hr/Calendar"));
 const StaffDirectory     = lazy(() => import("./pages/hr/StaffDirectory"));
 const TapLanding         = lazy(() => import("./pages/hr/TapLanding"));
 // Communications Inbox — WhatsApp + Lab reports + Reminders. The old
@@ -328,6 +333,16 @@ function App() {
                   <Route path="onboard" element={<Onboarding />} />
                   <Route path="settings" element={<HrSettings />} />
                   <Route path="leave-settings" element={<LeaveSettings />} />
+                  {/* B27 phase 2 — my own leave (hr.self) */}
+                  <Route path="me/leave" element={<MyLeave />} />
+                  <Route path="me/apply" element={<ApplyLeave />} />
+                  {/* B27 phase 3 — leave to approve (anyone listed as an approver) */}
+                  <Route path="leave" element={<LeaveInbox />} />
+                  {/* B27 phase 5 — team leave calendar (every internal role) */}
+                  <Route path="calendar" element={<TeamCalendarPage />} />
+                  {/* B27 phase 4 — My profile (the avatar) and profile change requests */}
+                  <Route path="me" element={<StaffFile mode="self" />} />
+                  <Route path="requests" element={<ProfileRequests />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 

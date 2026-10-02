@@ -33,6 +33,16 @@ const hrService = {
   createTag:      (body)          => api.post('/hr/tags', body),
   updateTag:      (id, body)      => api.patch(`/hr/tags/${id}`, body),
   testTag:        (id, url)       => api.post(`/hr/tags/${id}/test`, { url }),
+  // --- profile change requests (B27 phase 4, hr.profile.approve) ---
+  changeRequests: (status = 'pending') => api.get('/hr/change-requests', { params: { status } }),
+  changeRequestCount: ()          => api.get('/hr/change-requests/count'),
+  decideChange:   (id, body)      => api.patch(`/hr/change-requests/${id}`, body),
+  // --- CPD verification (B27 phase 5, hr.credentials) ---
+  cpdToVerify:    (status = 'pending', year) => api.get('/hr/cpd', { params: { status, ...(year ? { year } : {}) } }),
+  cpdCount:       ()              => api.get('/hr/cpd/count'),
+  verifyCpd:      (id, body)      => api.patch(`/hr/cpd/${id}/verify`, body),
+  cpdCertificate: (id)           => api.get(`/hr/cpd/${id}/certificate`, { responseType: 'blob' }),
+
   settings:       ()              => api.get('/hr/settings'),
   saveSettings:   (body)          => api.put('/hr/settings', body),
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft, ChevronDown, ClipboardList, Award, Lock, Calendar,
@@ -13,15 +13,27 @@ import staffService from '../../services/staffService';
 import EditableSection from '../../components/admin/staff/EditableSection';
 import AccessTab from '../../components/admin/staff/AccessTab';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
-import LeaveTab from '../../components/admin/staff/LeaveTab';
+import StaffLeaveTab from '../../components/hr/leave/StaffLeaveTab';
+import hrSelfService from '../../services/hrSelfService';
+import SelfTodo from '../../components/hr/profile/SelfTodo';
+import ChangeRequestList from '../../components/hr/profile/ChangeRequestList';
+import SelfActivity from '../../components/hr/profile/SelfActivity';
+import CpdSection from '../../components/hr/cpd/CpdSection';
 import DocumentsTab from '../../components/admin/staff/DocumentsTab';
 import ActivityTab from '../../components/admin/staff/ActivityTab';
 import { formatDate } from '../../components/admin/staff/staffFormat';
 import {
-  PERMISSIONS, passesAdminGate, canViewConfidential, canManageLeave, canSetLeavePolicy,
+  PERMISSIONS, passesAdminGate, canViewConfidential,
 } from '../../utils/permissions';
 
 // The staff record "file".
+//
+// mode="self" (B27 phase 4) is My profile — /hr/me, the avatar in the sidebar.
+// The same shell and tabs, loaded from GET /api/hr/me, with: contact and
+// emergency contact saved directly; name, ID, date of birth, licence and
+// qualification sent as change requests HR decides (D11); employment
+// read-only; a to-do list; Activity = the person's own attendance. Never the
+// Permissions tab, archive/restore or the confidential drawer.
 //
 // The shell — PageHeader, the clickable name bar that slides the overview open,
 // and ProfileTabBar — is deliberately identical to PatientFile, so the two
@@ -76,16 +88,35 @@ const LICENCE_FIELDS = [
   { key: 'specialty',     label: 'Specialty' },
 ];
 
+// My profile (D11): saved directly by the person.
+const CONTACT_FIELDS = [
+  { key: 'phone',   label: 'Phone' },
+  { key: 'address', label: 'Address' },
+  { key: 'city',    label: 'City' },
+];
+// My profile: asked of HR.
+const IDENTITY_FIELDS = [
+  { key: 'firstName',   label: 'First name' },
+  { key: 'lastName',    label: 'Last name' },
+  { key: 'dateOfBirth', label: 'Date of birth', type: 'date' },
+  { key: 'gender',      label: 'Gender',        type: 'select', options: ['Male', 'Female', 'Other'] },
+  { key: 'idNumber',    label: 'National ID' },
+];
+
 const TRAINING_FIELDS = [
   { key: 'qualification',   label: 'Qualification' },
   { key: 'institution',     label: 'Institution' },
   { key: 'yearsExperience', label: 'Experience', type: 'number', suffix: 'years' },
 ];
 
-const StaffFile = () => {
-  const { employeeId } = useParams();
+const SELF_TABS = ['credentials', 'documents', 'leave', 'activity'];
+
+const StaffFile = ({ mode = 'staff' }) => {
+  const self = mode === 'self';
+  const { employeeId: routeEmployeeId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const [params, setParams] = useSearchParams();
 
   // The same file is mounted under /admin (from Manage Users) and /hr (from
   // the HR Suite staff directory). Send Back and the post-archive redirect
@@ -98,7 +129,12 @@ const StaffFile = () => {
   const [staff, setStaff]         = useState(null);
   const [loading, setLoading]     = useState(true);
   const [overviewOpen, setOverviewOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'credentials');
+  const [activeTab, setActiveTab] = useState(
+    (self && SELF_TABS.includes(params.get('tab')) ? params.get('tab') : null) || location.state?.activeTab || 'credentials'
+  );
+  const [selfData, setSelfData]   = useState(null);   // My profile: { requests, todo }
+  const [noFile, setNoFile]       = useState(false);  // My profile: no StaffProfile yet
+  const employeeId = self ? staff?.employeeId : routeEmployeeId;
   const [busy, setBusy]           = useState(false);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
 
@@ -126,15 +162,22 @@ const StaffFile = () => {
 
   const loadStaff = useCallback(async () => {
     try {
-      const res = await staffService.getByEmployeeId(employeeId);
-      setStaff(res.data);
+      if (self) {
+        const res = await hrSelfService.profile();
+        setStaff(res.data.profile);
+        setSelfData({ requests: res.data.requests, todo: res.data.todo });
+      } else {
+        const res = await staffService.getByEmployeeId(routeEmployeeId);
+        setStaff(res.data);
+      }
     } catch (err) {
-      toast.error(err.message || 'Failed to load staff member');
+      if (self && err.data?.code === 'NO_STAFF_FILE') setNoFile(true);
+      else toast.error(err.message || 'Failed to load staff member');
       setStaff(null);
     } finally {
       setLoading(false);
     }
-  }, [employeeId]);
+  }, [self, routeEmployeeId]);
 
   useEffect(() => { loadStaff(); }, [loadStaff]);
 
@@ -143,13 +186,47 @@ const StaffFile = () => {
   // than closing and losing it.
   const saveSection = async (patch) => {
     try {
-      const res = await staffService.update(employeeId, patch);
-      setStaff(res.data);
+      if (self) {
+        // My profile: only the contact sections save directly (PATCH /api/hr/me/contact).
+        const res = await hrSelfService.saveContact(patch);
+        setStaff(res.data.profile);
+      } else {
+        const res = await staffService.update(employeeId, patch);
+        setStaff(res.data);
+      }
       toast.success('Saved');
     } catch (err) {
       toast.error(err.message || 'Failed to save');
       throw err;
     }
+  };
+
+  // My profile: what the person may not change themselves goes to HR (D11).
+  const requestChanges = async (changes, reason) => {
+    try {
+      await hrSelfService.requestChanges({ changes, reason });
+      toast.success('Sent to HR');
+      loadStaff();
+    } catch (err) {
+      toast.error(err.message || 'Could not send the request');
+      throw err;
+    }
+  };
+  const withdrawChange = async (id) => {
+    try {
+      await hrSelfService.withdrawChange(id);
+      toast.success('Request withdrawn');
+      loadStaff();
+    } catch (err) {
+      toast.error(err.message || 'Could not withdraw the request');
+    }
+  };
+  // Waiting requests by field, for the "Change pending" line under each value.
+  const pendingByField = Object.fromEntries((selfData?.requests || [])
+    .filter((r) => r.status === 'pending').map((r) => [r.field, r]));
+  const chooseTab = (id) => {
+    setActiveTab(id);
+    if (self) setParams({ tab: id }, { replace: true });
   };
 
   // Asking happens in the modal below rather than window.confirm — the Archive
@@ -192,6 +269,17 @@ const StaffFile = () => {
     );
   }
 
+  if (self && noFile) {
+    return (
+      <div>
+        <PageHeader title="My profile" />
+        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+          You don&apos;t have a staff file yet, so there is nothing to show here. Ask HR to set one up.
+        </div>
+      </div>
+    );
+  }
+
   if (!staff) {
     return (
       <div className="text-center py-12">
@@ -203,11 +291,13 @@ const StaffFile = () => {
   }
 
   const tabs = [
-    { id: 'credentials', name: 'Credentials', Icon: Award,      show: CREDENTIALLED_ROLES.includes(staff.role) },
+    // My profile shows Credentials to everyone — somewhere to see and correct
+    // what the clinic holds (CPD joins it in phase 5).
+    { id: 'credentials', name: 'Credentials', Icon: Award,      show: self || CREDENTIALLED_ROLES.includes(staff.role) },
     { id: 'documents',   name: 'Documents',   Icon: FolderOpen, show: true },
     { id: 'leave',       name: 'Leave',       Icon: Calendar,   show: true },
-    { id: 'access',      name: 'Permissions', Icon: Lock,       show: canView },
-    { id: 'activity',    name: 'Activity',    Icon: Activity,   show: canView },
+    { id: 'access',      name: 'Permissions', Icon: Lock,       show: !self && canView },
+    { id: 'activity',    name: 'Activity',    Icon: Activity,   show: self || canView },
   ].filter((t) => t.show);
 
   // Credentials is hidden for front desk, so the default tab has to fall back
@@ -217,20 +307,24 @@ const StaffFile = () => {
   const subline = [ROLE_LABEL[staff.role] || staff.role, staff.department, staff.employmentType]
     .filter(Boolean).join(' · ');
 
-  const canEdit = canManage && !staff.isArchived;
+  const canEdit = !self && canManage && !staff.isArchived;
 
   return (
     <div>
-      <PageHeader
-        title="Staff File"
-        actions={
-          <Button variant="outline" onClick={() => navigate(backPath)} className="flex items-center gap-2">
-            <ArrowLeft className="w-5 h-5" /> <span>{backLabel}</span>
-          </Button>
-        }
-      />
+      {self ? (
+        <PageHeader title="My profile" subtitle="Your record at the clinic. Contact details you can change yourself; the rest goes to HR." />
+      ) : (
+        <PageHeader
+          title="Staff File"
+          actions={
+            <Button variant="outline" onClick={() => navigate(backPath)} className="flex items-center gap-2">
+              <ArrowLeft className="w-5 h-5" /> <span>{backLabel}</span>
+            </Button>
+          }
+        />
+      )}
 
-      {staff.isArchived && (
+      {!self && staff.isArchived && (
         <div className="flex items-center justify-between gap-4 bg-gray-100 border border-gray-300 rounded-xl px-4 py-3 mb-3">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-gray-500 flex-shrink-0" />
@@ -265,10 +359,11 @@ const StaffFile = () => {
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
             {(staff.firstName || staff.name || '?').charAt(0).toUpperCase()}
           </div>
-          <h2 className={`text-base font-bold truncate ${overviewOpen ? 'text-white' : 'text-gray-800'}`}>
+          <h2 className={`text-base font-bold truncate min-w-[4.5rem] ${overviewOpen ? 'text-white' : 'text-gray-800'}`}>
             {staff.name}
           </h2>
-          <span className={`text-xs flex-shrink-0 ${overviewOpen ? 'text-blue-100' : 'text-gray-400'}`}>
+          {/* The employee number gives way on a phone so the name keeps its room. */}
+          <span className={`hidden sm:inline text-xs flex-shrink-0 ${overviewOpen ? 'text-blue-100' : 'text-gray-400'}`}>
             {staff.employeeId}
           </span>
           {subline && (
@@ -307,11 +402,25 @@ const StaffFile = () => {
       >
         <div className="overflow-hidden min-h-0">
           <div className="py-4 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              <EditableSection title="Personal"          fields={PERSONAL_FIELDS}   values={staff} onSave={saveSection} canEdit={canEdit} />
-              <EditableSection title="Employment"        fields={EMPLOYMENT_FIELDS} values={staff} onSave={saveSection} canEdit={canEdit} />
-              <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS}  values={staff} onSave={saveSection} canEdit={canEdit} />
-            </div>
+            {self ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <SelfTodo items={selfData?.todo} onGo={(link) => chooseTab(new URLSearchParams(link.slice(1)).get('tab') || 'credentials')} />
+                  <EditableSection title="Contact" description="You can change these yourself." fields={CONTACT_FIELDS} values={staff} onSave={saveSection} canEdit />
+                  <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS} values={staff} onSave={saveSection} canEdit />
+                  <EditableSection title="Personal" description="Changed by HR on request." fields={IDENTITY_FIELDS} values={staff}
+                    requestMode onRequest={requestChanges} pending={pendingByField} canEdit />
+                  <EditableSection title="Employment" description="Set by HR." fields={EMPLOYMENT_FIELDS} values={staff} canEdit={false} />
+                  <ChangeRequestList requests={selfData?.requests} onWithdraw={withdrawChange} />
+                </div>
+              </>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <EditableSection title="Personal"          fields={PERSONAL_FIELDS}   values={staff} onSave={saveSection} canEdit={canEdit} />
+                <EditableSection title="Employment"        fields={EMPLOYMENT_FIELDS} values={staff} onSave={saveSection} canEdit={canEdit} />
+                <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS}  values={staff} onSave={saveSection} canEdit={canEdit} />
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-4 text-xs text-gray-500">
               <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{staff.phone || '—'}</span>
@@ -321,29 +430,42 @@ const StaffFile = () => {
         </div>
       </div>
 
-      <ProfileTabBar tabs={tabs} activeTab={currentTab} onChange={setActiveTab} />
+      <ProfileTabBar tabs={tabs} activeTab={currentTab} onChange={chooseTab} />
 
       <div>
         {currentTab === 'credentials' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <EditableSection
-              title="Licence" fields={LICENCE_FIELDS} values={staff}
-              onSave={saveSection} canEdit={canEdit}
-              description="An expiry date here drives the warning pill in the name bar."
-            />
-            <EditableSection title="Training" fields={TRAINING_FIELDS} values={staff} onSave={saveSection} canEdit={canEdit} />
+            {self ? (
+              <>
+                <EditableSection title="Licence" fields={LICENCE_FIELDS} values={staff} canEdit
+                  requestMode onRequest={requestChanges} pending={pendingByField}
+                  description="Changed by HR on request — upload the new licence on the Documents tab." />
+                <EditableSection title="Training" fields={TRAINING_FIELDS} values={staff} canEdit
+                  requestMode onRequest={requestChanges} pending={pendingByField} />
+                {/* CPD (phase 5): full-width below the two credential cards. */}
+                <CpdSection employeeId={staff.employeeId} />
+              </>
+            ) : (
+              <>
+                <EditableSection
+                  title="Licence" fields={LICENCE_FIELDS} values={staff}
+                  onSave={saveSection} canEdit={canEdit}
+                  description="An expiry date here drives the warning pill in the name bar."
+                />
+                <EditableSection title="Training" fields={TRAINING_FIELDS} values={staff} onSave={saveSection} canEdit={canEdit} />
+              </>
+            )}
           </div>
         )}
 
         {currentTab === 'documents' && (
-          <DocumentsTab staff={staff} canManage={canManage} canSeeConfidential={canSeeConfidential} />
+          // My profile: own uploads and what HR shares; never the confidential drawer.
+          <DocumentsTab staff={staff} canManage={!self && canManage} canSeeConfidential={!self && canSeeConfidential} />
         )}
         {currentTab === 'leave'     && (
-          <LeaveTab
-            staff={staff}
-            canDecide={canManageLeave(currentUser) && staff.userId !== currentUser?.id}
-            canSetBalances={canSetLeavePolicy(currentUser)}
-          />
+          // B27 phase 3: the same overview as My leave; the tab decides what
+          // this viewer can do from the permissions (see StaffLeaveTab).
+          <StaffLeaveTab staff={staff} currentUser={currentUser} />
         )}
 
         {currentTab === 'access' && (
@@ -358,7 +480,9 @@ const StaffFile = () => {
           />
         )}
 
-        {currentTab === 'activity' && <ActivityTab employeeId={employeeId} staffName={staff.name} />}
+        {currentTab === 'activity' && (self
+          ? <SelfActivity />
+          : <ActivityTab employeeId={employeeId} staffName={staff.name} />)}
       </div>
 
       <ConfirmActionModal
