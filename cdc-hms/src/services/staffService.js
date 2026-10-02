@@ -104,6 +104,19 @@ export const staffService = {
   /** Record on behalf (leave.manage): approved on the spot; never your own file. */
   createLeave: (employeeId, data) => api.post(`/staff/${employeeId}/leaves`, data),
 
+  /** The staff photo (2 Oct 2026) — a blob through the authenticated route. */
+  getPhoto: (employeeId) => api.get(`/staff/${employeeId}/photo`, { responseType: 'blob' }),
+  setPhoto: (employeeId, file) => {
+    const form = new FormData();
+    form.append('photo', file);
+    return api.put(`/staff/${employeeId}/photo`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  removePhoto: (employeeId) => api.delete(`/staff/${employeeId}/photo`),
+
+  /** CPD for a year, read-only (the staff file's Credentials tab). */
+  getCpd: (employeeId, year) =>
+    api.get(`/staff/${employeeId}/cpd`, { params: year ? { year } : {} }),
+
   // ============================================
   // DOCUMENTS
   // ============================================

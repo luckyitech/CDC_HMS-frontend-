@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pencil, Check, X, Loader } from 'lucide-react';
 import { formatDate, toDateInput, readPath } from './staffFormat';
+import AttachLeaveDocument from '../../hr/leave/AttachLeaveDocument';
 
 /**
  * A profile card that switches between reading and editing in place.
@@ -23,16 +24,19 @@ import { formatDate, toDateInput, readPath } from './staffFormat';
  * change these fields themselves. Editing becomes "Request change": the
  * changed fields and a reason go to `onRequest(changes, reason)` as change
  * requests HR decides, and `pending` ({ field: request }) shows what is
- * already waiting. Flat fields only.
+ * already waiting. Flat fields only. With `attachEmployeeId` (2 Oct 2026) the
+ * person may attach a supporting copy — uploaded to their own Documents as
+ * `attachCategory` — and its id goes to onRequest as the third argument.
  */
 const EditableSection = ({
   title, fields, values, onSave, canEdit = true, description,
-  requestMode = false, onRequest, pending = {},
+  requestMode = false, onRequest, pending = {}, attachEmployeeId = null, attachCategory = 'Other',
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft]     = useState({});
   const [saving, setSaving]   = useState(false);
   const [reason, setReason]   = useState('');
+  const [attached, setAttached] = useState(null);   // { id, fileName } — request mode
 
   const startEditing = () => {
     const initial = {};
@@ -44,7 +48,7 @@ const EditableSection = ({
     setEditing(true);
   };
 
-  const cancel = () => { setEditing(false); setDraft({}); setReason(''); };
+  const cancel = () => { setEditing(false); setDraft({}); setReason(''); setAttached(null); };
 
   const handleSave = async () => {
     const patch = {};
@@ -80,13 +84,14 @@ const EditableSection = ({
     setSaving(true);
     try {
       if (requestMode) {
-        await onRequest(Object.entries(patch).map(([field, newValue]) => ({ field, newValue })), reason.trim());
+        await onRequest(Object.entries(patch).map(([field, newValue]) => ({ field, newValue })), reason.trim(), attached?.id || null);
       } else {
         await onSave(patch);
       }
       setEditing(false);
       setDraft({});
       setReason('');
+      setAttached(null);
     } finally {
       setSaving(false);
     }
@@ -194,7 +199,15 @@ const EditableSection = ({
             placeholder="e.g. new ID card after marriage"
             className={inputClass}
           />
-          <p className="text-[11px] text-gray-400 mt-1">HR checks this before your record changes. You can attach a copy of the document on the Documents tab.</p>
+          {attachEmployeeId ? (
+            <div className="mt-2">
+              <AttachLeaveDocument employeeId={attachEmployeeId} value={attached} onChange={setAttached}
+                category={attachCategory} notes="Attached to a profile change request" label="Attach a copy (optional)" />
+              <p className="text-[11px] text-gray-400 mt-1">HR checks this before your record changes. The copy is saved to your Documents.</p>
+            </div>
+          ) : (
+            <p className="text-[11px] text-gray-400 mt-1">HR checks this before your record changes. You can attach a copy of the document on the Documents tab.</p>
+          )}
         </div>
       )}
     </div>

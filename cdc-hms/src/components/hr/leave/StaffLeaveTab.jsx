@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { CalendarPlus, SlidersHorizontal } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import hrSelfService from '../../../services/hrSelfService';
-import { canManageLeave, canSetLeavePolicy } from '../../../utils/permissions';
+import { canManageLeave, canSetLeavePolicy, passesAdminGate, PERMISSIONS } from '../../../utils/permissions';
 import { notify } from '../../../utils/notify';
 import Modal from '../../shared/Modal';
 import Spinner from '../../shared/Spinner';
@@ -23,7 +23,9 @@ import RecordLeaveModal from './RecordLeaveModal';
  *   - leave.manage: a request opens in the approval panel (see it, cancel
  *     it, decide a pre-B27 one); "Record leave" records on their behalf.
  *   - users.view only: the overview with sick leave shown as "Private" and
- *     no sick balance (the server trims it); requests don't open.
+ *     no sick balance (the server trims it); a request opens READ-ONLY in the
+ *     approval panel, redacted (no type for sick, no reasons, notes or
+ *     document) — 2 Oct 2026.
  *   - leave.policy: a link to their entitlement on Leave settings, which is
  *     the one place entitlements are changed.
  */
@@ -31,6 +33,7 @@ const StaffLeaveTab = ({ staff, currentUser }) => {
   const navigate = useNavigate();
   const own = staff.userId === currentUser?.id;
   const manage = canManageLeave(currentUser) && !own;
+  const canView = passesAdminGate(currentUser, PERMISSIONS.USERS_VIEW) && !own;
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
   const [data, setData] = useState(null);
@@ -84,7 +87,7 @@ const StaffLeaveTab = ({ staff, currentUser }) => {
         onYear={setYear}
         actions={actions}
         onApply={own ? () => navigate('/hr/me/apply') : undefined}
-        onOpen={own ? openOwn : manage ? setOpenId : undefined}
+        onOpen={own ? openOwn : (manage || canView) ? setOpenId : undefined}
       />
       {data.redacted && (
         <p className="text-[11px] text-gray-500">Sick leave shows as “Private”: its type and reason are seen only by the person, their approvers and whoever manages leave.</p>

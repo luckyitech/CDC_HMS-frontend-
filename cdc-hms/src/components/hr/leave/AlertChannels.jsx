@@ -23,6 +23,7 @@ const EVENTS = [
   { key: 'leave_info_requested',  label: 'More information is asked for',            group: 'Leave' },
   { key: 'leave_info_replied',    label: 'The applicant replies',                    group: 'Leave' },
   { key: 'leave_cancelled',       label: 'Leave is withdrawn or cancelled',          group: 'Leave' },
+  { key: 'change_request_new',    label: 'Someone asks to change their profile',     group: 'Profile', hint: 'to HR' },
   { key: 'change_request_decided', label: 'Your profile change is decided',          group: 'Profile' },
   { key: 'expiry_self',           label: 'Your licence or certificate is expiring',  group: 'Credentials' },
   { key: 'expiry_hr',             label: 'Someone\'s licence or certificate is expiring', group: 'Credentials', hint: 'to HR' },

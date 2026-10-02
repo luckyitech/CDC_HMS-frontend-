@@ -69,6 +69,7 @@ import { LEAVE_CHANGED_EVENT } from "../components/hr/leave/leaveFormat";
 import { PROFILE_REQUESTS_CHANGED } from "../components/hr/hrFormat";
 import hrService from "../services/hrService";
 import MailNudge from "../components/mail/MailNudge";
+import StaffAvatar from "../components/hr/profile/StaffAvatar";
 
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
@@ -930,9 +931,15 @@ const MainLayout = ({ userRole = "Staff" }) => {
               title={hasMyProfile && !isCollapsed ? "My profile" : undefined}
               className={`flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg hover:bg-white/5 transition-colors ${isCollapsed ? "md:justify-center md:flex-none" : ""}`}
             >
-              <div className="w-9 h-9 flex-shrink-0 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                {initials}
-              </div>
+              {hasMyProfile ? (
+                // Own photo when one is set (2 Oct 2026), else the initials.
+                <StaffAvatar self name={displayName}
+                  className="w-9 h-9 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full text-white font-bold text-sm shadow-lg" />
+              ) : (
+                <div className="w-9 h-9 flex-shrink-0 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                  {initials}
+                </div>
+              )}
               <div className={`min-w-0 flex-1 ${isCollapsed ? "md:hidden" : ""}`}>
                 <p className="font-semibold text-sm text-white truncate">{displayName}</p>
                 <p className="text-xs text-blue-200">{userRole} Portal</p>

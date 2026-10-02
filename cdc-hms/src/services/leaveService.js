@@ -41,6 +41,7 @@ const leaveService = {
   inboxCount:     ()                 => api.get('/leave/inbox/count'),
   request:        (id)               => api.get(`/leave/requests/${id}`),
   decide:         (id, body)         => api.post(`/leave/requests/${id}/decide`, body),
+  saveSplit:      (id, charges)      => api.post(`/leave/requests/${id}/split`, { charges }),
   cancel:         (id, note)         => api.post(`/leave/requests/${id}/cancel`, { note: note || null }),
   // The supporting document, as a blob (the route is authenticated — no plain link).
   attachment:     (id)               => api.get(`/leave/requests/${id}/attachment`, { responseType: 'blob' }),

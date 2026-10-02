@@ -23,6 +23,15 @@ const hrSelfService = {
   requestChanges: (body)         => api.post('/hr/me/change-requests', body),
   withdrawChange: (id)           => api.post(`/hr/me/change-requests/${id}/withdraw`, {}),
 
+  // --- my photo (2 Oct 2026; D11 — saved directly) ---
+  photo:         ()              => api.get('/hr/me/photo', { responseType: 'blob' }),
+  setPhoto:      (file)          => {
+    const form = new FormData();
+    form.append('photo', file);
+    return api.put('/hr/me/photo', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  removePhoto:   ()              => api.delete('/hr/me/photo'),
+
   // --- my CPD (phase 5) ---
   cpd:           (year)          => api.get('/hr/me/cpd', { params: year ? { year } : {} }),
   logCpd:        (body)          => api.post('/hr/me/cpd', body),

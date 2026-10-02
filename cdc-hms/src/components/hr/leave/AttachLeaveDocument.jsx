@@ -18,10 +18,15 @@ import { attachmentCategoryFor } from './leaveFormat';
  *   value        { id, fileName } | null
  *   onChange     (doc | null) => void
  *   label        button text
+ *   category     optional — overrides the leave-type category (a profile change
+ *                request attaches a 'National ID' or 'Practising Licence', 2 Oct 2026)
+ *   notes        optional — the note saved on the document
  */
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
 
-const AttachLeaveDocument = ({ employeeId, leaveType, value, onChange, label = 'Attach document' }) => {
+const AttachLeaveDocument = ({
+  employeeId, leaveType, value, onChange, label = 'Attach document', category, notes = 'Attached to a leave request',
+}) => {
   const input = useRef(null);
   const [busy, setBusy] = useState(false);
 
@@ -36,9 +41,9 @@ const AttachLeaveDocument = ({ employeeId, leaveType, value, onChange, label = '
     setBusy(true);
     try {
       const res = await staffService.uploadDocument(employeeId, file, {
-        category: attachmentCategoryFor(leaveType),
+        category: category || attachmentCategoryFor(leaveType),
         visibility: 'Staff',
-        notes: 'Attached to a leave request',
+        notes,
       });
       onChange({ id: res.data.id, fileName: res.data.fileName });
       notify('success', 'Document attached');

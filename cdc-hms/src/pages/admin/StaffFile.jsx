@@ -19,6 +19,8 @@ import SelfTodo from '../../components/hr/profile/SelfTodo';
 import ChangeRequestList from '../../components/hr/profile/ChangeRequestList';
 import SelfActivity from '../../components/hr/profile/SelfActivity';
 import CpdSection from '../../components/hr/cpd/CpdSection';
+import StaffAvatar from '../../components/hr/profile/StaffAvatar';
+import PhotoControl from '../../components/hr/profile/PhotoControl';
 import DocumentsTab from '../../components/admin/staff/DocumentsTab';
 import ActivityTab from '../../components/admin/staff/ActivityTab';
 import { formatDate } from '../../components/admin/staff/staffFormat';
@@ -202,9 +204,9 @@ const StaffFile = ({ mode = 'staff' }) => {
   };
 
   // My profile: what the person may not change themselves goes to HR (D11).
-  const requestChanges = async (changes, reason) => {
+  const requestChanges = async (changes, reason, documentId = null) => {
     try {
-      await hrSelfService.requestChanges({ changes, reason });
+      await hrSelfService.requestChanges({ changes, reason, documentId });
       toast.success('Sent to HR');
       loadStaff();
     } catch (err) {
@@ -356,9 +358,7 @@ const StaffFile = ({ mode = 'staff' }) => {
       >
         <div className="flex items-center gap-3 min-w-0">
           <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${overviewOpen ? 'rotate-180 text-white' : 'text-gray-400'}`} />
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-            {(staff.firstName || staff.name || '?').charAt(0).toUpperCase()}
-          </div>
+          <StaffAvatar self={self} employeeId={staff.employeeId} hasPhoto={staff.hasPhoto} name={staff.name} />
           <h2 className={`text-base font-bold truncate min-w-[4.5rem] ${overviewOpen ? 'text-white' : 'text-gray-800'}`}>
             {staff.name}
           </h2>
@@ -402,6 +402,10 @@ const StaffFile = ({ mode = 'staff' }) => {
       >
         <div className="overflow-hidden min-h-0">
           <div className="py-4 space-y-4">
+            {(self || canEdit) && (
+              <PhotoControl self={self} employeeId={staff.employeeId} name={staff.name} hasPhoto={staff.hasPhoto}
+                onChanged={(hasPhoto) => setStaff((s) => ({ ...s, hasPhoto }))} />
+            )}
             {self ? (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -409,7 +413,8 @@ const StaffFile = ({ mode = 'staff' }) => {
                   <EditableSection title="Contact" description="You can change these yourself." fields={CONTACT_FIELDS} values={staff} onSave={saveSection} canEdit />
                   <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS} values={staff} onSave={saveSection} canEdit />
                   <EditableSection title="Personal" description="Changed by HR on request." fields={IDENTITY_FIELDS} values={staff}
-                    requestMode onRequest={requestChanges} pending={pendingByField} canEdit />
+                    requestMode onRequest={requestChanges} pending={pendingByField} canEdit
+                    attachEmployeeId={staff.employeeId} attachCategory="National ID" />
                   <EditableSection title="Employment" description="Set by HR." fields={EMPLOYMENT_FIELDS} values={staff} canEdit={false} />
                   <ChangeRequestList requests={selfData?.requests} onWithdraw={withdrawChange} />
                 </div>
@@ -439,9 +444,11 @@ const StaffFile = ({ mode = 'staff' }) => {
               <>
                 <EditableSection title="Licence" fields={LICENCE_FIELDS} values={staff} canEdit
                   requestMode onRequest={requestChanges} pending={pendingByField}
-                  description="Changed by HR on request — upload the new licence on the Documents tab." />
+                  attachEmployeeId={staff.employeeId} attachCategory="Practising Licence"
+                  description="Changed by HR on request — attach a copy of the new licence." />
                 <EditableSection title="Training" fields={TRAINING_FIELDS} values={staff} canEdit
-                  requestMode onRequest={requestChanges} pending={pendingByField} />
+                  requestMode onRequest={requestChanges} pending={pendingByField}
+                  attachEmployeeId={staff.employeeId} attachCategory="Academic Certificate" />
                 {/* CPD (phase 5): full-width below the two credential cards. */}
                 <CpdSection employeeId={staff.employeeId} />
               </>
@@ -453,6 +460,8 @@ const StaffFile = ({ mode = 'staff' }) => {
                   description="An expiry date here drives the warning pill in the name bar."
                 />
                 <EditableSection title="Training" fields={TRAINING_FIELDS} values={staff} onSave={saveSection} canEdit={canEdit} />
+                {/* CPD, read-only (2 Oct 2026) — the person logs it on My profile, HR verifies on Profile requests. */}
+                <CpdSection employeeId={staff.employeeId} readOnly />
               </>
             )}
           </div>

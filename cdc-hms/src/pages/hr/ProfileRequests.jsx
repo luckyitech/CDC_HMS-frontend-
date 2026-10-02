@@ -48,6 +48,15 @@ const ProfileChanges = ({ currentUser }) => {
   }, [tab]);
   useEffect(() => { setRows(null); load(); }, [load]);
 
+  const openCopy = async (row) => {
+    try {
+      const blob = await hrService.changeAttachment(row.id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) { notify('error', err.message || 'Could not open the document'); }
+  };
+
   const decide = async (row, decision, note) => {
     setBusy(row.id);
     try {
@@ -79,6 +88,11 @@ const ProfileChanges = ({ currentUser }) => {
                 <div className="text-gray-800 mt-0.5">{show(r.oldValue)} <span className="text-gray-400">→</span> <b>{show(r.newValue)}</b></div>
                 <div className="text-[11px] text-gray-500 mt-0.5">
                   Asked {day(r.createdAt)}{r.reason ? ` · “${r.reason}”` : ''}
+                  {r.attachment && (
+                    <button type="button" onClick={() => openCopy(r)} className="ml-1 inline-flex items-center gap-0.5 text-primary hover:underline">
+                      <Paperclip className="w-3 h-3" /> copy attached
+                    </button>
+                  )}
                   {r.decidedAt && ` · ${r.status} ${day(r.decidedAt)}${r.decidedBy ? ` by ${r.decidedBy}` : ''}${r.decisionNote ? ` · ${r.decisionNote}` : ''}`}
                 </div>
               </div>

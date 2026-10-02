@@ -20,6 +20,10 @@ import { inputCls, buttonCls, primaryButtonCls } from '../hrUi';
  *
  * Props: employeeId — the person's own employee id, for uploading a certificate
  * to their own staff file (self is allowed on that route).
+ *        readOnly — the HR staff file's Credentials tab (2 Oct 2026): the same
+ *                   card for someone else, loaded from GET /api/staff/:employeeId/cpd;
+ *                   no logging, editing or deleting. Verifying stays on
+ *                   Profile requests → CPD to verify.
  */
 const CATEGORIES = [
   ['conference', 'Conference'], ['course', 'Course'], ['webinar', 'Webinar'],
@@ -36,7 +40,7 @@ const pts = (n) => `${Number(n)} pt${Number(n) === 1 ? '' : 's'}`;
 
 const emptyForm = () => ({ date: todayIso(), title: '', provider: '', category: 'conference', points: '', file: null, documentId: null, documentName: null });
 
-const CpdSection = ({ employeeId }) => {
+const CpdSection = ({ employeeId, readOnly = false }) => {
   const [year, setYear] = useState(new Date().getFullYear());
   const [data, setData] = useState(null);
   const [modal, setModal] = useState(null);   // { editing, form }
@@ -46,13 +50,13 @@ const CpdSection = ({ employeeId }) => {
   const load = useCallback(async () => {
     setData(null);
     try {
-      const res = await hrSelfService.cpd(year);
+      const res = readOnly ? await staffService.getCpd(employeeId, year) : await hrSelfService.cpd(year);
       setData(res.data);
     } catch (e) {
-      notify('error', e?.message || 'Could not load your CPD');
+      notify('error', e?.message || (readOnly ? 'Could not load CPD' : 'Could not load your CPD'));
       setData({ activities: [], summary: { verified: 0, pending: 0, target: 0, toTarget: 0 } });
     }
-  }, [year]);
+  }, [year, readOnly, employeeId]);
   useEffect(() => { load(); }, [load]);
 
   const openNew = () => setModal({ editing: null, form: emptyForm() });
@@ -112,7 +116,7 @@ const CpdSection = ({ employeeId }) => {
             <button type="button" aria-label="Next year" className="p-1 text-gray-400 hover:text-gray-700" onClick={() => setYear((y) => y + 1)}><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
-        <button type="button" className={`${primaryButtonCls} inline-flex items-center gap-1`} onClick={openNew}><Plus className="w-4 h-4" /> Log CPD</button>
+        {!readOnly && <button type="button" className={`${primaryButtonCls} inline-flex items-center gap-1`} onClick={openNew}><Plus className="w-4 h-4" /> Log CPD</button>}
       </div>
 
       {data === null ? <Spinner /> : (
@@ -127,11 +131,13 @@ const CpdSection = ({ employeeId }) => {
             <span className="inline-flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-primary" /> {s.verified} verified</span>
             {s.pending > 0 && <span className="inline-flex items-center gap-1"><span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#bfdbfe' }} /> {s.pending} pending HR check</span>}
             {s.target > 0 && <span className="text-gray-500">{s.toTarget > 0 ? `${s.toTarget} to target (${s.target})` : `target ${s.target} met`}</span>}
-            {s.target === 0 && <span className="text-gray-400">No target set for your cadre</span>}
+            {s.target === 0 && <span className="text-gray-400">No target set for {readOnly ? 'this' : 'your'} cadre</span>}
           </div>
 
           {data.activities.length === 0 ? (
-            <p className="text-sm text-gray-500">Nothing logged for {year} yet. Log a course, conference or workshop and it counts once HR verifies it.</p>
+            <p className="text-sm text-gray-500">{readOnly
+              ? `Nothing logged for ${year}.`
+              : `Nothing logged for ${year} yet. Log a course, conference or workshop and it counts once HR verifies it.`}</p>
           ) : (
             <ul className="divide-y divide-gray-100" data-testid="cpd-list">
               {data.activities.map((a) => {
@@ -146,7 +152,7 @@ const CpdSection = ({ employeeId }) => {
                     <span className="tabular-nums text-gray-700">{pts(a.points)}</span>
                     {a.document && <Paperclip className="w-3.5 h-3.5 text-gray-400" aria-label="Certificate attached" />}
                     <Pill tone={st.tone}>{st.label}</Pill>
-                    {a.status === 'pending' && (
+                    {!readOnly && a.status === 'pending' && (
                       <span className="inline-flex gap-1">
                         <button type="button" className="p-1 text-gray-400 hover:text-gray-700" aria-label="Edit" onClick={() => openEdit(a)}><Pencil className="w-3.5 h-3.5" /></button>
                         <button type="button" className="p-1 text-gray-400 hover:text-red-700" aria-label="Delete" onClick={() => setDeleting(a)}><Trash2 className="w-3.5 h-3.5" /></button>
@@ -157,7 +163,9 @@ const CpdSection = ({ employeeId }) => {
               })}
             </ul>
           )}
-          <p className="text-[11px] text-gray-400 mt-2">The bar counts HR-verified points only. You can edit or delete an activity while it is pending; once verified it is locked.</p>
+          <p className="text-[11px] text-gray-400 mt-2">{readOnly
+            ? 'The bar counts HR-verified points only. Pending entries are verified on Profile requests → CPD to verify; certificates are on the Documents tab.'
+            : 'The bar counts HR-verified points only. You can edit or delete an activity while it is pending; once verified it is locked.'}</p>
         </>
       )}
 

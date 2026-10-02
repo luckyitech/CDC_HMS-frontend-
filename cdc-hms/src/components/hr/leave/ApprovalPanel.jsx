@@ -113,6 +113,22 @@ const ApprovalPanel = ({ requestId, onChanged }) => {
     }
   };
 
+  // Save the split without deciding (2 Oct 2026): logged on the timeline as a
+  // change of balance; the approval that completes the request still locks it.
+  const saveSplit = async () => {
+    setBusy(true);
+    try {
+      const res = await leaveService.saveSplit(app.id, split.map((r) => ({ leaveType: r.leaveType, days: Number(r.days) })));
+      show(res.data);
+      notify('success', 'Split saved — not yet approved');
+      onChanged?.(res.data);
+    } catch (err) {
+      notify('error', err.message || 'Could not save the split');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const cancel = async (reason) => {
     setCancelling(false);
     setBusy(true);
@@ -212,11 +228,18 @@ const ApprovalPanel = ({ requestId, onChanged }) => {
             <div className="mb-3">
               <div className="text-xs font-semibold text-gray-700 mb-1">Charge these days to</div>
               <ChargeSplit rows={split} onChange={setSplit} total={app.days} types={chargeTypes || []} balances={balances || []} />
-              <p className="text-[11px] text-gray-500 mt-1">
-                {me.isLast
-                  ? 'Your approval completes this request — the split you approve is final.'
-                  : 'The last approver\'s split is final. Changes are logged and shown to the applicant.'}
-              </p>
+              <div className="flex flex-wrap items-start justify-between gap-2 mt-1">
+                <p className="text-[11px] text-gray-500 flex-1 min-w-[12rem]">
+                  {me.isLast
+                    ? 'Your approval completes this request — the split you approve is final.'
+                    : 'The last approver\'s split is final. Changes are logged and shown to the applicant.'}
+                </p>
+                {splitChanged && (
+                  <button type="button" className={buttonCls} disabled={busy || !splitReady(split, app.days)} onClick={saveSplit}>
+                    Save split only
+                  </button>
+                )}
+              </div>
             </div>
           )}
           <textarea rows={2} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)}
@@ -241,6 +264,12 @@ const ApprovalPanel = ({ requestId, onChanged }) => {
             <CalendarX2 className="w-4 h-4" /> Cancel leave
           </button>
         </div>
+      )}
+
+      {me.viewOnly && (
+        <p className="pt-4 mt-4 border-t border-gray-100 text-[11px] text-gray-500">
+          You are viewing this from the staff file. Notes, reasons and documents are seen only by the person, their approvers and whoever manages leave.
+        </p>
       )}
 
       <Block title="History">
