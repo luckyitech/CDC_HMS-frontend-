@@ -27,3 +27,11 @@ export const toDateInput = (value) => {
 // edited by the same field config as flat columns.
 export const readPath = (obj, path) =>
   path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+
+// HR Tier 3 Phase 1: a department scope as words (Permissions tab).
+export const scopeLabel = (spec, departments = []) => {
+  if (!spec || spec.kind === 'all') return 'All staff';
+  if (spec.kind === 'own') return 'Own department';
+  const names = (spec.departmentIds || []).map((id) => departments.find((d) => d.id === id)?.name || `#${id}`);
+  return names.length <= 2 ? names.join(', ') : `${names.length} departments`;
+};

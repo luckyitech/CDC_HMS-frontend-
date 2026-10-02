@@ -12,7 +12,8 @@ import ContactInfoSection from '../../shared/formSections/ContactInfoSection';
 import AccountSettingsSection from '../../shared/formSections/AccountSettingsSection';
 import PermissionPicker from './PermissionPicker';
 import PresetEditorModal from './PresetEditorModal';
-import { CADRES, cadreFor, identityPayload } from './cadreFields';
+import { CADRES, cadreFor, identityPayload, resolveFields } from './cadreFields';
+import hrService from '../../../services/hrService';
 import api from '../../../services/api';
 import staffService from '../../../services/staffService';
 import permissionPresetService from '../../../services/permissionPresetService';
@@ -47,7 +48,7 @@ const EMPTY = {
   firstName: '', lastName: '', email: '', phone: '', dateOfBirth: '', gender: '', idNumber: '',
   address: '', city: '', emergencyContact: '', emergencyRelationship: '', emergencyPhone: '',
   temporaryPassword: '',
-  role: '', position: '', department: '', shift: '', employmentType: '', startDate: '',
+  role: '', position: '', department: '', positionId: '', departmentId: '', shift: '', employmentType: '', startDate: '',
 };
 
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
@@ -82,6 +83,15 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
   const [submitting, setSubmitting] = useState(false);
 
   const cadre = cadreFor(d.role);
+  // HR Tier 3 Phase 1: department / position come from the clinic's lists.
+  const [lists, setLists] = useState(null);
+  useEffect(() => {
+    hrService.lists().then((res) => setLists(res?.data || null)).catch(() => setLists(null));
+  }, []);
+  const roleFields = resolveFields(cadre, lists);
+  const departmentName = d.departmentId
+    ? (lists?.departments || []).find((x) => String(x.id) === String(d.departmentId))?.name
+    : d.department;
   const preset = presets.find((p) => String(p.id) === String(presetId)) || null;
 
   useEffect(() => {
@@ -118,6 +128,10 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
     setSaveBack(false);
     if (p?.position && !d.position) set('position', p.position);
     if (p?.department && !d.department) set('department', p.department);
+    // …and the matching list entries, when the clinic has them.
+    const match = (list, name) => (lists?.[list] || []).find((x) => x.status === 'active' && x.name.toLowerCase() === String(name || '').trim().toLowerCase());
+    if (p?.position && !d.positionId && match('positions', p.position)) set('positionId', String(match('positions', p.position).id));
+    if (p?.department && !d.departmentId && match('departments', p.department)) set('departmentId', String(match('departments', p.department).id));
   };
 
   const choosePreset = (value) => {
@@ -158,7 +172,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
 
   // ---- validation per step ----
   const identityOk = d.firstName && d.lastName && d.email && d.phone;
-  const roleOk = cadre && cadre.fields.every((f) => !f.required || d[f.key]);
+  const roleOk = cadre && roleFields.every((f) => !f.required || d[f.key]);
 
   const next = () => {
     if (step === 0 && !identityOk) return toast.error('First name, last name, email and phone are required');
@@ -231,7 +245,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
     <span className="text-sm text-gray-500">
       <span className="font-semibold text-gray-800">{d.firstName} {d.lastName}</span>
       {cadre && ` · ${cadre.label.toLowerCase()}`}
-      {d.department && ` · ${d.department}`}
+      {departmentName && ` · ${departmentName}`}
       {d.startDate && ` · starts ${d.startDate}`}
     </span>
   );
@@ -268,8 +282,16 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
               <p className="text-xs text-gray-500 mt-1">The cadre decides which portal they land in. Job title and access are set separately.</p>
             </div>
 
-            {cadre && cadre.fields.map((f) => (
-              f.type === 'select' ? (
+            {cadre && roleFields.map((f) => (
+              f.type === 'entry' ? (
+                <div key={f.key}>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor={`wiz-${f.key}`}>{f.label}{f.required ? ' *' : ''}</label>
+                  <select id={`wiz-${f.key}`} className={inp} value={d[f.key]} onChange={(e) => set(f.key, e.target.value)} required={f.required}>
+                    <option value="">{f.required ? 'Select…' : 'Not set'}</option>
+                    {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              ) : f.type === 'select' ? (
                 <div key={f.key}>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">{f.label}{f.required ? ' *' : ''}</label>
                   <select className={inp} value={d[f.key]} onChange={(e) => set(f.key, e.target.value)} required={f.required}>

@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, canManageLists, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -60,6 +60,7 @@ import {
   UserCheck,
   UserRound,
   ClipboardCheck,
+  Network,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
@@ -592,6 +593,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // B27: the leave policy (leave.policy), holidays (leave.holidays),
       // entitlements (leave.entitlements) and the alert channels (hr.settings).
       { name: "Leave settings", path: "/hr/leave-settings", icon: CalendarCog, show: canSetLeavePolicy(currentUser) || canSetHolidays(currentUser) || canSetEntitlements(currentUser) || canChangeHrSettings(currentUser) },
+      // HR Tier 3 Phase 1: the Departments / Positions lists and the tidy screen (hr.lists).
+      { name: "Departments & positions", path: "/hr/lists", icon: Network, show: canManageLists(currentUser) },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [

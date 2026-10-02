@@ -21,7 +21,7 @@ import { CADRES } from './cadreFields';
  */
 const EMPTY = {
   name: '', description: '', baseRole: 'staff', staffType: STAFF_TYPES.CLINICAL,
-  position: '', department: '', permissions: [], deniedPermissions: [],
+  position: '', department: '', permissions: [], deniedPermissions: [], scopes: {},
 };
 
 const PresetEditorModal = ({ isOpen, onClose, catalog, preset, defaultRole, onSaved }) => {
@@ -50,6 +50,8 @@ const PresetEditorModal = ({ isOpen, onClose, catalog, preset, defaultRole, onSa
         baseRole: form.baseRole, staffType: form.staffType,
         position: form.position || null, department: form.department || null,
         permissions: form.permissions, deniedPermissions: form.deniedPermissions,
+        // HR Tier 3 Phase 1: "own department" limits, for controls still ticked.
+        scopes: Object.fromEntries(Object.entries(form.scopes || {}).filter(([c]) => form.permissions.includes(c))),
       };
       const res = preset?.id
         ? await permissionPresetService.update(preset.id, body)
@@ -105,6 +107,34 @@ const PresetEditorModal = ({ isOpen, onClose, catalog, preset, defaultRole, onSa
             onChange={({ granted, denied }) => setForm((p) => ({ ...p, permissions: granted, deniedPermissions: denied }))}
           />
         </div>
+
+        {(() => {
+          // HR Tier 3 Phase 1: a preset may limit the people-facing HR controls
+          // it ticks to the new person's own department (mockup D). Named
+          // departments are set per person on the Permissions tab.
+          const scopable = (catalog?.scopable || []).filter((c) => form.permissions.includes(c));
+          if (!scopable.length) return null;
+          const nameOf = (cap) => (catalog?.groups || []).flatMap((g) => g.areas).find((a) => a.access === cap)?.name || cap;
+          return (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">Limit to their own department</p>
+              <p className="text-xs text-gray-500 mb-2">Ticked controls reach only the people in the new person&rsquo;s department; unticked ones reach all staff.</p>
+              <div className="grid sm:grid-cols-2 gap-x-4">
+                {scopable.map((cap) => (
+                  <label key={cap} className="flex items-center gap-2 py-1 text-sm text-gray-700">
+                    <input type="checkbox" checked={form.scopes?.[cap]?.kind === 'own'}
+                      onChange={(e) => setForm((p) => {
+                        const next = { ...(p.scopes || {}) };
+                        if (e.target.checked) next[cap] = { kind: 'own' }; else delete next[cap];
+                        return { ...p, scopes: next };
+                      })} />
+                    {nameOf(cap)}
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="flex justify-end gap-2 pt-2 border-t">
           <Button variant="outline" onClick={onClose}>Cancel</Button>

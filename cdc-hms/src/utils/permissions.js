@@ -123,6 +123,8 @@ export const PERMISSIONS = {
   STAFF_ONBOARD:    'staff.onboard',
   STAFF_STATUS:     'staff.status',
   STAFF_DOCUMENTS:  'staff.documents',
+  // HR Tier 3 Phase 1: the Departments / Positions lists and the tidy screen.
+  HR_LISTS:         'hr.lists',
   // Grant HR permissions — never satisfied by admin.access (see canGrantHrPermissions).
   HR_GRANT:         'hr.grant',
 };
@@ -278,6 +280,7 @@ export const canEditStaff           = (user) => canUseCapability(user, PERMISSIO
 export const canOnboardStaff        = (user) => canUseCapability(user, PERMISSIONS.STAFF_ONBOARD,   HR_DEFAULT_ROLES);
 export const canChangeStaffStatus   = (user) => canUseCapability(user, PERMISSIONS.STAFF_STATUS,    HR_DEFAULT_ROLES);
 export const canManageStaffDocuments = (user) => canUseCapability(user, PERMISSIONS.STAFF_DOCUMENTS, HR_DEFAULT_ROLES);
+export const canManageLists         = (user) => canUseCapability(user, PERMISSIONS.HR_LISTS,        HR_DEFAULT_ROLES);
 export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKIN, HR_CHECKIN_DEFAULT_ROLES);
 // B27 — leave and HR settings. Mirrors routes/staff.js LEAVE_DECIDE /
 // LEAVE_POLICY and routes/hr.js SETTINGS: the admin role, admin.access, or a

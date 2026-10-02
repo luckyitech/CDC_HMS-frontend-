@@ -16,6 +16,11 @@ import AttachLeaveDocument from '../../hr/leave/AttachLeaveDocument';
  * Field config:
  *   { key, label, type, options?, suffix? }
  *
+ * type 'entry' (HR Tier 3 Phase 1): a pick from a managed list — `key` is the
+ * id column (departmentId), `options` are [{ value: id, label: name }], and
+ * `displayKey` names the text shown when reading (department). A file whose
+ * text predates the lists shows it with "not on the list yet".
+ *
  * `key` may be a dotted path ('emergencyContact.name'), which lets a nested
  * JSON column be edited by the same config as a flat one. The patch is
  * assembled back into nested shape on save.
@@ -144,15 +149,18 @@ const EditableSection = ({
           const raw = readPath(values, field.key);
 
           if (!editing) {
+            const shown = field.type === 'entry' ? readPath(values, field.displayKey) : raw;
             const display = field.type === 'date'
               ? formatDate(raw)
-              : (raw === 0 ? '0' : raw) || '—';
+              : (shown === 0 ? '0' : shown) || '—';
+            const unlinked = field.type === 'entry' && !raw && shown;
             const waiting = pending[field.key];
             return (
               <div key={field.key} className="flex items-start justify-between gap-4 text-sm">
                 <dt className="text-gray-500 flex-shrink-0">{field.label}</dt>
                 <dd className="text-gray-800 text-right break-words">
                   {display}{raw && field.suffix ? ` ${field.suffix}` : ''}
+                  {unlinked && <span className="block text-[11px] text-amber-700">not on the list yet</span>}
                   {waiting && (
                     <span className="block mt-0.5 text-[11px] font-semibold text-amber-700" title={waiting.reason || undefined}>
                       Change pending: {field.type === 'date' ? formatDate(waiting.newValue) : (waiting.newValue ?? 'clear')}
@@ -166,7 +174,17 @@ const EditableSection = ({
           return (
             <div key={field.key} className="text-sm">
               <label className="block text-xs text-gray-500 mb-1">{field.label}</label>
-              {field.type === 'select' ? (
+              {field.type === 'entry' ? (
+                <select
+                  aria-label={field.label}
+                  value={draft[field.key] ?? ''}
+                  onChange={(e) => setDraft((d) => ({ ...d, [field.key]: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">{readPath(values, field.displayKey) && !readPath(values, field.key) ? `“${readPath(values, field.displayKey)}” — choose from the list` : '— Select —'}</option>
+                  {field.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              ) : field.type === 'select' ? (
                 <select
                   value={draft[field.key] ?? ''}
                   onChange={(e) => setDraft((d) => ({ ...d, [field.key]: e.target.value }))}

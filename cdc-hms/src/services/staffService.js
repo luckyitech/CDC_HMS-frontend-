@@ -68,10 +68,13 @@ export const staffService = {
    * means to change grants — the server leaves withdrawals untouched when the
    * key is absent, so an older caller cannot silently clear them.
    */
-  updatePermissions: (employeeId, permissions, deniedPermissions, staffType) => {
+  // `scopes` (HR Tier 3 Phase 1): { capability: { kind: 'all'|'own'|'departments', departmentIds } }
+  // for the controls whose department limit changes; omitted ones keep theirs.
+  updatePermissions: (employeeId, permissions, deniedPermissions, staffType, scopes) => {
     const body = { permissions };
     if (deniedPermissions !== undefined) body.deniedPermissions = deniedPermissions;
     if (staffType !== undefined) body.staffType = staffType;
+    if (scopes && Object.keys(scopes).length) body.scopes = scopes;
     return api.patch(`/staff/${employeeId}/permissions`, body);
   },
 

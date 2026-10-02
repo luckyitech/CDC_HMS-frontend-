@@ -44,6 +44,13 @@ const hrService = {
   verifyCpd:      (id, body)      => api.patch(`/hr/cpd/${id}/verify`, body),
   cpdCertificate: (id)           => api.get(`/hr/cpd/${id}/certificate`, { responseType: 'blob' }),
 
+  // HR Tier 3 Phase 1 — departments and positions (list = 'departments' | 'positions')
+  lists:          ()              => api.get('/hr/lists'),
+  addListEntry:   (list, body)    => api.post(`/hr/lists/${list}`, body),
+  updateListEntry: (list, id, body) => api.patch(`/hr/lists/${list}/${id}`, body),
+  listsTidy:      ()              => api.get('/hr/lists/tidy'),
+  applyListsTidy: (body)          => api.post('/hr/lists/tidy', body),
+
   settings:       ()              => api.get('/hr/settings'),
   saveSettings:   (body)          => api.put('/hr/settings', body),
 

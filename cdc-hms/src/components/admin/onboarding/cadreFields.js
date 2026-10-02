@@ -17,6 +17,30 @@ const text   = (key, label, extra = {}) => ({ key, label, type: 'text', ...extra
 const select = (key, label, options, extra = {}) => ({ key, label, type: 'select', options, ...extra });
 const date   = (key, label, extra = {}) => ({ key, label, type: 'date', ...extra });
 const number = (key, label, extra = {}) => ({ key, label, type: 'number', ...extra });
+// HR Tier 3 Phase 1: a pick from the clinic's Departments / Positions list
+// (`list` = 'departments' | 'positions'), stored as an id. Until HR has added
+// entries to that list, the wizard shows `fallback` instead — the field it
+// always had — so onboarding keeps working on deploy day (resolveFields).
+const entry  = (key, label, list, fallback, extra = {}) => ({ key, label, type: 'entry', list, fallback, ...extra });
+
+/** Ids win; text is sent only when no list entry was picked. */
+const listPayload = (d, defaults = {}) => ({
+  departmentId: d.departmentId ? Number(d.departmentId) : undefined,
+  department: d.departmentId ? undefined : (d.department || defaults.department || undefined),
+  positionId: d.positionId ? Number(d.positionId) : undefined,
+  position: d.positionId ? undefined : (d.position || defaults.position || undefined),
+});
+
+/**
+ * A cadre's fields with each list pick resolved against the lists the clinic
+ * has: a select of active entries, or the old field while the list is empty.
+ */
+export const resolveFields = (cadre, lists) => (cadre ? cadre.fields.flatMap((f) => {
+  if (f.type !== 'entry') return [f];
+  const entries = (lists?.[f.list] || []).filter((x) => x.status === 'active');
+  if (entries.length) return [{ ...f, options: entries.map((x) => ({ value: String(x.id), label: x.name })) }];
+  return f.fallback ? [f.fallback] : [];
+}) : []);
 
 const COMMON_EMPLOYMENT = [
   select('employmentType', 'Employment type', EMPLOYMENT_TYPES, { required: true }),
@@ -33,7 +57,10 @@ export const CADRES = [
       text('licenseNumber', 'Licence number', { required: true }),
       select('specialty', 'Specialty', ['Endocrinologist', 'Cardiologist', 'Diabetologist', 'General Practitioner', 'Nephrologist', 'Neurologist', 'Pediatrician', 'Surgeon'], { required: true }),
       text('subSpecialty', 'Sub-specialty'),
-      select('department', 'Department', ['Diabetes Care', 'Cardiology', 'Nephrology', 'General Medicine', 'Pediatrics', 'Surgery'], { required: true }),
+      entry('departmentId', 'Department', 'departments',
+        select('department', 'Department', ['Diabetes Care', 'Cardiology', 'Nephrology', 'General Medicine', 'Pediatrics', 'Surgery'], { required: true }),
+        { required: true }),
+      entry('positionId', 'Position', 'positions', null),
       text('qualification', 'Qualification', { required: true, placeholder: 'MBChB, MMed…' }),
       text('medicalSchool', 'Medical school'),
       number('yearsExperience', 'Years of experience', { required: true }),
@@ -43,7 +70,7 @@ export const CADRES = [
       licenseNumber: d.licenseNumber,
       specialty: d.specialty,
       subSpecialty: d.subSpecialty || null,
-      department: d.department,
+      ...listPayload(d),
       qualification: d.qualification,
       medicalSchool: d.medicalSchool || null,
       yearsExperience: d.yearsExperience ? parseInt(d.yearsExperience, 10) : 0,
@@ -57,7 +84,10 @@ export const CADRES = [
     noun: 'nurse',
     endpoint: '/users/nurses',
     fields: [
-      select('department', 'Department', ['Inpatient Ward', 'HDU', 'Outpatient', 'Triage', 'Theatre', 'Maternity'], { required: true }),
+      entry('departmentId', 'Department', 'departments',
+        select('department', 'Department', ['Inpatient Ward', 'HDU', 'Outpatient', 'Triage', 'Theatre', 'Maternity'], { required: true }),
+        { required: true }),
+      entry('positionId', 'Position', 'positions', null),
       select('shift', 'Shift', SHIFTS),
       text('licenseNumber', 'Council registration number'),
       text('qualification', 'Qualification'),
@@ -65,8 +95,7 @@ export const CADRES = [
       ...COMMON_EMPLOYMENT,
     ],
     payload: (d) => ({
-      position: d.position || 'Nurse',
-      department: d.department,
+      ...listPayload(d, { position: 'Nurse' }),
       shift: d.shift || undefined,
       licenseNumber: d.licenseNumber || undefined,
       qualification: d.qualification || undefined,
@@ -81,6 +110,8 @@ export const CADRES = [
     noun: 'lab technician',
     endpoint: '/users/lab-techs',
     fields: [
+      entry('departmentId', 'Department', 'departments', null),
+      entry('positionId', 'Position', 'positions', null),
       select('specialization', 'Specialisation', ['Clinical Chemistry', 'Hematology', 'Microbiology', 'Immunology', 'Blood Bank', 'Molecular Diagnostics', 'General Laboratory'], { required: true }),
       text('certificationNumber', 'Certification number', { required: true }),
       select('qualification', 'Qualification', ['Diploma in Medical Laboratory Technology', 'BSc in Medical Laboratory Science', 'Higher Diploma in Medical Laboratory Technology', 'MSc in Medical Laboratory Science', 'Certificate in Laboratory Technology'], { required: true }),
@@ -92,6 +123,7 @@ export const CADRES = [
     payload: (d) => ({
       specialization: d.specialization,
       certificationNumber: d.certificationNumber,
+      ...listPayload(d),
       qualification: d.qualification,
       institution: d.institution || null,
       yearsExperience: d.yearsExperience ? parseInt(d.yearsExperience, 10) : 0,
@@ -110,14 +142,17 @@ export const CADRES = [
       // (StaffProfile.position), never Users.role. Free text now — the fixed
       // list (Nurse / Admin / Receptionist) was wrong twice over: nurses have
       // their own cadre, and "Admin" is a toggle on the next step.
-      text('position', 'Job title', { required: true, placeholder: 'Receptionist, Pharmacy assistant…' }),
-      select('department', 'Department', ['Front Desk', 'Administration', 'Pharmacy', 'Nursing', 'Records', 'Finance'], { required: true }),
+      entry('positionId', 'Job title', 'positions',
+        text('position', 'Job title', { required: true, placeholder: 'Receptionist, Pharmacy assistant…' }),
+        { required: true }),
+      entry('departmentId', 'Department', 'departments',
+        select('department', 'Department', ['Front Desk', 'Administration', 'Pharmacy', 'Nursing', 'Records', 'Finance'], { required: true }),
+        { required: true }),
       select('shift', 'Shift', SHIFTS),
       ...COMMON_EMPLOYMENT,
     ],
     payload: (d) => ({
-      position: d.position,
-      department: d.department,
+      ...listPayload(d),
       shift: d.shift || undefined,
       employmentType: d.employmentType || undefined,
       startDate: d.startDate || null,

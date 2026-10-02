@@ -10,6 +10,7 @@ import Button from '../../components/shared/Button';
 import ProfileTabBar from '../../components/shared/ProfileTabBar';
 import StatusBadge from '../../components/shared/StatusBadge';
 import staffService from '../../services/staffService';
+import hrService from '../../services/hrService';
 import EditableSection from '../../components/admin/staff/EditableSection';
 import AccessTab from '../../components/admin/staff/AccessTab';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
@@ -66,9 +67,22 @@ const PERSONAL_FIELDS = [
   { key: 'city',        label: 'City' },
 ];
 
+// HR Tier 3 Phase 1: position and department are picked from the clinic's
+// lists (HR Suite → Departments & positions). Read-only views show the text.
+const entryOptions = (entries, currentId) => (entries || [])
+  .filter((x) => x.status === 'active' || x.id === currentId)
+  .map((x) => ({ value: x.id, label: x.status === 'active' ? x.name : `${x.name} (archived)` }));
+const employmentFields = (lists, staff) => (lists ? [
+  { key: 'positionId',   label: 'Position',   type: 'entry', displayKey: 'position',   options: entryOptions(lists.positions, staff?.positionId) },
+  { key: 'departmentId', label: 'Department', type: 'entry', displayKey: 'department', options: entryOptions(lists.departments, staff?.departmentId) },
+  ...EMPLOYMENT_FIELDS,
+] : [
+  { key: 'position',   label: 'Position' },
+  { key: 'department', label: 'Department' },
+  ...EMPLOYMENT_FIELDS,
+]);
+
 const EMPLOYMENT_FIELDS = [
-  { key: 'position',       label: 'Position' },
-  { key: 'department',     label: 'Department' },
   { key: 'ward',           label: 'Ward / unit' },
   { key: 'shift',          label: 'Shift',           type: 'select', options: SHIFTS },
   { key: 'employmentType', label: 'Employment type', type: 'select', options: EMPLOYMENT_TYPES },
@@ -186,6 +200,13 @@ const StaffFile = ({ mode = 'staff' }) => {
   }, [self, routeEmployeeId]);
 
   useEffect(() => { loadStaff(); }, [loadStaff]);
+
+  // The lists the Employment card picks from — only when this viewer may edit.
+  const [lists, setLists] = useState(null);
+  useEffect(() => {
+    if (self || !canManage) return;
+    hrService.lists().then((res) => setLists(res?.data || null)).catch(() => setLists(null));
+  }, [self, canManage]);
 
   // One save path for every inline section. The error is re-thrown so
   // EditableSection keeps the form open with the admin's input intact rather
@@ -419,14 +440,14 @@ const StaffFile = ({ mode = 'staff' }) => {
                   <EditableSection title="Personal" description="Changed by HR on request." fields={IDENTITY_FIELDS} values={staff}
                     requestMode onRequest={requestChanges} pending={pendingByField} canEdit
                     attachEmployeeId={staff.employeeId} attachCategory="National ID" />
-                  <EditableSection title="Employment" description="Set by HR." fields={EMPLOYMENT_FIELDS} values={staff} canEdit={false} />
+                  <EditableSection title="Employment" description="Set by HR." fields={employmentFields(null, staff)} values={staff} canEdit={false} />
                   <ChangeRequestList requests={selfData?.requests} onWithdraw={withdrawChange} />
                 </div>
               </>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 <EditableSection title="Personal"          fields={PERSONAL_FIELDS}   values={staff} onSave={saveSection} canEdit={canEdit} />
-                <EditableSection title="Employment"        fields={EMPLOYMENT_FIELDS} values={staff} onSave={saveSection} canEdit={canEdit} />
+                <EditableSection title="Employment"        fields={employmentFields(lists, staff)} values={staff} onSave={saveSection} canEdit={canEdit} />
                 <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS}  values={staff} onSave={saveSection} canEdit={canEdit} />
               </div>
             )}

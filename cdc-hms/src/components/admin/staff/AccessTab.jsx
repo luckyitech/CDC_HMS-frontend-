@@ -9,7 +9,8 @@ import staffService from '../../../services/staffService';
 import api from '../../../services/api';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import AccordionPanel from '../../shared/AccordionPanel';
-import { formatDateTime } from './staffFormat';
+import { formatDateTime, scopeLabel } from './staffFormat';
+import ScopePicker from './ScopePicker';
 import {
   STAFF_TYPES, canManageTags, canGrantPermissions, canGrantHrPermissions, canChangeStaffStatus, passesAdminGate,
 } from '../../../utils/permissions';
@@ -142,6 +143,8 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   // fits on one screen and the summary on each header says what is set inside
   // without opening it.
   const [openGroups, setOpenGroups] = useState({});
+  // HR Tier 3 Phase 1: which control's scope picker is open.
+  const [scopeOpen, setScopeOpen] = useState(null);
   const toggleGroup = (key) => setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Granting is restricted server-side to a PERMISSIONS ADMINISTRATOR — a
@@ -186,6 +189,17 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   }, []);
 
   const denied  = staff.deniedPermissions || [];
+  // Department scopes (HR Tier 3 Phase 1). Served only to permissions editors.
+  const scopes = staff.permissionScopes || {};
+  const scopable = catalog.scopable || [];
+  const departments = catalog.departments || [];
+  // How far a department-limited HR grantor reaches on each control (L-8).
+  const limitFor = (cap) => (hrMode && staff.grantorScopes ? staff.grantorScopes[cap] || { all: false, departmentIds: [] } : null);
+  /** The scope a NEW grant starts with: all staff, or a limited grantor's own reach. */
+  const startingScope = (cap) => {
+    const l = limitFor(cap);
+    return !l || l.all ? null : { kind: 'departments', departmentIds: l.departmentIds };
+  };
   // `effective` (above) is what this person can ACTUALLY do — resolved by the
   // server, not recomputed here. `granted` / `denied` are the inputs an admin
   // sets; the result is what every row leads with.
@@ -329,11 +343,19 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
 
     const label = isAccess ? area.accessLabel : area.writeLabel;
 
+    // A department-limited HR grantor gives a new control no wider than they
+    // hold it themselves (the API refuses anything wider).
+    const newScopes = {};
+    [...nextGranted].filter((c) => !granted.includes(c) && scopable.includes(c)).forEach((c) => {
+      const s0 = startingScope(c);
+      if (s0) newScopes[c] = s0;
+    });
+
     const save = async () => {
       setSaving(capability);
       try {
         const res = await staffService.updatePermissions(
-          staff.employeeId, [...nextGranted], [...nextDenied]
+          staff.employeeId, [...nextGranted], [...nextDenied], undefined, newScopes
         );
         onChanged(res.data);
         toast.success(`${area.name} updated`);
@@ -372,6 +394,21 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     }
 
     await save();
+  };
+
+  /** Save a new department scope for one directly ticked control. */
+  const saveScope = async (capability, spec) => {
+    setSaving(capability);
+    try {
+      const res = await staffService.updatePermissions(staff.employeeId, granted, denied, undefined, { [capability]: spec });
+      onChanged(res.data);
+      setScopeOpen(null);
+      toast.success('Scope saved');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save the scope');
+    } finally {
+      setSaving(null);
+    }
   };
 
   const resetPassword = () => {
@@ -461,23 +498,62 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     if (!effective.includes(capability) || granted.includes(capability) || byDefault.includes(capability)) return null;
     const source = granted.find((g) => g !== capability
       && carriedBy([g], catalog.bundles, catalog.impliedBy).has(capability));
-    if (source) return `Comes with “${areaNameOf(source) || source}”`;
+    if (source) {
+      // A carried control follows the scope of what carries it (L-5).
+      const sc = scopable.includes(source) && scopes[source] && scopes[source].kind !== 'all'
+        ? ` · ${scopeLabel(scopes[source], departments)}` : '';
+      return `Comes with “${areaNameOf(source) || source}”${sc}`;
+    }
     if (effective.includes('admin.access') && (catalog.adminAccessCovers || []).includes(capability)) {
       return 'Comes with full administrator access';
     }
     return null;
   };
 
+  // A scope shows on a control ticked DIRECTLY that acts on people (catalog
+  // .scopable). Full administrator access is always all staff, so nothing to set.
+  const showsScope = (capability) => scopable.includes(capability) && granted.includes(capability)
+    && effective.includes(capability) && !effective.includes('admin.access') && !!staff.permissionScopes;
   const renderRow = (area, capability, label) => (
-    <Tick
-      key={capability}
-      checked={effective.includes(capability)}
-      busy={saving === capability}
-      disabled={!editable(capability)}
-      label={label}
-      hint={hintFor(capability)}
-      onChange={(ticked) => change(area, capability, ticked)}
-    />
+    <div key={capability}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <Tick
+            checked={effective.includes(capability)}
+            busy={saving === capability}
+            disabled={!editable(capability)}
+            label={label}
+            hint={hintFor(capability)}
+            onChange={(ticked) => change(area, capability, ticked)}
+          />
+        </div>
+        {showsScope(capability) && (
+          <button
+            type="button"
+            onClick={() => setScopeOpen(scopeOpen === capability ? null : capability)}
+            disabled={!editable(capability)}
+            aria-expanded={scopeOpen === capability}
+            aria-label={`${area.name}: for whom — ${scopeLabel(scopes[capability], departments)}`}
+            className="px-2.5 py-1 border border-gray-300 rounded-md text-xs text-gray-700 whitespace-nowrap hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {scopeLabel(scopes[capability], departments)} ▾
+          </button>
+        )}
+      </div>
+      {scopeOpen === capability && (
+        <ScopePicker
+          capabilityLabel={area.name}
+          personName={staff.firstName}
+          spec={scopes[capability]}
+          departments={departments}
+          ownDepartmentId={staff.departmentId}
+          limit={limitFor(capability)}
+          saving={saving === capability}
+          onCancel={() => setScopeOpen(null)}
+          onSave={(spec) => saveScope(capability, spec)}
+        />
+      )}
+    </div>
   );
 
   return (
