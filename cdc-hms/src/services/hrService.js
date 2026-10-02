@@ -38,7 +38,7 @@ const hrService = {
   changeRequestCount: ()          => api.get('/hr/change-requests/count'),
   decideChange:   (id, body)      => api.patch(`/hr/change-requests/${id}`, body),
   changeAttachment: (id)          => api.get(`/hr/change-requests/${id}/attachment`, { responseType: 'blob' }),
-  // --- CPD verification (B27 phase 5, hr.credentials) ---
+  // --- CPD verification (B27 phase 5, cpd.verify) ---
   cpdToVerify:    (status = 'pending', year) => api.get('/hr/cpd', { params: { status, ...(year ? { year } : {}) } }),
   cpdCount:       ()              => api.get('/hr/cpd/count'),
   verifyCpd:      (id, body)      => api.patch(`/hr/cpd/${id}/verify`, body),

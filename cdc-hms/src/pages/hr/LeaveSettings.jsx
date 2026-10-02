@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Lock, RefreshCw, CalendarCog, CalendarDays, Users, Bell, GraduationCap } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
-import { canSetLeavePolicy, canChangeHrSettings } from '../../utils/permissions';
+import { canSetLeavePolicy, canSetHolidays, canSetEntitlements, canChangeHrSettings } from '../../utils/permissions';
 import leaveService from '../../services/leaveService';
 import PageHeader from '../../components/shared/PageHeader';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
@@ -122,11 +122,17 @@ const RecentChanges = ({ refreshKey = 0 }) => {
 
 const LeaveSettings = () => {
   const { currentUser } = useUserContext();
+  // HR Tier 3 Phase 0: each tab its own control (leave.policy carries holidays
+  // and entitlements, so a policy holder still sees all three).
   const canPolicy = canSetLeavePolicy(currentUser);
+  const canHolidays = canSetHolidays(currentUser);
+  const canEntitlements = canSetEntitlements(currentUser);
   const canAlerts = canChangeHrSettings(currentUser);
+  const canLeaveTabs = canPolicy || canHolidays || canEntitlements;
   const [params, setParams] = useSearchParams();
 
-  const tabs = TABS.filter((t) => (SETTINGS_TABS.includes(t.id) ? canAlerts : canPolicy));
+  const TAB_GATE = { policy: canPolicy, holidays: canHolidays, entitlements: canEntitlements };
+  const tabs = TABS.filter((t) => (SETTINGS_TABS.includes(t.id) ? canAlerts : TAB_GATE[t.id]));
   const tab = tabs.some((t) => t.id === params.get('tab')) ? params.get('tab') : tabs[0]?.id;
 
   const [years, setYears] = useState(null);         // [{ year, status }]
@@ -168,7 +174,7 @@ const LeaveSettings = () => {
     } catch (e) { notify('error', e?.message || 'Could not load the leave policy'); }
   }, [year]);
 
-  useEffect(() => { if (canPolicy) loadYears(); else setThisYear(new Date().getFullYear()); }, [canPolicy, loadYears]);
+  useEffect(() => { if (canLeaveTabs) loadYears(); else setThisYear(new Date().getFullYear()); }, [canLeaveTabs, loadYears]);
   useEffect(() => { if (canPolicy && tab === 'policy') loadView(); }, [canPolicy, tab, loadView]);
 
   const dirty = form && JSON.stringify(form) !== saved;
@@ -176,12 +182,12 @@ const LeaveSettings = () => {
   const locked = !edit.canEdit;
   const sourceYears = useMemo(() => (years || []).filter((y) => y.status !== 'none' && y.year !== year), [years, year]);
 
-  if (!canPolicy && !canAlerts) {
+  if (!canLeaveTabs && !canAlerts) {
     return (
       <div>
         <PageHeader title="Leave settings" />
         <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
-          Leave settings are for whoever runs the clinic's leave policy (the "Leave policy" permission). Ask an administrator if you need it.
+          Leave settings are for whoever runs the leave policy, public holidays, individual entitlements or HR alerts. Ask whoever handles HR permissions if you need one.
         </div>
       </div>
     );
@@ -457,12 +463,12 @@ const LeaveSettings = () => {
 
   return (
     <div>
-      <PageHeader title="Leave settings" subtitle="The clinic's leave policy, public holidays, entitlements, alerts and credentials" actions={!SETTINGS_TABS.includes(tab) && canPolicy ? header : null} />
+      <PageHeader title="Leave settings" subtitle="The clinic's leave policy, public holidays, entitlements, alerts and credentials" actions={!SETTINGS_TABS.includes(tab) && canLeaveTabs ? header : null} />
       <SwitcherTabs className="mb-4" tabs={tabs} active={tab} onChange={(id) => setParam('tab', id)} />
 
       {tab === 'policy' && (year ? policyTab() : <Spinner />)}
-      {tab === 'holidays' && year && <HolidayList year={year} canEdit={canPolicy} />}
-      {tab === 'entitlements' && year && <EntitlementGrid year={year} canEdit={canPolicy} />}
+      {tab === 'holidays' && year && <HolidayList year={year} canEdit={canHolidays} />}
+      {tab === 'entitlements' && year && <EntitlementGrid year={year} canEdit={canEntitlements} />}
       {tab === 'alerts' && <AlertChannels canEdit={canAlerts} />}
       {tab === 'credentials' && <CredentialsReminders canEdit={canAlerts} />}
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, X, Paperclip } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
-import { canApproveProfileChanges, canVerifyCpd, canViewHr } from '../../utils/permissions';
+import { canApproveProfileChanges, canVerifyCpd, canViewStaff } from '../../utils/permissions';
 import hrService from '../../services/hrService';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -16,7 +16,7 @@ import { buttonCls, primaryButtonCls } from '../../components/hr/hrUi';
  * (B27 phases 4 & 5):
  *   - Profile changes (hr.profile.approve): what colleagues asked to change on
  *     their own record. Approve writes it to the staff file and logs it.
- *   - CPD to verify (hr.credentials): colleagues' CPD entries; verify (adjusting
+ *   - CPD to verify (cpd.verify): colleagues' CPD entries; verify (adjusting
  *     the points if needed) or reject with a note. Verifying locks the row.
  * Nobody decides their own — the server refuses, and the screen doesn't offer it.
  */
@@ -80,7 +80,7 @@ const ProfileChanges = ({ currentUser }) => {
               <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-blue-50 text-[11px] font-semibold text-blue-700">{initials(r.person?.name)}</span>
               <div className="flex-1 min-w-[12rem]">
                 <div className="text-gray-900">
-                  {canViewHr(currentUser) && r.person?.employeeId
+                  {canViewStaff(currentUser) && r.person?.employeeId
                     ? <Link to={`/hr/staff/${r.person.employeeId}`} className="font-semibold hover:underline">{r.person.name}</Link>
                     : <b className="font-semibold">{r.person?.name}</b>}
                   <span className="text-gray-500"> · {r.label}</span>
@@ -120,7 +120,7 @@ const ProfileChanges = ({ currentUser }) => {
 };
 
 // ---------------------------------------------------------------------------
-// CPD to verify (hr.credentials)
+// CPD to verify (cpd.verify)
 // ---------------------------------------------------------------------------
 const CpdToVerify = ({ currentUser }) => {
   const [tab, setTab] = useState('pending');
@@ -170,7 +170,7 @@ const CpdToVerify = ({ currentUser }) => {
               <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-blue-50 text-[11px] font-semibold text-blue-700">{initials(r.person?.name)}</span>
               <div className="flex-1 min-w-[14rem]">
                 <div className="text-gray-900">
-                  {canViewHr(currentUser) && r.person?.employeeId
+                  {canViewStaff(currentUser) && r.person?.employeeId
                     ? <Link to={`/hr/staff/${r.person.employeeId}`} className="font-semibold hover:underline">{r.person.name}</Link>
                     : <b className="font-semibold">{r.person?.name}</b>}
                   <span className="text-gray-500"> · {r.title}</span>

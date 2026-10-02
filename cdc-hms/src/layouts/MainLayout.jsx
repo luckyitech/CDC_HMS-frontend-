@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canManageLeave, canApproveProfileChanges, canVerifyCpd, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -193,7 +193,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     return () => { clearInterval(t); window.removeEventListener(PROFILE_REQUESTS_CHANGED, refreshProfileWaiting); };
   }, [inHr, approvesProfiles, refreshProfileWaiting]);
 
-  // B27 phase 5 — CPD waiting to verify (hr.credentials), shown on the same
+  // B27 phase 5 — CPD waiting to verify (cpd.verify), shown on the same
   // "Profile requests" badge (CPD is a tab there). Same rhythm as above.
   const verifiesCpd = canVerifyCpd(currentUser);
   const [cpdWaiting, setCpdWaiting] = useState(0);
@@ -322,7 +322,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     {
       show: homeRole === 'admin',
       tabs: [
-        { label: 'Onboard', path: '/admin/onboard', Icon: UserPlus, permission: PERMISSIONS.USERS_WRITE },
+        { label: 'Onboard', path: '/admin/onboard', Icon: UserPlus, permission: PERMISSIONS.STAFF_ONBOARD },
         { label: 'Manage Users', path: '/admin/manage-users', Icon: UserCog, permission: PERMISSIONS.USERS_VIEW },
         { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy, permission: PERMISSIONS.USERS_WRITE },
       ],
@@ -580,17 +580,18 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "My leave", path: "/hr/me/leave", icon: TreePalm, show: canUseSelfService(currentUser) },
       // B27 phase 3: anyone can be chosen as an approver, so the item shows for
       // whoever can approve or manage leave, and for anyone something waits on.
-      { name: "Leave to approve", path: "/hr/leave", icon: ClipboardCheck, badge: leaveWaiting, show: canApproveLeave(currentUser) || canManageLeave(currentUser) || leaveWaiting > 0 },
+      { name: "Leave to approve", path: "/hr/leave", icon: ClipboardCheck, badge: leaveWaiting, show: canApproveLeave(currentUser) || canViewAllLeave(currentUser) || leaveWaiting > 0 },
       // B27 phase 5: the team leave calendar — every internal role (hr.self).
       { name: "Team calendar", path: "/hr/calendar", icon: CalendarDays, show: canUseSelfService(currentUser) },
-      { name: "Staff", path: "/hr/staff", icon: Users, permission: PERMISSIONS.USERS_VIEW },
+      { name: "Staff", path: "/hr/staff", icon: Users, permission: PERMISSIONS.STAFF_VIEW },
       // B27 phase 4/5: profile change requests (hr.profile.approve) and CPD to
-      // verify (hr.credentials) share this page and its badge.
+      // verify (cpd.verify) share this page and its badge.
       { name: "Profile requests", path: "/hr/requests", icon: UserCheck, badge: profileWaiting + cpdWaiting, show: canApproveProfileChanges(currentUser) || canVerifyCpd(currentUser) },
-      { name: "Settings", path: "/hr/settings", icon: Settings, permission: PERMISSIONS.HR_WRITE },
-      // B27: the leave policy, holidays, entitlements (leave.policy) and the
-      // alert channels (hr.settings).
-      { name: "Leave settings", path: "/hr/leave-settings", icon: CalendarCog, show: canSetLeavePolicy(currentUser) || canChangeHrSettings(currentUser) },
+      // HR Tier 3: the page opens for tags, working hours or HR settings (hr.write was split).
+      { name: "Settings", path: "/hr/settings", icon: Settings, show: canManageTags(currentUser) || canSetWorkHours(currentUser) || canChangeHrSettings(currentUser) },
+      // B27: the leave policy (leave.policy), holidays (leave.holidays),
+      // entitlements (leave.entitlements) and the alert channels (hr.settings).
+      { name: "Leave settings", path: "/hr/leave-settings", icon: CalendarCog, show: canSetLeavePolicy(currentUser) || canSetHolidays(currentUser) || canSetEntitlements(currentUser) || canChangeHrSettings(currentUser) },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [

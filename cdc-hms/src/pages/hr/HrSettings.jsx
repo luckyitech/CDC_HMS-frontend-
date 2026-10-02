@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { useHrContext } from '../../contexts/HrContext';
-import { canWriteHr, canChangeHrSettings } from '../../utils/permissions';
+import { canViewHr, canManageTags, canSetWorkHours, canChangeHrSettings } from '../../utils/permissions';
 import hrService from '../../services/hrService';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -19,9 +19,11 @@ import { Field, Section, SwitchRow as Toggle, inputCls } from '../../components/
  * check-in rules and clinic-wide hours, working hours per person, and the
  * recent-changes audit (SettingChangeLogs, area "HR Suite").
  *
- * Gates: hr.write to open the page; hr.settings (admin / admin.access / a
- * grant — was config.write until B27) to save rules or register a tag — the
- * same split the API enforces.
+ * Gates (HR Tier 3 Phase 0 — hr.write was split): the page opens for anyone
+ * holding hr.tags, hr.workhours or hr.settings, and each section shows to
+ * whoever its API admits — tags list / retire / test: hr.tags; registering a
+ * tag key and the rules: hr.settings; reading the rules and everyone's working
+ * hours: hr.view (or hr.settings); editing working hours: hr.workhours.
  *
  * The layout pieces (Field, Section, the switch row) are shared with Leave
  * settings — components/hr/hrUi.jsx.
@@ -59,8 +61,12 @@ const HoursRow = ({ label, row, onChange, disabled }) => (
 const HrSettings = () => {
   const { currentUser } = useUserContext();
   const { settings, loadSettings, setSettings, invalidate } = useHrContext();
-  const canOpen = canWriteHr(currentUser);
+  const canTags = canManageTags(currentUser);
+  const canHours = canSetWorkHours(currentUser);
+  const canView = canViewHr(currentUser);
   const canConfig = canChangeHrSettings(currentUser);
+  const canOpen = canTags || canHours || canConfig;
+  const canReadSettings = canView || canConfig;
 
   const [form, setForm] = useState(null);
   const [hoursForm, setHoursForm] = useState(null);
@@ -76,9 +82,9 @@ const HrSettings = () => {
 
   useEffect(() => {
     if (!canOpen) return;
-    loadSettings().catch((e) => notify('error', e?.message || 'Could not load settings'));
-    hrService.tags().then((res) => setTags(res?.data || [])).catch((e) => notify('error', e?.message || 'Could not load tags'));
-  }, [canOpen, loadSettings]);
+    if (canReadSettings) loadSettings().catch((e) => notify('error', e?.message || 'Could not load settings'));
+    if (canTags) hrService.tags().then((res) => setTags(res?.data || [])).catch((e) => notify('error', e?.message || 'Could not load tags'));
+  }, [canOpen, canReadSettings, canTags, loadSettings]);
 
   useEffect(() => {
     if (!settings) return;
@@ -95,7 +101,7 @@ const HrSettings = () => {
       <div>
         <PageHeader title="Time & Attendance settings" />
         <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
-          HR settings are for people who can amend attendance (hr.write). Ask an administrator if you need it.
+          These settings are for people who manage entrance tags, working hours or the HR Suite settings. Ask whoever handles HR permissions if you need one.
         </div>
       </div>
     );
@@ -165,8 +171,9 @@ const HrSettings = () => {
       <PageHeader title="Time & Attendance settings" subtitle="Entrance tags, check-in rules, working hours" />
       <div className="grid lg:grid-cols-2 gap-4 items-start">
         <div className="space-y-4">
+          {(canTags || canConfig) && (
           <Section title="Entrance tags">
-            {tags === null ? <Spinner /> : tags.length === 0 ? <p className="text-sm text-gray-500 mb-3">No tag registered yet.</p> : (
+            {!canTags ? null : tags === null ? <Spinner /> : tags.length === 0 ? <p className="text-sm text-gray-500 mb-3">No tag registered yet.</p> : (
               <div className="overflow-x-auto mb-3">
                 <table className="w-full text-sm">
                   <thead><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
@@ -188,7 +195,7 @@ const HrSettings = () => {
               </div>
             )}
 
-            <div className="border-t border-gray-200 pt-3">
+            <div className={canTags ? 'border-t border-gray-200 pt-3' : ''}>
               <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Register a tag</h4>
               {!canConfig && <p className="text-xs text-amber-700 mb-2">Registering a tag (its key) needs the "HR Suite settings" permission — an administrator can do this.</p>}
               <form onSubmit={saveTag} className="space-y-3">
@@ -208,6 +215,7 @@ const HrSettings = () => {
               </form>
             </div>
 
+            {canTags && (
             <div className="border-t border-gray-200 pt-3 mt-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Test a tap URL</h4>
               <p className="text-xs text-gray-500 mb-2">Tap the tag with any phone, copy the URL it opened and paste it here. Verifies the signature against the stored key without using up the counter.</p>
@@ -223,10 +231,13 @@ const HrSettings = () => {
                 <p className={`text-sm mt-2 ${testResult.ok && !testResult.replay ? 'text-green-700' : testResult.ok ? 'text-amber-700' : 'text-red-700'}`}>{testResult.message}</p>
               )}
             </div>
+            )}
           </Section>
+          )}
         </div>
 
         <div className="space-y-4">
+          {canReadSettings && (
           <Section title="Rules">
             {!form || !hoursForm ? <Spinner /> : (
               <div className="space-y-3">
@@ -259,11 +270,15 @@ const HrSettings = () => {
               </div>
             )}
           </Section>
+          )}
 
+          {(canView || canHours) && (
           <Section title="Working hours per person">
-            <WorkHours canEdit={canOpen} />
+            <WorkHours canEdit={canHours} />
           </Section>
+          )}
 
+          {canReadSettings && (
           <Section title="Recent changes">
             {!settings ? <Spinner /> : (settings.recentChanges || []).length === 0 ? <p className="text-sm text-gray-500">No changes recorded yet.</p> : (
               <ul className="divide-y divide-gray-100">
@@ -278,6 +293,7 @@ const HrSettings = () => {
             )}
             <button type="button" onClick={() => loadSettings({ force: true })} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"><RefreshCw className="w-3 h-3" /> Refresh</button>
           </Section>
+          )}
         </div>
       </div>
 

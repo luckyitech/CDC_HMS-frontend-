@@ -6,13 +6,13 @@ import PageHeader from '../../components/shared/PageHeader';
 import StatusBadge from '../../components/shared/StatusBadge';
 import staffService from '../../services/staffService';
 import { ROLE_TONES } from '../../utils/statusStyles';
-import { passesAdminGate, PERMISSIONS } from '../../utils/permissions';
+import { canOnboardStaff } from '../../utils/permissions';
 
 // The staff directory, surfaced inside the HR Suite.
 //
 // A thin list over GET /api/staff (staffService.getAll) whose rows open the
 // existing admin StaffFile screen — no second copy of the file, no new backend.
-// The sidebar entry and this page are gated on users.view (the same capability
+// The sidebar entry and this page are gated on staff.view (the same capability
 // the API enforces), so anyone who can see the link can load the list.
 
 const ROLE_LABEL = {
@@ -77,11 +77,11 @@ const StaffDirectory = () => {
 
   const openFile = (employeeId) => navigate(`/hr/staff/${employeeId}`);
 
-  // Same gate as the create endpoints (users.write, via admin.access too).
+  // Same gate as the create endpoints (staff.onboard — users.write carries it).
   const currentUser = (() => {
     try { return JSON.parse(sessionStorage.getItem('currentUser') || 'null'); } catch { return null; }
   })();
-  const canAdd = passesAdminGate(currentUser, PERMISSIONS.USERS_WRITE);
+  const canAdd = canOnboardStaff(currentUser);
 
   return (
     <div>

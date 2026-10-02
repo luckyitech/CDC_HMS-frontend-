@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Download, Plus } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { useHrContext } from '../../contexts/HrContext';
-import { canViewHr, canWriteHr } from '../../utils/permissions';
+import { canViewHr, canAmendAttendance } from '../../utils/permissions';
 import hrService from '../../services/hrService';
 import PageHeader from '../../components/shared/PageHeader';
 import Button from '../../components/shared/Button';
@@ -17,7 +17,7 @@ import { dayLabel, hoursColon, todayIso, StarPair, VerificationPill, METHOD_LABE
  *
  * Staff see their own rows (the server enforces it — /attendance/me);
  * hr.view sees everyone (/attendance) with person / role / status filters;
- * hr.write can amend a row or record a manual entry (reason required).
+ * hr.attendance.amend (was hr.write) can amend a row or record a manual entry (reason required).
  * Presets follow the patient Attendance Register (B19) pattern; CSV is the
  * server's, downloaded through the same auth header.
  *
@@ -49,7 +49,7 @@ const TimeRegister = () => {
   const { invalidate } = useHrContext();
   const [params, setParams] = useSearchParams();
   const isHr = canViewHr(currentUser);
-  const canWrite = canWriteHr(currentUser);
+  const canWrite = canAmendAttendance(currentUser);
 
   const presetParam = params.get('preset');
   const initial = (PRESETS.find((p) => p.key === presetParam) || PRESETS[1]).range();

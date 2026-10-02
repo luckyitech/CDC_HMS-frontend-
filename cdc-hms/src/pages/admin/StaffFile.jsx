@@ -25,7 +25,7 @@ import DocumentsTab from '../../components/admin/staff/DocumentsTab';
 import ActivityTab from '../../components/admin/staff/ActivityTab';
 import { formatDate } from '../../components/admin/staff/staffFormat';
 import {
-  PERMISSIONS, passesAdminGate, canViewConfidential,
+  canViewConfidential, canViewStaff, canEditStaff, canManageStaffDocuments,
 } from '../../utils/permissions';
 
 // The staff record "file".
@@ -148,8 +148,11 @@ const StaffFile = ({ mode = 'staff' }) => {
   // unlocks — never `role === 'admin'`, which refused a doctor holding
   // admin.access (the way the clinic runs once the true admin account is
   // benched):
-  //   canView     users.view  — the Permissions and Activity tabs
-  //   canManage   users.write — editing the file, managing documents
+  //   canView     staff.view      — the Permissions and Activity tabs
+  //   canManage   staff.edit      — editing the file and the photo
+  //   canDocs     staff.documents — uploading to, reclassifying and archiving
+  //               someone else's documents (HR Tier 3 Phase 0 — all three were
+  //               users.view / users.write, which still carry them)
   //   leave       leave.manage decides and records leave for others,
   //               leave.policy sets entitlement (B27, D8 — were users.write)
   //   canSeeConfidential  hr.confidential — the confidential drawer of the
@@ -158,8 +161,9 @@ const StaffFile = ({ mode = 'staff' }) => {
     try { return JSON.parse(sessionStorage.getItem('currentUser') || 'null'); }
     catch { return null; }
   })();
-  const canView   = passesAdminGate(currentUser, PERMISSIONS.USERS_VIEW);
-  const canManage = passesAdminGate(currentUser, PERMISSIONS.USERS_WRITE);
+  const canView   = canViewStaff(currentUser);
+  const canManage = canEditStaff(currentUser);
+  const canDocs   = canManageStaffDocuments(currentUser);
   const canSeeConfidential = canViewConfidential(currentUser);
 
   const loadStaff = useCallback(async () => {
@@ -469,7 +473,8 @@ const StaffFile = ({ mode = 'staff' }) => {
 
         {currentTab === 'documents' && (
           // My profile: own uploads and what HR shares; never the confidential drawer.
-          <DocumentsTab staff={staff} canManage={!self && canManage} canSeeConfidential={!self && canSeeConfidential} />
+          <DocumentsTab staff={staff} canManage={!self && canDocs} canSeeConfidential={!self && canSeeConfidential}
+            canUpload={self || canDocs || canSeeConfidential} />
         )}
         {currentTab === 'leave'     && (
           // B27 phase 3: the same overview as My leave; the tab decides what

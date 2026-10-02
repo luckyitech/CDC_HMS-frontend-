@@ -11,7 +11,7 @@ import { announcePhotoChange, photoKey } from './staffPhoto';
 /**
  * Set or remove a staff photo (2 Oct 2026). My profile (self — decision D11:
  * saved directly, logged on the staff file's Activity) or the staff file for
- * someone holding users.write. .jpg / .png / .webp, up to 5 MB.
+ * someone holding staff.edit (users.write carries it). .jpg / .png / .webp, up to 5 MB.
  *
  * props: self | employeeId, name, hasPhoto, onChanged(hasPhoto)
  */

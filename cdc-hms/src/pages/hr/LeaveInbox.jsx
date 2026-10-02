@@ -3,7 +3,7 @@ import { notify } from '../../utils/notify';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Download } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
-import { canManageLeave } from '../../utils/permissions';
+import { canViewAllLeave, canDownloadLeaveRegister } from '../../utils/permissions';
 import leaveService from '../../services/leaveService';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -14,17 +14,18 @@ import { fmtDays, rangeLabel, progressLabel, STATUS_TONES, LEAVE_CHANGED_EVENT }
 /**
  * Leave to approve — /hr/leave (B27 phase 3; mockup 3).
  *
- * Tabs: Waiting for me · Decided by me · All (leave.manage). The bell and the
+ * Tabs: Waiting for me · Decided by me · All (leave.view). The bell and the
  * emails link here with ?id=<request>, which opens that request whatever tab
  * is showing — the panel asks the server what this viewer may see and do.
  *
  * Anyone of staff can be chosen as an approver, so the page is open to every
  * internal role; the lists only ever contain requests they are on (or, on
- * All, everyone's for leave.manage).
+ * All, everyone's for leave.view; the register download for leave.register — HR Tier 3).
  */
 const LeaveInbox = () => {
   const { currentUser } = useUserContext();
-  const manage = canManageLeave(currentUser);
+  const manage = canViewAllLeave(currentUser);
+  const canRegister = canDownloadLeaveRegister(currentUser);
   const [params, setParams] = useSearchParams();
   const tabs = [
     { id: 'waiting', label: 'Waiting for me' },
@@ -85,7 +86,7 @@ const LeaveInbox = () => {
               </button>
             ))}
           </div>
-          {tab === 'all' && manage && (
+          {tab === 'all' && canRegister && (
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100" data-testid="register-export">
               <select className="rounded-md border border-gray-300 px-2 py-1 text-xs" value={regYear} onChange={(e) => setRegYear(Number(e.target.value))} aria-label="Year to download">
                 {[thisYear - 1, thisYear, thisYear + 1].map((y) => <option key={y} value={y}>{y}</option>)}

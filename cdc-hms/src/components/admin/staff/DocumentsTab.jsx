@@ -23,13 +23,17 @@ const EXPIRING_CATEGORIES = new Set([
   'Practising Licence', 'Training Certificate', 'National ID', 'Employment Contract',
 ]);
 
-// canManage           users.write — upload, reclassify, archive/restore
+// canManage           staff.documents (users.write carries it) — reclassify,
+//                     archive/restore someone else's documents
+// canUpload           the person themselves, staff.documents or hr.confidential
+//                     (HR Tier 3 Phase 0 — opening a file no longer means
+//                     being able to add to it)
 // canSeeConfidential  hr.confidential — the "Admin only" documents, the archive,
 //                     and the visibility toggle. Deliberately separate: an
 //                     administrator without the grant sees and manages only
 //                     what the staff member themselves can see. The API
 //                     enforces both regardless (staffDocumentController).
-const DocumentsTab = ({ staff, canManage, canSeeConfidential }) => {
+const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true }) => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -151,6 +155,7 @@ const DocumentsTab = ({ staff, canManage, canSeeConfidential }) => {
           )}
         </div>
 
+        {canUpload && (
         <div className="flex items-center gap-2">
           <select
             value={category}
@@ -189,6 +194,7 @@ const DocumentsTab = ({ staff, canManage, canSeeConfidential }) => {
             {uploading ? 'Uploading…' : 'Upload'}
           </label>
         </div>
+        )}
       </div>
 
       {documents.length === 0 ? (

@@ -3,13 +3,16 @@ import toast from 'react-hot-toast';
 import {
   Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound,
   LayoutGrid, Users, Package, Stethoscope, Briefcase,
+  Clock, CalendarDays, GraduationCap, UserRound,
 } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import api from '../../../services/api';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import AccordionPanel from '../../shared/AccordionPanel';
 import { formatDateTime } from './staffFormat';
-import { STAFF_TYPES, canWriteHr, canGrantPermissions } from '../../../utils/permissions';
+import {
+  STAFF_TYPES, canManageTags, canGrantPermissions, canGrantHrPermissions, canChangeStaffStatus, passesAdminGate,
+} from '../../../utils/permissions';
 import RememberedPhones from '../../hr/RememberedPhones';
 
 // Keyed off the server's group keys. An unknown group still renders, with the
@@ -20,6 +23,33 @@ const GROUP_ICONS = {
   clinical: Stethoscope,
   modules: Package,
   administration: ShieldCheck,
+  // HR Suite groups (HR Tier 3 Phase 0).
+  'hr-self': UserRound,
+  'hr-people': Users,
+  'hr-attendance': Clock,
+  'hr-leave': CalendarDays,
+  'hr-development': GraduationCap,
+  'hr-admin': KeyRound,
+};
+
+/**
+ * Everything a set of capabilities brings with it: each bundle's parts
+ * (leave.manage → see everyone's leave …) and each dependency (an acting
+ * control → the read it acts within), repeated until nothing changes. Mirrors
+ * constants/permissions.js withCarried; the two maps come from the catalog.
+ */
+const carriedBy = (list, bundles = {}, impliedBy = {}) => {
+  const set = new Set(list);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const cap of [...set]) {
+      for (const a of [...(bundles[cap] || []), ...(impliedBy[cap] ? [impliedBy[cap]] : [])]) {
+        if (!set.has(a)) { set.add(a); grew = true; }
+      }
+    }
+  }
+  return set;
 };
 
 // The two halves of the staff bin, and what each one means in practice.
@@ -63,7 +93,7 @@ const EMPLOYMENT_STATUSES = ['Active', 'On Leave', 'Suspended', 'Resigned', 'Ter
 // would have anyway must record a REFUSAL, while unticking something they only
 // had because it was ticked just removes the tick. The admin never needs to
 // know the difference, and previously had to.
-const Tick = ({ checked, onChange, disabled, label, busy }) => (
+const Tick = ({ checked, onChange, disabled, label, busy, hint }) => (
   <label
     className={`flex items-center gap-3 py-2.5 rounded-lg px-2 -mx-2 ${
       disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-gray-50'
@@ -81,7 +111,10 @@ const Tick = ({ checked, onChange, disabled, label, busy }) => (
                      disabled:cursor-not-allowed"
         />
       )}
-    <span className={`text-sm ${checked ? 'text-gray-800' : 'text-gray-500'}`}>{label}</span>
+    <span className={`text-sm ${checked ? 'text-gray-800' : 'text-gray-500'}`}>
+      {label}
+      {hint && <span className="block text-[11px] text-gray-400">{hint}</span>}
+    </span>
   </label>
 );
 
@@ -118,7 +151,22 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   // (one shared helper, same as the API) rather than offering an action that
   // would be refused.
   const canGrant = canGrantPermissions(currentUser);
-  const locked = !canGrant || staff.isArchived;
+
+  // "Grant HR permissions" (HR Tier 3 Phase 0): a holder who is not a
+  // permissions administrator may change the HR Suite controls only — those
+  // they hold themselves (to give), any delegable one (to take away), never
+  // on their own file, and never for a permissions administrator or someone
+  // with full administrator access. Mirrors staffController.hrGrantRefusal;
+  // the API refuses anything else regardless.
+  const granted = staff.permissions || [];
+  const effective = staff.effectivePermissions || [];
+  const hrGrantor = !canGrant && canGrantHrPermissions(currentUser);
+  const ownFile = !!currentUser && staff.userId === currentUser.id;
+  const targetProtected = !!staff.isTrueAdmin
+    || granted.includes('permissions.grant') || effective.includes('admin.access');
+  const hrMode = hrGrantor && !ownFile && !targetProtected && !staff.isArchived;
+  const locked = !(canGrant || hrMode) || staff.isArchived;
+  const typeLocked = !canGrant || staff.isArchived;
 
   useEffect(() => {
     let cancelled = false;
@@ -137,13 +185,10 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     return () => { cancelled = true; };
   }, []);
 
-  const granted = staff.permissions || [];
   const denied  = staff.deniedPermissions || [];
-
-  // What this person can ACTUALLY do — resolved by the server, not recomputed
-  // here. The two lists above are the inputs an admin sets; this is the result,
-  // and it is what every row leads with.
-  const effective = staff.effectivePermissions || [];
+  // `effective` (above) is what this person can ACTUALLY do — resolved by the
+  // server, not recomputed here. `granted` / `denied` are the inputs an admin
+  // sets; the result is what every row leads with.
   // What they would hold with nothing ticked either way. Only used to work out
   // what a tick has to STORE — see change() — never shown.
   const byDefault = staff.defaultPermissions || [];
@@ -239,7 +284,12 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
      * whole tab exists for.
      */
     const set = (cap, on) => {
-      const normallyHas = byDefault.includes(cap);
+      // "Anyway" includes what something ELSE they hold carries (HR Tier 3):
+      // unticking sick-leave details for a leave.manage holder has to store a
+      // withdrawal, or the tick springs straight back.
+      const normallyHas = byDefault.includes(cap)
+        || carriedBy([...byDefault, ...[...nextGranted].filter((g) => g !== cap)],
+          catalog.bundles, catalog.impliedBy).has(cap);
       nextGranted.delete(cap);
       nextDenied.delete(cap);
       if (on && !normallyHas) nextGranted.add(cap);
@@ -393,13 +443,39 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   // "Default" and was none the wiser: the default depends on whether she is
   // clinical, which is set on a different card. Two people with identical
   // settings could have opposite access and the screen looked the same for both.
+  // Can THIS viewer change this one capability? A permissions administrator:
+  // anything. An HR grantor (hrMode): an HR control only — to take it away any
+  // delegable one, to give it only one they can exercise themselves.
+  const editable = (capability) => {
+    if (locked) return false;
+    if (canGrant) return true;
+    if (!(catalog.hrDelegable || []).includes(capability)) return false;
+    if ((catalog.hrNotDelegable || []).includes(capability)) return false;
+    return effective.includes(capability) || passesAdminGate(currentUser, capability);
+  };
+
+  // Where a tick comes from when it was not ticked directly — "Comes with
+  // Record and cancel leave". Without it a carried tick looks like a bug.
+  const areaNameOf = (cap) => groups.flatMap((g) => g.areas).find((a) => a.access === cap || a.write === cap)?.name;
+  const hintFor = (capability) => {
+    if (!effective.includes(capability) || granted.includes(capability) || byDefault.includes(capability)) return null;
+    const source = granted.find((g) => g !== capability
+      && carriedBy([g], catalog.bundles, catalog.impliedBy).has(capability));
+    if (source) return `Comes with “${areaNameOf(source) || source}”`;
+    if (effective.includes('admin.access') && (catalog.adminAccessCovers || []).includes(capability)) {
+      return 'Comes with full administrator access';
+    }
+    return null;
+  };
+
   const renderRow = (area, capability, label) => (
     <Tick
       key={capability}
       checked={effective.includes(capability)}
       busy={saving === capability}
-      disabled={locked}
+      disabled={!editable(capability)}
       label={label}
+      hint={hintFor(capability)}
       onChange={(ticked) => change(area, capability, ticked)}
     />
   );
@@ -447,7 +523,7 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           <select
             value={staff.employmentStatus}
             onChange={(e) => changeStatus(e.target.value)}
-            disabled={!!acting || staff.isArchived}
+            disabled={!!acting || staff.isArchived || !canChangeStaffStatus(currentUser)}
             className="px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs disabled:opacity-50"
           >
             {EMPLOYMENT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -456,8 +532,8 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
       </div>
 
       {/* Remembered phones (HR Suite, B21) — listed only for people who may
-          revoke them; the API refuses the list otherwise. */}
-      {canWriteHr(currentUser) && staff.userId && (
+          revoke them (hr.tags since HR Tier 3); the API refuses the list otherwise. */}
+      {canManageTags(currentUser) && staff.userId && (
         <RememberedPhones userId={staff.userId} canRevoke />
       )}
 
@@ -486,14 +562,14 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
                   key={choice.value}
                   type="button"
                   onClick={() => changeStaffType(choice.value)}
-                  disabled={locked || saving === 'staffType'}
+                  disabled={typeLocked || saving === 'staffType'}
                   aria-pressed={active}
                   className={[
                     'text-left rounded-xl border p-4 transition',
                     active
                       ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
                       : 'border-gray-200 bg-white hover:border-gray-300',
-                    (locked || saving === 'staffType') ? 'opacity-60 cursor-not-allowed' : '',
+                    (typeLocked || saving === 'staffType') ? 'opacity-60 cursor-not-allowed' : '',
                   ].join(' ')}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -512,11 +588,11 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             })}
           </div>
 
-          {locked && (
+          {typeLocked && (
             <p className="text-[11px] text-gray-400 mt-2 px-1">
               {staff.isArchived
                 ? 'This staff file is archived.'
-                : 'Only an administrator account can change this.'}
+                : 'Only a permissions administrator can change this.'}
             </p>
           )}
         </div>
@@ -560,6 +636,13 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           </div>
         ) : (
           <div className="space-y-3">
+            {hrMode && (
+              <p className="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                You can change the HR Suite controls below: give any you hold yourself, or take any
+                away. Everything else, confidential documents and “Grant HR permissions” stay with a
+                permissions administrator.
+              </p>
+            )}
             {groups.map((group) => {
               // A collapsed group still has to say whether anything is set
               // inside it, or an admin has to open all four to find out.
@@ -631,9 +714,13 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
               );
             })}
 
-            {!canGrant && (
+            {!canGrant && !hrMode && (
               <p className="text-xs text-gray-400 pt-1">
-                Only an administrator account can change permissions.
+                {hrGrantor && ownFile
+                  ? 'You cannot change your own permissions — ask another HR grantor or a permissions administrator.'
+                  : hrGrantor && targetProtected
+                    ? 'Only a permissions administrator can change this person’s access.'
+                    : 'Only a permissions administrator can change permissions.'}
               </p>
             )}
             {staff.isArchived && (
@@ -646,7 +733,9 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
       </div>
 
       {/* Separated and bordered rather than sitting in the header, so it cannot
-          be hit by accident. The wording says what actually happens. */}
+          be hit by accident. The wording says what actually happens. Shown to
+          whoever may change employment status (staff.status, HR Tier 3). */}
+      {canChangeStaffStatus(currentUser) && (
       <div className="bg-red-50 border border-red-200 rounded-xl p-5">
         <h3 className="text-sm font-semibold text-red-800 mb-1">
           {staff.isArchived ? 'Restore this account' : 'Archive this account'}
@@ -666,6 +755,7 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             : <><Archive className="w-4 h-4" /> Archive</>}
         </button>
       </div>
+      )}
 
       {/* One modal for every confirmation on this tab. Rendered once at the end
           rather than per action, so the markup does not grow with the number of

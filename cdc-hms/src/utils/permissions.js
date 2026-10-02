@@ -78,11 +78,14 @@ export const PERMISSIONS = {
 
   // HR Suite (B21). CHECKIN = tap the entrance tag, remember a phone, see one's
   // own record (every internal role by role). VIEW = everyone's attendance,
-  // who is in, flags, the register. WRITE = amend, manual entry, working hours,
-  // tags. VIEW/WRITE default to the admin role and are covered by admin.access.
+  // who is in, flags, the register. hr.write was split (HR Tier 3 Phase 0)
+  // into AMEND / WORKHOURS / TAGS; the server expands a stored hr.write, so
+  // the session never carries the old name.
   HR_CHECKIN:       'hr.checkin',
   HR_VIEW:          'hr.view',
-  HR_WRITE:         'hr.write',
+  HR_ATTENDANCE_AMEND: 'hr.attendance.amend',
+  HR_WORKHOURS:     'hr.workhours',
+  HR_TAGS:          'hr.tags',
   // The confidential drawer of a staff file (contracts, appraisals,
   // disciplinary letters, archived files). Like permissions.grant it is NOT
   // covered by admin.access and held by nobody by role.
@@ -97,12 +100,31 @@ export const PERMISSIONS = {
   HR_SELF:          'hr.self',
   // hr.profile.approve (phase 4): decide colleagues' profile change requests.
   HR_PROFILE_APPROVE: 'hr.profile.approve',
-  // hr.credentials (phase 5): verify CPD, receive credential expiry alerts.
-  HR_CREDENTIALS:   'hr.credentials',
+  // hr.credentials (phase 5) was split (HR Tier 3) into CPD_VERIFY and
+  // HR_EXPIRY_ALERTS.
+  CPD_VERIFY:       'cpd.verify',
+  HR_EXPIRY_ALERTS: 'hr.expiry.alerts',
   LEAVE_APPROVE:    'leave.approve',
+  // LEAVE_MANAGE = record and cancel leave for others; it CARRIES the four
+  // below (server-side bundle) — the session arrives with them resolved.
   LEAVE_MANAGE:     'leave.manage',
   LEAVE_POLICY:     'leave.policy',
+  LEAVE_VIEW:       'leave.view',
+  LEAVE_SICK:       'leave.sick',
+  LEAVE_REQUIRED:   'leave.required',
+  LEAVE_REGISTER:   'leave.register',
+  LEAVE_HOLIDAYS:   'leave.holidays',
+  LEAVE_ENTITLEMENTS: 'leave.entitlements',
   HR_SETTINGS:      'hr.settings',
+  // HR Tier 3 Phase 0 — the staff file, split out of users.view / users.write
+  // (which still carry all of these).
+  STAFF_VIEW:       'staff.view',
+  STAFF_EDIT:       'staff.edit',
+  STAFF_ONBOARD:    'staff.onboard',
+  STAFF_STATUS:     'staff.status',
+  STAFF_DOCUMENTS:  'staff.documents',
+  // Grant HR permissions — never satisfied by admin.access (see canGrantHrPermissions).
+  HR_GRANT:         'hr.grant',
 };
 
 // Clinical or non-clinical, mirroring the backend's STAFF_TYPES.
@@ -246,15 +268,32 @@ export const canWriteLabInbox = (user) => canUseCapability(user, PERMISSIONS.LAB
 export const HR_DEFAULT_ROLES         = ['admin'];
 export const HR_CHECKIN_DEFAULT_ROLES = ['doctor', 'staff', 'lab', 'nurse', 'admin'];
 export const canViewHr  = (user) => canUseCapability(user, PERMISSIONS.HR_VIEW,    HR_DEFAULT_ROLES);
-export const canWriteHr = (user) => canUseCapability(user, PERMISSIONS.HR_WRITE,   HR_DEFAULT_ROLES);
+// HR Tier 3 Phase 0 — the three halves of the old hr.write.
+export const canAmendAttendance = (user) => canUseCapability(user, PERMISSIONS.HR_ATTENDANCE_AMEND, HR_DEFAULT_ROLES);
+export const canSetWorkHours    = (user) => canUseCapability(user, PERMISSIONS.HR_WORKHOURS,        HR_DEFAULT_ROLES);
+export const canManageTags      = (user) => canUseCapability(user, PERMISSIONS.HR_TAGS,             HR_DEFAULT_ROLES);
+// The staff file (routes/staff.js STAFF_*). users.view / users.write carry these.
+export const canViewStaff           = (user) => canUseCapability(user, PERMISSIONS.STAFF_VIEW,      HR_DEFAULT_ROLES);
+export const canEditStaff           = (user) => canUseCapability(user, PERMISSIONS.STAFF_EDIT,      HR_DEFAULT_ROLES);
+export const canOnboardStaff        = (user) => canUseCapability(user, PERMISSIONS.STAFF_ONBOARD,   HR_DEFAULT_ROLES);
+export const canChangeStaffStatus   = (user) => canUseCapability(user, PERMISSIONS.STAFF_STATUS,    HR_DEFAULT_ROLES);
+export const canManageStaffDocuments = (user) => canUseCapability(user, PERMISSIONS.STAFF_DOCUMENTS, HR_DEFAULT_ROLES);
 export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKIN, HR_CHECKIN_DEFAULT_ROLES);
 // B27 — leave and HR settings. Mirrors routes/staff.js LEAVE_DECIDE /
 // LEAVE_POLICY and routes/hr.js SETTINGS: the admin role, admin.access, or a
 // grant. Who may decide WHICH request is still the server's call (never your
 // own; leave.approve only when listed as an approver).
 export const canApproveLeave      = (user) => canUseCapability(user, PERMISSIONS.LEAVE_APPROVE, HR_DEFAULT_ROLES);
-export const canManageLeave       = (user) => canUseCapability(user, PERMISSIONS.LEAVE_MANAGE,  HR_DEFAULT_ROLES)
-  || canSetLeavePolicy(user);   // leave.policy implies leave.manage
+// leave.policy ⇒ leave.manage is resolved by the server into the session.
+export const canManageLeave       = (user) => canUseCapability(user, PERMISSIONS.LEAVE_MANAGE,  HR_DEFAULT_ROLES);
+// HR Tier 3 Phase 0 — each part of leave its own control (leave.manage /
+// leave.policy carry them; the session arrives with them resolved).
+export const canViewAllLeave          = (user) => canUseCapability(user, PERMISSIONS.LEAVE_VIEW,         HR_DEFAULT_ROLES);
+export const canSeeSickLeave          = (user) => canUseCapability(user, PERMISSIONS.LEAVE_SICK,         HR_DEFAULT_ROLES);
+export const canSetRequiredApprovers  = (user) => canUseCapability(user, PERMISSIONS.LEAVE_REQUIRED,     HR_DEFAULT_ROLES);
+export const canDownloadLeaveRegister = (user) => canUseCapability(user, PERMISSIONS.LEAVE_REGISTER,     HR_DEFAULT_ROLES);
+export const canSetHolidays           = (user) => canUseCapability(user, PERMISSIONS.LEAVE_HOLIDAYS,     HR_DEFAULT_ROLES);
+export const canSetEntitlements       = (user) => canUseCapability(user, PERMISSIONS.LEAVE_ENTITLEMENTS, HR_DEFAULT_ROLES);
 export const canSetLeavePolicy    = (user) => canUseCapability(user, PERMISSIONS.LEAVE_POLICY,  HR_DEFAULT_ROLES);
 export const canChangeHrSettings  = (user) => canUseCapability(user, PERMISSIONS.HR_SETTINGS,   HR_DEFAULT_ROLES);
 // B27 phase 2 — my own leave (routes/hrSelf.js SELF): every internal role by
@@ -262,8 +301,9 @@ export const canChangeHrSettings  = (user) => canUseCapability(user, PERMISSIONS
 export const canUseSelfService    = (user) => canUseCapability(user, PERMISSIONS.HR_SELF,       HR_CHECKIN_DEFAULT_ROLES);
 // B27 phase 4 — routes/hr.js PROFILE_APPROVE.
 export const canApproveProfileChanges = (user) => canUseCapability(user, PERMISSIONS.HR_PROFILE_APPROVE, HR_DEFAULT_ROLES);
-// B27 phase 5 — routes/hr.js CREDENTIALS: verify CPD, credential expiry alerts.
-export const canVerifyCpd = (user) => canUseCapability(user, PERMISSIONS.HR_CREDENTIALS, HR_DEFAULT_ROLES);
+// B27 phase 5 — routes/hr.js CPD_VERIFY (was hr.credentials).
+export const canVerifyCpd = (user) => canUseCapability(user, PERMISSIONS.CPD_VERIFY, HR_DEFAULT_ROLES);
+export const canGetExpiryAlerts = (user) => canUseCapability(user, PERMISSIONS.HR_EXPIRY_ALERTS, HR_DEFAULT_ROLES);
 
 // Staff Email (B26). Mirrors routes/mail.js: every internal role by default,
 // withdrawable per person. Only ever the user's OWN mailbox.
@@ -297,6 +337,15 @@ export const isTrueAdmin = (user) => user?.role === 'admin';
  */
 export const canGrantPermissions = (user) =>
   isTrueAdmin(user) || hasPermission(user, PERMISSIONS.PERMISSIONS_GRANT);
+
+/**
+ * May this person change colleagues' HR Suite controls (HR Tier 3 Phase 0)?
+ * An explicit hr.grant or the true admin — like canGrantPermissions, NOT
+ * satisfied by admin.access. What they may change is limited server-side
+ * (staffController.hrGrantRefusal); the Permissions tab mirrors it.
+ */
+export const canGrantHrPermissions = (user) =>
+  isTrueAdmin(user) || hasPermission(user, PERMISSIONS.HR_GRANT);
 
 /**
  * May this person open the confidential drawer of a staff file?
