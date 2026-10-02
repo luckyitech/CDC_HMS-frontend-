@@ -6,6 +6,7 @@ import mailService from '../../services/mailService';
 import MailSetupCard from './MailSetupCard';
 import Composer from './Composer';
 import { notify } from '../../utils/notify';
+import { PANEL_Z } from '../../constants/layers';
 
 export const PATIENT_MAIL_SENT_EVENT = 'patient-mail:sent';
 
@@ -131,7 +132,7 @@ const PatientEmailPanel = ({ uhid, portal, documents = [], reports = [], address
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex justify-end" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 flex justify-end" style={{ zIndex: PANEL_Z }} role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/30" onClick={ready ? undefined : onClose} aria-hidden="true" />
       <div className="relative flex h-full w-full max-w-2xl flex-col bg-white shadow-xl">
         {body}

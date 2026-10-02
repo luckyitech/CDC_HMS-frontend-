@@ -1,7 +1,9 @@
 import { createPortal } from 'react-dom';
+import { MODAL_Z } from '../../constants/layers';
 
 // Portaled to document.body so modals are never clipped by transformed/overflow-hidden
 // ancestors (floating sidebar, summary drawer) — see docs/DRY-GUIDELINES.md §4c.
+// Sits on MODAL_Z, above side panels (constants/layers.js).
 const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
 
@@ -9,7 +11,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   const sizeClass = size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : size === '2xl' ? 'max-w-6xl' : 'max-w-md';
 
   return createPortal(
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: MODAL_Z }}>
       <div className={`bg-white rounded-lg shadow-xl ${sizeClass} w-full max-h-[90vh] flex flex-col`}>
         <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
           <h3 className="text-xl font-bold">{title}</h3>

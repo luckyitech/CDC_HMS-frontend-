@@ -1,5 +1,6 @@
 import { AlertTriangle, X, ArrowRight, UserPlus, Phone, Calendar, IdCard, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { MODAL_Z } from '../../constants/layers';
 
 // Shown when registration returns 409 POSSIBLE_DUPLICATE. Lists the existing
 // file(s) the new entry looks like, so staff can OPEN the existing file instead
@@ -32,7 +33,7 @@ const DuplicateWarningModal = ({ candidates = [], onCreateAnyway, onClose, onOpe
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 bg-black/50 overflow-y-auto">
+    <div className="fixed inset-0 flex items-start justify-center p-4 bg-black/50 overflow-y-auto" style={{ zIndex: MODAL_Z }}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg my-6">
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-4 border-b">
