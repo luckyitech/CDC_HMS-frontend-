@@ -1,3 +1,15 @@
+// Saves text the SERVER already built (e.g. a .csv with its own byte-order
+// mark) as a download. One place for the blob-and-link dance (HR Tier 3 P2).
+export const saveTextFile = (filename, text, type = 'text/csv;charset=utf-8;') => {
+  const blob = new Blob([typeof text === 'string' ? text : ''], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
 // Builds a CSV from rows and triggers a browser download.
 // The BOM prefix makes Excel open UTF-8 content correctly.
 export const downloadCsv = (filename, headers, rows) => {

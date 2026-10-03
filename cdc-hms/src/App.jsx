@@ -120,6 +120,7 @@ const TimeRegister       = lazy(() => import("./pages/hr/TimeRegister"));
 const HrSettings         = lazy(() => import("./pages/hr/HrSettings"));
 const LeaveSettings      = lazy(() => import("./pages/hr/LeaveSettings"));
 const StaffLists         = lazy(() => import("./pages/hr/StaffLists"));
+const HrReports          = lazy(() => import("./pages/hr/HrReports"));
 const MyLeave            = lazy(() => import("./pages/hr/MyLeave"));
 const ApplyLeave         = lazy(() => import("./pages/hr/ApplyLeave"));
 const LeaveInbox         = lazy(() => import("./pages/hr/LeaveInbox"));
@@ -336,6 +337,8 @@ function App() {
                   <Route path="leave-settings" element={<LeaveSettings />} />
                   {/* HR Tier 3 Phase 1 — departments and positions (hr.lists) */}
                   <Route path="lists" element={<StaffLists />} />
+                  {/* HR Tier 3 Phase 2 — HR reports (hr.reports) */}
+                  <Route path="reports" element={<HrReports />} />
                   {/* B27 phase 2 — my own leave (hr.self) */}
                   <Route path="me/leave" element={<MyLeave />} />
                   <Route path="me/apply" element={<ApplyLeave />} />

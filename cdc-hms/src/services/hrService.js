@@ -1,4 +1,5 @@
 import api from './api';
+import { saveTextFile } from '../utils/exportCsv';
 
 /**
  * HR Suite (B21) — one function per /api/hr endpoint (plus the two auth
@@ -58,11 +59,15 @@ const hrService = {
   downloadCsv: async (params, filename, own = false) => {
     const url = own ? '/hr/attendance/me' : '/hr/attendance';
     const csv = await api.get(url, { params: { ...params, format: 'csv' }, responseType: 'text', transformResponse: [(d) => d], announce403: true });
-    const blob = new Blob([typeof csv === 'string' ? csv : ''], { type: 'text/csv;charset=utf-8;' });
-    const href = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = href; a.download = filename; a.click();
-    URL.revokeObjectURL(href);
+    saveTextFile(filename, csv);
+  },
+
+  // HR Tier 3 Phase 2 — HR reports (hr.reports; department-scoped server-side).
+  reports:        (params)        => api.get('/hr/reports', { params }),
+  /** One report as the server's .csv (every download is logged there). */
+  downloadReport: async (report, params, filename) => {
+    const csv = await api.get(`/hr/reports/${report}/download`, { params, responseType: 'text', transformResponse: [(d) => d] });
+    saveTextFile(filename, csv);
   },
 };
 

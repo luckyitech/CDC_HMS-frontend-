@@ -1,4 +1,5 @@
 import api from './api';
+import { saveTextFile } from '../utils/exportCsv';
 
 /**
  * Leave (B27) — one function per /api/leave endpoint. Every call returns the
@@ -30,11 +31,7 @@ const leaveService = {
   // --- the leave register (HR Tier 2, leave.manage) — server-made .csv ---
   downloadRegister: async (year) => {
     const csv = await api.get('/leave/register', { params: { year }, responseType: 'text', transformResponse: [(d) => d] });
-    const blob = new Blob([typeof csv === 'string' ? csv : ''], { type: 'text/csv;charset=utf-8;' });
-    const href = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = href; a.download = `leave-register-${year}.csv`; a.click();
-    URL.revokeObjectURL(href);
+    saveTextFile(`leave-register-${year}.csv`, csv);
   },
 
   // --- entitlements ---
