@@ -127,6 +127,9 @@ export const PERMISSIONS = {
   HR_LISTS:         'hr.lists',
   // HR Tier 3 Phase 2: HR Suite → Reports (department-scoped server-side).
   HR_REPORTS:       'hr.reports',
+  // HR Tier 3 Phase 3: onboarding checklists (scoped) and their templates.
+  HR_ONBOARDING:    'hr.onboarding',
+  HR_ONBOARDING_TEMPLATES: 'hr.onboarding.templates',
   // Grant HR permissions — never satisfied by admin.access (see canGrantHrPermissions).
   HR_GRANT:         'hr.grant',
 };
@@ -284,6 +287,8 @@ export const canChangeStaffStatus   = (user) => canUseCapability(user, PERMISSIO
 export const canManageStaffDocuments = (user) => canUseCapability(user, PERMISSIONS.STAFF_DOCUMENTS, HR_DEFAULT_ROLES);
 export const canManageLists         = (user) => canUseCapability(user, PERMISSIONS.HR_LISTS,        HR_DEFAULT_ROLES);
 export const canViewHrReports       = (user) => canUseCapability(user, PERMISSIONS.HR_REPORTS,      HR_DEFAULT_ROLES);
+export const canRunOnboarding       = (user) => canUseCapability(user, PERMISSIONS.HR_ONBOARDING,   HR_DEFAULT_ROLES);
+export const canEditOnboardingTemplates = (user) => canUseCapability(user, PERMISSIONS.HR_ONBOARDING_TEMPLATES, HR_DEFAULT_ROLES);
 export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKIN, HR_CHECKIN_DEFAULT_ROLES);
 // B27 — leave and HR settings. Mirrors routes/staff.js LEAVE_DECIDE /
 // LEAVE_POLICY and routes/hr.js SETTINGS: the admin role, admin.access, or a

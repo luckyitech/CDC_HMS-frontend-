@@ -95,7 +95,10 @@ export const CADRES = [
       ...COMMON_EMPLOYMENT,
     ],
     payload: (d) => ({
-      ...listPayload(d, { position: 'Nurse' }),
+      // No typed default: the server applies the role's default title (kept as
+      // text for the tidy screen) — sending "Nurse" here was refused once the
+      // Positions list had entries (found in HR Tier 3 Phase 3).
+      ...listPayload(d),
       shift: d.shift || undefined,
       licenseNumber: d.licenseNumber || undefined,
       qualification: d.qualification || undefined,

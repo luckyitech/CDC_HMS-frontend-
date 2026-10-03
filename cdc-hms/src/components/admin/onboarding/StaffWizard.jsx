@@ -18,7 +18,7 @@ import api from '../../../services/api';
 import staffService from '../../../services/staffService';
 import permissionPresetService from '../../../services/permissionPresetService';
 import {
-  PERMISSIONS, STAFF_TYPES, STAFF_TYPE_LABELS, canGrantPermissions,
+  PERMISSIONS, STAFF_TYPES, STAFF_TYPE_LABELS, canGrantPermissions, canGrantHrPermissions, canUseCapability,
 } from '../../../utils/permissions';
 
 // =====================================================================
@@ -65,6 +65,10 @@ const inp = 'w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-
 const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) => {
   const navigate = useNavigate();
   const canGrant = canGrantPermissions(currentUser);
+  // HR Tier 3 Phase 3 (O-1): a "Grant HR permissions" holder may tick, while
+  // onboarding, the HR Suite controls they hold themselves — nothing else
+  // (the server applies the same rule as the Permissions tab).
+  const hrMode = !canGrant && canGrantHrPermissions(currentUser);
 
   const [step, setStep] = useState(0);
   const [d, setD] = useState(EMPTY);
@@ -166,9 +170,13 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
       || adminAccess);
 
   const perPersonOnly = catalog?.presetExcluded || [];
-  const lockedCaps = canGrant ? {} : Object.fromEntries(
-    perPersonOnly.map((c) => [c, 'A permissions administrator sets this per person']),
-  );
+  const hrGivable = (c) => (catalog?.hrDelegable || []).includes(c)
+    && !(catalog?.hrNotDelegable || []).includes(c)
+    && canUseCapability(currentUser, c);
+  const lockedCaps = canGrant ? {} : hrMode
+    ? Object.fromEntries((catalog?.permissions || []).filter((c) => !hrGivable(c))
+      .map((c) => [c, 'Only HR Suite controls you hold yourself can be given here; a permissions administrator sets the rest']))
+    : Object.fromEntries(perPersonOnly.map((c) => [c, 'A permissions administrator sets this per person']));
 
   // ---- validation per step ----
   const identityOk = d.firstName && d.lastName && d.email && d.phone;
@@ -182,7 +190,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
 
   const create = async () => {
     if (!identityOk || !roleOk) return toast.error('Something on an earlier step is incomplete');
-    if (!canGrant && diverged) return toast.error('Only a permissions administrator can change access from the preset');
+    if (!canGrant && !hrMode && diverged) return toast.error('Only a permissions administrator can change access from the preset');
     setSubmitting(true);
     try {
       if (saveBack && preset && canGrant) {
@@ -201,7 +209,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
       const res = await api.post(cadre.endpoint, body);
       if (res.success) {
         toast.success(
-          `${d.firstName} ${d.lastName} — ${cadre.noun} account created (${res.data.user.employeeId || 'ID assigned'}). Login details sent to ${d.email}.`,
+          `${d.firstName} ${d.lastName} — ${cadre.noun} account created (${res.data.user.employeeId || 'ID assigned'}). Login details sent to ${d.email}.${res.data.onboardingChecklist ? ' Their onboarding checklist has started.' : ''}`,
           { duration: 8000 },
         );
         onCreated?.(res.data.user);
@@ -342,8 +350,10 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
 
           <p className="text-xs text-gray-500 mb-3">
             {canGrant
-              ? 'Pre-filled from the preset. Changes below apply to this person only unless you save them back to the preset.'
-              : 'Applied exactly as the preset defines it. Only a permissions administrator can change access for an individual — they can do so later from the staff file.'}
+              ? 'Nothing is ticked until you tick it — the person starts with only what their role does by itself. Pick a preset to pre-fill, or tick below; changes apply to this person only unless you save them back to the preset.'
+              : hrMode
+                ? 'Nothing is ticked until you tick it. Below are the HR Suite controls; you can give the ones you hold yourself. Anything else (clinical, admin, modules) is set by a permissions administrator on the staff file.'
+                : 'Nothing is ticked: the person starts with only what their role does by itself. A preset is applied exactly as it is defined; only a permissions administrator can change access for an individual — later, from the staff file.'}
           </p>
 
           <div className="flex items-start justify-between gap-4 py-3 border-y border-gray-200 mb-3">
@@ -358,7 +368,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
 
           {catalog ? (
             <PermissionPicker
-              groups={catalog.groups}
+              groups={hrMode ? catalog.groups.filter((g) => g.hr) : catalog.groups}
               defaults={defaults}
               adminAccessCovers={catalog.adminAccessCovers}
               granted={grantedNoAdmin}
@@ -367,7 +377,8 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
               origin={origin}
               hideCaps={[PERMISSIONS.ADMIN_ACCESS]}
               lockedCaps={lockedCaps}
-              locked={!canGrant}
+              lockedPill={hrMode ? 'not yours to give' : 'per person only'}
+              locked={!canGrant && !hrMode}
               onChange={({ granted: g, denied: dn }) => { setGranted(g); setDenied(dn); }}
             />
           ) : (

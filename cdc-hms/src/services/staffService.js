@@ -117,6 +117,13 @@ export const staffService = {
   removePhoto: (employeeId) => api.delete(`/staff/${employeeId}/photo`),
 
   /** Required approvers (HR Tier 2): read with the Leave tab; set by leave.manage. */
+  // HR Tier 3 Phase 3 — the person's onboarding checklist (hr.onboarding).
+  getOnboarding:      (employeeId)            => api.get(`/staff/${employeeId}/onboarding`),
+  startOnboarding:    (employeeId)            => api.post(`/staff/${employeeId}/onboarding`),
+  setOnboardingStatus: (employeeId, action, note) => api.patch(`/staff/${employeeId}/onboarding`, { action, note }),
+  addOnboardingItem:  (employeeId, body)      => api.post(`/staff/${employeeId}/onboarding/items`, body),
+  updateOnboardingItem: (employeeId, itemId, body) => api.patch(`/staff/${employeeId}/onboarding/items/${itemId}`, body),
+
   getRequiredApprovers: (employeeId) => api.get(`/staff/${employeeId}/required-approvers`),
   setRequiredApprovers: (employeeId, approverIds) => api.put(`/staff/${employeeId}/required-approvers`, { approverIds }),
 

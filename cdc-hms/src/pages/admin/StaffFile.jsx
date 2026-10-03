@@ -24,9 +24,10 @@ import StaffAvatar from '../../components/hr/profile/StaffAvatar';
 import PhotoControl from '../../components/hr/profile/PhotoControl';
 import DocumentsTab from '../../components/admin/staff/DocumentsTab';
 import ActivityTab from '../../components/admin/staff/ActivityTab';
+import OnboardingCard from '../../components/hr/onboarding/OnboardingCard';
 import { formatDate } from '../../components/admin/staff/staffFormat';
 import {
-  canViewConfidential, canViewStaff, canEditStaff, canManageStaffDocuments,
+  canViewConfidential, canViewStaff, canEditStaff, canManageStaffDocuments, canRunOnboarding,
 } from '../../utils/permissions';
 
 // The staff record "file".
@@ -450,6 +451,10 @@ const StaffFile = ({ mode = 'staff' }) => {
                 <EditableSection title="Employment"        fields={employmentFields(lists, staff)} values={staff} onSave={saveSection} canEdit={canEdit} />
                 <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS}  values={staff} onSave={saveSection} canEdit={canEdit} />
               </div>
+            )}
+            {/* HR Tier 3 Phase 3: the onboarding checklist (hr.onboarding, in scope). */}
+            {!self && !staff.isArchived && canRunOnboarding(currentUser) && (
+              <OnboardingCard employeeId={staff.employeeId} name={staff.name?.split(' ')[0]} />
             )}
 
             <div className="flex flex-wrap gap-4 text-xs text-gray-500">

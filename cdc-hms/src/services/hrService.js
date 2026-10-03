@@ -64,6 +64,13 @@ const hrService = {
 
   // HR Tier 3 Phase 2 — HR reports (hr.reports; department-scoped server-side).
   reports:        (params)        => api.get('/hr/reports', { params }),
+  // HR Tier 3 Phase 3 — onboarding checklists and their per-role templates.
+  onboardingList:     (status)       => api.get('/hr/onboarding', { params: status ? { status } : {} }),
+  onboardingCount:    ()             => api.get('/hr/onboarding/count'),
+  onboardingTemplates: ()            => api.get('/hr/onboarding/templates'),
+  addTemplateItem:    (body)         => api.post('/hr/onboarding/templates', body),
+  updateTemplateItem: (id, body)     => api.patch(`/hr/onboarding/templates/${id}`, body),
+
   /** One report as the server's .csv (every download is logged there). */
   downloadReport: async (report, params, filename) => {
     const csv = await api.get(`/hr/reports/${report}/download`, { params, responseType: 'text', transformResponse: [(d) => d] });

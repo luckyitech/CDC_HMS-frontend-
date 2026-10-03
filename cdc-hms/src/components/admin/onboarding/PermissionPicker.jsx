@@ -32,12 +32,13 @@ import { ChevronDown, ChevronRight, Lock } from 'lucide-react';
  *   hideCaps                                — capabilities not to render (e.g. the admin toggle lives elsewhere)
  *   lockedCaps                              — { [cap]: 'reason' } rendered but not changeable
  *   locked                                  — whole picker read-only
+ *   lockedPill                              — the pill text on a locked control
  *   onChange({ granted, denied })
  */
 const PermissionPicker = ({
   groups = [], defaults = [], adminAccessCovers = [],
   granted = [], denied = [], adminAccess = false,
-  origin = {}, hideCaps = [], lockedCaps = {}, locked = false,
+  origin = {}, hideCaps = [], lockedCaps = {}, locked = false, lockedPill = 'per person only',
   onChange,
 }) => {
   const [closed, setClosed] = useState({});
@@ -73,7 +74,7 @@ const PermissionPicker = ({
 
   const pill = (cap) => {
     if (viaAdmin(cap)) return { text: 'via administrator access', cls: 'bg-purple-50 text-purple-800' };
-    if (lockedCaps[cap]) return { text: 'per person only', cls: 'bg-amber-50 text-amber-800' };
+    if (lockedCaps[cap]) return { text: lockedPill, cls: 'bg-amber-50 text-amber-800' };
     if (origin[cap] === 'preset') return { text: 'from preset', cls: 'bg-green-50 text-green-800' };
     if (origin[cap] === 'person') {
       return denied.includes(cap)

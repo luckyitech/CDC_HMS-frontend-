@@ -1,8 +1,9 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserContext } from '../../contexts/UserContext';
 import { useHrContext } from '../../contexts/HrContext';
-import { canViewHr } from '../../utils/permissions';
+import { canViewHr, canRunOnboarding } from '../../utils/permissions';
+import hrService from '../../services/hrService';
 import PageHeader from '../../components/shared/PageHeader';
 import MyAttendance from '../../components/hr/MyAttendance';
 import {
@@ -54,6 +55,13 @@ const HrDashboard = () => {
   const { currentUser } = useUserContext();
   const { today: hrToday, loadToday } = useHrContext();
   const isHr = canViewHr(currentUser);
+  // HR Tier 3 Phase 3: how many onboarding checklists are in progress (in scope).
+  const runsOnboarding = canRunOnboarding(currentUser);
+  const [onboardingOpen, setOnboardingOpen] = useState(null);
+  useEffect(() => {
+    if (!runsOnboarding) return;
+    hrService.onboardingCount().then((res) => setOnboardingOpen(res?.data?.open ?? 0)).catch(() => setOnboardingOpen(null));
+  }, [runsOnboarding]);
 
   // HR view: today at the clinic, polled every 60 s while the page is open.
   const pollRef = useRef(null);
@@ -132,6 +140,13 @@ const HrDashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {runsOnboarding && onboardingOpen > 0 && (
+        <Link to="/hr/onboarding" className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 hover:bg-gray-50">
+          <span className="text-sm text-gray-700"><b className="tabular-nums">{onboardingOpen}</b> onboarding checklist{onboardingOpen === 1 ? '' : 's'} in progress</span>
+          <span className="text-sm font-semibold text-primary">Open</span>
+        </Link>
       )}
 
       <MyAttendance />
