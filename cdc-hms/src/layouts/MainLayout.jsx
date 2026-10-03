@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, canManageLists, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, canManageLists, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -63,6 +63,7 @@ import {
   Network,
   BarChart3,
   ListChecks,
+  CalendarRange,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
@@ -601,6 +602,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Reports", path: "/hr/reports", icon: BarChart3, show: canViewHrReports(currentUser) },
       // HR Tier 3 Phase 3: onboarding checklists (hr.onboarding) and templates (hr.onboarding.templates).
       { name: "Onboarding", path: "/hr/onboarding", icon: ListChecks, show: canRunOnboarding(currentUser) || canEditOnboardingTemplates(currentUser) },
+      // HR Tier 3 Phase 4: the shift roster (hr.roster) and shift types (hr.roster.shifts).
+      { name: "Roster", path: "/hr/roster", icon: CalendarRange, show: canEditRoster(currentUser) || canEditShiftTypes(currentUser) },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [

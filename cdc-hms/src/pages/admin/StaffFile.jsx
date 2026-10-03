@@ -25,6 +25,7 @@ import PhotoControl from '../../components/hr/profile/PhotoControl';
 import DocumentsTab from '../../components/admin/staff/DocumentsTab';
 import ActivityTab from '../../components/admin/staff/ActivityTab';
 import OnboardingCard from '../../components/hr/onboarding/OnboardingCard';
+import MyShiftsCard from '../../components/hr/roster/MyShiftsCard';
 import { formatDate } from '../../components/admin/staff/staffFormat';
 import {
   canViewConfidential, canViewStaff, canEditStaff, canManageStaffDocuments, canRunOnboarding,
@@ -436,6 +437,8 @@ const StaffFile = ({ mode = 'staff' }) => {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   <SelfTodo items={selfData?.todo} onGo={(link) => chooseTab(new URLSearchParams(link.slice(1)).get('tab') || 'credentials')} />
+                  {/* HR Tier 3 Phase 4: my published shifts (hidden when there are none). */}
+                  <MyShiftsCard />
                   <EditableSection title="Contact" description="You can change these yourself." fields={CONTACT_FIELDS} values={staff} onSave={saveSection} canEdit />
                   <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS} values={staff} onSave={saveSection} canEdit />
                   <EditableSection title="Personal" description="Changed by HR on request." fields={IDENTITY_FIELDS} values={staff}

@@ -29,6 +29,9 @@ const EVENTS = [
   { key: 'change_request_decided', label: 'Your profile change is decided',          group: 'Profile' },
   { key: 'expiry_self',           label: 'Your licence or certificate is expiring',  group: 'Credentials' },
   { key: 'expiry_hr',             label: 'Someone\'s licence or certificate is expiring', group: 'Credentials', hint: 'to HR' },
+  // HR Tier 3 Phase 4 (RO-10)
+  { key: 'roster_published',      label: 'Your shifts for a week are published',     group: 'Roster' },
+  { key: 'roster_changed',        label: 'One of your published shifts changes',     group: 'Roster' },
 ];
 
 const Check = ({ checked, onChange, disabled, label }) => (

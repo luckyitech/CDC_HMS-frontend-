@@ -70,6 +70,17 @@ const hrService = {
   onboardingTemplates: ()            => api.get('/hr/onboarding/templates'),
   addTemplateItem:    (body)         => api.post('/hr/onboarding/templates', body),
   updateTemplateItem: (id, body)     => api.patch(`/hr/onboarding/templates/${id}`, body),
+  // HR Tier 3 Phase 4 — the shift roster (hr.roster) and shift types (hr.roster.shifts).
+  rosterDepartments:  ()             => api.get('/hr/roster/departments'),
+  rosterWeek:         (department, weekStart) => api.get('/hr/roster/week', { params: { department, weekStart } }),
+  rosterSetCell:      (body)         => api.put('/hr/roster/week/cell', body),
+  rosterCopy:         (body)         => api.post('/hr/roster/week/copy', body),
+  rosterUpdateWeek:   (body)         => api.patch('/hr/roster/week', body),
+  rosterPublish:      (body)         => api.post('/hr/roster/week/publish', body),
+  shiftTypes:         (all)          => api.get('/hr/roster/shift-types', { params: all ? { all: 1 } : {} }),
+  addShiftType:       (body)         => api.post('/hr/roster/shift-types', body),
+  updateShiftType:    (id, body)     => api.patch(`/hr/roster/shift-types/${id}`, body),
+  myShifts:           ()             => api.get('/hr/me/roster'),
 
   /** One report as the server's .csv (every download is logged there). */
   downloadReport: async (report, params, filename) => {
