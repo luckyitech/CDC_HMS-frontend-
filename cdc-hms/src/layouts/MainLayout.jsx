@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, canManageLists, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, canManageLists, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, canRunAppraisals, canReadAppraisals, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -64,12 +64,14 @@ import {
   BarChart3,
   ListChecks,
   CalendarRange,
+  Award,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
 import mailService, { MAIL_STATE_EVENT } from "../services/mailService";
 import leaveService from "../services/leaveService";
 import { LEAVE_CHANGED_EVENT } from "../components/hr/leave/leaveFormat";
+import { APPRAISALS_CHANGED } from "../components/hr/appraisals/appraisalFormat";
 import { PROFILE_REQUESTS_CHANGED } from "../components/hr/hrFormat";
 import hrService from "../services/hrService";
 import MailNudge from "../components/mail/MailNudge";
@@ -214,6 +216,23 @@ const MainLayout = ({ userRole = "Staff" }) => {
     const t = setInterval(refreshCpdWaiting, 2 * 60 * 1000);
     return () => clearInterval(t);
   }, [inHr, verifiesCpd, refreshCpdWaiting]);
+
+  // HR Tier 3 Phase 5 — appraisal steps waiting on me (my own self-assessment
+  // or acknowledgement, and reviews), for the "Appraisals" badge.
+  const [appraisalWaiting, setAppraisalWaiting] = useState(0);
+  const refreshAppraisalWaiting = useCallback(() => {
+    hrService.myAppraisals()
+      .then((r) => setAppraisalWaiting((r?.data?.toDo || 0) + (r?.data?.toReview || 0)))
+      .catch(() => { /* withdrawn — badge stays hidden */ });
+  }, []);
+  useEffect(() => {
+    if (inHr) refreshAppraisalWaiting();
+  }, [inHr, location.pathname, refreshAppraisalWaiting]);
+  useEffect(() => {
+    if (!inHr) return undefined;
+    window.addEventListener(APPRAISALS_CHANGED, refreshAppraisalWaiting);
+    return () => window.removeEventListener(APPRAISALS_CHANGED, refreshAppraisalWaiting);
+  }, [inHr, refreshAppraisalWaiting]);
 
   // B27 phase 4 — the avatar opens My profile (/hr/me) for anyone the server
   // lets read their own record (routes/hrSelf.js SELF: every staff role,
@@ -604,6 +623,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Onboarding", path: "/hr/onboarding", icon: ListChecks, show: canRunOnboarding(currentUser) || canEditOnboardingTemplates(currentUser) },
       // HR Tier 3 Phase 4: the shift roster (hr.roster) and shift types (hr.roster.shifts).
       { name: "Roster", path: "/hr/roster", icon: CalendarRange, show: canEditRoster(currentUser) || canEditShiftTypes(currentUser) },
+      // HR Tier 3 Phase 5: appraisals — everyone (own + reviewing); runners and readers also see the cycle.
+      { name: "Appraisals", path: "/hr/appraisals", icon: Award, badge: appraisalWaiting, show: canUseSelfService(currentUser) || canRunAppraisals(currentUser) || canReadAppraisals(currentUser) },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [

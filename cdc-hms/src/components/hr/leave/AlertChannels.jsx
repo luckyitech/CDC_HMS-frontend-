@@ -32,6 +32,11 @@ const EVENTS = [
   // HR Tier 3 Phase 4 (RO-10)
   { key: 'roster_published',      label: 'Your shifts for a week are published',     group: 'Roster' },
   { key: 'roster_changed',        label: 'One of your published shifts changes',     group: 'Roster' },
+  // HR Tier 3 Phase 5
+  { key: 'appraisal_self',        label: 'Your appraisal opens',                     group: 'Appraisals' },
+  { key: 'appraisal_review',      label: 'An appraisal waits for your review',       group: 'Appraisals' },
+  { key: 'appraisal_sent',        label: 'Your appraisal is ready to read',          group: 'Appraisals' },
+  { key: 'appraisal_acknowledged', label: 'Someone acknowledges the appraisal you wrote', group: 'Appraisals' },
 ];
 
 const Check = ({ checked, onChange, disabled, label }) => (

@@ -133,6 +133,10 @@ export const PERMISSIONS = {
   // HR Tier 3 Phase 4: the shift roster (scoped) and the clinic's shift types.
   HR_ROSTER:        'hr.roster',
   HR_ROSTER_SHIFTS: 'hr.roster.shifts',
+  // HR Tier 3 Phase 5: running appraisals (scoped) and reading every appraisal
+  // (confidential — NOT carried by admin.access; see canReadAppraisals).
+  HR_APPRAISALS_RUN: 'hr.appraisals.run',
+  HR_APPRAISALS:     'hr.appraisals',
   // Grant HR permissions — never satisfied by admin.access (see canGrantHrPermissions).
   HR_GRANT:         'hr.grant',
 };
@@ -294,6 +298,7 @@ export const canRunOnboarding       = (user) => canUseCapability(user, PERMISSIO
 export const canEditOnboardingTemplates = (user) => canUseCapability(user, PERMISSIONS.HR_ONBOARDING_TEMPLATES, HR_DEFAULT_ROLES);
 export const canEditRoster          = (user) => canUseCapability(user, PERMISSIONS.HR_ROSTER,       HR_DEFAULT_ROLES);
 export const canEditShiftTypes      = (user) => canUseCapability(user, PERMISSIONS.HR_ROSTER_SHIFTS, HR_DEFAULT_ROLES);
+export const canRunAppraisals       = (user) => canUseCapability(user, PERMISSIONS.HR_APPRAISALS_RUN, HR_DEFAULT_ROLES);
 export const canCheckIn = (user) => canUseCapability(user, PERMISSIONS.HR_CHECKIN, HR_CHECKIN_DEFAULT_ROLES);
 // B27 — leave and HR settings. Mirrors routes/staff.js LEAVE_DECIDE /
 // LEAVE_POLICY and routes/hr.js SETTINGS: the admin role, admin.access, or a
@@ -375,3 +380,11 @@ export const canGrantHrPermissions = (user) =>
  */
 export const canViewConfidential = (user) =>
   isTrueAdmin(user) || hasPermission(user, PERMISSIONS.HR_CONFIDENTIAL);
+
+/**
+ * Reading every appraisal (HR Tier 3 Phase 5, T3-10 a): an explicit grant of
+ * hr.appraisals, or the true admin. NOT satisfied by admin.access. Mirrors the
+ * backend canReadAppraisals; the API enforces it regardless.
+ */
+export const canReadAppraisals = (user) =>
+  isTrueAdmin(user) || hasPermission(user, PERMISSIONS.HR_APPRAISALS);

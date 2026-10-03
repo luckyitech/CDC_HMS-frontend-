@@ -81,6 +81,23 @@ const hrService = {
   addShiftType:       (body)         => api.post('/hr/roster/shift-types', body),
   updateShiftType:    (id, body)     => api.patch(`/hr/roster/shift-types/${id}`, body),
   myShifts:           ()             => api.get('/hr/me/roster'),
+  // HR Tier 3 Phase 5 — appraisals.
+  myAppraisals:       ()             => api.get('/hr/appraisals/mine'),
+  appraisal:          (id)           => api.get(`/hr/appraisals/${id}`),
+  appraisalReference: (id)           => api.get(`/hr/appraisals/${id}/reference`),
+  saveSelfAppraisal:  (id, body)     => api.put(`/hr/appraisals/${id}/self`, body),
+  saveReview:         (id, body)     => api.put(`/hr/appraisals/${id}/review`, body),
+  acknowledgeAppraisal: (id, body)   => api.post(`/hr/appraisals/${id}/acknowledge`, body),
+  appraisalCompetencies: ()          => api.get('/hr/appraisals/competencies'),
+  addCompetency:      (body)         => api.post('/hr/appraisals/competencies', body),
+  updateCompetency:   (id, body)     => api.patch(`/hr/appraisals/competencies/${id}`, body),
+  appraisalCycles:    ()             => api.get('/hr/appraisals/cycles'),
+  appraisalCycle:     (id)           => api.get(`/hr/appraisals/cycles/${id}`),
+  openCycle:          (body)         => api.post('/hr/appraisals/cycles', body),
+  updateCycle:        (id, body)     => api.patch(`/hr/appraisals/cycles/${id}`, body),
+  cycleEligible:      (id)           => api.get(`/hr/appraisals/cycles/${id}/eligible`),
+  addToCycle:         (id, body)     => api.post(`/hr/appraisals/cycles/${id}/people`, body),
+  runAppraisal:       (id, body)     => api.patch(`/hr/appraisals/${id}/run`, body),
 
   /** One report as the server's .csv (every download is logged there). */
   downloadReport: async (report, params, filename) => {
