@@ -29,7 +29,7 @@ import MyShiftsCard from '../../components/hr/roster/MyShiftsCard';
 import MyAppraisalCard from '../../components/hr/appraisals/MyAppraisalCard';
 import { formatDate } from '../../components/admin/staff/staffFormat';
 import {
-  canViewConfidential, canViewStaff, canEditStaff, canManageStaffDocuments, canRunOnboarding,
+  canViewConfidential, canViewStaff, canEditStaff, canManageStaffDocuments, canRunOnboarding, canRunAppraisals,
 } from '../../utils/permissions';
 
 // The staff record "file".
@@ -75,13 +75,25 @@ const PERSONAL_FIELDS = [
 const entryOptions = (entries, currentId) => (entries || [])
   .filter((x) => x.status === 'active' || x.id === currentId)
   .map((x) => ({ value: x.id, label: x.status === 'active' ? x.name : `${x.name} (archived)` }));
-const employmentFields = (lists, staff) => (lists ? [
+// Reports to (line manager, 5 Oct 2026): any active colleague but the person
+// themselves. Leave pre-adds them as an approver; a NEW appraisal defaults its
+// reviewer to them (existing appraisals keep theirs).
+// You may not name yourself unless you run appraisals (the server refuses it).
+const reportsToOptions = (colleagues, staff, viewer) => (colleagues || [])
+  .filter((c) => c.id !== staff?.userId)
+  .filter((c) => !viewer || c.id !== viewer.id || canRunAppraisals(viewer))
+  .map((c) => ({ value: c.id, label: c.position ? `${c.name} — ${c.position}` : c.name }));
+const employmentFields = (lists, staff, colleagues, viewer) => (lists ? [
   { key: 'positionId',   label: 'Position',   type: 'entry', displayKey: 'position',   options: entryOptions(lists.positions, staff?.positionId) },
   { key: 'departmentId', label: 'Department', type: 'entry', displayKey: 'department', options: entryOptions(lists.departments, staff?.departmentId) },
+  { key: 'reportsToId',  label: 'Reports to', type: 'entry', displayKey: 'reportsTo.name', options: reportsToOptions(colleagues, staff, viewer) },
   ...EMPLOYMENT_FIELDS,
 ] : [
   { key: 'position',   label: 'Position' },
   { key: 'department', label: 'Department' },
+  // Read-only here: without the lists (not an editor, or they failed to load)
+  // there is nothing to pick from, and the text would save nothing.
+  { key: 'reportsTo.name', label: 'Reports to', readOnly: true },
   ...EMPLOYMENT_FIELDS,
 ]);
 
@@ -206,9 +218,12 @@ const StaffFile = ({ mode = 'staff' }) => {
 
   // The lists the Employment card picks from — only when this viewer may edit.
   const [lists, setLists] = useState(null);
+  const [colleagues, setColleagues] = useState(null);
   useEffect(() => {
     if (self || !canManage) return;
     hrService.lists().then((res) => setLists(res?.data || null)).catch(() => setLists(null));
+    // Everyone active (the manager may sit in another department).
+    hrSelfService.approvers('', true).then((res) => setColleagues(res?.data?.people || [])).catch(() => setColleagues([]));
   }, [self, canManage]);
 
   // One save path for every inline section. The error is re-thrown so
@@ -454,7 +469,8 @@ const StaffFile = ({ mode = 'staff' }) => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 <EditableSection title="Personal"          fields={PERSONAL_FIELDS}   values={staff} onSave={saveSection} canEdit={canEdit} />
-                <EditableSection title="Employment"        fields={employmentFields(lists, staff)} values={staff} onSave={saveSection} canEdit={canEdit} />
+                <EditableSection title="Employment"        fields={employmentFields(lists, staff, colleagues, currentUser)} values={staff} onSave={saveSection} canEdit={canEdit}
+                  description={canEdit ? 'Reports to: leave pre-adds them as an approver; new appraisals default to them as reviewer.' : undefined} />
                 <EditableSection title="Emergency contact" fields={EMERGENCY_FIELDS}  values={staff} onSave={saveSection} canEdit={canEdit} />
               </div>
             )}
@@ -506,6 +522,7 @@ const StaffFile = ({ mode = 'staff' }) => {
         {currentTab === 'documents' && (
           // My profile: own uploads and what HR shares; never the confidential drawer.
           <DocumentsTab staff={staff} canManage={!self && canDocs} canSeeConfidential={!self && canSeeConfidential}
+            ownFile={self || (!!currentUser && staff.userId === currentUser.id)}
             canUpload={self || canDocs || canSeeConfidential} />
         )}
         {currentTab === 'leave'     && (

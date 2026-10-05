@@ -79,6 +79,14 @@ export const staffService = {
   },
 
   /**
+   * Apply a permission preset to an existing account (5 Oct 2026): REPLACES
+   * their grants, withdrawals, staff type and department limits with the
+   * preset's. The server applies every rule an ordinary save does.
+   */
+  applyPreset: (employeeId, presetId) =>
+    api.patch(`/staff/${employeeId}/permissions`, { presetId: Number(presetId) }),
+
+  /**
    * Classify someone clinical or non-clinical.
    *
    * Goes through the permissions route because it IS an access decision — it

@@ -8,7 +8,7 @@ import Spinner from '../../components/shared/Spinner';
 import Modal from '../../components/shared/Modal';
 import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
 import { notify } from '../../utils/notify';
-import { Pill } from '../../components/hr/hrFormat';
+import { Pill, dayLabel } from '../../components/hr/hrFormat';
 import { Section, inputCls, buttonCls, primaryButtonCls } from '../../components/hr/hrUi';
 import {
   SHIFT_COLOURS, OFF_CHIP, LEAVE_CHIP, ROSTER_ROLE_LABEL, addDays, mondayOf, clinicToday,
@@ -83,6 +83,10 @@ const WeekView = ({ types: allTypes }) => {
   const [busy, setBusy] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [cover, setCover] = useState('');
+  // Hand-set one-day working hours the roster replaced (5 Oct 2026 — the
+  // roster wins, and says so): [{ name, date, hours }].
+  const [replaced, setReplaced] = useState([]);
+  const noteReplaced = (list) => { if (list?.length) setReplaced(list); };
 
   useEffect(() => {
     hrService.rosterDepartments()
@@ -122,6 +126,7 @@ const WeekView = ({ types: allTypes }) => {
     try {
       const res = await hrService.rosterSetCell({ department, weekStart, userId: picking.person.id, date: picking.date, ...body });
       if (res?.data?.live && res?.data?.changed) notify('success', 'Saved — this week is published, so the change is live');
+      noteReplaced(res?.data?.replacedOverrides);
       setPicking(null);
       await load();
     } catch (err) { notify('error', err.message || 'Could not save the shift'); }
@@ -133,6 +138,7 @@ const WeekView = ({ types: allTypes }) => {
       const res = await hrService.rosterCopy({ department, weekStart });
       const n = res?.data?.copied || 0;
       notify(n ? 'success' : 'info', n ? `Copied ${n} shift${n === 1 ? '' : 's'} from last week` : 'Nothing to copy — no empty days left to fill from last week');
+      noteReplaced(res?.data?.replacedOverrides);
       await load();
     } catch (err) { notify('error', err.message || 'Could not copy last week'); }
     finally { setBusy(false); }
@@ -143,6 +149,7 @@ const WeekView = ({ types: allTypes }) => {
       const res = await hrService.rosterPublish({ department, weekStart });
       notify('success', `Published — ${res?.data?.published || 0} shift${res?.data?.published === 1 ? '' : 's'} now set the expected hours for ${res?.data?.people || 0} ${res?.data?.people === 1 ? 'person' : 'people'}`);
       setConfirmPublish(false);
+      noteReplaced(res?.data?.replacedOverrides);
       await load();
     } catch (err) { notify('error', err.message || 'Could not publish'); }
     finally { setBusy(false); }
@@ -188,6 +195,18 @@ const WeekView = ({ types: allTypes }) => {
               ? `Published${data.week.publishedBy ? ` by ${data.week.publishedBy}` : ''}. Changes you make now take effect straight away and the person is told.`
               : 'Draft — nothing here changes anyone\'s expected hours until you publish.'}
           </p>
+        )}
+        {replaced.length > 0 && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900" data-testid="roster-replaced">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold">The roster replaced {replaced.length === 1 ? 'a one-day override' : `${replaced.length} one-day overrides`} set by hand in Working hours:</p>
+              <button type="button" className="text-amber-700 hover:underline" onClick={() => setReplaced([])}>Dismiss</button>
+            </div>
+            <ul className="mt-1 list-disc pl-5">
+              {replaced.map((r) => <li key={`${r.userId}-${r.date}`}>{r.name || 'Someone'} · {dayLabel(r.date, true)} · was {r.hours}</li>)}
+            </ul>
+            <p className="mt-1 text-amber-800">Each is noted on the person&apos;s Activity tab. Change the shift on the roster if the hand-set hours were right.</p>
+          </div>
         )}
       </Section>
 

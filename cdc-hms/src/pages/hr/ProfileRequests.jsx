@@ -180,10 +180,11 @@ const CpdToVerify = ({ currentUser }) => {
                   {r.document
                     ? <button type="button" onClick={() => openCert(r)} className="ml-1 inline-flex items-center gap-0.5 text-primary hover:underline"><Paperclip className="w-3 h-3" /> certificate</button>
                     : <span className="ml-1 text-red-600">no certificate</span>}
-                  {r.status !== 'pending' && r.decisionNote && ` · ${r.decisionNote}`}
+                  {/* The verifier's note — the API sends it as `note`. */}
+                  {r.status !== 'pending' && r.note && ` · ${r.note}`}
                 </div>
               </div>
-              {tab === 'pending' ? (
+              {tab === 'pending' ? (r.mine ? <Pill>Your own — someone else verifies</Pill> : (
                 <>
                   <label className="inline-flex items-center gap-1 text-xs text-gray-500">
                     <input type="number" min="0" step="0.5" value={pointsBy[r.id] ?? ''} onChange={(e) => setPointsBy((p) => ({ ...p, [r.id]: e.target.value }))}
@@ -194,7 +195,7 @@ const CpdToVerify = ({ currentUser }) => {
                     <button type="button" className={`${primaryButtonCls} inline-flex items-center gap-1`} disabled={busy === r.id} onClick={() => decide(r, 'verify')}><Check className="w-4 h-4" /> Verify · {Number(pointsBy[r.id] || 0)} pts</button>
                   </div>
                 </>
-              ) : <Pill tone={r.status === 'verified' ? 'ok' : 'bad'}>{r.status === 'verified' ? `Verified · ${Number(r.points)} pts` : 'Rejected'}</Pill>}
+              )) : <Pill tone={r.status === 'verified' ? 'ok' : 'bad'}>{r.status === 'verified' ? `Verified · ${Number(r.points)} pts` : 'Rejected'}</Pill>}
             </li>
           ))}
         </ul>
@@ -225,7 +226,7 @@ const ProfileRequests = () => {
       <div>
         <PageHeader title="Profile requests" />
         <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
-          This page needs the “Profile change requests” or “Verify CPD &amp; credentials” permission.
+          This page needs the “Profile change requests” or “Verify CPD” permission.
         </div>
       </div>
     );

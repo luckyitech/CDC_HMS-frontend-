@@ -388,3 +388,28 @@ export const canViewConfidential = (user) =>
  */
 export const canReadAppraisals = (user) =>
   isTrueAdmin(user) || hasPermission(user, PERMISSIONS.HR_APPRAISALS);
+
+/**
+ * HR staff (HR Suite → Manual, 5 Oct 2026): whoever holds at least ONE HR
+ * Suite control beyond Self-service. Mirrors the backend's HR_STAFF_CONTROLS
+ * (derived there from the Permissions tab's HR groups minus "My profile and My
+ * leave" / "Check in and out"); tests/hrManualChecklist.test.js keeps the two
+ * lists equal. Each control is checked like canUseCapability(…, HR_DEFAULT_ROLES)
+ * — the admin role and admin.access pass, a withdrawn control does not count —
+ * so withdrawing one control never hides the manual from someone holding another.
+ * Gates the Manual sidebar item and page; the API (routes/hrChecklist.js) enforces the same.
+ */
+export const HR_STAFF_CONTROLS = [
+  PERMISSIONS.STAFF_VIEW, PERMISSIONS.STAFF_EDIT, PERMISSIONS.STAFF_ONBOARD, PERMISSIONS.STAFF_STATUS,
+  PERMISSIONS.STAFF_DOCUMENTS, PERMISSIONS.HR_CONFIDENTIAL, PERMISSIONS.HR_LISTS, PERMISSIONS.HR_ONBOARDING,
+  PERMISSIONS.HR_ONBOARDING_TEMPLATES, PERMISSIONS.HR_PROFILE_APPROVE,
+  PERMISSIONS.HR_VIEW, PERMISSIONS.HR_ATTENDANCE_AMEND, PERMISSIONS.HR_WORKHOURS, PERMISSIONS.HR_ROSTER,
+  PERMISSIONS.HR_ROSTER_SHIFTS, PERMISSIONS.HR_TAGS,
+  PERMISSIONS.LEAVE_APPROVE, PERMISSIONS.LEAVE_VIEW, PERMISSIONS.LEAVE_SICK, PERMISSIONS.LEAVE_MANAGE,
+  PERMISSIONS.LEAVE_REQUIRED, PERMISSIONS.LEAVE_REGISTER, PERMISSIONS.LEAVE_POLICY, PERMISSIONS.LEAVE_HOLIDAYS,
+  PERMISSIONS.LEAVE_ENTITLEMENTS,
+  PERMISSIONS.CPD_VERIFY, PERMISSIONS.HR_EXPIRY_ALERTS, PERMISSIONS.HR_APPRAISALS_RUN, PERMISSIONS.HR_APPRAISALS,
+  PERMISSIONS.HR_SETTINGS, PERMISSIONS.HR_REPORTS, PERMISSIONS.HR_GRANT,
+];
+export const isHrStaff = (user) => !!user
+  && HR_STAFF_CONTROLS.some((p) => canUseCapability(user, p, HR_DEFAULT_ROLES));

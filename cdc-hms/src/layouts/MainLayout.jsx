@@ -5,7 +5,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, canManageLists, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, canRunAppraisals, canReadAppraisals, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, canManageLists, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, canRunAppraisals, canReadAppraisals, isHrStaff, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -65,6 +65,7 @@ import {
   ListChecks,
   CalendarRange,
   Award,
+  BookOpen,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
@@ -625,6 +626,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Roster", path: "/hr/roster", icon: CalendarRange, show: canEditRoster(currentUser) || canEditShiftTypes(currentUser) },
       // HR Tier 3 Phase 5: appraisals — everyone (own + reviewing); runners and readers also see the cycle.
       { name: "Appraisals", path: "/hr/appraisals", icon: Award, badge: appraisalWaiting, show: canUseSelfService(currentUser) || canRunAppraisals(currentUser) || canReadAppraisals(currentUser) },
+      // HR Suite → Manual (5 Oct 2026): the HR Suite Manual and the shared HR checklist — HR staff only (isHrStaff).
+      { name: "Manual", path: "/hr/manual", icon: BookOpen, show: isHrStaff(currentUser) },
     ],
     // HMIS V3 — inpatient workspace (entered by doctors + nurses via the switcher)
     inpatient: [

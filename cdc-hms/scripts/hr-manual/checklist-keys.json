@@ -1,0 +1,182 @@
+{
+ "golive": [
+  {
+   "key": "golive-departments",
+   "text": "Add the clinic's real departments and positions, then run Tidy once (Tab 6)."
+  },
+  {
+   "key": "golive-hr-controls",
+   "text": "Give the HR team their controls and department limits; give line managers Approve leave (Tab 6). Only a permissions administrator can give Confidential staff documents, Read appraisals and Grant HR permissions."
+  },
+  {
+   "key": "golive-presets",
+   "text": "Review the four starter presets: they now include the newer controls (Tab 6)."
+  },
+  {
+   "key": "golive-leave-policy",
+   "text": "Check the 2026 leave policy and publish it; review any entitlements set before the policy (Tab 3)."
+  },
+  {
+   "key": "golive-holidays-2027",
+   "text": "Check next year's (2027) public holidays, and add Idd-ul-Fitr once it is gazetted (Tab 3)."
+  },
+  {
+   "key": "golive-carry-cap",
+   "text": "Decide the carry cap for Annual leave and set it before 31 December. Every type starts at 0, so nothing carries over until you do (Tab 3)."
+  },
+  {
+   "key": "golive-approvers-reviewers",
+   "text": "Set Reports to on every staff file (Employment card), so leave pre-adds each person's line manager as an approver and new appraisals default to them as reviewer (Tabs 4 and 8)."
+  },
+  {
+   "key": "golive-cpd-expiry",
+   "text": "Set CPD targets, expiry reminder days and the team-calendar visible types (Tab 9)."
+  },
+  {
+   "key": "golive-grace",
+   "text": "Agree a clinic grace for check-ins and set it in Settings → Rules (Tab 5)."
+  },
+  {
+   "key": "golive-onboarding-templates",
+   "text": "Review the five onboarding templates (Tab 4)."
+  },
+  {
+   "key": "golive-roster",
+   "text": "Add the shift types, then build and publish the first roster week (Tab 7)."
+  },
+  {
+   "key": "golive-appraisals",
+   "text": "Review the appraisal competencies; open the year when ready (Tab 8)."
+  },
+  {
+   "key": "golive-tell-staff",
+   "text": "Tell staff about My leave, My profile, CPD, the Team calendar and My shifts (Tab 2)."
+  },
+  {
+   "key": "golive-upload-test",
+   "text": "Upload one staff document to confirm uploads work (Tab 4)."
+  }
+ ],
+ "day1": [
+  {
+   "key": "day1-read",
+   "text": "Read 1. Start here and the Glossary."
+  },
+  {
+   "key": "day1-sign-in",
+   "text": "Sign in; use the portal button to open the HR Suite. Click your own name to open My profile."
+  },
+  {
+   "key": "day1-phone",
+   "text": "Remember your phone at the entrance tag and check in."
+  },
+  {
+   "key": "day1-dashboard",
+   "text": "Open Dashboard: who is in, who is not yet in, what needs attention."
+  },
+  {
+   "key": "day1-register",
+   "text": "Open Time & Attendance, choose This week, and download the CSV once."
+  },
+  {
+   "key": "day1-staff-files",
+   "text": "Open Staff, search for three colleagues, and open each file. Look at every tab."
+  }
+ ],
+ "day2": [
+  {
+   "key": "day2-missed-checkouts",
+   "text": "Resolve every missed check-out on the Dashboard (Tab 5)."
+  },
+  {
+   "key": "day2-refused-taps",
+   "text": "Review any refused tap; record a manual entry only if the person was there."
+  },
+  {
+   "key": "day2-settings",
+   "text": "Open Settings: read the Rules and the clinic-wide hours. Do not change them yet."
+  },
+  {
+   "key": "day2-part-timers",
+   "text": "Find two part-time staff and check their working hours."
+  },
+  {
+   "key": "day2-not-yet-in",
+   "text": "Note every \"Not yet in\" that is really a day off, and fix their hours."
+  }
+ ],
+ "day3": [
+  {
+   "key": "day3-policy",
+   "text": "Open Leave settings → Leave policy and check this year says published."
+  },
+  {
+   "key": "day3-holidays",
+   "text": "Check Public holidays for this year; add any gazetted holiday that is missing."
+  },
+  {
+   "key": "day3-leave-all",
+   "text": "Open Leave to approve → All and read through this year's leave."
+  },
+  {
+   "key": "day3-record-leave",
+   "text": "Record one paper leave form for a colleague, with the HR manager watching."
+  },
+  {
+   "key": "day3-calendar",
+   "text": "Open Team calendar and compare it with what you know of next week."
+  },
+  {
+   "key": "day3-approvers",
+   "text": "Check every line manager holds Approve leave, and every staff file has Reports to set."
+  }
+ ],
+ "day4": [
+  {
+   "key": "day4-lists",
+   "text": "Open Departments & positions. Is every file linked? Run Tidy if not (with the HR manager)."
+  },
+  {
+   "key": "day4-onboarding",
+   "text": "Open Onboarding: look at each checklist in progress and tick what you can confirm."
+  },
+  {
+   "key": "day4-requests",
+   "text": "Open Profile requests and decide the waiting requests and CPD, checking each copy or certificate."
+  },
+  {
+   "key": "day4-upload",
+   "text": "Upload one document to a staff file, with the right category and expiry date."
+  },
+  {
+   "key": "day4-expiring",
+   "text": "Open Reports → Licences and documents expiring. Contact anyone expiring within 30 days."
+  }
+ ],
+ "day5": [
+  {
+   "key": "day5-roster",
+   "text": "Open Roster, choose a department, and read next week's draft and its warnings."
+  },
+  {
+   "key": "day5-publish",
+   "text": "With the nurse in charge, adjust and publish one week."
+  },
+  {
+   "key": "day5-appraisals",
+   "text": "Open Appraisals: check which step everyone is at and whether every reviewer is chosen."
+  },
+  {
+   "key": "day5-reports",
+   "text": "Open Reports and download the headcount and punctuality reports."
+  },
+  {
+   "key": "day5-troubleshooting",
+   "text": "Go through 10. Troubleshooting index and mark anything you have already met."
+  },
+  {
+   "key": "day5-agree-controls",
+   "text": "Agree with the HR manager which controls you keep, and which jobs stay with them."
+  }
+ ]
+}

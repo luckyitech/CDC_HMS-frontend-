@@ -14,7 +14,10 @@ import AttachLeaveDocument from '../../hr/leave/AttachLeaveDocument';
  * without touching produces no write and no audit-log entry.
  *
  * Field config:
- *   { key, label, type, options?, suffix? }
+ *   { key, label, type, options?, suffix?, readOnly? }
+ *
+ * readOnly: shown, never edited or sent (e.g. "Reports to" when the list to
+ * pick from is not available).
  *
  * type 'entry' (HR Tier 3 Phase 1): a pick from a managed list — `key` is the
  * id column (departmentId), `options` are [{ value: id, label: name }], and
@@ -46,6 +49,7 @@ const EditableSection = ({
   const startEditing = () => {
     const initial = {};
     fields.forEach((f) => {
+      if (f.readOnly) return;
       const raw = readPath(values, f.key);
       initial[f.key] = f.type === 'date' ? toDateInput(raw) : (raw ?? '');
     });
@@ -60,6 +64,7 @@ const EditableSection = ({
     const nested = {};
 
     fields.forEach((f) => {
+      if (f.readOnly) return;
       const original = readPath(values, f.key);
       const current  = draft[f.key];
 
@@ -148,7 +153,7 @@ const EditableSection = ({
         {fields.map((field) => {
           const raw = readPath(values, field.key);
 
-          if (!editing) {
+          if (!editing || field.readOnly) {
             const shown = field.type === 'entry' ? readPath(values, field.displayKey) : raw;
             const display = field.type === 'date'
               ? formatDate(raw)

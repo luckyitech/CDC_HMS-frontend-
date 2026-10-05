@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Loader, Upload, FileText, Download, Trash2, Lock, Eye, ArchiveRestore } from 'lucide-react';
+import { Loader, Upload, FileText, Download, Trash2, Lock, Eye, ArchiveRestore, CalendarClock } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import { formatDate } from './staffFormat';
 
@@ -13,6 +13,9 @@ const CATEGORIES = [
 // Categories that should not be visible to the staff member by default. A
 // holder of the confidential drawer can still change it, but the default
 // matters more than the option — nobody remembers to set it on every upload.
+// Since 5 Oct 2026 the SERVER files these Admin only when the uploader does
+// not hold the drawer (utils/hrAccess ADMIN_ONLY_CATEGORIES) — for them this
+// copy only drives the warning shown before such an upload.
 const ADMIN_ONLY_BY_DEFAULT = new Set(['Employment Contract', 'Appraisal', 'Disciplinary']);
 
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
@@ -33,14 +36,21 @@ const EXPIRING_CATEGORIES = new Set([
 //                     administrator without the grant sees and manages only
 //                     what the staff member themselves can see. The API
 //                     enforces both regardless (staffDocumentController).
-const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true }) => {
+// ownFile            the viewer is the staff member — their own uploads stay
+//                     visible to them whatever the category (5 Oct 2026)
+const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true, ownFile = false }) => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [uploading, setUploading] = useState(false);
   const [category, setCategory]   = useState('Other');
   const [expiryDate, setExpiryDate] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [expiryEdit, setExpiryEdit] = useState(null);   // { id, value } — #12
   const fileInput = useRef(null);
+  // Someone without the drawer filing a contract / appraisal / disciplinary
+  // letter on SOMEONE ELSE's file: it goes Admin only and leaves their view
+  // (#2). Never on your own file — your own copy stays visible to you.
+  const goesToDrawer = !ownFile && !canSeeConfidential && ADMIN_ONLY_BY_DEFAULT.has(category);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,17 +69,24 @@ const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true }
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (goesToDrawer && !window.confirm(
+      `A ${category} is filed "Admin only". Once uploaded you will not be able to see, download or change it — `
+      + 'only someone with "Confidential staff documents" can. Upload it?',
+    )) {
+      if (fileInput.current) fileInput.current.value = '';
+      return;
+    }
 
     setUploading(true);
     try {
       await staffService.uploadDocument(staff.employeeId, file, {
         category,
         expiryDate: expiryDate || undefined,
-        // Only a confidential-drawer holder may file into it; the server
-        // forces 'Staff' for everyone else, so don't ask for what it will refuse.
-        visibility: canSeeConfidential && ADMIN_ONLY_BY_DEFAULT.has(category) ? 'Admin only' : 'Staff',
+        // Only a confidential-drawer holder chooses; for everyone else the
+        // server decides by category, so nothing is asked for.
+        visibility: canSeeConfidential ? (ADMIN_ONLY_BY_DEFAULT.has(category) ? 'Admin only' : 'Staff') : undefined,
       });
-      toast.success('Document uploaded');
+      toast.success(goesToDrawer ? 'Uploaded — filed Admin only, so it won\'t show in your list' : 'Document uploaded');
       setExpiryDate('');
       load();
     } catch (err) {
@@ -107,6 +124,19 @@ const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true }
       load();
     } catch (err) {
       toast.error(err.message || 'Failed to update visibility');
+    }
+  };
+
+  // #12: set, change or clear a document's expiry after upload. Reminders
+  // restart for a new date (their de-dupe key includes the date).
+  const saveExpiry = async (doc, value) => {
+    try {
+      await staffService.updateDocument(staff.employeeId, doc.id, { expiryDate: value || '' });
+      toast.success(value ? `Expiry set to ${formatDate(value)}` : 'Expiry removed');
+      setExpiryEdit(null);
+      load();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save the expiry date');
     }
   };
 
@@ -197,6 +227,14 @@ const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true }
         )}
       </div>
 
+      {canUpload && goesToDrawer && (
+        <p className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+          <Lock className="inline w-3.5 h-3.5 mr-1 -mt-0.5" />
+          A {category} is filed <strong>Admin only</strong>. Once uploaded you won&apos;t be able to see it — only
+          holders of &ldquo;Confidential staff documents&rdquo; can.
+        </p>
+      )}
+
       {documents.length === 0 ? (
         <p className="text-sm text-gray-400 py-8 text-center">
           {showArchived
@@ -218,6 +256,24 @@ const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true }
                 </p>
                 {doc.archiveReason && (
                   <p className="text-xs text-gray-400 italic">Archived: {doc.archiveReason}</p>
+                )}
+                {expiryEdit?.id === doc.id && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <input
+                      type="date"
+                      value={expiryEdit.value}
+                      onChange={(e) => setExpiryEdit({ id: doc.id, value: e.target.value })}
+                      aria-label={`Expiry date for ${doc.fileName}`}
+                      className="px-2 py-1 border border-gray-300 rounded-lg text-xs"
+                    />
+                    <button type="button" onClick={() => saveExpiry(doc, expiryEdit.value)} disabled={!expiryEdit.value}
+                      className="px-2 py-1 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60">Save</button>
+                    {doc.expiryDate && (
+                      <button type="button" onClick={() => saveExpiry(doc, '')}
+                        className="px-2 py-1 rounded-lg text-xs text-red-600 hover:underline">Remove expiry</button>
+                    )}
+                    <button type="button" onClick={() => setExpiryEdit(null)} className="px-2 py-1 text-xs text-gray-500 hover:underline">Cancel</button>
+                  </div>
                 )}
               </div>
 
@@ -245,6 +301,18 @@ const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true }
                 >
                   {doc.visibility === 'Staff' ? <Eye className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
                   {doc.visibility === 'Staff' ? 'Visible to staff' : 'Admin only'}
+                </button>
+              )}
+
+              {canManage && !showArchived && expiryEdit?.id !== doc.id
+                && (EXPIRING_CATEGORIES.has(doc.category) || doc.expiryDate)
+                && (doc.visibility === 'Staff' || canSeeConfidential) && (
+                <button
+                  onClick={() => setExpiryEdit({ id: doc.id, value: doc.expiryDate ? String(doc.expiryDate).slice(0, 10) : '' })}
+                  title={doc.expiryDate ? 'Change the expiry date' : 'Set an expiry date'}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-gray-500 hover:text-blue-700 hover:bg-gray-50 whitespace-nowrap"
+                >
+                  <CalendarClock className="w-3.5 h-3.5" /> {doc.expiryDate ? 'Change expiry' : 'Set expiry'}
                 </button>
               )}
 

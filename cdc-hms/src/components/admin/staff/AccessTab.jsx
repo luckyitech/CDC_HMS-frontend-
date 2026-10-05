@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import {
   Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound,
   LayoutGrid, Users, Package, Stethoscope, Briefcase,
-  Clock, CalendarDays, GraduationCap, UserRound,
+  Clock, CalendarDays, GraduationCap, UserRound, Mail,
 } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import api from '../../../services/api';
@@ -15,6 +15,7 @@ import {
   STAFF_TYPES, canManageTags, canGrantPermissions, canGrantHrPermissions, canChangeStaffStatus, passesAdminGate,
 } from '../../../utils/permissions';
 import RememberedPhones from '../../hr/RememberedPhones';
+import ApplyPreset from './ApplyPreset';
 
 // Keyed off the server's group keys. An unknown group still renders, with the
 // generic shield — a group added on the server is never invisible here.
@@ -145,6 +146,8 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
   const [openGroups, setOpenGroups] = useState({});
   // HR Tier 3 Phase 1: which control's scope picker is open.
   const [scopeOpen, setScopeOpen] = useState(null);
+  // "Login email · Change" (5 Oct 2026): the draft while editing, else null.
+  const [emailDraft, setEmailDraft] = useState(null);
   const toggleGroup = (key) => setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Granting is restricted server-side to a PERMISSIONS ADMINISTRATOR — a
@@ -411,9 +414,41 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     }
   };
 
+  // The login email (5 Oct 2026): only a Manage Users editor, and never on an
+  // administrator's account unless a permissions administrator — the server
+  // decides (utils/hrGrant.loginEmailRefusal) and sends loginEmailEditable.
+  const canChangeEmail = !!staff.loginEmailEditable && !staff.isArchived;
+  const changeEmail = () => {
+    const next = (emailDraft || '').trim();
+    if (!next || next === staff.email) { setEmailDraft(null); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) { toast.error('Enter a valid email address'); return; }
+    setConfirmation({
+      title: `Change ${staff.firstName}'s login email?`,
+      message: `They will sign in with ${next}, and password-reset links will go there. `
+        + (staff.email ? `${staff.email} will be emailed to say the login email changed. ` : '')
+        + 'The change is recorded on their Activity tab.',
+      confirmLabel: 'Change login email',
+      onConfirm: async () => {
+        setActing('email');
+        try {
+          const res = await staffService.update(staff.employeeId, { email: next });
+          onChanged(res.data);
+          setEmailDraft(null);
+          toast.success(`Login email changed to ${next}`);
+        } catch (err) {
+          toast.error(err.message || 'Failed to change the login email');
+        } finally {
+          setActing(null);
+        }
+      },
+    });
+  };
+
   const resetPassword = () => {
     if (!staff.email) {
-      toast.error('No email on file — add one on the Overview first.');
+      toast.error(canChangeEmail
+        ? 'No email on file — add one with “Login email · Change” above.'
+        : 'No email on file — someone who manages login accounts (Manage Users) must add one first.');
       return;
     }
 
@@ -575,6 +610,32 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             <dt className="text-gray-500">Employment status</dt>
             <dd className="text-gray-800">{staff.employmentStatus}</dd>
           </div>
+          <div className="flex justify-between gap-4 items-start">
+            <dt className="text-gray-500">Login email</dt>
+            <dd className="text-gray-800 text-right">
+              {emailDraft === null ? (
+                <>
+                  <span className="break-all">{staff.email || '—'}</span>
+                  {canChangeEmail && (
+                    <button type="button" onClick={() => setEmailDraft(staff.email || '')} disabled={!!acting}
+                      className="ml-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">
+                      <Mail className="w-3.5 h-3.5" /> Change
+                    </button>
+                  )}
+                </>
+              ) : (
+                <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                  <input type="email" value={emailDraft} onChange={(e) => setEmailDraft(e.target.value)} aria-label="New login email"
+                    className="px-2 py-1 border border-gray-300 rounded-lg text-xs w-56" />
+                  <button type="button" onClick={changeEmail} disabled={!!acting}
+                    className="px-2 py-1 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60">
+                    {acting === 'email' ? <Loader className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
+                  </button>
+                  <button type="button" onClick={() => setEmailDraft(null)} className="px-2 py-1 text-xs text-gray-500 hover:underline">Cancel</button>
+                </span>
+              )}
+            </dd>
+          </div>
           <div className="flex justify-between gap-4">
             <dt className="text-gray-500">Password last changed</dt>
             <dd className="text-gray-800">
@@ -684,10 +745,17 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
             apply the definitions themselves; this says what they will see and
             what to press, which is the same information in the order it is
             actually needed. */}
-        <p className="text-xs text-gray-500 mb-3 px-1">
-          Ticked means {staff.firstName} can do it. Untick to stop them, tick to allow them —
-          a receptionist who also does triage, a nurse who should not sign reports.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-2 mb-3 px-1">
+          <p className="text-xs text-gray-500 flex-1 min-w-[16rem]">
+            Ticked means {staff.firstName} can do it. Untick to stop them, tick to allow them —
+            a receptionist who also does triage, a nurse who should not sign reports.
+          </p>
+          {/* Never on your own file — the server refuses it too (a preset can't
+              carry admin access or the permissions key, so you'd lose them). */}
+          {(canGrant || hrMode) && !ownFile && staff.canHoldPermissions && !staff.isTrueAdmin && !staff.isArchived && groups.length > 0 && (
+            <ApplyPreset staff={staff} groups={groups} catalog={catalog} currentUser={currentUser} hrMode={hrMode} onChanged={onChanged} />
+          )}
+        </div>
 
         {staff.isTrueAdmin ? (
           <p className="text-sm text-gray-500 bg-white rounded-xl border border-gray-200 p-5">

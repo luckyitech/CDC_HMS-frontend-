@@ -1,0 +1,26 @@
+/* HR Suite → Manual. Only what Tailwind classes cannot say. */
+
+/* A search jump briefly marks the block it landed on. */
+@keyframes hr-manual-flash {
+  0%   { background-color: rgba(250, 204, 21, 0.35); }
+  100% { background-color: transparent; }
+}
+.hr-manual-flash { animation: hr-manual-flash 2.2s ease-out; }
+
+/* The print copy (rendered into <body> only while printing) is the ONLY thing
+   printed: the app shell, sidebar and the on-screen page are hidden. */
+.hr-manual-print-root { display: none; }
+
+@media print {
+  body > *:not(.hr-manual-print-root) { display: none !important; }
+  .hr-manual-print-root { display: block !important; padding: 0; color: #111827; }
+  html, body { background: #fff !important; height: auto !important; overflow: visible !important; }
+  @page { margin: 14mm 12mm; }
+  .hr-manual-print-root h2, .hr-manual-print-root h3, .hr-manual-print-root h4 { break-after: avoid; page-break-after: avoid; }
+  .hr-manual-print-root .hr-manual-figure,
+  .hr-manual-print-root tr { break-inside: avoid; page-break-inside: avoid; }
+  .hr-manual-print-root .hr-manual-figure img { max-height: 230mm; width: auto !important; max-width: 100% !important; margin: 0 auto; }
+  .hr-manual-print-root .hr-manual-table { overflow: visible !important; }
+  .hr-manual-print-root a { color: inherit !important; text-decoration: none !important; }
+  .hr-manual-print-root button { border: 0 !important; }
+}

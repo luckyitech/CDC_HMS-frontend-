@@ -16,9 +16,10 @@ import { CADRES, cadreFor, identityPayload, resolveFields } from './cadreFields'
 import hrService from '../../../services/hrService';
 import api from '../../../services/api';
 import staffService from '../../../services/staffService';
+import hrSelfService from '../../../services/hrSelfService';
 import permissionPresetService from '../../../services/permissionPresetService';
 import {
-  PERMISSIONS, STAFF_TYPES, STAFF_TYPE_LABELS, canGrantPermissions, canGrantHrPermissions, canUseCapability,
+  PERMISSIONS, STAFF_TYPES, STAFF_TYPE_LABELS, canGrantPermissions, canGrantHrPermissions, canUseCapability, canRunAppraisals,
 } from '../../../utils/permissions';
 
 // =====================================================================
@@ -49,6 +50,7 @@ const EMPTY = {
   address: '', city: '', emergencyContact: '', emergencyRelationship: '', emergencyPhone: '',
   temporaryPassword: '',
   role: '', position: '', department: '', positionId: '', departmentId: '', shift: '', employmentType: '', startDate: '',
+  reportsToId: '',
 };
 
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
@@ -92,7 +94,23 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
   useEffect(() => {
     hrService.lists().then((res) => setLists(res?.data || null)).catch(() => setLists(null));
   }, []);
-  const roleFields = resolveFields(cadre, lists);
+  // Reports to (5 Oct 2026): any active colleague, beside Department. Leave
+  // pre-adds them as an approver; appraisals default the reviewer to them.
+  const [colleagues, setColleagues] = useState([]);
+  useEffect(() => {
+    hrSelfService.approvers('', true).then((res) => setColleagues(res?.data?.people || [])).catch(() => setColleagues([]));
+  }, []);
+  const reportsToField = {
+    key: 'reportsToId', label: 'Reports to', type: 'entry',
+    // Not yourself unless you run appraisals (the server refuses it).
+    options: colleagues.filter((c) => c.id !== currentUser?.id || canRunAppraisals(currentUser))
+      .map((c) => ({ value: String(c.id), label: c.position ? `${c.name} — ${c.position}` : c.name })),
+  };
+  const baseFields = resolveFields(cadre, lists);
+  const deptAt = baseFields.findIndex((f) => f.key === 'departmentId' || f.key === 'department');
+  const roleFields = !cadre ? baseFields : deptAt >= 0
+    ? [...baseFields.slice(0, deptAt + 1), reportsToField, ...baseFields.slice(deptAt + 1)]
+    : [...baseFields, reportsToField];
   const departmentName = d.departmentId
     ? (lists?.departments || []).find((x) => String(x.id) === String(d.departmentId))?.name
     : d.department;
@@ -201,6 +219,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
       const body = {
         ...identityPayload(d),
         ...cadre.payload(d),
+        ...(d.reportsToId ? { reportsToId: Number(d.reportsToId) } : {}),
         ...(presetId ? { presetId: Number(presetId) } : {}),
         staffType,
         permissions: adminAccess ? [...grantedNoAdmin, PERMISSIONS.ADMIN_ACCESS] : grantedNoAdmin,

@@ -89,7 +89,7 @@ const HrSettings = () => {
   useEffect(() => {
     if (!settings) return;
     setForm({
-      autoCheckin: settings.autoCheckin, confirmCheckout: settings.confirmCheckout, positiveFeedback: settings.positiveFeedback,
+      confirmCheckout: settings.confirmCheckout, positiveFeedback: settings.positiveFeedback,
       debounceSeconds: settings.debounceSeconds, minSessionMinutes: settings.minSessionMinutes, graceMinutes: settings.graceMinutes,
       geo: settings.geo, deviceDays: settings.deviceDays,
     });
@@ -242,7 +242,6 @@ const HrSettings = () => {
             {!form || !hoursForm ? <Spinner /> : (
               <div className="space-y-3">
                 {!canConfig && <p className="text-xs text-amber-700">Changing rules needs the "HR Suite settings" permission — an administrator can do this.</p>}
-                <Toggle label="First tap of the day checks in immediately" checked={form.autoCheckin} onChange={(v) => set('autoCheckin', v)} disabled={!canConfig} />
                 <Toggle label="Check-out asks for confirmation" checked={form.confirmCheckout} onChange={(v) => set('confirmCheckout', v)} disabled={!canConfig} />
                 <Toggle label="Positive feedback on tap (mood lines)" checked={form.positiveFeedback} onChange={(v) => set('positiveFeedback', v)} disabled={!canConfig} />
                 <div className="grid grid-cols-2 gap-3">

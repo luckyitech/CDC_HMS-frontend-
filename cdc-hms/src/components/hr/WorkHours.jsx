@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import hrService from '../../services/hrService';
 import { notify } from '../../utils/notify';
 import { dayLabel } from './hrFormat';
+import ConfirmActionModal from '../shared/ConfirmActionModal';
 
 /**
  * WorkHours — per-person working hours (HR Suite, B21; hr.write).
@@ -10,7 +11,10 @@ import { dayLabel } from './hrFormat';
  * row per weekday (start, end, off, grace) plus dated overrides (a single day:
  * off, or different hours). Saving REPLACES the weekday pattern; a weekday
  * left "clinic default" gets no row and falls back to the clinic-wide hours.
- * The future shift roster writes dated rows into the same table.
+ * A published shift roster writes dated rows into the same table; the roster
+ * wins (5 Oct 2026): those rows are labelled "roster", and changing one here
+ * asks for a confirm (the server answers 409 ROSTERED) before it replaces the
+ * roster for that day.
  */
 const WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -44,6 +48,7 @@ const Editor = ({ person, rows, hoursDefault, graceDefault, onClose, onSaved }) 
   const [newStart, setNewStart] = useState('08:00');
   const [newEnd, setNewEnd] = useState('17:00');
   const [busy, setBusy] = useState(false);
+  const [rosterClash, setRosterClash] = useState(null);   // { message, payload } — 409 ROSTERED
 
   useEffect(() => {
     const d = {};
@@ -54,7 +59,7 @@ const Editor = ({ person, rows, hoursDefault, graceDefault, onClose, onSaved }) 
         : { mode: 'default', start: def[n]?.start || '08:00', end: def[n]?.end || '17:00', grace: '' };
     }
     setDays(d);
-    setOverrides(rows.filter((x) => x.date).map((x) => ({ date: x.date, isOff: x.isOff, startTime: x.startTime, endTime: x.endTime })));
+    setOverrides(rows.filter((x) => x.date).map((x) => ({ date: x.date, isOff: x.isOff, startTime: x.startTime, endTime: x.endTime, graceMinutes: x.graceMinutes, fromRoster: !!x.fromRoster })));
     // `def` is derived from hoursDefault, which is stable for the editor's life.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, person?.id]);
@@ -64,7 +69,7 @@ const Editor = ({ person, rows, hoursDefault, graceDefault, onClose, onSaved }) 
   const addOverride = () => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { notify('error', 'Choose a date for the override.'); return; }
     if (newKind === 'hours' && newStart >= newEnd) { notify('error', 'End must be after start.'); return; }
-    setOverrides((prev) => [...prev.filter((o) => o.date !== newDate), { date: newDate, isOff: newKind === 'off', startTime: newKind === 'off' ? null : newStart, endTime: newKind === 'off' ? null : newEnd }]);
+    setOverrides((prev) => [...prev.filter((o) => o.date !== newDate), { date: newDate, isOff: newKind === 'off', startTime: newKind === 'off' ? null : newStart, endTime: newKind === 'off' ? null : newEnd, fromRoster: false }]);
     setNewDate('');
   };
 
@@ -78,17 +83,24 @@ const Editor = ({ person, rows, hoursDefault, graceDefault, onClose, onSaved }) 
     }
     // Overrides are replaced as a set: rows removed here are retired server-side.
     const existing = rows.filter((x) => x.date).map((x) => x.date);
+    // Unchanged rows (including the roster's) are left alone by the server.
     const payload = [
-      ...overrides.map((o) => ({ ...o })),
+      ...overrides.map(({ fromRoster, ...o }) => ({ ...o })),
       ...existing.filter((d) => !overrides.some((o) => o.date === d)).map((date) => ({ date, remove: true })),
     ];
+    send({ weekdays, overrides: payload });
+  };
+
+  const send = async (body) => {
     setBusy(true);
     try {
-      const res = await hrService.setWorkHours(person.id, { weekdays, overrides: payload });
+      const res = await hrService.setWorkHours(person.id, body);
       if (res?.success) { notify('success', `Working hours saved for ${person.name}.`); onSaved(res.data); }
       else notify('error', res?.message || 'Could not save.');
-    } catch (e) { notify('error', e?.message || 'Could not save.'); }
-    finally { setBusy(false); }
+    } catch (e) {
+      if (e?.data?.code === 'ROSTERED') setRosterClash({ message: e.message, body });
+      else notify('error', e?.message || 'Could not save.');
+    } finally { setBusy(false); }
   };
 
   if (!Object.keys(days).length) return null;
@@ -128,6 +140,7 @@ const Editor = ({ person, rows, hoursDefault, graceDefault, onClose, onSaved }) 
           <div key={o.date} className="flex items-center gap-3 text-sm py-1">
             <span className="w-28 text-gray-800">{dayLabel(o.date, true)}</span>
             <span className="tabular-nums text-gray-600">{o.isOff ? 'Off' : `${o.startTime} – ${o.endTime}`}</span>
+            {o.fromRoster && <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700" title="Set by a published shift on the roster — change it on the roster">roster</span>}
             <button type="button" onClick={() => setOverrides((prev) => prev.filter((x) => x.date !== o.date))} className="text-xs text-red-600 hover:underline ml-auto">Remove</button>
           </div>
         ))}
@@ -148,6 +161,15 @@ const Editor = ({ person, rows, hoursDefault, graceDefault, onClose, onSaved }) 
         <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{busy ? 'Saving…' : 'Save working hours'}</button>
         <button type="button" onClick={onClose} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700">Cancel</button>
       </div>
+      <ConfirmActionModal
+        isOpen={!!rosterClash}
+        onClose={() => setRosterClash(null)}
+        onConfirm={() => { const b = rosterClash.body; setRosterClash(null); send({ ...b, replaceRoster: true }); }}
+        title="Replace the roster for this day?"
+        message={`${rosterClash?.message || ''} Confirming takes the shift off the roster for that day and uses the hours set here instead.`}
+        confirmLabel="Replace the roster"
+        confirmVariant="danger"
+      />
     </div>
   );
 };
@@ -202,7 +224,7 @@ const WorkHours = ({ canEdit }) => {
           onSaved={() => { setEditing(null); load(); }}
         />
       )}
-      <p className="text-xs text-gray-500 mt-3">Per weekday, with a date-specific override for a single day. The shift roster (later) writes dated rows into the same table. Defaults for a new account come from the clinic-wide hours.</p>
+      <p className="text-xs text-gray-500 mt-3">Per weekday, with a date-specific override for a single day. A published shift on the roster sets that day's hours and replaces a one-day override; an override on a rostered day needs your confirmation. Defaults for a new account come from the clinic-wide hours.</p>
     </div>
   );
 };

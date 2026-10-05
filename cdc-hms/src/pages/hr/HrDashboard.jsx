@@ -97,11 +97,12 @@ const HrDashboard = () => {
             </div>
             <Link to="/hr/register?preset=today" className="text-sm font-semibold text-primary hover:underline">Open register</Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+          {/* "Flagged today" is hidden until flagging (geo-fence / network rules) is
+              built — every verified tap is 'verified' today (5 Oct 2026). */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             <Tile value={t?.counts?.inNow ?? '—'} of={t?.counts?.total} label="In now" to="/hr/register?preset=today&status=open" />
             <Tile value={t?.counts?.notYetIn ?? '—'} label="Not yet in" tone={t?.counts?.notYetIn ? 'warn' : ''} to="/hr/register?preset=today" />
             <Tile value={t?.counts?.lateToday ?? '—'} label="Late today" tone={t?.counts?.lateToday ? 'warn' : ''} to="/hr/register?preset=today&status=late" />
-            <Tile value={t?.counts?.flaggedToday ?? '—'} label="Flagged today" tone={t?.counts?.flaggedToday ? 'warn' : ''} to="/hr/register?preset=today&status=flagged" />
             <Tile value={t?.counts?.missedCheckouts ?? '—'} label="Missed check-out to resolve" tone={t?.counts?.missedCheckouts ? 'bad' : ''} to="/hr/register?preset=month&status=missed" />
           </div>
           <div className="grid md:grid-cols-2 gap-3">

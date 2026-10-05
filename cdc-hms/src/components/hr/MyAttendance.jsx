@@ -171,7 +171,7 @@ const MyAttendance = () => {
               ))}
             </dl>
           ) : <Spinner />}
-          <p className="text-xs text-gray-500 mt-3">Set by HR. Later these will follow the shift roster and the doctors' schedule.</p>
+          <p className="text-xs text-gray-500 mt-3">Set by HR, or by your published shifts on the roster.</p>
         </Card>
       </div>
 

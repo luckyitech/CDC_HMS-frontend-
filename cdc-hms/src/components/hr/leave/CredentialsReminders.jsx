@@ -119,7 +119,7 @@ const CredentialsReminders = ({ canEdit }) => {
       </Section>
 
       <Section title="Team calendar — leave types staff can see">
-        <p className="text-xs text-gray-500 mb-2">A ticked type shows its <b>name</b> to everyone on the team calendar. An unticked one shows as <b>“Away”</b> (dates only) to non-managers; holders of “Manage everyone’s leave” always see the real type.</p>
+        <p className="text-xs text-gray-500 mb-2">A ticked type shows its <b>name</b> to everyone on the team calendar. An unticked one shows as <b>“Away”</b> (dates only) to non-managers; holders of “See everyone’s leave” always see the real type (sick leave only with “Sick-leave details”).</p>
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
           {types.map((t) => {
             const locked = LOCKED.has(t.key);

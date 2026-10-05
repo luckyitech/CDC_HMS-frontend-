@@ -122,10 +122,14 @@ const TapLanding = () => {
     }
   }, [uid, ctr, cmac, showResult]);
 
-  // First tap with a session: ask for location once (never blocks — 1.5 s cap).
+  // First tap with a session: ask for location once (never blocks — 1.5 s cap)
+  // — only when HR has "Phone location" set to log it. With Off the phone is
+  // never asked (5 Oct 2026); if the setting can't be read, it isn't asked either.
   const firstTap = useCallback(async () => {
     setPhase('posting');
-    const geo = await geoOnce();
+    let mode = 'off';
+    try { mode = (await hrService.checkinConfig())?.data?.geo || 'off'; } catch { /* not asked */ }
+    const geo = mode === 'log' ? await geoOnce() : null;
     await postTap(geo ? { geo } : {});
   }, [postTap]);
 

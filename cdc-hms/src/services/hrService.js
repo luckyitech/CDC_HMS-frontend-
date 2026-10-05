@@ -9,6 +9,8 @@ import { saveTextFile } from '../utils/exportCsv';
 const hrService = {
   // --- Time & Attendance: tap (the tap page only) ---
   tap:            (body)          => api.post('/hr/attendance/tap', body),
+  // { geo: 'off' | 'log' } — with Off the tap page never asks for the location.
+  checkinConfig:  ()              => api.get('/hr/attendance/checkin-config'),
   deviceSession:  (deviceToken)   => api.post('/auth/device-session', { deviceToken }),
   loginRemember:  (email, password, rememberDevice) =>
     api.post('/auth/login', { email, password, rememberDevice: !!rememberDevice, context: 'hr-tap' }),

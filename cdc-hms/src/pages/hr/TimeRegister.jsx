@@ -38,7 +38,8 @@ const PRESETS = [
 
 const STATUS_OPTIONS = [
   ['', 'All statuses'], ['open', 'Checked in now'], ['late', 'Late check-in'], ['early_out', 'Early check-out'],
-  ['flagged', 'Flagged'], ['missed', 'Missed check-out'], ['refused', 'Refused'], ['voided', 'Voided'],
+  // 'flagged' is left out until flagging exists (5 Oct 2026); the API still accepts it.
+  ['missed', 'Missed check-out'], ['refused', 'Refused'], ['voided', 'Voided'],
 ];
 const ROLE_OPTIONS = [['', 'All roles'], ['doctor', 'Doctors'], ['nurse', 'Nurses'], ['staff', 'Staff'], ['lab', 'Lab'], ['admin', 'Administrators']];
 
