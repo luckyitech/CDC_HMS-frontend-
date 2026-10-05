@@ -42,10 +42,12 @@ const CreateUsers = () => {
 
   const switchRole = (key) => setSearchParams({ role: key, legacy: '1' }, { replace: true });
 
-  // The onboarding wizard (/admin/onboard) replaced this screen. The five
-  // per-cadre forms stay reachable for one release behind ?legacy=1 as a
-  // fallback; old bookmarks and the sidebar land on the wizard.
-  if (searchParams.get('legacy') !== '1') return <Navigate to="/admin/onboard" replace />;
+  // The onboarding wizard (/admin/onboard) replaced this screen. The per-cadre
+  // forms stayed behind ?legacy=1 for one release (27 Sep). From 3 Oct 2026 the
+  // STAFF forms are retired too: they typed department and position by hand,
+  // and the wizard picks them from the clinic's lists (HR Tier 3 Phase 1) and
+  // starts the onboarding checklist. Only the patient form remains here.
+  if (searchParams.get('legacy') !== '1' || activeRole.key !== 'patient') return <Navigate to="/admin/onboard" replace />;
 
   return (
     <div>
@@ -57,7 +59,7 @@ const CreateUsers = () => {
         className="mb-6"
         active={activeRole.key}
         onChange={switchRole}
-        tabs={ROLES.map((role) => ({ id: role.key, label: <>{role.icon}{role.label}</> }))}
+        tabs={ROLES.filter((role) => role.key === 'patient').map((role) => ({ id: role.key, label: <>{role.icon}{role.label}</> }))}
       />
 
       {/* key remounts the form on switch so state never leaks between roles */}
