@@ -5,7 +5,8 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canSetLeavePolicy, canChangeHrSettings, canUseSelfService, canApproveLeave, canViewAllLeave, canSetHolidays, canSetEntitlements, canManageTags, canSetWorkHours, canApproveProfileChanges, canVerifyCpd, canManageLists, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, canRunAppraisals, canReadAppraisals, isHrStaff, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenHrSettings } from "../components/hr/settings/settingsTabs";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canUseSelfService, canApproveLeave, canViewAllLeave, canApproveProfileChanges, canVerifyCpd, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, canRunAppraisals, canReadAppraisals, isHrStaff, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import NotificationBell from "../components/shared/NotificationBell";
 import {
@@ -55,12 +56,10 @@ import {
   Inbox,
   IdCard,
   Clock,
-  CalendarCog,
   TreePalm,
   UserCheck,
   UserRound,
   ClipboardCheck,
-  Network,
   BarChart3,
   ListChecks,
   CalendarRange,
@@ -611,13 +610,10 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // B27 phase 4/5: profile change requests (hr.profile.approve) and CPD to
       // verify (cpd.verify) share this page and its badge.
       { name: "Profile requests", path: "/hr/requests", icon: UserCheck, badge: profileWaiting + cpdWaiting, show: canApproveProfileChanges(currentUser) || canVerifyCpd(currentUser) },
-      // HR Tier 3: the page opens for tags, working hours or HR settings (hr.write was split).
-      { name: "Settings", path: "/hr/settings", icon: Settings, show: canManageTags(currentUser) || canSetWorkHours(currentUser) || canChangeHrSettings(currentUser) },
-      // B27: the leave policy (leave.policy), holidays (leave.holidays),
-      // entitlements (leave.entitlements) and the alert channels (hr.settings).
-      { name: "Leave settings", path: "/hr/leave-settings", icon: CalendarCog, show: canSetLeavePolicy(currentUser) || canSetHolidays(currentUser) || canSetEntitlements(currentUser) || canChangeHrSettings(currentUser) },
-      // HR Tier 3 Phase 1: the Departments / Positions lists and the tidy screen (hr.lists).
-      { name: "Departments & positions", path: "/hr/lists", icon: Network, show: canManageLists(currentUser) },
+      // Settings (6 Oct 2026): Attendance · Leave · Staff lists · Alerts & reminders on one
+      // page (it replaced Leave settings and Departments & positions); shown when any
+      // of its sub-tabs is open to this person — the gates live in settingsTabs.js.
+      { name: "Settings", path: "/hr/settings", icon: Settings, show: canOpenHrSettings(currentUser) },
       // HR Tier 3 Phase 2: HR reports (hr.reports; figures limited to the holder's scope).
       { name: "Reports", path: "/hr/reports", icon: BarChart3, show: canViewHrReports(currentUser) },
       // HR Tier 3 Phase 3: onboarding checklists (hr.onboarding) and templates (hr.onboarding.templates).

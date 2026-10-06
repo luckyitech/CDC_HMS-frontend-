@@ -8,11 +8,15 @@
  * @param {string}   active    id of the active tab
  * @param {Function} onChange  (id) => void
  * @param {string}   className extra classes on the track (spacing etc.)
+ * @param {string}   ariaLabel  opt-in tab semantics: when given, the track is a
+ *                   role="tablist" with this label and each button a role="tab"
+ *                   with aria-selected (ids `${idPrefix}-${id}`, aria-controls
+ *                   `panelId`). Without it the markup is exactly as before.
  */
 // Small screens scroll the track sideways (nowrap + hidden scrollbar) instead
 // of wrapping into stacked rows; ≥sm wraps as before.
-const SwitcherTabs = ({ tabs, active, onChange, className = '' }) => (
-  <div className={`flex flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar overscroll-contain gap-1 p-1 bg-gray-100 rounded-lg w-fit max-w-full ${className}`}>
+const SwitcherTabs = ({ tabs, active, onChange, className = '', ariaLabel, idPrefix = 'tab', panelId }) => (
+  <div {...(ariaLabel ? { role: 'tablist', 'aria-label': ariaLabel } : {})} className={`flex flex-nowrap sm:flex-wrap overflow-x-auto no-scrollbar overscroll-contain gap-1 p-1 bg-gray-100 rounded-lg w-fit max-w-full ${className}`}>
     {tabs.map(({ id, label, Icon, count, disabled, title }) => {
       const on = id === active;
       return (
@@ -20,6 +24,7 @@ const SwitcherTabs = ({ tabs, active, onChange, className = '' }) => (
           key={id}
           type="button"
           title={title}
+          {...(ariaLabel ? { role: 'tab', id: `${idPrefix}-${id}`, 'aria-selected': on, 'aria-controls': panelId } : {})}
           onClick={() => onChange(id)}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold transition-all whitespace-nowrap ${
             on ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'

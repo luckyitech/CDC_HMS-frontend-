@@ -118,7 +118,7 @@ const WeekView = ({ types: allTypes }) => {
   const nameOf = (id) => data?.people.find((p) => p.id === id)?.name || 'Someone';
 
   if (!departments) return <Spinner />;
-  if (!departments.length) return <Section><p className="text-sm text-gray-500">No department is within your roster reach yet. Departments are added under Departments &amp; positions.</p></Section>;
+  if (!departments.length) return <Section><p className="text-sm text-gray-500">No department is within your roster reach yet. Departments are added under Settings → Staff lists.</p></Section>;
 
   const published = data?.week?.status === 'published';
   const pick = async (body) => {

@@ -34,7 +34,7 @@
   },
   {
    "key": "golive-grace",
-   "text": "Agree a clinic grace for check-ins and set it in Settings → Rules (Tab 5)."
+   "text": "Agree a clinic grace for check-ins and set it in Settings → Attendance → Check-in rules (Tab 5)."
   },
   {
    "key": "golive-onboarding-templates",
@@ -94,7 +94,7 @@
   },
   {
    "key": "day2-settings",
-   "text": "Open Settings: read the Rules and the clinic-wide hours. Do not change them yet."
+   "text": "Open Settings → Attendance → Check-in rules: read the rules and the clinic-wide hours. Do not change them yet."
   },
   {
    "key": "day2-part-timers",
@@ -108,7 +108,7 @@
  "day3": [
   {
    "key": "day3-policy",
-   "text": "Open Leave settings → Leave policy and check this year says published."
+   "text": "Open Settings → Leave → Leave policy and check this year says published."
   },
   {
    "key": "day3-holidays",
@@ -134,7 +134,7 @@
  "day4": [
   {
    "key": "day4-lists",
-   "text": "Open Departments & positions. Is every file linked? Run Tidy if not (with the HR manager)."
+   "text": "Open Settings → Staff lists. Is every file linked? Run Tidy if not (with the HR manager)."
   },
   {
    "key": "day4-onboarding",

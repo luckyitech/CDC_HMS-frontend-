@@ -1,47 +1,37 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Lock, RefreshCw, CalendarCog, CalendarDays, Users, Bell, GraduationCap } from 'lucide-react';
-import { useUserContext } from '../../contexts/UserContext';
-import { canSetLeavePolicy, canSetHolidays, canSetEntitlements, canChangeHrSettings } from '../../utils/permissions';
-import leaveService from '../../services/leaveService';
-import PageHeader from '../../components/shared/PageHeader';
-import SwitcherTabs from '../../components/shared/SwitcherTabs';
-import Spinner from '../../components/shared/Spinner';
-import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
-import { notify } from '../../utils/notify';
-import { Pill, hhmmOf, dayLabel } from '../../components/hr/hrFormat';
-import { Section, SwitchRow, Field, inputCls, buttonCls, primaryButtonCls } from '../../components/hr/hrUi';
-import PolicyTable from '../../components/hr/leave/PolicyTable';
-import DayWeights from '../../components/hr/leave/DayWeights';
-import HolidayList from '../../components/hr/leave/HolidayList';
-import EntitlementGrid from '../../components/hr/leave/EntitlementGrid';
-import AlertChannels from '../../components/hr/leave/AlertChannels';
-import CredentialsReminders from '../../components/hr/leave/CredentialsReminders';
-import { MONTHS, DAYS_IN_MONTH } from '../../components/hr/leave/leaveFormat';
+import { Plus, Lock, RefreshCw } from 'lucide-react';
+import { useUserContext } from '../../../contexts/UserContext';
+import { canSetLeavePolicy, canSetHolidays, canSetEntitlements } from '../../../utils/permissions';
+import leaveService from '../../../services/leaveService';
+import Spinner from '../../shared/Spinner';
+import ConfirmActionModal from '../../shared/ConfirmActionModal';
+import { notify } from '../../../utils/notify';
+import { Pill, hhmmOf, dayLabel } from '../hrFormat';
+import { Section, SwitchRow, Field, inputCls, buttonCls, primaryButtonCls } from '../hrUi';
+import PolicyTable from '../leave/PolicyTable';
+import DayWeights from '../leave/DayWeights';
+import HolidayList from '../leave/HolidayList';
+import EntitlementGrid from '../leave/EntitlementGrid';
+import { MONTHS, DAYS_IN_MONTH } from '../leave/leaveFormat';
 
 /**
- * LeaveSettings — /hr/leave-settings (B27 phase 1; mockup 1 + revisions A, D).
+ * LeaveSettingsPanel — Settings → Leave (/hr/settings/leave/:tab?year=).
+ * Was the /hr/leave-settings page (B27 phase 1; mockup 1 + revisions A, D)
+ * until the three setup pages were merged (6 Oct 2026). Its Alerts and
+ * Credentials & reminders tabs moved to Settings → Alerts & reminders; the
+ * Year selector sits beside the sub-tabs (`subTabs`, rendered by the page).
  *
- * Tabs: Leave policy · Public holidays · Staff entitlements · Alerts.
+ * Tabs (`tab`): Leave policy · Public holidays · Staff entitlements.
  *
  * The policy is per year and a DRAFT until HR publishes it; until a year is
  * published, leave for that year counts exactly as it did before B27. A year
  * that has ended is frozen (its balances would change with it) — the server
  * refuses, and the screen says so rather than offering buttons that fail.
  *
- * Gates (the API enforces the same): the first three tabs need leave.policy;
- * Alerts needs hr.settings.
+ * Gates (the API enforces the same): Leave policy needs leave.policy, Public
+ * holidays leave.holidays, Staff entitlements leave.entitlements.
  */
-const TABS = [
-  { id: 'policy', label: 'Leave policy', Icon: CalendarCog },
-  { id: 'holidays', label: 'Public holidays', Icon: CalendarDays },
-  { id: 'entitlements', label: 'Staff entitlements', Icon: Users },
-  { id: 'alerts', label: 'Alerts', Icon: Bell },
-  { id: 'credentials', label: 'Credentials & reminders', Icon: GraduationCap },
-];
-// Tabs backed by HR Suite settings (hr.settings) rather than the leave policy.
-const SETTINGS_TABS = ['alerts', 'credentials'];
-
 /** The policy view from the API → the editable form. */
 const toForm = (view) => {
   if (!view?.policy) return null;
@@ -120,20 +110,15 @@ const RecentChanges = ({ refreshKey = 0 }) => {
   );
 };
 
-const LeaveSettings = () => {
+const LeaveSettingsPanel = ({ tab, subTabs }) => {
   const { currentUser } = useUserContext();
   // HR Tier 3 Phase 0: each tab its own control (leave.policy carries holidays
   // and entitlements, so a policy holder still sees all three).
   const canPolicy = canSetLeavePolicy(currentUser);
   const canHolidays = canSetHolidays(currentUser);
   const canEntitlements = canSetEntitlements(currentUser);
-  const canAlerts = canChangeHrSettings(currentUser);
   const canLeaveTabs = canPolicy || canHolidays || canEntitlements;
   const [params, setParams] = useSearchParams();
-
-  const TAB_GATE = { policy: canPolicy, holidays: canHolidays, entitlements: canEntitlements };
-  const tabs = TABS.filter((t) => (SETTINGS_TABS.includes(t.id) ? canAlerts : TAB_GATE[t.id]));
-  const tab = tabs.some((t) => t.id === params.get('tab')) ? params.get('tab') : tabs[0]?.id;
 
   const [years, setYears] = useState(null);         // [{ year, status }]
   const [thisYear, setThisYear] = useState(null);
@@ -182,16 +167,8 @@ const LeaveSettings = () => {
   const locked = !edit.canEdit;
   const sourceYears = useMemo(() => (years || []).filter((y) => y.status !== 'none' && y.year !== year), [years, year]);
 
-  if (!canLeaveTabs && !canAlerts) {
-    return (
-      <div>
-        <PageHeader title="Leave settings" />
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
-          Leave settings are for whoever runs the leave policy, public holidays, individual entitlements or HR alerts. Ask whoever handles HR permissions if you need one.
-        </div>
-      </div>
-    );
-  }
+  // The Settings page only shows these sub-tabs to their holders (settingsTabs.js).
+  if (!canLeaveTabs) return null;
 
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setType = (key, patch) => setForm((f) => ({ ...f, types: { ...f.types, [key]: { ...f.types[key], ...patch } } }));
@@ -361,7 +338,7 @@ const LeaveSettings = () => {
               <label className="flex items-start gap-2">
                 <input type="radio" name="mode" checked={form.countingMode === 'own_hours'} disabled={locked} onChange={() => setF('countingMode', 'own_hours')} className="mt-1" />
                 <span>Each person's working days from their HR hours (days off = 0)
-                  <span className="block text-[11px] text-gray-500">A day someone isn't expected in by their HR hours (Time &amp; Attendance → working hours) costs nothing. Anyone with a personal week on Staff entitlements uses that instead.</span></span>
+                  <span className="block text-[11px] text-gray-500">A day someone isn't expected in by their HR hours (Settings → Attendance → Working hours) costs nothing. Anyone with a personal week on Staff entitlements uses that instead.</span></span>
               </label>
             </div>
             <div className="mt-3 border-t border-gray-100 pt-2">
@@ -463,18 +440,18 @@ const LeaveSettings = () => {
 
   return (
     <div>
-      <PageHeader title="Leave settings" subtitle="The clinic's leave policy, public holidays, entitlements, alerts and credentials" actions={!SETTINGS_TABS.includes(tab) && canLeaveTabs ? header : null} />
-      <SwitcherTabs className="mb-4" tabs={tabs} active={tab} onChange={(id) => setParam('tab', id)} />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+        {subTabs}
+        {header}
+      </div>
 
       {tab === 'policy' && (year ? policyTab() : <Spinner />)}
       {tab === 'holidays' && year && <HolidayList year={year} canEdit={canHolidays} />}
       {tab === 'entitlements' && year && <EntitlementGrid year={year} canEdit={canEntitlements} />}
-      {tab === 'alerts' && <AlertChannels canEdit={canAlerts} />}
-      {tab === 'credentials' && <CredentialsReminders canEdit={canAlerts} />}
 
       <ConfirmActionModal isOpen={!!confirm} onClose={() => setConfirm(null)} {...confirmProps} />
     </div>
   );
 };
 
-export default LeaveSettings;
+export default LeaveSettingsPanel;

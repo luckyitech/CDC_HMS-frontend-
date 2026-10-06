@@ -26,7 +26,7 @@ import RequiredApprovers from './RequiredApprovers';
  *   - leave.view or staff.view: the overview — without leave.sick, sick leave
  *     shows as "Private" with no sick balance (the server trims it); a request
  *     opens READ-ONLY in the approval panel (HR Tier 3 Phase 0).
- *   - leave.entitlements: a link to their entitlement on Leave settings, the
+ *   - leave.entitlements: a link to their entitlement on Settings → Leave → Staff entitlements, the
  *     one place entitlements are changed.
  */
 const StaffLeaveTab = ({ staff, currentUser }) => {
@@ -66,7 +66,7 @@ const StaffLeaveTab = ({ staff, currentUser }) => {
   const actions = (
     <>
       {canSetEntitlements(currentUser) && (
-        <Link to={`/hr/leave-settings?tab=entitlements&year=${year}`} className={`${buttonCls} inline-flex items-center gap-1.5`}>
+        <Link to={`/hr/settings/leave/entitlements?year=${year}`} className={`${buttonCls} inline-flex items-center gap-1.5`}>
           <SlidersHorizontal className="w-4 h-4" /> Entitlement
         </Link>
       )}

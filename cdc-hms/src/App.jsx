@@ -118,8 +118,10 @@ const LabInbox           = lazy(() => import("./pages/staff/LabInbox"));
 const HrDashboard        = lazy(() => import("./pages/hr/HrDashboard"));
 const TimeRegister       = lazy(() => import("./pages/hr/TimeRegister"));
 const HrSettings         = lazy(() => import("./pages/hr/HrSettings"));
-const LeaveSettings      = lazy(() => import("./pages/hr/LeaveSettings"));
-const StaffLists         = lazy(() => import("./pages/hr/StaffLists"));
+// 6 Oct 2026: Leave settings and Departments & positions merged into Settings;
+// their old addresses redirect to the matching tab.
+const LeaveSettingsRedirect = lazy(() => import("./pages/hr/HrSettings").then((m) => ({ default: m.LeaveSettingsRedirect })));
+const ListsRedirect         = lazy(() => import("./pages/hr/HrSettings").then((m) => ({ default: m.ListsRedirect })));
 const HrReports          = lazy(() => import("./pages/hr/HrReports"));
 const OnboardingChecklists = lazy(() => import("./pages/hr/OnboardingChecklists"));
 const Roster = lazy(() => import("./pages/hr/Roster"));
@@ -338,10 +340,10 @@ function App() {
                   <Route path="staff" element={<StaffDirectory />} />
                   <Route path="staff/:employeeId" element={<StaffFile />} />
                   <Route path="onboard" element={<Onboarding />} />
-                  <Route path="settings" element={<HrSettings />} />
-                  <Route path="leave-settings" element={<LeaveSettings />} />
-                  {/* HR Tier 3 Phase 1 — departments and positions (hr.lists) */}
-                  <Route path="lists" element={<StaffLists />} />
+                  {/* Settings: Attendance · Leave · Staff lists · Alerts & reminders, one page (6 Oct 2026) */}
+                  <Route path="settings/:group?/:section?" element={<HrSettings />} />
+                  <Route path="leave-settings" element={<LeaveSettingsRedirect />} />
+                  <Route path="lists" element={<ListsRedirect />} />
                   {/* HR Tier 3 Phase 2 — HR reports (hr.reports) */}
                   <Route path="reports" element={<HrReports />} />
                   {/* HR Tier 3 Phase 3 — onboarding checklists + templates */}

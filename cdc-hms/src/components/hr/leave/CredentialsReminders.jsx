@@ -7,7 +7,7 @@ import { notify } from '../../../utils/notify';
 import { Section, inputCls, primaryButtonCls } from '../hrUi';
 
 /**
- * CredentialsReminders — Leave settings → "Credentials & reminders" tab
+ * CredentialsReminders — Settings → Alerts & reminders → "Credentials & reminders"
  * (B27 phase 5, mockup 5D). All three settings live in the HR Suite settings
  * (utils/hrConfig, area "HR Suite"), so this needs hr.settings and every change
  * lands on the HR trail.

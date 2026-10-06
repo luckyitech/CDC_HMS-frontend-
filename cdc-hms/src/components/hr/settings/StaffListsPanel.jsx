@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus, Pencil, Archive, RotateCcw, Check, X } from 'lucide-react';
-import { useUserContext } from '../../contexts/UserContext';
-import { canManageLists } from '../../utils/permissions';
-import hrService from '../../services/hrService';
-import PageHeader from '../../components/shared/PageHeader';
-import Spinner from '../../components/shared/Spinner';
-import ConfirmActionModal from '../../components/shared/ConfirmActionModal';
-import { notify } from '../../utils/notify';
-import { Pill } from '../../components/hr/hrFormat';
-import { Section, inputCls, buttonCls, primaryButtonCls } from '../../components/hr/hrUi';
+import { useUserContext } from '../../../contexts/UserContext';
+import { canManageLists } from '../../../utils/permissions';
+import hrService from '../../../services/hrService';
+import Spinner from '../../shared/Spinner';
+import ConfirmActionModal from '../../shared/ConfirmActionModal';
+import { notify } from '../../../utils/notify';
+import { Pill } from '../hrFormat';
+import { Section, inputCls, buttonCls, primaryButtonCls } from '../hrUi';
 
 /**
- * StaffLists — /hr/lists (HR Tier 3 Phase 1, mockup A of hr-tier3-mockup).
+ * StaffListsPanel — Settings → Staff lists (/hr/settings/lists/:tab), `tab` =
+ * departments | positions | tidy. Was the /hr/lists page "Departments &
+ * positions" (HR Tier 3 Phase 1, mockup A of hr-tier3-mockup) until the three
+ * setup pages were merged (6 Oct 2026); one panel stays mounted across the
+ * three sub-tabs, so Tidy's choices survive a look at a list. Tidy now has its
+ * own sub-tab, so with nothing left to tidy it says so instead of hiding.
  *
  * The clinic's Departments and Positions lists that staff files pick from, and
  * the one-off TIDY screen: the free text typed on staff files before the lists
@@ -156,7 +160,7 @@ const TidyTable = ({ kind, groups, entries, choice, setChoice, onAddFrom }) => {
   );
 };
 
-const StaffLists = () => {
+const StaffListsPanel = ({ tab }) => {
   const { currentUser } = useUserContext();
   const allowed = canManageLists(currentUser);
   const [lists, setLists] = useState(null);
@@ -243,31 +247,27 @@ const StaffLists = () => {
     finally { setApplying(false); }
   };
 
-  if (!allowed) {
-    return (
-      <div className="space-y-4">
-        <PageHeader title="Departments & positions" />
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
-          Managing departments and positions needs the “Departments and positions” permission.
-        </div>
-      </div>
-    );
-  }
+  // The Settings page only shows these sub-tabs to hr.lists holders (settingsTabs.js).
+  if (!allowed) return null;
+
+  const untidy = !!tidy && (tidy.departments.length > 0 || tidy.positions.length > 0);
 
   return (
-    <div className="space-y-4">
-      <PageHeader title="Departments & positions" subtitle="The lists staff files pick from" />
+    <div className="space-y-4 max-w-4xl">
       {!lists || !tidy ? <Spinner /> : (
         <>
-          <div className="grid gap-4 md:grid-cols-2">
+          {tab === 'departments' && (
             <ListCard title="Departments" list="departments" entries={lists.departments}
               onAdd={add('departments')} onRename={rename('departments')} onStatus={(entry) => setConfirm({ kind: 'status', list: 'departments', entry })} />
+          )}
+          {tab === 'positions' && (
             <ListCard title="Positions" list="positions" entries={lists.positions} withCadre
               onAdd={add('positions')} onRename={rename('positions')} onStatus={(entry) => setConfirm({ kind: 'status', list: 'positions', entry })} />
-          </div>
+          )}
 
-          {(tidy.departments.length > 0 || tidy.positions.length > 0) && (
-            <Section title="Tidy what's already typed" className="ring-2 ring-primary/30">
+          {tab === 'tidy' && (
+            <Section title="Tidy what's already typed" className={untidy ? 'ring-2 ring-primary/30' : ''}>
+              {!untidy && <p className="text-sm text-gray-700 mb-3 font-medium">Nothing to tidy: every staff file is linked to the lists.</p>}
               <p className="text-sm text-gray-600 mb-3">
                 The text on staff files from before the lists, grouped by spelling. Choose the list entry each one becomes;
                 nothing changes until you press Apply. Rows left as they are stay unlinked, and anyone without a department
@@ -312,4 +312,4 @@ const StaffLists = () => {
   );
 };
 
-export default StaffLists;
+export default StaffListsPanel;
