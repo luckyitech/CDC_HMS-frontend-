@@ -9,6 +9,8 @@ import InitialAssessment from "../../pages/doctor/InitialAssessment";
 import { useConsultationNotesContext } from "../../contexts/ConsultationNotesContext";
 import { useTreatmentPlanContext } from "../../contexts/TreatmentPlanContext";
 import { localToday, findThisVisitsRecord } from "../../utils/dateUtils";
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "../shared/DraftStatus";
 
 /**
  * ConsultationNotesPlan — the merged "Consultation Notes & Treatment Plan"
@@ -48,6 +50,10 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
   useEffect(() => { livePlan.current = planText; }, [planText]);
   const [todayPlan, setTodayPlan]   = useState(null);
   const [saving, setSaving]         = useState(false);
+  // True once this visit's saved note + plan have been looked up — autosave
+  // starts only then (useDraft's rule: never restore before the form loads).
+  const [recordLoaded, setRecordLoaded] = useState(false);
+  const rootRef = useRef(null);
   // Optional blocks — single-open accordion: opening one collapses the other
   // two. Collapsed work is never lost: the assessment stays MOUNTED (only
   // CSS-hidden) so its form state survives, the physical exam auto-drafts to
@@ -76,6 +82,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
   useEffect(() => {
     if (!patient?.uhid) return;
     let live = true;
+    setRecordLoaded(false);
 
     (async () => {
       try {
@@ -100,12 +107,36 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
           setTodayPlan(null);
         }
       } catch { /* empty form */ }
+      if (live) setRecordLoaded(true);
     })();
 
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.uhid, visitStartedAt]);
 
+  // Autosave: notes + plan are ONE draft (one Save button). The baseline is
+  // what this visit already has in the record.
+  const draft = useDraft({
+    uhid: patient?.uhid,
+    formKey: "consultation-notes",
+    value: { notes: notesText, plan: planText },
+    baseline: { notes: todayNote?.notes || "", plan: todayPlan?.plan || "" },
+    enabled: recordLoaded,
+    onRestore: (p) => {
+      setNotesText(p?.notes || "");
+      setPlanText(p?.plan || "");
+      if ((p?.plan || "").trim()) setOpenTool("plan");
+    },
+    onDiscard: () => {
+      setNotesText(todayNote?.notes || "");
+      setPlanText(todayPlan?.plan || "");
+    },
+    saveNow: () => handleSave(),
+    open: () => rootRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+  });
+
+  // Returns true when everything typed is now in the record (the draft
+  // reminders' "Save" uses this).
   const handleSave = async () => {
     const hasNotes = notesText.trim().length > 0;
     // NOT gated on showPlan — with the single-open accordion the plan block may
@@ -114,7 +145,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
 
     if (!hasNotes && !hasPlan) {
       toast.error("Nothing to save yet — write notes or a treatment plan.", { duration: 3000, position: "top-right" });
-      return;
+      return false;
     }
     // The backend requires a diagnosis on every plan — it comes from the
     // tracked list, so a plan needs at least one ACTIVE diagnosis there.
@@ -122,7 +153,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
       toast.error("Add a diagnosis in the Patient Summary panel first — the plan attaches to it.", {
         duration: 4000, position: "top-right",
       });
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -173,15 +204,20 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
       }
 
       toast.success(savedSomething ? "✅ Saved" : "Already up to date", { duration: 2000, position: "top-right" });
+      draft.markSaved();
+      return true;
     } catch (e) {
       toast.error(e.message || "Save failed. Please try again.", { duration: 3000, position: "top-right" });
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" ref={rootRef}>
+
+      <DraftRestoreBanner draft={draft} />
 
       {/* Consultation notes */}
       <div>
@@ -250,7 +286,7 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
       )}
 
       {/* Physical exam — optional; has its own structured entry + save flow.
-          Unmounts on collapse — safe, it auto-drafts to localStorage. */}
+          Unmounts on collapse — safe, it keeps its own autosaved draft. */}
       {showExam && (
         <div className="border-t border-gray-100 pt-4">
           <PhysicalExamList
@@ -278,12 +314,15 @@ const ConsultationNotesPlan = ({ patient, currentUser, activeDiagnoses = [], onS
       )}
 
       {/* One save for everything */}
-      <div className="flex items-center justify-between gap-3 pt-1">
-        {(todayNote || todayPlan) ? (
-          <p className="text-xs text-gray-400">
-            {todayPlan ? "Plan" : ""}{todayPlan && todayNote ? " & " : ""}{todayNote ? "note" : ""} saved this visit — saving again updates them.
-          </p>
-        ) : <span />}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+        <div className="flex flex-col gap-1">
+          <DraftStatus draft={draft} />
+          {(todayNote || todayPlan) && (
+            <p className="text-xs text-gray-400">
+              {todayPlan ? "Plan" : ""}{todayPlan && todayNote ? " & " : ""}{todayNote ? "note" : ""} saved this visit — saving again updates them.
+            </p>
+          )}
+        </div>
         <Button onClick={handleSave} disabled={saving} className="flex items-center gap-2">
           <Save size={16} />
           {saving ? "Saving…" : "Save"}

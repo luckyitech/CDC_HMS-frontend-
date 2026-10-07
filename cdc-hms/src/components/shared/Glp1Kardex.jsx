@@ -5,6 +5,8 @@ import Button from "./Button";
 import glp1Service from "../../services/glp1Service";
 import { useUserContext } from "../../contexts/UserContext";
 import { numericVital, bpVital } from "../../utils/vitalsValues";
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "./DraftStatus";
 
 /**
  * Glp1Kardex — the GLP-1 / GIP agonist monitoring log.
@@ -327,7 +329,9 @@ const Field = ({ label, unit, ...props }) => (
 const AddEntryModal = ({ patient, vitals, medications, symptoms, defaultAgent, onAddSymptom, onClose, onSaved }) => {
   const height = numericVital(vitals?.height);
 
-  const [form, setForm] = useState(() => ({
+  // The opening form (prefilled from today's triage) — also the autosave
+  // baseline: an entry nobody has touched is not a draft.
+  const [initialForm] = useState(() => ({
     medicationName: defaultAgent || medications[0]?.genericName || "",
     reviewDate: todayISO(),
     doseAtReview: "",
@@ -341,7 +345,17 @@ const AddEntryModal = ({ patient, vitals, medications, symptoms, defaultAgent, o
     hba1c: numericVital(vitals?.hba1c),
     actionPlan: "",
   }));
+  const [form, setForm] = useState(initialForm);
   const [gradings, setGradings] = useState({});   // { symptomId: severity }
+
+  const draft = useDraft({
+    uhid: patient?.uhid,
+    formKey: "glp1-review",
+    value: { form, gradings },
+    baseline: { form: initialForm, gradings: {} },
+    onRestore: (p) => { setForm({ ...initialForm, ...(p?.form || {}) }); setGradings(p?.gradings || {}); },
+    onDiscard: () => { setForm(initialForm); setGradings({}); },
+  });
   const [newSymptom, setNewSymptom] = useState("");
   const [addingSymptom, setAddingSymptom] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -404,7 +418,7 @@ const AddEntryModal = ({ patient, vitals, medications, symptoms, defaultAgent, o
         sideEffects,
       });
 
-      if (res.success) { toast.success("Entry added"); onSaved(); }
+      if (res.success) { toast.success("Entry added"); draft.markSaved(); onSaved(); }
       else toast.error(res.message || "Could not save the entry");
     } catch (e) {
       toast.error(e?.response?.data?.message || "Could not save the entry");
@@ -421,6 +435,7 @@ const AddEntryModal = ({ patient, vitals, medications, symptoms, defaultAgent, o
         </div>
 
         <div className="overflow-y-auto flex-1 min-h-0 p-5 space-y-5">
+          <DraftRestoreBanner draft={draft} />
           <p className="text-xs text-gray-500">Date, time and your name are stamped on save. Fill only what applies.</p>
 
           {/* agent + dose */}
@@ -509,7 +524,8 @@ const AddEntryModal = ({ patient, vitals, medications, symptoms, defaultAgent, o
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 px-5 py-4 border-t flex-shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-4 border-t flex-shrink-0">
+          <DraftStatus draft={draft} className="mr-auto" showLine={false} />
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save entry"}</Button>
         </div>

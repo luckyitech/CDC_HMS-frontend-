@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import usePrint from "../../hooks/usePrint";
 import { useUserContext } from "../../contexts/UserContext";
 import Card from "../../components/shared/Card";
@@ -31,7 +31,11 @@ import {
   Printer,
 } from "lucide-react";
 
-// Draft key for an in-progress NEW exam (cleared on successful save)
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "../../components/shared/DraftStatus";
+
+// The OLD browser-only draft key (before 6 Oct 2026). Read once, handed to the
+// server draft, then removed — new exams autosave through useDraft.
 export const examDraftKey = (uhid) => `physical_exam_draft_${uhid}`;
 
 // Icon mapping helper - converts emoji strings to Lucide components
@@ -69,9 +73,10 @@ const PhysicalExamEntry = ({
   const entrySections = physicalExamSections.filter((s) => s.id !== "vitalSigns");
 
   // ── Draft persistence ──────────────────────────────────────────────────────
-  // A NEW exam in progress survives page refreshes and tab switches: findings
-  // are mirrored to localStorage (same-day only) and cleared on successful save
-  // (see examDraftKey removal in PhysicalExamList.handleSave).
+  // A NEW exam in progress autosaves as a server draft (useDraft, below): it
+  // survives refreshes, tab switches and a change of device, and is removed
+  // when the exam is saved. A same-day draft left by the old browser-only
+  // autosave is picked up once and handed over.
   const isNewExam = !readOnly && Object.keys(initialData || {}).length === 0;
   const draftRef = useRef(undefined);
   if (draftRef.current === undefined) {
@@ -80,6 +85,7 @@ const PhysicalExamEntry = ({
       try {
         const saved = JSON.parse(localStorage.getItem(examDraftKey(patientData.uhid)));
         if (saved?.date === new Date().toISOString().slice(0, 10)) draftRef.current = saved;
+        localStorage.removeItem(examDraftKey(patientData.uhid));
       } catch { /* corrupt draft — start fresh */ }
     }
   }
@@ -94,21 +100,24 @@ const PhysicalExamEntry = ({
     () => draftRef.current?.clinicalImages || initialData.clinicalImages || []
   );
 
-  // Mirror the in-progress exam to localStorage
-  useEffect(() => {
-    if (!isNewExam) return;
-    try {
-      localStorage.setItem(
-        examDraftKey(patientData.uhid),
-        JSON.stringify({
-          date: new Date().toISOString().slice(0, 10),
-          examData,
-          completedSections,
-          clinicalImages,
-        })
-      );
-    } catch { /* storage full (e.g. large images) — draft skipped */ }
-  }, [isNewExam, patientData.uhid, examData, completedSections, clinicalImages]);
+  // Autosave the in-progress NEW exam (findings, progress, photos) as a draft.
+  const draft = useDraft({
+    uhid: patientData?.uhid,
+    formKey: "physical-exam",
+    value: { examData, completedSections, clinicalImages },
+    baseline: { examData: initialData || {}, completedSections: [], clinicalImages: initialData?.clinicalImages || [] },
+    enabled: isNewExam,
+    onRestore: (p) => {
+      setExamData(p?.examData || {});
+      setCompletedSections(p?.completedSections || []);
+      setClinicalImages(p?.clinicalImages || []);
+    },
+    onDiscard: () => {
+      setExamData(initialData || {});
+      setCompletedSections([]);
+      setClinicalImages(initialData?.clinicalImages || []);
+    },
+  });
   const [selectedBodyArea, setSelectedBodyArea] = useState("");
   const [imageCaption, setImageCaption] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
@@ -289,7 +298,7 @@ const PhysicalExamEntry = ({
   const progress =
     (completedSections.length / entrySections.length) * 100;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (readOnly) return; // Don't allow save in read-only mode
 
     // Clean vital signs - remove metadata fields
@@ -315,11 +324,14 @@ const PhysicalExamEntry = ({
       uhid: patientData.uhid,
       data: cleanedExamData,
     };
-    onSave(saveData);
+    // onSave resolves true once the exam is in the record — the draft goes.
+    const ok = await onSave(saveData);
+    if (ok === true) draft.markSaved();
   };
 
   return (
     <div ref={printRef} className="space-y-6">
+      {isNewExam && <DraftRestoreBanner draft={draft} className="print:hidden" />}
       {/* Clinic letterhead — print only (DRY §4e) */}
       <PrintLetterhead />
       {/* Read-Only Banner */}
@@ -694,6 +706,7 @@ const PhysicalExamEntry = ({
 
       {/* Action Buttons */}
       <Card>
+        {isNewExam && <div className="mb-3 print:hidden"><DraftStatus draft={draft} /></div>}
         <div className="flex flex-col sm:flex-row gap-3">
           {!readOnly ? (
             <Button onClick={handleSave} className="flex-1 flex items-center justify-center gap-1">

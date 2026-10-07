@@ -9,6 +9,8 @@ import { notify } from '../../utils/notify';
 import { connectVibrotherm, isWebSerialSupported } from '../../utils/vibrothermSerial';
 import NeuropathyFootMap from './NeuropathyFootMap';
 import NeuropathyActions from './NeuropathyActions';
+import useDraft from '../../hooks/useDraft';
+import { DraftStatus, DraftRestoreBanner } from './DraftStatus';
 import {
   FEET, FOOT_LABELS, PROTOCOL_SITES, SITE_LABELS, MODALITY_META,
   gradeValue, averageReadings, monoSummary, GRADE_CLASSES,
@@ -321,6 +323,18 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     [readings],
   );
 
+  // Autosave the remarks while the study is open (one draft per study).
+  const remarksDraft = useDraft({
+    uhid: patient?.uhid,
+    formKey: 'neuropathy-remarks',
+    contextKey: study?.id ? `study-${study.id}` : '',
+    value: remarks,
+    baseline: '',
+    enabled: !!study?.id,
+    onRestore: (p) => setRemarks(typeof p === 'string' ? p : ''),
+    onDiscard: () => setRemarks(''),
+  });
+
   // ---- wizard nav ----
   const goNext = () => setStep((s) => Math.min(s + 1, STEP_IDS.length - 1));
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
@@ -332,6 +346,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
       const res = await neuropathyService.complete(study.id, { remarks: remarks || undefined });
       await disconnectProbe();
       notify('success', 'Study graded and saved to the patient’s record.');
+      remarksDraft.markSaved();
       onCompleted?.(res.data.data || res.data);
     } catch (err) {
       notify('error', err.response?.data?.message || 'Could not complete the study.');
@@ -345,6 +360,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
       try { await neuropathyService.cancel(study.id, 'Discarded before completion'); } catch { /* nurses cannot cancel — the empty Draft is harmless */ }
     }
     await disconnectProbe();
+    if (remarksDraft.hasDraft) await remarksDraft.discard();
     setStudy(null); setReadings(emptyReadings()); setRemarks(''); setSelected(allSelected()); setStep(0);
     if (!fixedPatient) setPatient(null);
     onCancelled?.();
@@ -652,6 +668,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
               </div>
 
               <div className="max-w-[560px] mx-auto mt-4">
+                <DraftRestoreBanner draft={remarksDraft} className="mb-2" />
                 <label className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">Remarks</label>
                 <textarea
                   value={remarks}
@@ -659,6 +676,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                   placeholder="Remarks (optional) — e.g. callus over R great toe, patient reports burning at night"
                   className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-sm min-h-[66px] focus:outline-none focus:ring-2 focus:ring-primary"
                 />
+                <DraftStatus draft={remarksDraft} showLine={false} />
               </div>
 
               <p className="text-center text-xs text-gray-500 mt-3 max-w-[560px] mx-auto">Completing generates the report → <span className="font-semibold">Print</span> and <span className="font-semibold">Save to record</span>. The report can be saved <span className="font-semibold">once</span>; after that the study is view / print only.</p>

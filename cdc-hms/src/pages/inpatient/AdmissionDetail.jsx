@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "../../components/shared/DraftStatus";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useUserContext } from "../../contexts/UserContext";
@@ -96,11 +98,11 @@ export default function AdmissionDetail() {
 
       {tab === "Observations" && <ObservationsTab admissionId={id} canWrite={isDoctor || isNurse} />}
       {tab === "Medications" && <MedicationsTab admissionId={id} isDoctor={isDoctor} isNurse={isNurse} />}
-      {tab === "Notes" && <NotesTab admissionId={id} isDoctor={isDoctor} />}
+      {tab === "Notes" && <NotesTab admissionId={id} isDoctor={isDoctor} uhid={p.uhid} />}
       {tab === "Fluids" && <FluidsTab admissionId={id} canWrite={isDoctor || isNurse} />}
       {tab === "Radiology" && <RadiologyTab admissionId={id} isDoctor={isDoctor} canReport={role === "lab" || role === "admin"} />}
       {tab === "Billing" && <BillingTab admissionId={id} canWrite={role === "staff" || role === "admin"} />}
-      {tab === "Discharge" && <DischargeTab admissionId={id} isDoctor={isDoctor} onSigned={loadAdm} />}
+      {tab === "Discharge" && <DischargeTab admissionId={id} isDoctor={isDoctor} onSigned={loadAdm} uhid={p.uhid} />}
     </div>
   );
 }
@@ -249,24 +251,48 @@ function MedicationsTab({ admissionId, isDoctor, isNurse }) {
 }
 
 /* ---------------- Ward-round notes ---------------- */
-function NotesTab({ admissionId, isDoctor }) {
+const EMPTY_SOAP = { subjective: "", objective: "", assessment: "", plan: "" };
+
+function NotesTab({ admissionId, isDoctor, uhid }) {
   const [notes, setNotes] = useState([]);
-  const [n, setN] = useState({ subjective: "", objective: "", assessment: "", plan: "" });
+  const [n, setN] = useState(EMPTY_SOAP);
   const load = useCallback(async () => { const r = await inpatientService.listNotes(admissionId); setNotes(r.data || []); }, [admissionId]);
   useEffect(() => { load(); }, [load]);
+  // Autosave the ward-round note being written (one draft per admission).
+  const autosave = useDraft({
+    uhid,
+    formKey: "ward-round",
+    contextKey: `adm-${admissionId}`,
+    value: n,
+    baseline: EMPTY_SOAP,
+    enabled: isDoctor,
+    onRestore: (p) => setN({ ...EMPTY_SOAP, ...(p || {}) }),
+    onDiscard: () => setN(EMPTY_SOAP),
+    saveNow: () => add(),
+  });
   const add = async () => {
-    try { await inpatientService.createNote({ admissionId: Number(admissionId), ...n }); toast.success("Note added"); setN({ subjective: "", objective: "", assessment: "", plan: "" }); load(); }
-    catch (e) { toast.error(e.message || "Failed"); }
+    try {
+      await inpatientService.createNote({ admissionId: Number(admissionId), ...n });
+      toast.success("Note added");
+      autosave.markSaved();
+      setN(EMPTY_SOAP);
+      load();
+      return true;
+    } catch (e) { toast.error(e.message || "Failed"); return false; }
   };
   return (
     <div className="space-y-4">
       {isDoctor && (
         <div className={box}>
+          <DraftRestoreBanner draft={autosave} className="mb-2" />
           <p className="font-medium mb-2">Ward-round note (SOAP)</p>
           {["subjective", "objective", "assessment", "plan"].map((k) => (
             <textarea key={k} className={`${inp} mb-2`} rows={2} placeholder={k[0].toUpperCase() + k.slice(1)} value={n[k]} onChange={(e) => setN({ ...n, [k]: e.target.value })} />
           ))}
-          <button onClick={add} className={btn}>Save note</button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button onClick={add} className={btn}>Save note</button>
+            <DraftStatus draft={autosave} />
+          </div>
         </div>
       )}
       <div className="space-y-2">
@@ -413,23 +439,39 @@ function RadiologyTab({ admissionId, isDoctor, canReport }) {
 }
 
 /* ---------------- Discharge summary ---------------- */
-function DischargeTab({ admissionId, isDoctor, onSigned }) {
+const SUMMARY_FIELDS = ["finalDiagnoses", "hospitalCourse", "proceduresDone", "followUpPlan", "dischargeType"];
+const pickSummary = (s) => (s ? Object.fromEntries(SUMMARY_FIELDS.map((k) => [k, s[k] || ""])) : null);
+
+function DischargeTab({ admissionId, isDoctor, onSigned, uhid }) {
   const [summary, setSummary] = useState(null);
   const [draft, setDraft] = useState(null);
-  const load = useCallback(async () => { const r = await inpatientService.getSummary(admissionId); setSummary(r.data); if (r.data) setDraft(r.data); }, [admissionId]);
+  const [loaded, setLoaded] = useState(false);
+  const load = useCallback(async () => { const r = await inpatientService.getSummary(admissionId); setSummary(r.data); if (r.data) setDraft(r.data); setLoaded(true); }, [admissionId]);
   useEffect(() => { load(); }, [load]);
+  // Autosave the summary while it is still a draft (signed = locked).
+  const autosave = useDraft({
+    uhid,
+    formKey: "discharge-summary",
+    contextKey: `adm-${admissionId}`,
+    value: pickSummary(draft),
+    baseline: pickSummary(summary),
+    enabled: isDoctor && loaded && summary?.status !== "signed",
+    onRestore: (p) => setDraft((d) => ({ ...(d || summary || { admissionId: Number(admissionId) }), ...(p || {}) })),
+    onDiscard: () => setDraft(summary || null),
+    saveNow: () => save(),
+  });
 
   const generate = async () => {
     try { const r = await inpatientService.generateSummary(admissionId); setDraft({ ...r.data, admissionId: Number(admissionId) }); toast.success("Draft generated from notes"); }
     catch (e) { toast.error(e.message || "Failed"); }
   };
   const save = async () => {
-    try { const r = await inpatientService.saveSummary({ admissionId: Number(admissionId), ...draft }); setSummary(r.data); setDraft(r.data); toast.success("Draft saved"); }
-    catch (e) { toast.error(e.message || "Failed"); }
+    try { const r = await inpatientService.saveSummary({ admissionId: Number(admissionId), ...draft }); setSummary(r.data); setDraft(r.data); autosave.markSaved(); toast.success("Draft saved"); return true; }
+    catch (e) { toast.error(e.message || "Failed"); return false; }
   };
   const sign = async () => {
     if (!summary?.id) { toast.error("Save the draft first"); return; }
-    try { await inpatientService.updateSummary(summary.id, { ...draft, sign: true }); toast.success("Signed — discharge is now enabled"); load(); onSigned?.(); }
+    try { await inpatientService.updateSummary(summary.id, { ...draft, sign: true }); autosave.markSaved(); toast.success("Signed — discharge is now enabled"); load(); onSigned?.(); }
     catch (e) { toast.error(e.message || "Failed"); }
   };
 
@@ -462,6 +504,7 @@ function DischargeTab({ admissionId, isDoctor, onSigned }) {
           <button onClick={printSummary} className="underline">Print</button>
         </div>
       )}
+      <DraftRestoreBanner draft={autosave} />
       {!draft && <button onClick={generate} className={btn}>Generate draft from notes</button>}
       {draft && (
         <div className="space-y-2">
@@ -480,6 +523,7 @@ function DischargeTab({ admissionId, isDoctor, onSigned }) {
             <div className="flex gap-2">
               <button onClick={save} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50">Save draft</button>
               <button onClick={sign} className={btn}>Sign</button>
+              <DraftStatus draft={autosave} />
             </div>
           )}
         </div>

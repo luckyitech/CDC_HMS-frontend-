@@ -42,6 +42,9 @@ import EditPatientModal from "../../components/staff/EditPatientModal";
 import CompleteRegistrationModal from "../../components/staff/CompleteRegistrationModal";
 import ScanActionModal from "../../components/staff/ScanActionModal";
 import PatientEmailPanel from "../../components/mail/PatientEmailPanel";
+import { useDraftContext } from "../../contexts/DraftContext";
+import DraftChecklistModal from "../../components/shared/DraftChecklistModal";
+import DraftLeaveGuard from "../../components/shared/DraftLeaveGuard";
 
 const fmtDate = (d) => {
   if (!d) return "—";
@@ -394,6 +397,30 @@ const PatientFile = () => {
     fetchPatientByUHID(uhid).then((p) => { setPatient(p || null); setLoading(false); });
   }, [uhid, fetchPatientByUHID]);
 
+  // Autosave drafts: what I have left unsaved on this file (only ever mine).
+  const draftCtx = useDraftContext();
+  const [showDrafts, setShowDrafts] = useState(false);
+  useEffect(() => {
+    if (uhid && canReadClinical) draftCtx?.loadPatient(uhid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uhid, canReadClinical]);
+  const myDrafts = draftCtx && uhid ? draftCtx.draftsFor(uhid) : [];
+
+  // Take the doctor to where a draft's form lives, then let it scroll itself
+  // into view (its own open handler, when mounted).
+  const openDraft = (entry) => {
+    setShowDrafts(false);
+    const ctxKey = String(entry.contextKey || "");
+    if (ctxKey.startsWith("adm-")) { navigate(`/inpatient/admission/${ctxKey.slice(4)}`); return; }
+    if (ctxKey.startsWith("remote")) selectTab("visit-history");
+    else if (entry.formKey === "recognition-note") setOverviewOpen(true);
+    else if (entry.formKey === "glucose-target") selectTab("medical-documents");
+    else if (entry.formKey === "neuropathy-remarks") selectTab(tabs.some((t) => t.id === "pns") ? "pns" : "medical-documents");
+    else if (tabs.some((t) => t.id === "consultation")) selectTab("consultation");
+    else if (tabs.some((t) => t.id === "nursing")) selectTab("nursing");
+    setTimeout(() => draftCtx?.open(entry), 400);
+  };
+
   // Every portal now has the prescriptions tab, so this no longer skips the
   // doctor portal — without the fetch that tab would render an empty list.
   useEffect(() => {
@@ -517,6 +544,16 @@ const PatientFile = () => {
           <span className={`hidden sm:inline text-sm truncate ${overviewOpen ? "text-blue-100" : "text-gray-400"}`}>{subline}</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {myDrafts.length > 0 && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowDrafts(true); }}
+              title="Only you can see your drafts"
+              className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold hover:bg-amber-200"
+            >
+              {myDrafts.length === 1 ? `1 draft — ${myDrafts[0].label}` : `${myDrafts.length} drafts`} ›
+            </button>
+          )}
           {patient.diagnosis && <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-xs font-semibold">{patient.diagnosis}</span>}
           <span className={`px-3 py-1 rounded-md text-xs font-semibold ${patient.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{patient.status}</span>
         </div>
@@ -531,6 +568,17 @@ const PatientFile = () => {
       </div>
 
       <ProfileTabBar tabs={tabs} activeTab={currentTab} onChange={selectTab} />
+
+      <DraftChecklistModal
+        isOpen={showDrafts}
+        drafts={myDrafts}
+        title={`Your unsaved drafts — ${patient.name}`}
+        intro="Only you can see these. They are not part of the record until you save them, and are deleted after 14 days untouched."
+        onOpen={openDraft}
+        onClose={() => setShowDrafts(false)}
+        backLabel="Close"
+      />
+      <DraftLeaveGuard key={uhid} uhid={uhid} patientName={patient.name} onOpen={openDraft} />
 
       <div>
         {currentTab === "equipment" && <MedicalEquipmentTab patient={patient} />}

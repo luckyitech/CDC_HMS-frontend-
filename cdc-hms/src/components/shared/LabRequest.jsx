@@ -7,6 +7,8 @@ import catalogService from "../../services/catalogService";
 import api from "../../services/api";
 import { useUserContext } from "../../contexts/UserContext";
 import LabRequestPrint from "./LabRequestPrint";
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "./DraftStatus";
 
 /**
  * LabRequest — the shared laboratory request form, mounted in BOTH the doctor's
@@ -37,7 +39,12 @@ const money = (n) => (n == null ? null : `KES ${Number(n).toLocaleString()}`);
 const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
 
-const LabRequest = ({ patient, onDirtyChange = () => {} }) => {
+// Autosave: a NEW request with no test and no instruction is untouched.
+const noRequestTyped = (v) => !(v?.selected?.length) && !String(v?.notes || "").trim();
+
+// draftContextKey / draftLabel: '' in the consultation and nursing tab; a remote
+// request passes its own so the two never share a draft.
+const LabRequest = ({ patient, onDirtyChange = () => {}, draftContextKey = "", draftLabel = "Lab request" }) => {
   const uhid = patient?.uhid;
   const { currentUser } = useUserContext();
   const isDoctor = currentUser?.role === "doctor";
@@ -62,6 +69,30 @@ const LabRequest = ({ patient, onDirtyChange = () => {} }) => {
   const [editingReq, setEditingReq] = useState(null);          // requisitionNumber being edited in place
   const [supersedesReq, setSupersedesReq] = useState(null);    // requisition this new one replaces
   const [printReq, setPrintReq] = useState(null);              // request currently in the print preview
+
+  // Autosave the NEW request being built (not an edit or reissue of an
+  // existing one — that is the record itself, reloaded each time).
+  const draft = useDraft({
+    uhid,
+    formKey: "lab-request",
+    contextKey: draftContextKey,
+    label: draftLabel,
+    value: { selected, priority, notes, onBehalfOfDoctorId },
+    isEmpty: noRequestTyped,
+    enabled: !loading && !editingReq && !supersedesReq,
+    onRestore: (p) => {
+      setSelected(Array.isArray(p?.selected) ? p.selected : []);
+      setPriority(p?.priority || "Routine");
+      setNotes(p?.notes || "");
+      setOnBehalfOfDoctorId(p?.onBehalfOfDoctorId || "");
+    },
+    onDiscard: () => {
+      setSelected([]);
+      setPriority("Routine");
+      setNotes("");
+      setOnBehalfOfDoctorId("");
+    },
+  });
 
   // ── loads ──────────────────────────────────────────────────────────────────
   const loadRequests = useCallback(async () => {
@@ -236,6 +267,7 @@ const LabRequest = ({ patient, onDirtyChange = () => {} }) => {
 
       const rows = res.data?.labTests || [];
       toast.success(editingReq ? "Request updated" : "Lab request saved");
+      if (!editingReq && !supersedesReq) draft.markSaved();
       await loadRequests();
       resetForm();
       // Open the print preview for what was just saved.
@@ -319,6 +351,7 @@ const LabRequest = ({ patient, onDirtyChange = () => {} }) => {
   // ── render ───────────────────────────────────────────────────────────────────
   return (
     <div>
+      <DraftRestoreBanner draft={draft} className="mb-3" />
       {/* Builder */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
         {/* LEFT — pick tests */}
@@ -522,6 +555,7 @@ const LabRequest = ({ patient, onDirtyChange = () => {} }) => {
             </button>
           )}
           <p className="text-[11px] text-gray-500 mt-2 text-center">Saves the request and opens the print preview.</p>
+          {!editingReq && !supersedesReq && <div className="mt-2 flex justify-center"><DraftStatus draft={draft} showLine={false} /></div>}
         </div>
       </div>
 

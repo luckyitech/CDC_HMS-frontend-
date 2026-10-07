@@ -18,6 +18,7 @@ import { TreatmentPlanProvider } from "./contexts/TreatmentPlanContext";
 import { AppointmentProvider } from './contexts/AppointmentContext';
 import { ConsultationNotesProvider } from './contexts/ConsultationNotesContext';
 import { Glp1Provider } from './contexts/Glp1Context';
+import { DraftProvider } from "./contexts/DraftContext";
 import { NotificationProvider } from './contexts/NotificationContext';
 import { StockProvider } from './contexts/StockContext';
 import { HrProvider } from './contexts/HrContext';
@@ -151,6 +152,7 @@ const PageLoader = () => (
 // so no API calls or SSE connections are made on the public login/portal pages.
 const AuthenticatedLayout = () => (
   <NotificationProvider>
+  <DraftProvider>
     <ConsultationNotesProvider>
       <LabProvider>
         <InitialAssessmentProvider>
@@ -176,6 +178,7 @@ const AuthenticatedLayout = () => (
         </InitialAssessmentProvider>
       </LabProvider>
     </ConsultationNotesProvider>
+  </DraftProvider>
   </NotificationProvider>
 );
 

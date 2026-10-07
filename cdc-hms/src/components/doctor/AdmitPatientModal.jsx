@@ -4,6 +4,8 @@ import { X, BedDouble, Printer } from "lucide-react";
 import inpatientService from "../../services/inpatientService";
 import usePrint from "../../hooks/usePrint";
 import PrintRoot from "../shared/PrintRoot";
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "../shared/DraftStatus";
 
 /**
  * AdmitPatientModal — doctor ADVISES admission from the OPD consultation.
@@ -26,6 +28,18 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
   const [saving, setSaving] = useState(false);
   const { printRef, handlePrint } = usePrint();
 
+  // Autosave the note while it is edited (one draft per visit). Untouched =
+  // exactly the pre-filled form.
+  const draft = useDraft({
+    uhid: patient?.uhid,
+    formKey: "admission-note",
+    contextKey: queueItem?.id ? `q${queueItem.id}` : "",
+    value: form,
+    baseline: { admissionType: "Elective", admissionNote: defaultNote },
+    onRestore: (p) => setForm({ admissionType: p?.admissionType || "Elective", admissionNote: p?.admissionNote ?? defaultNote }),
+    onDiscard: () => setForm({ admissionType: "Elective", admissionNote: defaultNote }),
+  });
+
   // Save & Print — documents the admission note to the visit history per protocol,
   // WITHOUT sending for admission. The doctor then sends for admission or cancels.
   const saveAndPrint = async () => {
@@ -42,6 +56,7 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
         admissionReason: form.admissionNote,
       });
       toast.success("Admission note saved to visit history.");
+      draft.markSaved();
     } catch (err) {
       toast.error(err.message || "Failed to save admission note");
     } finally {
@@ -67,6 +82,7 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
         </div>
         <p className="text-sm text-gray-500 mb-3">{patient?.name} · {patient?.uhid}</p>
         <form onSubmit={submit} className="space-y-3">
+          <DraftRestoreBanner draft={draft} />
           <div>
             <label className="text-xs text-gray-500">Admission type</label>
             <select className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
@@ -80,6 +96,7 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
               value={form.admissionNote} onChange={(e) => setForm({ ...form, admissionNote: e.target.value })}
               placeholder="Pre-filled from the consultation — edit as needed." />
             <p className="text-[11px] text-gray-400 mt-1">Pre-filled from this visit's vitals, notes and diagnosis. The admission clerk assigns the ward.</p>
+            <div className="mt-2"><DraftStatus draft={draft} /></div>
           </div>
           <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
             <button type="button" onClick={saveAndPrint} disabled={saving}

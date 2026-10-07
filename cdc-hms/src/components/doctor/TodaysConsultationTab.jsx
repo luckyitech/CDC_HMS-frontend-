@@ -39,6 +39,11 @@ import LabRequest from "../shared/LabRequest";
 import ConsultationSummaryContainer from "./ConsultationSummaryContainer";
 import SummaryDock from "../shared/SummaryDock";
 import { isToday } from "../../utils/dateUtils";
+import useDraft from "../../hooks/useDraft";
+import { useDraftContext } from "../../contexts/DraftContext";
+import { draftKey } from "../../constants/draftForms";
+import { DraftStatus, DraftRestoreBanner, DraftDot } from "../shared/DraftStatus";
+import DraftChecklistModal from "../shared/DraftChecklistModal";
 
 // ---------------------------------------------------------------------------
 // Accordion section definitions for "Today's Consultation" tab
@@ -221,6 +226,8 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   // Procedures list is collapsed by default — most visits bill none
   const [proceduresOpen, setProceduresOpen]         = useState(false);
   const [doctorNotes, setDoctorNotes]               = useState('');
+  // Unsaved-drafts checklist shown by Complete consultation (warns, never blocks).
+  const [showDraftChecklist, setShowDraftChecklist] = useState(false);
   const [bookFollowUp, setBookFollowUp]             = useState(false);
   const [followUpDate, setFollowUpDate]             = useState('');
   const [followUpSlot, setFollowUpSlot]             = useState('');
@@ -232,11 +239,21 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   // Derived state
   // ---------------------------------------------------------------------------
 
-  // Orange dot shown on accordion section headers when fields are dirty
+  // Autosave drafts of this consultation (the doctor's own). Remote-request
+  // drafts carry their own context and are not part of today's visit.
+  const draftCtx = useDraftContext();
+  const visitDrafts = useMemo(() => (draftCtx && uhid
+    ? draftCtx.draftsFor(uhid, { consultationOnly: true }).filter((d) => !String(d.contextKey).startsWith('remote'))
+    : []), [draftCtx, uhid]);
+
+  // Orange dot shown on accordion section headers when fields are dirty — or
+  // hold an autosaved draft not yet saved to the record.
   const tabsUnsaved = useMemo(() => ({
-    tools: toolsDirty,
+    tools: toolsDirty || visitDrafts.some((d) => d.formKey === 'glp1-review'),
+    diagnosis: visitDrafts.some((d) => ['consultation-notes', 'initial-assessment', 'physical-exam'].includes(d.formKey)),
+    prescriptions: visitDrafts.some((d) => ['prescription', 'lab-request'].includes(d.formKey)),
   }), [
-    toolsDirty,
+    toolsDirty, visitDrafts,
   ]);
 
   // visitDates — moved to VisitHistoryPanel (shared component)
@@ -321,7 +338,34 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
     setPatientPrescriptions(Array.isArray(prescriptions) ? prescriptions : []);
   };
 
-  const handleCompleteConsultation = () => {
+  // Doctor's instructions (the Complete-consultation modal) — one draft per visit.
+  const instructionsDraft = useDraft({
+    uhid,
+    formKey: 'doctor-instructions',
+    contextKey: billingQueueItem?.id ? `q${billingQueueItem.id}` : '',
+    value: doctorNotes,
+    baseline: '',
+    enabled: showBillingModal && billingMode === 'complete' && !!billingQueueItem?.id,
+    onRestore: (p) => setDoctorNotes(typeof p === 'string' ? p : ''),
+    onDiscard: () => setDoctorNotes(''),
+  });
+
+  // A draft the checklist asked to open: show its section, then let the form
+  // scroll itself into view.
+  const openDraft = (entry) => {
+    setShowDraftChecklist(false);
+    if (['prescription', 'lab-request'].includes(entry.formKey)) {
+      setOrdersTab(entry.formKey === 'lab-request' ? 'labs' : 'prescriptions');
+      setOpenSections('prescriptions');
+    } else if (entry.formKey === 'glp1-review') {
+      setOpenSections('tools');
+    } else {
+      setOpenSections('diagnosis');
+    }
+    setTimeout(() => draftCtx?.open(entry), 300);
+  };
+
+  const handleCompleteConsultation = ({ skipDraftCheck = false } = {}) => {
     // Diagnosis is required only for patients with no active tracked diagnosis —
     // returning patients don't re-enter the same diagnosis every visit.
     if (!tabsCompleted.diagnosis && !hasActiveDx) {
@@ -333,6 +377,12 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
       setOpenSections('diagnosis');
       return;
     }
+    // Unsaved drafts? Warn first (Emu, 6 Oct: warn, never block).
+    if (!skipDraftCheck && visitDrafts.length > 0) {
+      setShowDraftChecklist(true);
+      return;
+    }
+    setShowDraftChecklist(false);
     // Capture the queue item now so SSE updates during the modal don't lose it
     const queueItem = findQueueItem();
     if (!queueItem) {
@@ -491,6 +541,13 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
       }
 
       sessionStorage.removeItem(DRAFT_KEY);
+      // In the record now: the drafts that fed this step are no longer needed.
+      if (billingMode === 'complete') instructionsDraft.markSaved();
+      const letterKey = billingMode === 'referral' ? 'referral-letter' : billingMode === 'admission' ? 'admission-note' : null;
+      if (letterKey && draftCtx) {
+        const contextKey = `q${queueItem.id}`;
+        draftCtx.discard({ key: draftKey(uhid, letterKey, contextKey), uhid, formKey: letterKey, contextKey });
+      }
       closeBilling();
       setShowSuccessMessage(true);
       setTimeout(() => navigate("/doctor/dashboard"), 3000);
@@ -586,7 +643,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
             {ACCORDION_SECTIONS.filter((s) => s.id !== 'prescriptions').map((section) => {
               const isOpen      = openSections === section.id;
               const isCompleted = !!tabsCompleted[section.id];
-              const isUnsaved   = !!(tabsUnsaved[section.id] && !isCompleted);
+              const isUnsaved   = !!tabsUnsaved[section.id]; // an autosaved draft shows even after a save
 
               const badge = (
                 <>
@@ -694,11 +751,16 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
               <AccordionPanel
                 icon={section.icon}
                 label={section.label}
-                badge={isCompleted && ordersTab === 'prescriptions' && (
-                  <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                    <Check className="w-3.5 h-3.5" /> Done
-                  </span>
-                )}
+                badge={
+                  <>
+                    {isCompleted && ordersTab === 'prescriptions' && (
+                      <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                        <Check className="w-3.5 h-3.5" /> Done
+                      </span>
+                    )}
+                    {tabsUnsaved.prescriptions && <DraftDot />}
+                  </>
+                }
                 isOpen={openSections === 'prescriptions'}
                 onToggle={() => toggleSection('prescriptions')}
               >
@@ -923,6 +985,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
               {/* Doctor's Instructions */}
               <div>
                 <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Doctor's Instructions</h3>
+                <DraftRestoreBanner draft={instructionsDraft} className="mb-2" />
                 <textarea
                   value={doctorNotes}
                   onChange={(e) => setDoctorNotes(e.target.value)}
@@ -930,6 +993,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
                   rows={3}
                   className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:border-primary resize-none placeholder-gray-400"
                 />
+                <DraftStatus draft={instructionsDraft} className="mt-1" />
               </div>
 
               {/* Follow-up Appointment */}
@@ -1062,6 +1126,17 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
       )}
 
       {/* ===== Refer Patient Modal ===== */}
+      <DraftChecklistModal
+        isOpen={showDraftChecklist}
+        drafts={visitDrafts}
+        title={`Before you complete — ${visitDrafts.length} unsaved draft${visitDrafts.length === 1 ? '' : 's'}`}
+        intro="Drafts are not part of the record. A draft prescription does not reach the patient, the pharmacy or billing."
+        continueLabel="Complete anyway — keep drafts"
+        onContinue={() => handleCompleteConsultation({ skipDraftCheck: true })}
+        onOpen={openDraft}
+        onClose={() => setShowDraftChecklist(false)}
+      />
+
       {showReferModal && (() => {
         const activeQueueItem = findQueueItem();
         if (!activeQueueItem) {

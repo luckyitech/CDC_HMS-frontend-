@@ -8,10 +8,24 @@ import PageHeader from "../../components/shared/PageHeader";
 import PrintLetterhead from "../../components/shared/PrintLetterhead";
 import Button from "../../components/shared/Button";
 import VoiceInput from "../../components/shared/VoiceInput";
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "../../components/shared/DraftStatus";
 import { usePatientContext } from "../../contexts/PatientContext";
 import { useInitialAssessmentContext } from "../../contexts/InitialAssessmentContext";
 import PatientSearchInput from "../../components/shared/PatientSearchInput";
 import cdcLogo from "../../assets/cdc_web_logo1.svg";
+
+// A blank assessment — the starting form, and the autosave baseline (an
+// assessment is written once; there is no editing an existing one).
+const EMPTY_ASSESSMENT = {
+  weightLoss: false, visualDisturbances: false, increasedThirst: false, fatigue: false, nocturia: false,
+  paresthesia: false, dizziness: false, legCramps: false, constipation: false, diarrhea: false,
+  decreasedLibido: false, otherComplaints: "",
+  retinopathy: "", cerebrovascularDisease: "", cardiovascularDisease: "", nephropathy: "",
+  neuropathyPeripheral: "", neuropathyAutonomic: "",
+  familyHistory: "",
+  alcoholIntake: "", cigaretteSmoking: "", dietType: "", exercisePlan: "", substanceUse: "",
+};
 
 const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
   const location = useLocation();
@@ -99,6 +113,18 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     return () => { isMounted = false; };
   }, [patientUHID, fetchPatientByUHID, getLatestAssessment, fromConsultation]);
 
+  // Autosave while a NEW assessment is being written (view mode = nothing to do).
+  const draft = useDraft({
+    uhid: selectedPatient?.uhid,
+    formKey: "initial-assessment",
+    value: assessmentData,
+    baseline: EMPTY_ASSESSMENT,
+    enabled: !!selectedPatient && alreadyAssessed && !viewMode,
+    onRestore: (p) => setAssessmentData({ ...EMPTY_ASSESSMENT, ...(p || {}) }),
+    onDiscard: () => setAssessmentData(EMPTY_ASSESSMENT),
+    saveNow: () => handleSubmit({ preventDefault: () => {} }),
+  });
+
   const handleCheckboxChange = (field) => {
     setAssessmentData({ ...assessmentData, [field]: !assessmentData[field] });
   };
@@ -164,6 +190,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
     });
 
     if (savedAssessment) {
+      draft.markSaved();
       // Show success message
       toast.success(`Initial Assessment Completed for ${selectedPatient.name}`, {
         duration: 3000,
@@ -184,7 +211,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
       // Navigate back or clear
       if (fromConsultation && embedded) {
         // Stay in embedded tab - don't navigate
-        return;
+        return true;
       } else if (fromConsultation) {
         navigate(`/doctor/consultation/${selectedPatient.uhid}`);
       } else {
@@ -260,6 +287,7 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
             </Card>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
+              <DraftRestoreBanner draft={draft} />
               {/* View Mode Banner */}
               {viewMode && (
                 <Card>
@@ -745,6 +773,8 @@ const InitialAssessment = ({ uhid: propUHID = null, embedded = false }) => {
                 </div>
                 </div>
               )}
+
+            {!viewMode && <DraftStatus draft={draft} />}
 
             {/* Action Buttons */}
               <div className="flex gap-4">

@@ -19,6 +19,8 @@ import GlucoseSugarChartTab from './gmc/GlucoseSugarChartTab';
 import GlucoseIndicesTab from './gmc/GlucoseIndicesTab';
 import GlucoseHyposTab from './gmc/GlucoseHyposTab';
 import GlucoseLogbookTab from './gmc/GlucoseLogbookTab';
+import useDraft from '../../hooks/useDraft';
+import { DraftStatus, DraftRestoreBanner } from './DraftStatus';
 
 /**
  * GlucoseManagementCentre — every glucose data point the clinic holds for a
@@ -198,6 +200,31 @@ const TargetsModal = ({ isOpen, onClose, uhid, unit, current, onSaved }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // Autosave while the modal is open — declared AFTER the reset above so a
+  // restored draft is never overwritten by it. Baseline = the saved targets.
+  const savedTargets = {
+    preset: current?.meta?.preset || '',
+    vals: Object.fromEntries(keys.map((k) => [k, toU(current.targets[k])])),
+    goals: { tirGoalPct: current.targets.tirGoalPct, tbrGoalPct: current.targets.tbrGoalPct, tarGoalPct: current.targets.tarGoalPct, cvTargetPct: current.targets.cvTargetPct },
+    rationale: current?.meta?.rationale || '',
+  };
+  const draft = useDraft({
+    uhid,
+    formKey: 'glucose-target',
+    value: { preset, vals, goals, rationale },
+    baseline: savedTargets,
+    enabled: !!isOpen,
+    onRestore: (p) => {
+      setPreset(p?.preset ?? savedTargets.preset);
+      setVals(p?.vals || savedTargets.vals);
+      setGoals(p?.goals || savedTargets.goals);
+      setRationale(p?.rationale ?? savedTargets.rationale);
+    },
+    onDiscard: () => {
+      setPreset(savedTargets.preset); setVals(savedTargets.vals); setGoals(savedTargets.goals); setRationale(savedTargets.rationale);
+    },
+  });
+
   const applyPreset = (id) => {
     setPreset(id);
     const base = { ...current.consensus, ...(current.presets?.[id]?.values || {}) };
@@ -209,7 +236,7 @@ const TargetsModal = ({ isOpen, onClose, uhid, unit, current, onSaved }) => {
     setSaving(true);
     try {
       await glucoseService.setTargets(uhid, { preset: preset || null, rationale: rationale.trim(), ...Object.fromEntries(keys.map((k) => [k, toMg(vals[k])])), ...goals });
-      toast.success('Targets saved'); onSaved();
+      toast.success('Targets saved'); draft.markSaved(); onSaved();
     } catch (e) { toast.error(e?.message || 'Could not save targets'); }
     finally { setSaving(false); }
   };
@@ -217,6 +244,7 @@ const TargetsModal = ({ isOpen, onClose, uhid, unit, current, onSaved }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Individual glucose targets" size="lg">
       <div className="space-y-4 text-sm">
+        <DraftRestoreBanner draft={draft} />
         <div>
           <p className="font-semibold text-gray-700 mb-1">Start from</p>
           <div className="flex flex-wrap gap-2">
@@ -237,7 +265,7 @@ const TargetsModal = ({ isOpen, onClose, uhid, unit, current, onSaved }) => {
         </div>
         <label className="block"><span className="text-xs font-semibold text-gray-600">Rationale (required — shown beside every metric these targets affect)</span>
           <textarea rows={2} className="mt-1 w-full px-3 py-2 border-2 border-gray-300 rounded-lg" placeholder="e.g. Pregnant, 14 weeks · Frail, recurrent hypoglycaemia" value={rationale} onChange={(e) => setRationale(e.target.value)} /></label>
-        <div className="flex justify-end gap-2 pt-2 border-t"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save targets'}</Button></div>
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t"><DraftStatus draft={draft} className="mr-auto" showLine={false} /><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save targets'}</Button></div>
       </div>
     </Modal>
   );

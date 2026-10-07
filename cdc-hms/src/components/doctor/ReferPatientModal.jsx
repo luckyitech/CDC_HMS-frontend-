@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import useDraft from '../../hooks/useDraft';
+import { DraftStatus, DraftRestoreBanner } from '../shared/DraftStatus';
 import { X, UserCheck, ExternalLink, AlertCircle, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUserContext } from '../../contexts/UserContext';
@@ -37,6 +39,27 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
   const [saving, setSaving]                     = useState(false);
   const [preview, setPreview]                   = useState(null);   // the saved letter, shown in LetterPrint
 
+  // Autosave the letter while it is written (one draft per visit). Untouched =
+  // exactly the pre-filled form.
+  const draft = useDraft({
+    uhid: patient?.uhid,
+    formKey: 'referral-letter',
+    contextKey: queueItem?.id ? `q${queueItem.id}` : '',
+    value: { referralType, referralReason, selectedDoctorId, externalTarget, referralNote },
+    baseline: { referralType: 'Internal', referralReason: '', selectedDoctorId: '', externalTarget: '', referralNote: defaultNote },
+    onRestore: (p) => {
+      setReferralType(p?.referralType || 'Internal');
+      setReferralReason(p?.referralReason || '');
+      setSelectedDoctorId(p?.selectedDoctorId || '');
+      setExternalTarget(p?.externalTarget || '');
+      setReferralNote(p?.referralNote ?? defaultNote);
+    },
+    onDiscard: () => {
+      setReferralType('Internal'); setReferralReason(''); setSelectedDoctorId('');
+      setExternalTarget(''); setReferralNote(defaultNote);
+    },
+  });
+
   const isInternal = referralType === 'Internal';
   const doctors    = getDoctors();
   const selectedDoctor = isInternal
@@ -71,6 +94,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
           : { externalReferralTarget: externalTarget.trim() }),
       });
       toast.success('Referral letter saved to visit history.');
+      draft.markSaved();
       setPreview({
         note: referralNote, date: new Date().toISOString(), doctorName: currentUser?.name || '',
         referralType, destination, reason: referralReason.trim(),
@@ -125,6 +149,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
 
         <form onSubmit={handleSend} className="flex flex-col flex-1 overflow-hidden">
           <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+            <DraftRestoreBanner draft={draft} />
 
             {/* Referral type toggle */}
             <div>
@@ -220,6 +245,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
               <p className="text-[11px] text-gray-400 mt-1">
                 Pre-filled from this visit's vitals, notes and diagnosis. Save &amp; preview files it in the visit history, ready to print, email or WhatsApp.
               </p>
+              <div className="mt-2"><DraftStatus draft={draft} /></div>
             </div>
 
             {!isInternal && (

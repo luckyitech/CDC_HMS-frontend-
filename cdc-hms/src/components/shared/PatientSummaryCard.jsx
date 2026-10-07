@@ -4,6 +4,8 @@ import { NotebookPen, Pencil, X, Check, ChevronDown, ChevronUp } from "lucide-re
 import Card from "./Card";
 import VoiceInput from "./VoiceInput";
 import patientService from "../../services/patientService";
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "./DraftStatus";
 
 const fmtDateTime = (iso) => {
   if (!iso) return null;
@@ -22,6 +24,18 @@ const PatientSummaryCard = ({ patient, shadow = true }) => {
   const [draft, setDraft]         = useState('');
   const [saving, setSaving]       = useState(false);
 
+  // Autosave the recognition note while it is being edited.
+  const autosave = useDraft({
+    uhid: patient?.uhid,
+    formKey: 'recognition-note',
+    value: draft,
+    baseline: summary,
+    enabled: isEditing,
+    onRestore: (p) => setDraft(typeof p === 'string' ? p : ''),
+    onDiscard: () => setDraft(summary),
+    saveNow: () => save(),
+  });
+
   const toggleOpen = () => {
     if (isEditing) return;
     setIsOpen(prev => !prev);
@@ -34,7 +48,9 @@ const PatientSummaryCard = ({ patient, shadow = true }) => {
     setIsEditing(true);
   };
 
+  // Cancel = the doctor does not want this text: the draft goes too.
   const cancelEdit = () => {
+    if (autosave.hasDraft) autosave.discard();
     setIsEditing(false);
     setDraft('');
   };
@@ -46,10 +62,13 @@ const PatientSummaryCard = ({ patient, shadow = true }) => {
       setSummary(res.data?.data?.patientSummary ?? draft.trim());
       setUpdatedBy(res.data?.data?.summaryUpdatedBy ?? null);
       setUpdatedAt(res.data?.data?.summaryUpdatedAt ?? null);
+      autosave.markSaved();
       setIsEditing(false);
       toast.success('Patient summary saved');
+      return true;
     } catch {
       toast.error('Failed to save summary');
+      return false;
     } finally {
       setSaving(false);
     }
@@ -99,13 +118,15 @@ const PatientSummaryCard = ({ patient, shadow = true }) => {
         <div className="mt-4 pt-4 border-t border-gray-100">
           {isEditing ? (
             <div className="space-y-2">
+              <DraftRestoreBanner draft={autosave} />
               <VoiceInput
                 value={draft}
                 onChange={e => setDraft(e.target.value)}
                 rows={4}
                 placeholder="Write a quick recognition note about this patient (e.g. tall elderly man, comes with wife)..."
               />
-              <div className="flex gap-2 justify-end">
+              <div className="flex flex-wrap items-center gap-2 justify-end">
+                <DraftStatus draft={autosave} className="mr-auto" showLine={false} />
                 <button
                   onClick={cancelEdit}
                   className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg"

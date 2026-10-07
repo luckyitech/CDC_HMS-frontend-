@@ -91,7 +91,8 @@ const PhysicalExamList = ({ patient, autoStart = false, onSaved = null }) => {
       // Save new exam (async)
       const newExam = await saveExamination(examData);
       if (newExam) {
-        // Saved for real — the localStorage draft is no longer needed
+        // Saved for real — PhysicalExamEntry removes its autosaved draft when
+        // this resolves true. (Also clear any leftover old browser-only draft.)
         try { localStorage.removeItem(examDraftKey(patient.uhid)); } catch { /* noop */ }
         setShowNewExamForm(false);
         setSelectedExamId(newExam.id);
@@ -114,10 +115,11 @@ const PhysicalExamList = ({ patient, autoStart = false, onSaved = null }) => {
         // Consultation context: hand control back — no findings/report view here
         if (onSaved) {
           onSaved(newExam);
-          return;
+          return true;
         }
 
         setViewMode("findings");
+        return true;
       } else {
         toast.error("Failed to save physical examination. Please try again.", {
           duration: 3000,

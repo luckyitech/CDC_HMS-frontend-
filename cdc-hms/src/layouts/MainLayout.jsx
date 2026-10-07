@@ -694,6 +694,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
     return (
       <button
         key={item.path}
+        // data-nav-path lets a page guard notice "leaving" (DraftLeaveGuard).
+        data-nav-path={item.path}
         onClick={() => {
           navigate(item.path);
           setSidebarOpen(false);

@@ -6,6 +6,8 @@ import Input from "../shared/Input";
 import VoiceInput from "../shared/VoiceInput";
 import MedicationSearchInput from "../shared/MedicationSearchInput";
 import prescriptionService from "../../services/prescriptionService";
+import useDraft from "../../hooks/useDraft";
+import { DraftStatus, DraftRestoreBanner } from "../shared/DraftStatus";
 // DRY (HMIS V3): shared drug-schedule source, reused by the inpatient MAR.
 import { FREQUENCY_LABELS } from "../../constants/drugSchedules";
 
@@ -18,6 +20,12 @@ const emptyMedication = () => ({
 });
 
 const KNOWN_FREQUENCIES = FREQUENCY_LABELS;
+
+// Autosave: the rows without their internal ids. Untouched = no name, dose,
+// frequency, duration or instructions on any row (quantity has a default).
+const draftRows = (meds) => meds.map(({ _id, ...m }) => m);
+const noMedicationTyped = (rows) => (rows || []).every((m) =>
+  ![m.name, m.dosage, m.frequency, m.customFrequency, m.duration, m.instructions].some((x) => x && String(x).trim()));
 
 const inputCls = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary";
 
@@ -59,6 +67,10 @@ const NewPrescriptionForm = ({
   initialMedications = [],
   loadKey = 0,
   onMedicationRemoved,
+  // Autosave context: '' in the consultation; a remote request passes its own
+  // so the two never share a draft.
+  draftContextKey = "",
+  draftLabel = "Prescription",
 }) => {
   const [formData, setFormData] = useState({
     patientUHID: selectedPatient?.uhid || "",
@@ -70,6 +82,20 @@ const NewPrescriptionForm = ({
   // Collapsed medication rows (by _id) — stacked layout only; horizontal rows
   // are already one line so they never collapse
   const [collapsedIds, setCollapsedIds] = useState(new Set());
+
+  const draft = useDraft({
+    uhid: selectedPatient?.uhid,
+    formKey: "prescription",
+    contextKey: draftContextKey,
+    label: draftLabel,
+    value: draftRows(medications),
+    isEmpty: noMedicationTyped,
+    onRestore: (rows) => {
+      const restored = (Array.isArray(rows) ? rows : []).map((m) => ({ ...emptyMedication(), ...m }));
+      setMedications(restored.length ? restored : [emptyMedication()]);
+    },
+    onDiscard: () => setMedications([emptyMedication()]),
+  });
 
   const toggleCollapsed = (id) => {
     setCollapsedIds((prev) => {
@@ -199,6 +225,7 @@ const NewPrescriptionForm = ({
 
     if (result) {
       toast.success("Prescription created successfully");
+      draft.markSaved();
       setMedications([emptyMedication()]);
       if (onSuccess) onSuccess();
     } else {
@@ -281,6 +308,8 @@ const NewPrescriptionForm = ({
 
   return (
     <form onSubmit={handleSubmit} className={embedded ? "space-y-5" : "space-y-4 max-h-[70vh] overflow-y-auto"}>
+
+      <DraftRestoreBanner draft={draft} />
 
       {/* Patient UHID/Name — only shown outside consultation */}
       {!embedded && (
@@ -427,6 +456,8 @@ const NewPrescriptionForm = ({
           <AddMedicationButton onClick={() => handleAddMedication()} className="mt-3 w-full" />
         )}
       </div>
+
+      <DraftStatus draft={draft} />
 
       {/* Actions — horizontal layout puts Add + Create side by side */}
       <div className={`flex flex-col sm:flex-row gap-3 ${embedded ? "" : "pt-4 border-t"}`}>

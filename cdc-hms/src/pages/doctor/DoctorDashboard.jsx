@@ -12,6 +12,7 @@ import useNotificationSound from '../../hooks/useNotificationSound';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import CallOrderConfirmModal from '../../components/shared/CallOrderConfirmModal';
 import { isConsultationDone, isPendingInjection } from '../../utils/queueStatus';
+import MyDraftsCard from '../../components/shared/MyDraftsCard';
 
 const QUEUE_PER_PAGE = 15;
 
@@ -154,6 +155,9 @@ const DoctorDashboard = () => {
         title="Doctor Dashboard"
         subtitle={`Welcome back, ${currentUser?.name || 'Doctor'}`}
       />
+
+      {/* Autosave: unsaved drafts across all my patients (hidden when none). */}
+      <MyDraftsCard />
 
       {/* Today's Queue - All Patients */}
       <Card title={<span className="flex items-center gap-2"><ClipboardList className="w-5 h-5" />Today's Queue</span>}>
