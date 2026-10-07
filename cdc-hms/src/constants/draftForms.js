@@ -23,6 +23,7 @@ export const DRAFT_FORMS = {
   'neuropathy-remarks':  { label: 'Neuropathy remarks',        consultation: false, quickSave: false },
   'glucose-target':      { label: 'Glucose target rationale',  consultation: false, quickSave: false },
   'recognition-note':    { label: 'Recognition note',          consultation: false, quickSave: true },
+  'remote-request':      { label: 'Remote request note',       consultation: false, quickSave: false },
 };
 
 export const draftLabel = (formKey, fallback) => DRAFT_FORMS[formKey]?.label || fallback || 'Draft';

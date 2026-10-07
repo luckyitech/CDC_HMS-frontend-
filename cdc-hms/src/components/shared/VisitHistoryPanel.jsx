@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
-  BedDouble, Share2, FileText, Clock, FlaskConical, Footprints, Bluetooth,
+  BedDouble, Share2, FileText, Clock, FlaskConical, Footprints, Bluetooth, Phone,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
@@ -22,6 +22,7 @@ import nursingNoteService from '../../services/nursingNoteService';
 import labService from '../../services/labService';
 import neuropathyService from '../../services/neuropathyService';
 import { glucoseService } from '../../services/glucoseService';
+import remoteRequestService from '../../services/remoteRequestService';
 import NeuropathyReport from './NeuropathyReport';
 import { notify } from '../../utils/notify';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
@@ -83,6 +84,10 @@ const DATE_FIELD_MAP = {
   // completed). Timeline-only — the clinical tabs and the "N records" count
   // ignore them; they're visit events, not saved clinical records.
   workflow:        'ts',
+  // Remote requests (6 Oct 2026) — a prescription / lab request written outside
+  // a consultation (phone, WhatsApp, email, walk-in). A doctor "action"; a day
+  // that has one and no visit is tagged "… request · not a visit".
+  remoteRequests:  'createdAt',
 };
 
 const fmtDay = (d) =>
@@ -624,6 +629,18 @@ const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
 
 const ActionsList = ({ records, onView, onViewLab = () => {}, onViewNeuro = () => {} }) => (
   <div className="space-y-2.5">
+    {/* Remote requests — what was asked, by whom, and the doctor's note. The
+        prescriptions / lab requests it produced follow as their own rows. */}
+    {(records.remoteRequests || []).map((r) => (
+      <div key={`rr-${r.id}`} className="border border-violet-200 bg-violet-50 rounded-xl px-4 py-3 text-sm">
+        <p className="font-semibold text-violet-900 flex flex-wrap items-center gap-2">
+          <Phone className="w-4 h-4" aria-hidden="true" />
+          {r.channelLabel} request{r.status === 'cancelled' ? ' (cancelled)' : ''}
+          <span className="font-normal text-violet-800">· asked by {r.requestedByType === 'patient' ? 'the patient' : r.requestedByName || r.requestedByLabel}{r.doctorName ? ` · ${r.doctorName}` : ''}</span>
+        </p>
+        <p className="mt-1 text-gray-800 whitespace-pre-wrap">{r.note}</p>
+      </div>
+    ))}
     {/* Completed neuropathy (PNS) studies — a doctor action; opens the graded
         report to view / print. */}
     {(records.neuropathyStudies || []).map((s) => (
@@ -639,7 +656,7 @@ const ActionsList = ({ records, onView, onViewLab = () => {}, onViewNeuro = () =
       <ActionRow key={`lab-${req.id}`}
         icon={<FlaskConical className="w-4 h-4" />} iconCls="bg-cyan-50 text-cyan-600"
         title={`Lab request${req.requisitionNumber ? ` · ${req.requisitionNumber}` : ''}`}
-        sub={`${req.tests.length} test${req.tests.length !== 1 ? 's' : ''} · ${req.priority}${req.orderedBy ? ` · ${req.orderedBy}` : ''} · view / reprint`}
+        sub={`${req.tests.length} test${req.tests.length !== 1 ? 's' : ''} · ${req.priority}${req.orderedBy ? ` · ${req.orderedBy}` : ''}${req.remoteRequestId ? ' · remote request' : ''} · view / reprint`}
         onClick={() => onViewLab(req)} />
     ))}
     {records.admissions.map((a) => (
@@ -660,7 +677,7 @@ const ActionsList = ({ records, onView, onViewLab = () => {}, onViewNeuro = () =
       <ActionRow key={`rx-${p.id}`}
         icon={<Pill className="w-4 h-4" />} iconCls="bg-emerald-50 text-emerald-600"
         title="Prescription"
-        sub={`${(p.medications || []).length} item${(p.medications || []).length !== 1 ? 's' : ''} · view / reprint`}
+        sub={`${(p.medications || []).length} item${(p.medications || []).length !== 1 ? 's' : ''}${p.remoteRequestId ? ' · remote request' : ''} · view / reprint`}
         onClick={() => onView({ type: 'prescription', data: p })} />
     ))}
   </div>
@@ -693,7 +710,7 @@ const ArtifactModal = ({ artifact, patient, onClose }) => {
 const NURSING_BLANK = {
   vitals: [], plans: [], assessments: [], exams: [], notes: [], prescriptions: [],
   glp1Injections: [], glp1Reviews: [], glp1WeekNotes: [], nursingNotes: [], admissions: [], referrals: [],
-  labRequests: [], neuropathyStudies: [], meterImports: [],
+  labRequests: [], neuropathyStudies: [], meterImports: [], remoteRequests: [],
 };
 
 const nursingTasks = (records) => {
@@ -1132,7 +1149,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     const fetchHistory = async () => {
       setHistoryLoading(true);
       try {
-        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes, labRes, neuroRes, meterRes] = await Promise.all([
+        const [assessments, exams, plans, prescriptions, { notes }, vitalsRes, adminsRes, reviewsRes, advisedRes, referralsRes, weekNotesRes, nursingRes, queueRes, labRes, neuroRes, meterRes, remoteRes] = await Promise.all([
           // Not requested unless they can be read — see canReadDoctorRecord.
           canReadDoctorRecord ? getAssessmentsByPatient(uhid) : [],
           canReadDoctorRecord ? getExaminationsByPatient(uhid) : [],
@@ -1151,6 +1168,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           labService.getByPatient(uhid, { limit: LAB_HISTORY_LIMIT }).catch(() => ({ success: false, data: { labTests: [] } })),
           neuropathyService.getByPatient(uhid).catch(() => ({ data: { data: [] } })),
           glucoseService.getBatches(uhid).catch(() => ({ data: [] })),
+          remoteRequestService.listForPatient(uhid).catch(() => ({ data: [] })),
         ]);
         if (isMounted) {
           const vitals         = vitalsRes?.success ? (vitalsRes.data || []) : [];
@@ -1194,6 +1212,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             labRequests:     Array.isArray(labRequests)     ? labRequests     : [],
             neuropathyStudies: Array.isArray(neuropathyStudies) ? neuropathyStudies : [],
             meterImports,
+            remoteRequests:  Array.isArray(remoteRes?.data) ? remoteRes.data  : [],
             workflow:        Array.isArray(workflow)        ? workflow        : [],
             // Raw queue visit rows (with status + dischargedAt) — used to tell an
             // ongoing, un-checked-out episode from closed dated visits. Not a
@@ -1380,7 +1399,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
     const nurseLabCount = (records.labRequests || []).filter((r) => r.authorRole !== 'doctor').length;
     const actionCount =
       records.admissions.length + (records.referrals || []).length + records.prescriptions.length + docLabCount
-      + (records.neuropathyStudies || []).length;
+      + (records.neuropathyStudies || []).length + (records.remoteRequests || []).length;
     const nursingCount = (records.vitals?.length || 0) + (records.glp1Injections?.length || 0)
       + (records.glp1WeekNotes?.length || 0) + (records.glp1Reviews?.length || 0)
       + (records.nursingNotes?.length || 0) + nurseLabCount + (records.meterImports?.length || 0);
@@ -1625,6 +1644,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
                 {group.ongoing && (
                   <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-300 whitespace-nowrap font-semibold">
                     Not checked out
+                  </span>
+                )}
+                {(records.remoteRequests || []).length > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 border border-violet-300 whitespace-nowrap font-semibold">
+                    <Phone className="w-3 h-3" aria-hidden="true" />
+                    {records.remoteRequests[0].channelLabel} request{(records.workflow || []).length === 0 && !group.ongoing ? ' · not a visit' : ''}
                   </span>
                 )}
                 {/* Document pills (Communications-tab style). One of a kind that

@@ -15,6 +15,7 @@ export const groupLabRequests = (rows) => {
     return {
       id: reqNo,
       requisitionNumber: first.requisitionNumber || null,
+      remoteRequestId: first.remoteRequestId || null,
       orderedDate: first.orderedDate,
       orderedTime: first.orderedTime,
       createdAt: first.createdAt,

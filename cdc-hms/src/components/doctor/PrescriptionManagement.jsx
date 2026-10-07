@@ -20,6 +20,11 @@ const PrescriptionManagement = ({
   // already shows this, so the pills strip is redundant there. Staff profile
   // has no summary panel and keeps it.
   hideCurrentStrip = false,
+  // Passed straight to the form — a remote request uses the SAME form (DRY):
+  // its own draft context, and a step before saving that links it.
+  draftContextKey = "",
+  draftLabel = "Prescription",
+  beforeSave = null,
 }) => {
   const [selectedMedications, setSelectedMedications] = useState([]);
   const [loadKey, setLoadKey] = useState(0);
@@ -180,6 +185,9 @@ const PrescriptionManagement = ({
           }}
           initialMedications={selectedMedications}
           loadKey={loadKey}
+          draftContextKey={draftContextKey}
+          draftLabel={draftLabel}
+          beforeSave={beforeSave}
           onMedicationRemoved={(name) =>
             setSelectedMedications(prev => prev.filter(m => m.name !== name))
           }

@@ -71,6 +71,9 @@ const NewPrescriptionForm = ({
   // so the two never share a draft.
   draftContextKey = "",
   draftLabel = "Prescription",
+  // Optional step before saving (a remote request): resolves to extra fields
+  // for the prescription (e.g. { remoteRequestId }), or null to stop the save.
+  beforeSave = null,
 }) => {
   const [formData, setFormData] = useState({
     patientUHID: selectedPatient?.uhid || "",
@@ -220,6 +223,12 @@ const NewPrescriptionForm = ({
         return payload;
       }),
     };
+
+    if (beforeSave) {
+      const extra = await beforeSave();
+      if (!extra) return;
+      Object.assign(newPrescription, extra);
+    }
 
     const result = await addPrescription(newPrescription);
 

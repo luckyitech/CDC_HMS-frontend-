@@ -45,6 +45,8 @@ import PatientEmailPanel from "../../components/mail/PatientEmailPanel";
 import { useDraftContext } from "../../contexts/DraftContext";
 import DraftChecklistModal from "../../components/shared/DraftChecklistModal";
 import DraftLeaveGuard from "../../components/shared/DraftLeaveGuard";
+import RemoteRequestPanel from "../../components/doctor/RemoteRequestPanel";
+import { Phone } from "lucide-react";
 
 const fmtDate = (d) => {
   if (!d) return "—";
@@ -157,21 +159,34 @@ const DiagnosticsTab = ({ patient, initialSub = "documents", onEmailDocument = n
 // day-by-day timeline (doctor's notes, actions, nursing); "Prescriptions" the
 // prescriptions view; "Lab requests" and "Referral letters" (27 Sep evening)
 // list every request form / letter to reprint, email or WhatsApp again.
-const VisitHistoryTab = ({ patient, uhid, prescriptions }) => {
+// "+ Remote request" (6 Oct 2026, doctors only) sits on the sub-tab row so it
+// is there on every sub-tab: a prescription or lab request outside a
+// consultation (phone, WhatsApp, email, walk-in). `remote` = { label, onClick }.
+const VisitHistoryTab = ({ patient, uhid, prescriptions, remote = null }) => {
   const [sub, setSub] = useState("visits");
   return (
     <div>
-      <SwitcherTabs
-        className="mb-4"
-        active={sub}
-        onChange={setSub}
-        tabs={[
-          { id: "visits", label: "Visits" },
-          { id: "prescriptions", label: "Prescriptions" },
-          { id: "lab-requests", label: "Lab requests" },
-          { id: "referral-letters", label: "Referral letters" },
-        ]}
-      />
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <SwitcherTabs
+          active={sub}
+          onChange={setSub}
+          tabs={[
+            { id: "visits", label: "Visits" },
+            { id: "prescriptions", label: "Prescriptions" },
+            { id: "lab-requests", label: "Lab requests" },
+            { id: "referral-letters", label: "Referral letters" },
+          ]}
+        />
+        {remote && (
+          <button
+            type="button"
+            onClick={remote.onClick}
+            className="ml-auto inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-bold hover:bg-blue-700 min-h-[44px]"
+          >
+            <Phone className="w-4 h-4" aria-hidden="true" /> {remote.label}
+          </button>
+        )}
+      </div>
       {sub === "visits" && (
         <>
           <VisitHistoryPanel patient={patient} />
@@ -406,14 +421,41 @@ const PatientFile = () => {
   }, [uhid, canReadClinical]);
   const myDrafts = draftCtx && uhid ? draftCtx.draftsFor(uhid) : [];
 
+  // Remote requests (doctors): a prescription / lab request outside a
+  // consultation. If the patient is in MY consultation right now, the button
+  // sends me to Today's Consultation instead (one visit, one place to
+  // prescribe); in ANOTHER doctor's consultation it opens with a warning.
+  const [remoteOpen, setRemoteOpen] = useState(false);
+  const [historyKey, setHistoryKey] = useState(0);
+  const isDoctor = currentUser?.role === "doctor";
+  const withDoctorRow = queue.find((q) => q.uhid === uhid && q.status === "With Doctor") || null;
+  const inMyConsultation = !!withDoctorRow && withDoctorRow.assignedDoctorId === currentUser?.id;
+  const remoteWarning = withDoctorRow && !inMyConsultation
+    ? `${withDoctorRow.assignedDoctorName ? `Dr. ${String(withDoctorRow.assignedDoctorName).replace(/^Dr\.?\s*/i, "")}` : "Another doctor"} has this patient in consultation right now — check you are not both prescribing.`
+    : null;
+  const remoteButton = isDoctor ? {
+    label: inMyConsultation ? "Prescribe in Today's Consultation" : "+ Remote request",
+    onClick: () => {
+      if (inMyConsultation) { selectTab("consultation"); return; }
+      setRemoteOpen(true);
+    },
+  } : null;
+  const closeRemote = (changed) => {
+    setRemoteOpen(false);
+    if (changed) {
+      getPrescriptionsByPatient(uhid).then((d) => setPrescriptions(Array.isArray(d) ? d : []));
+      setHistoryKey((k) => k + 1);
+    }
+  };
+
   // Take the doctor to where a draft's form lives, then let it scroll itself
   // into view (its own open handler, when mounted).
   const openDraft = (entry) => {
     setShowDrafts(false);
     const ctxKey = String(entry.contextKey || "");
     if (ctxKey.startsWith("adm-")) { navigate(`/inpatient/admission/${ctxKey.slice(4)}`); return; }
-    if (ctxKey.startsWith("remote")) selectTab("visit-history");
-    else if (entry.formKey === "recognition-note") setOverviewOpen(true);
+    if (ctxKey.startsWith("remote")) { selectTab("visit-history"); setRemoteOpen(true); return; }
+    if (entry.formKey === "recognition-note") setOverviewOpen(true);
     else if (entry.formKey === "glucose-target") selectTab("medical-documents");
     else if (entry.formKey === "neuropathy-remarks") selectTab(tabs.some((t) => t.id === "pns") ? "pns" : "medical-documents");
     else if (tabs.some((t) => t.id === "consultation")) selectTab("consultation");
@@ -579,6 +621,9 @@ const PatientFile = () => {
         backLabel="Close"
       />
       <DraftLeaveGuard key={uhid} uhid={uhid} patientName={patient.name} onOpen={openDraft} />
+      {remoteOpen && (
+        <RemoteRequestPanel patient={patient} prescriptions={prescriptions} warning={remoteWarning} onClose={closeRemote} />
+      )}
 
       <div>
         {currentTab === "equipment" && <MedicalEquipmentTab patient={patient} />}
@@ -600,7 +645,7 @@ const PatientFile = () => {
         {currentTab === "medical-documents" && <DiagnosticsTab key={location.key} patient={patient} initialSub={location.state?.diagnosticsSub || "documents"} onEmailDocument={emailDocument} />}
         {currentTab === "communications" && <PatientCommunicationsTab uhid={uhid} patientName={patient.name} portal={portal} onEmailPatient={emailPatient} />}
         {currentTab === "visit-history" && (
-          <VisitHistoryTab patient={patient} uhid={uhid} prescriptions={prescriptions} />
+          <VisitHistoryTab key={historyKey} patient={patient} uhid={uhid} prescriptions={prescriptions} remote={remoteButton} />
         )}
         {currentTab === "user-management" && (
           <div className="space-y-6">

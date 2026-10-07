@@ -44,7 +44,9 @@ const noRequestTyped = (v) => !(v?.selected?.length) && !String(v?.notes || "").
 
 // draftContextKey / draftLabel: '' in the consultation and nursing tab; a remote
 // request passes its own so the two never share a draft.
-const LabRequest = ({ patient, onDirtyChange = () => {}, draftContextKey = "", draftLabel = "Lab request" }) => {
+// beforeSave (a remote request): resolves to extra fields for a NEW request
+// (e.g. { remoteRequestId }), or null to stop the save.
+const LabRequest = ({ patient, onDirtyChange = () => {}, draftContextKey = "", draftLabel = "Lab request", beforeSave = null }) => {
   const uhid = patient?.uhid;
   const { currentUser } = useUserContext();
   const isDoctor = currentUser?.role === "doctor";
@@ -246,6 +248,12 @@ const LabRequest = ({ patient, onDirtyChange = () => {}, draftContextKey = "", d
       }
     }
 
+    let extra = {};
+    if (beforeSave && !editingReq) {
+      extra = await beforeSave();
+      if (!extra) return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -260,7 +268,7 @@ const LabRequest = ({ patient, onDirtyChange = () => {}, draftContextKey = "", d
       if (editingReq) {
         res = await labService.updateRequest(editingReq, payload);
       } else {
-        res = await labService.createRequest({ ...payload, supersedesRequisition: supersedesReq || null });
+        res = await labService.createRequest({ ...payload, ...extra, supersedesRequisition: supersedesReq || null });
       }
 
       if (!res.success) { toast.error(res.message || "Could not save the request"); setSaving(false); return; }
