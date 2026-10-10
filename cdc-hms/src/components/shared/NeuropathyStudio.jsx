@@ -27,19 +27,28 @@ const NeuropathyStudio = () => {
   const [report, setReport] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [examKey, setExamKey] = useState(0);   // remount the exam for the next patient
+  // Continue an exam left mid-way (10 Oct 2026): the Studies tab's in-progress
+  // list hands over the patient; the exam opens and resumes their Draft study.
+  const [resume, setResume] = useState(null);
 
   const onCompleted = (study) => {
     setReport(study);
     setRefreshKey((k) => k + 1);
     setExamKey((k) => k + 1);
+    setResume(null);
+  };
+  const onResume = (study) => {
+    setResume({ uhid: study.uhid, name: study.patientName || study.uhid });
+    setExamKey((k) => k + 1);
+    setTab('exam');
   };
 
   return (
     <div>
       <SwitcherTabs className="mb-4" tabs={TABS} active={tab} onChange={setTab} />
 
-      {tab === 'exam' && <NeuropathyExam key={examKey} onCompleted={onCompleted} />}
-      {tab === 'list' && <NeuropathyStudyList refreshKey={refreshKey} />}
+      {tab === 'exam' && <NeuropathyExam key={examKey} fixedPatient={resume} onCompleted={onCompleted} onCancelled={() => { setResume(null); setExamKey((k) => k + 1); }} />}
+      {tab === 'list' && <NeuropathyStudyList refreshKey={refreshKey} onResume={onResume} />}
       {tab === 'analytics' && showAnalytics && <NeuropathyAnalytics />}
 
       {report && <NeuropathyReport study={report} onClose={() => setReport(null)} />}

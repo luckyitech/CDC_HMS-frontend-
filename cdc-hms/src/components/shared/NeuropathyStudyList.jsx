@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, FileText, Ban, Loader2, Search, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { RefreshCw, FileText, Ban, Loader2, Search, Download, Play } from 'lucide-react';
 import neuropathyService from '../../services/neuropathyService';
 import { useUserContext } from '../../contexts/UserContext';
-import { canAccessAdmin } from '../../utils/permissions';
+import { canAccessAdmin, canOpenPortal, PERMISSIONS } from '../../utils/permissions';
 import { notify } from '../../utils/notify';
 import NeuropathyReport from './NeuropathyReport';
 import { GRADE_CLASSES } from '../../constants/neuropathy';
@@ -27,11 +28,22 @@ const worst = (a, b) => {
   return order[Math.max(ia, ib)];
 };
 
-const NeuropathyStudyList = ({ patient = null, refreshKey = 0 }) => {
+/**
+ * Props: patient (null = the Studio's cross-patient worklist), refreshKey,
+ *   onResume(study) — the Studio's handler: reopen the exam for that patient.
+ *   Without it (the patient file), Continue goes to the Radiology portal's
+ *   PNS Studio tab, where the exam lives.
+ */
+const NeuropathyStudyList = ({ patient = null, refreshKey = 0, onResume = null }) => {
   const { currentUser } = useUserContext();
+  const navigate = useNavigate();
   const canCancel = currentUser?.role === 'doctor' || canAccessAdmin(currentUser);
 
   const [studies, setStudies] = useState([]);
+  // In-progress exams (Draft studies) — 10 Oct 2026. An exam the doctor
+  // left mid-way kept its readings on the server but showed nowhere, so it
+  // could never be completed. They are listed here with Continue / Withdraw.
+  const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(null);      // full study for the report modal
   const [opening, setOpening] = useState(null);
@@ -45,7 +57,18 @@ const NeuropathyStudyList = ({ patient = null, refreshKey = 0 }) => {
     req.then((res) => setStudies(res.data.data || res.data || []))
       .catch(() => setStudies([]))
       .finally(() => setLoading(false));
+    const open = patient ? neuropathyService.getByPatient(patient.uhid, { status: 'Draft' }) : neuropathyService.getRecent(100, { status: 'Draft' });
+    open.then((res) => { const l = res.data.data || res.data || []; setDrafts(Array.isArray(l) ? l : []); }).catch(() => setDrafts([]));
   }, [patient]);
+
+  const continueStudy = (s) => {
+    if (onResume) { onResume(s); return; }
+    if (canOpenPortal(currentUser, PERMISSIONS.PORTAL_RADIOLOGY)) {
+      navigate(`/radiology/patient-profile/${s.uhid}`, { state: { activeTab: 'pns' } });
+    } else {
+      notify('error', 'Continue this exam from the Radiology portal (PNS Studio).');
+    }
+  };
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -109,6 +132,24 @@ const NeuropathyStudyList = ({ patient = null, refreshKey = 0 }) => {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg">
+      {drafts.length > 0 && (
+        <div className="px-4 py-3 border-b border-amber-200 bg-amber-50/60">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 mb-2">In progress — {drafts.length === 1 ? 'an exam was' : `${drafts.length} exams were`} left before completion</p>
+          <ul className="space-y-1.5">
+            {drafts.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span className="font-semibold text-gray-800">{s.patientName || s.uhid}</span>
+                {!patient && <span className="font-mono text-xs text-primary">{s.uhid}</span>}
+                <span className="text-xs text-gray-500">Study #{s.id} · started {fmtDay(s.studyDate)}{s.performedByName ? ` · ${s.performedByName}` : ''}{typeof s.readingsCount === 'number' ? ` · ${s.readingsCount} reading${s.readingsCount === 1 ? '' : 's'} recorded` : ''}</span>
+                <span className="ml-auto inline-flex items-center gap-2">
+                  <button type="button" onClick={() => continueStudy(s)} className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-blue-700"><Play className="w-3 h-3" /> Continue</button>
+                  {canCancel && <button type="button" onClick={() => cancelStudy(s)} className="text-xs font-semibold text-gray-500 hover:text-red-600">Withdraw</button>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
         <FileText className="w-4 h-4 text-primary" />
         <h3 className="font-semibold text-gray-800">

@@ -177,11 +177,31 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   }, [step]);
 
   // Create the Draft the moment a patient is chosen — UHID-linked from the start.
+  // 10 Oct 2026: a Draft left mid-exam (the doctor navigated away) is RESUMED —
+  // the server hands back the open study with its readings instead of
+  // starting a new one, so nothing recorded is lost and the exam can be
+  // completed from any portal.
+  const [resumed, setResumed] = useState(false);
   useEffect(() => {
     if (!patient || study || creating) return;
     setCreating(true);
     neuropathyService.create(patient.uhid)
-      .then((res) => setStudy(res.data.data || res.data))
+      .then((res) => {
+        const s = res.data.data || res.data;
+        if (s?.resumed && Array.isArray(s.readings)) {
+          const rd = emptyReadings();
+          let n = 0;
+          s.readings.forEach((r) => {
+            if (!CAPTURE_MODS.includes(r.modality) || !rd[r.modality][r.foot]) return;
+            rd[r.modality][r.foot][r.site] = r.omitted ? null : r.value;
+            if (!r.omitted) n += 1;
+          });
+          setReadings(rd);
+          setResumed(true);
+          notify('success', `Resumed study #${s.id} (started ${s.studyDate || 'earlier'}) — ${n} reading${n === 1 ? '' : 's'} already recorded.`);
+        }
+        setStudy(s);
+      })
       .catch((err) => {
         notify('error', err.response?.data?.message || 'Could not start a study for this patient.');
         if (!fixedPatient) setPatient(null);
@@ -361,7 +381,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
     }
     await disconnectProbe();
     if (remarksDraft.hasDraft) await remarksDraft.discard();
-    setStudy(null); setReadings(emptyReadings()); setRemarks(''); setSelected(allSelected()); setStep(0);
+    setStudy(null); setResumed(false); setReadings(emptyReadings()); setRemarks(''); setSelected(allSelected()); setStep(0);
     if (!fixedPatient) setPatient(null);
     onCancelled?.();
   };
@@ -454,7 +474,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {creating && <span className={`text-xs ${overviewOpen ? 'text-blue-100' : 'text-primary'}`}>starting study…</span>}
-            {study && <span className={`px-2.5 py-0.5 rounded-md text-xs font-semibold ${overviewOpen ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>Study #{study.id} · Draft</span>}
+            {study && <span className={`px-2.5 py-0.5 rounded-md text-xs font-semibold ${overviewOpen ? 'bg-white/20 text-white' : resumed ? 'bg-amber-50 text-amber-800' : 'bg-gray-100 text-gray-600'}`}>Study #{study.id} · Draft{resumed ? ' · resumed' : ''}</span>}
           </div>
         </div>
 

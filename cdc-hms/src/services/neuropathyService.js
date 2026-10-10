@@ -21,7 +21,7 @@ export const neuropathyService = {
 
   getByPatient: (uhid, opts = {}) => api.get('/neuropathy', { params: { uhid, ...opts } }),
 
-  getRecent: (limit = 100) => api.get('/neuropathy', { params: { limit } }),
+  getRecent: (limit = 100, opts = {}) => api.get('/neuropathy', { params: { limit, ...opts } }),   // opts.status 'Draft' = the in-progress worklist
 
   /** Cross-patient cohort analytics for the Analytics tab (doctor/admin only).
    *  params: { from?, to?, sex?, ageBand?, performedById? } */

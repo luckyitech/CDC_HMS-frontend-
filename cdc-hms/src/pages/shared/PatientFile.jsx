@@ -11,7 +11,7 @@ import { usePatientContext } from "../../contexts/PatientContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { useQueueContext } from "../../contexts/QueueContext";
 import { useUserContext } from "../../contexts/UserContext";
-import { hasPermission, PERMISSIONS, canUseMail } from "../../utils/permissions";
+import { hasPermission, PERMISSIONS, canUseMail, canOpenPortal } from "../../utils/permissions";
 import { patientService } from "../../services/patientService";
 import api from "../../services/api";
 
@@ -34,6 +34,7 @@ import MedicalEquipmentTab from "../../components/doctor/MedicalEquipmentTab";
 import PatientCommunicationsTab from "../../components/shared/PatientCommunicationsTab";
 import NursingActionsTab from "../../components/nursing/NursingActionsTab";
 import NeuropathyExam from "../../components/shared/NeuropathyExam";
+import neuropathyService from "../../services/neuropathyService";
 import TodaysConsultationTab from "../../components/doctor/TodaysConsultationTab";
 import PrescriptionManagement from "../../components/doctor/PrescriptionManagement";
 import GlucoseManagementCentre from "../../components/shared/GlucoseManagementCentre";
@@ -328,7 +329,19 @@ const PatientFile = () => {
   const inNeuropathyFlow = portal === 'radiology' && queue.some((q) =>
     q.uhid === uhid && q.destination === 'Radiology' && q.service === 'Neuropathy' &&
     !['Completed', 'Removed'].includes(q.status));
-  const liveTabKey = inNeuropathyFlow ? 'pns' : cfg.liveTab;
+  // 10 Oct 2026: an exam left mid-way (a Draft study) also gets the PNS Studio
+  // tab here — even once the queue row is gone — so it can be resumed and
+  // completed. Without this the Draft was unreachable from every screen.
+  const [hasDraftStudy, setHasDraftStudy] = useState(false);
+  useEffect(() => {
+    if (portal !== 'radiology' || !uhid) { setHasDraftStudy(false); return undefined; }
+    let live = true;
+    neuropathyService.getByPatient(uhid, { status: 'Draft', limit: 1 })
+      .then((res) => { const list = res.data?.data || res.data || []; if (live) setHasDraftStudy(Array.isArray(list) && list.length > 0); })
+      .catch(() => { if (live) setHasDraftStudy(false); });
+    return () => { live = false; };
+  }, [portal, uhid]);
+  const liveTabKey = (inNeuropathyFlow || hasDraftStudy) ? 'pns' : cfg.liveTab;
   const liveTabDef = liveTabKey ? LIVE_TABS[liveTabKey] : null;
   const orderedTabs = liveTabDef ? [liveTabDef, ...REST_TABS] : REST_TABS;
 
@@ -457,7 +470,14 @@ const PatientFile = () => {
     if (ctxKey.startsWith("remote")) { selectTab("visit-history"); setRemoteOpen(true); return; }
     if (entry.formKey === "recognition-note") setOverviewOpen(true);
     else if (entry.formKey === "glucose-target") selectTab("medical-documents");
-    else if (entry.formKey === "neuropathy-remarks") selectTab(tabs.some((t) => t.id === "pns") ? "pns" : "medical-documents");
+    else if (entry.formKey === "neuropathy-remarks") {
+      // The exam lives in the Radiology portal's PNS Studio tab. From any
+      // other portal, go there (10 Oct 2026 — this used to land on Documents,
+      // where the draft could not be continued).
+      if (tabs.some((t) => t.id === "pns")) selectTab("pns");
+      else if (canOpenPortal(currentUser, PERMISSIONS.PORTAL_RADIOLOGY)) { navigate(`/radiology/patient-profile/${uhid}`, { state: { activeTab: "pns" } }); return; }
+      else { toast.error("Continue this neuropathy exam from the Radiology portal (PNS Studio)."); selectTab("medical-documents"); }
+    }
     else if (tabs.some((t) => t.id === "consultation")) selectTab("consultation");
     else if (tabs.some((t) => t.id === "nursing")) selectTab("nursing");
     setTimeout(() => draftCtx?.open(entry), 400);
