@@ -94,8 +94,8 @@
 }
 
 /* ── Shape (11 Oct 2026, after Outlook's rail) ─────────────────────────── */
-/* Islands are capsules: the corner is half the 64 px rail, so the collapsed
-   rail has fully round ends. Every item, the hover and the lens are pills —
+/* Islands are capsules: the corner is at least half the 52 px rail (40 px
+   icons + a 6 px cushion each side), so the collapsed rail has fully round ends. Every item, the hover and the lens are pills —
    a circle in the rail, a capsule when the sidebar is open. */
 :root {
   --sb-island-radius: 32px;

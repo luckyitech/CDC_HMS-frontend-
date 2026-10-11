@@ -1016,7 +1016,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         className={`
         ${sidebarOpen ? "translate-x-0" : "-translate-x-[calc(100%+1.5rem)] md:translate-x-0"}
         fixed top-[calc(4.75rem+env(safe-area-inset-top,0px))] md:top-[calc(1rem+env(safe-area-inset-top,0px))] bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] z-30 flex flex-col gap-2.5
-        w-72 ${isCollapsed ? "md:w-16" : "md:w-72"}
+        w-72 ${isCollapsed ? "md:w-[3.25rem]" : "md:w-72"}
         sb-white
         transition-[width,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
       `}
@@ -1148,7 +1148,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
           content instead of shifting it */}
       <div
         className={`hidden md:block flex-shrink-0 transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-          collapsed ? "w-[5.75rem]" : "w-[19.75rem]"
+          collapsed ? "w-[5rem]" : "w-[19.75rem]"
         }`}
       />
 
