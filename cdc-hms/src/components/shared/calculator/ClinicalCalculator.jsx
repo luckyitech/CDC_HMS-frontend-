@@ -56,7 +56,7 @@ const Panel = ({ patient, onClose }) => {
 
   return (
     <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center p-3 md:pl-[calc(18rem+0.75rem)] xl:pr-[calc(340px+2.75rem)]">
-      <section role="dialog" aria-label="Calculator" className="pointer-events-auto flex max-h-[calc(100dvh-1.5rem)] w-[720px] max-w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
+      <section role="dialog" aria-label="Calculator" className="pointer-events-auto flex max-h-[calc(100dvh-1.5rem)] w-[720px] max-w-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_32px_80px_-12px_rgba(15,23,42,0.45),0_12px_28px_-8px_rgba(15,23,42,0.25)] ring-1 ring-black/10">
         <div className="flex items-center gap-2.5 px-4 pb-2 pt-3.5">
           <Calculator className="h-5 w-5 text-primary" aria-hidden="true" />
           <span className="text-[15px] font-bold text-gray-900">Calculator</span>

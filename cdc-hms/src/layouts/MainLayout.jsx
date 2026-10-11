@@ -1129,12 +1129,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
             <button
               onClick={toggleCollapsed}
               title={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
-              className={`w-full flex items-center px-5 py-3 ${isCollapsed ? "justify-center px-0" : ""} sb-muted sb-hover transition-all duration-200`}
+              className={`w-full flex items-center py-3 ${isCollapsed ? "justify-center px-0" : "px-5"} sb-muted sb-hover transition-all duration-200`}
             >
               {/* The panel glyph says what the control acts on, which a bare
                   chevron does not: a rail with the arrow pointing out of it to
                   open, back into it to collapse. */}
-              {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
+              {collapsed ? <PanelLeftOpen size={22} className="shrink-0" /> : <PanelLeftClose size={22} className="shrink-0" />}
               <span className={`ml-4 font-medium ${isCollapsed ? "hidden" : ""}`}>
                 {collapsed ? "Pin open" : "Collapse"}
               </span>
