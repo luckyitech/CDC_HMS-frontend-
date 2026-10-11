@@ -86,7 +86,7 @@ const StockReceiveTab = () => {
 
   return (
     <div className="grid lg:grid-cols-2 gap-6">
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="ui-surface p-5">
         <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
           <PackagePlus className="w-5 h-5 text-primary" /> Receive a delivery
         </h4>
@@ -117,7 +117,7 @@ const StockReceiveTab = () => {
                   {matches.map((i) => (
                     <button
                       key={i.id}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50"
+                      className="w-full text-left px-3 py-2 text-sm ui-hover"
                       onClick={() => { set("stockItemId", String(i.id)); setItemSearch(""); }}
                     >
                       {i.name} <span className="text-xs text-gray-400">({i.category})</span>

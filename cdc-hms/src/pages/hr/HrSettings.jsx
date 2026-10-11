@@ -50,7 +50,7 @@ const HrSettings = () => {
     return (
       <div>
         <PageHeader title="Settings" />
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+        <div className="ui-surface p-6 text-sm text-gray-600">
           These settings are for people who look after attendance, leave, the staff lists or HR alerts. Ask whoever handles HR permissions if you need one.
         </div>
       </div>

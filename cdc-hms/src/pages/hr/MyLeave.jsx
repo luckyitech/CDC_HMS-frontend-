@@ -59,7 +59,7 @@ const MyLeave = () => {
     return (
       <div>
         <PageHeader title="My leave" />
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+        <div className="ui-surface p-6 text-sm text-gray-600">
           Applying for leave here has been switched off for your account. Ask HR to record your leave.
         </div>
       </div>
@@ -71,7 +71,7 @@ const MyLeave = () => {
       <PageHeader title="My leave" subtitle="Apply for leave and follow your requests." />
       {data === null && !failed && <Spinner />}
       {failed && data === null && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+        <div className="ui-surface p-6 text-sm text-gray-600">
           Your leave could not be loaded. <button type="button" className="text-primary font-semibold hover:underline" onClick={load}>Try again</button>
         </div>
       )}

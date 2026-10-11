@@ -22,13 +22,13 @@ import { useQueueContext } from "../../contexts/QueueContext";
 const IN_CLINIC_STATUSES = ["Awaiting Doctor", "With Doctor", "Pending Billing"];
 
 const Head = ({ statusColumn = false }) => (
-  <thead className="bg-gray-50 border-b-2 border-gray-200">
+  <thead className="ui-thead">
     <tr>
-      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
+      <th className="px-4 lg:px-6 py-3 text-left">UHID</th>
+      <th className="px-4 lg:px-6 py-3 text-left">Patient Name</th>
       <th className="hidden md:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Arrival Time</th>
-      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">{statusColumn ? "Where" : "Priority"}</th>
-      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
+      <th className="px-4 lg:px-6 py-3 text-left">{statusColumn ? "Where" : "Priority"}</th>
+      <th className="px-4 lg:px-6 py-3 text-left">Action</th>
     </tr>
   </thead>
 );
@@ -36,7 +36,7 @@ const Head = ({ statusColumn = false }) => (
 // Module-level (not created during render). showStatus swaps the Priority column for the live queue status — the
 // in-clinic list is about WHERE the patient is, not how urgent they were.
 const Row = ({ patient, cta, onOpen, showStatus = false, variant = "primary" }) => (
-  <tr className="hover:bg-blue-50">
+  <tr className="ui-hover">
     <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
     <td className="px-4 lg:px-6 py-4 font-semibold text-sm">
       {patient.name}

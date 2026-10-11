@@ -1,9 +1,17 @@
-// `shadow` (default true) can be turned off for flat cards (e.g. cards nested in
-// an already-elevated panel where the drop shadow reads as clutter).
-const Card = ({ children, title, className = '', shadow = true }) => {
+// Card — THE box on a page (11 Oct 2026 design audit). Flat: white, hairline
+// border, 12 px corners, no shadow (ui.css .ui-surface). Its title is smaller
+// than the page title. `actions` sit at the right of the title row.
+// Only things that float above the page (Modal, menus, the sidebar) are raised.
+// Rules: docs/DRY-GUIDELINES.md.
+const Card = ({ children, title, actions, className = '' }) => {
   return (
-    <div className={`bg-white rounded-xl ${shadow ? 'shadow-2xl' : ''} p-8 ${className}`}>
-      {title && <h3 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-3">{title}</h3>}
+    <div className={`ui-surface p-4 sm:p-6 ${className}`}>
+      {(title || actions) && (
+        <div className="flex items-center justify-between gap-3 mb-4">
+          {title && <h3 className="ui-box-title flex-1 min-w-0">{title}</h3>}
+          {actions}
+        </div>
+      )}
       {children}
     </div>
   );

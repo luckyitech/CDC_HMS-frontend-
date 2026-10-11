@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { ModalOverlay } from './Modal';
 import toast from "react-hot-toast";
 import { Plus, X, Trash2, Syringe } from "lucide-react";
 import Button from "./Button";
@@ -427,7 +428,7 @@ const AddEntryModal = ({ patient, vitals, medications, symptoms, defaultAgent, o
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => !saving && onClose()}>
+    <ModalOverlay onClose={() => !saving && onClose()}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[88vh]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0">
           <h3 className="font-bold text-gray-800 flex items-center gap-2"><Syringe className="w-5 h-5" /> Add GLP-1 entry</h3>
@@ -496,7 +497,7 @@ const AddEntryModal = ({ patient, vitals, medications, symptoms, defaultAgent, o
               })}
               {!addingSymptom && (
                 <button type="button" onClick={() => setAddingSymptom(true)}
-                  className="px-3 py-1.5 rounded-full text-xs border border-dashed border-gray-300 text-primary hover:bg-blue-50">
+                  className="px-3 py-1.5 rounded-full text-xs border border-dashed border-gray-300 text-primary ui-hover">
                   <Plus className="w-3 h-3 inline -mt-0.5" /> Add symptom
                 </button>
               )}
@@ -530,7 +531,7 @@ const AddEntryModal = ({ patient, vitals, medications, symptoms, defaultAgent, o
           <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save entry"}</Button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

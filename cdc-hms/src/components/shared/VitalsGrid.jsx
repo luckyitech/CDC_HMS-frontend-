@@ -186,7 +186,7 @@ export const VitalsTrendModal = ({ group, history, loading, onClose }) => {
               </thead>
               <tbody>
                 {history.map((record, i) => (
-                  <tr key={i} className={`border-b border-gray-100 transition-colors hover:bg-blue-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                  <tr key={i} className={`border-b border-gray-100 transition-colors ui-hover ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
                     <td className="px-5 py-3.5 text-gray-500 whitespace-nowrap text-xs">
                       {formatDate(record.recordedAt)}
                     </td>

@@ -230,8 +230,8 @@ const PatientCommunicationsTab = ({ uhid, patientName = '', portal = 'doctor', o
         <div className="flex items-center justify-between pt-1">
           <p className="text-sm text-gray-500">Page {safePage} of {totalPages} · {days.length} day{days.length === 1 ? '' : 's'}</p>
           <div className="flex items-center gap-1">
-            <button type="button" onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage === 1} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-blue-50">Previous</button>
-            <button type="button" onClick={() => setPage(Math.min(totalPages, safePage + 1))} disabled={safePage === totalPages} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-blue-50">Next</button>
+            <button type="button" onClick={() => setPage(Math.max(1, safePage - 1))} disabled={safePage === 1} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-40 ui-hover">Previous</button>
+            <button type="button" onClick={() => setPage(Math.min(totalPages, safePage + 1))} disabled={safePage === totalPages} className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-40 ui-hover">Next</button>
           </div>
         </div>
       )}
@@ -271,8 +271,8 @@ const DayCard = ({ d, open, onToggle, tab, onTab, uhid, canRemove, onChanged, on
   ].filter(Boolean);
   const active = tabs.some((t) => t.id === tab) ? tab : tabs[0]?.id;
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" data-testid="comms-day">
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-blue-50">
+    <div className="ui-surface overflow-hidden" data-testid="comms-day">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors ui-hover">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Calendar className={`h-5 w-5 flex-shrink-0 ${open ? 'text-primary' : 'text-gray-400'}`} />
           <span className={`font-semibold ${open ? 'text-primary' : 'text-gray-800'}`}>{formatDateLong(d.key)}</span>
@@ -298,7 +298,7 @@ const DayCard = ({ d, open, onToggle, tab, onTab, uhid, canRemove, onChanged, on
             <div className="space-y-2">
               {d.threads.map((t) => <ThreadCard key={t.key} t={t} uhid={uhid} canRemove={canRemove} onChanged={onChanged} defaultOpen={d.threads.length === 1} actions={actions} />)}
               {d.refs.map((r) => (
-                <button key={`r${r.t.key}`} type="button" onClick={() => onGoToDay(r.lastDay, 'email')} className="flex w-full items-center gap-2 rounded-lg border border-dashed border-blue-200 px-2 py-1.5 text-left text-sm text-gray-600 hover:bg-blue-50">
+                <button key={`r${r.t.key}`} type="button" onClick={() => onGoToDay(r.lastDay, 'email')} className="flex w-full items-center gap-2 rounded-lg border border-dashed border-blue-200 px-2 py-1.5 text-left text-sm text-gray-600 ui-hover">
                   <Mail size={13} className="text-blue-600" aria-hidden="true" />
                   <span className="font-medium text-gray-800">{r.t.subject || '(no subject)'}</span>
                   <span className="text-[11px] text-gray-400">{plural(r.count, 'message')} this day · whole conversation on {formatDateLong(r.lastDay)}</span>
@@ -333,7 +333,7 @@ const AttachmentList = ({ items, actions }) => (
       if (doc) {
         return (
           <li key={it.key}>
-            <button type="button" onClick={() => actions.view(doc)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50" title="Open from the patient’s Documents">
+            <button type="button" onClick={() => actions.view(doc)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm ui-hover" title="Open from the patient’s Documents">
               <Icon size={14} className={it.kind === 'wa' ? 'text-emerald-600' : 'text-blue-600'} aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate font-medium text-blue-700" title={name}>{name}</span>
               <span className="hidden text-[11px] text-gray-400 sm:inline">{via} · in Documents{doc.status ? ` (${doc.status})` : ''}{doc.archived ? ' · archived' : ''} · {fmtTime(it.at)}</span>
@@ -524,13 +524,13 @@ const ThreadCard = ({ t, uhid, canRemove, onChanged, defaultOpen = false, action
                   {m.documents.map((d) => (d.missing
                     ? <span key={d.id} className="rounded border px-1.5 py-0.5 text-[11px] text-gray-400">A document no longer on file</span>
                     : (
-                      <button key={d.id} type="button" onClick={() => actions.view(d)} className="inline-flex items-center gap-1 rounded border border-blue-100 bg-white px-1.5 py-0.5 text-[11px] text-blue-700 hover:bg-blue-50" title="Open from the patient’s Documents">
+                      <button key={d.id} type="button" onClick={() => actions.view(d)} className="inline-flex items-center gap-1 rounded border border-blue-100 bg-white px-1.5 py-0.5 text-[11px] text-blue-700 ui-hover" title="Open from the patient’s Documents">
                         <FileText size={11} aria-hidden="true" /> {d.testType || d.fileName}{d.date ? ` · ${d.date}` : ''}{d.archived ? ' (archived)' : ''}
                       </button>
                     )))}
                   {(m.attachments || (m.attachmentNames || []).map((name, index) => ({ index, name }))).map((a) => (a.onFile && !a.onFile.missing
                     ? (
-                      <button key={`a${a.index}`} type="button" onClick={() => actions.view(a.onFile)} className="inline-flex items-center gap-1 rounded border border-blue-100 bg-white px-1.5 py-0.5 text-[11px] text-blue-700 hover:bg-blue-50" title="Open from the patient’s Documents">
+                      <button key={`a${a.index}`} type="button" onClick={() => actions.view(a.onFile)} className="inline-flex items-center gap-1 rounded border border-blue-100 bg-white px-1.5 py-0.5 text-[11px] text-blue-700 ui-hover" title="Open from the patient’s Documents">
                         <FileText size={11} aria-hidden="true" /> {a.onFile.testType || a.onFile.fileName}
                       </button>
                     ) : (

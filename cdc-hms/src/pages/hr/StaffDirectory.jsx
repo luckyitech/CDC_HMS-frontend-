@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Search, Loader, Users, UserPlus } from 'lucide-react';
@@ -118,22 +119,22 @@ const StaffDirectory = () => {
             className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
-        <select
+        <SelectMenu
           value={role}
           onChange={(e) => setRole(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           <option value="">All roles</option>
           {ROLE_FILTERS.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-        </select>
-        <select
+        </SelectMenu>
+        <SelectMenu
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           <option value="">All statuses</option>
           {STATUS_FILTERS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
+        </SelectMenu>
         <label className="flex items-center gap-2 text-sm text-gray-600 px-2 select-none cursor-pointer">
           <input
             type="checkbox"

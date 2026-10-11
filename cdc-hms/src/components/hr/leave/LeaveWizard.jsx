@@ -210,7 +210,7 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
   const typeName = type?.name || form.leaveType;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5" data-testid="leave-wizard">
+    <div className="ui-surface p-4 sm:p-5" data-testid="leave-wizard">
       <Stepper step={step} />
       {submitError && <div className="mb-3"><Messages errors={[{ code: 'submit', message: submitError }]} /></div>}
 
@@ -375,7 +375,7 @@ const LeaveWizard = ({ data, onSubmitted, onCancel }) => {
       )}
 
       {step === 3 && (
-        <div className="space-y-4 max-w-2xl">
+        <div className="space-y-4">
           <h3 className="text-sm font-semibold text-gray-800">Details</h3>
           <Field label="Reason" hint={form.leaveType === 'Sick' ? 'Seen only by you, your approvers and HR.' : 'Optional.'}>
             <textarea rows={2} className={inputCls} value={form.reason} onChange={(e) => set({ reason: e.target.value })} placeholder="Reason" />

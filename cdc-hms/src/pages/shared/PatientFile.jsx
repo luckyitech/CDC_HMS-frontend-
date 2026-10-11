@@ -46,6 +46,9 @@ import { useDraftContext } from "../../contexts/DraftContext";
 import DraftChecklistModal from "../../components/shared/DraftChecklistModal";
 import DraftLeaveGuard from "../../components/shared/DraftLeaveGuard";
 import RemoteRequestPanel from "../../components/doctor/RemoteRequestPanel";
+import HistologyRequestList from "../../components/histology/HistologyRequestList";
+import useClinicModules from "../../hooks/useClinicModules";
+import { canRecordHistology } from "../../utils/permissions";
 import { Phone } from "lucide-react";
 
 const fmtDate = (d) => {
@@ -132,8 +135,15 @@ const ROLE_CONFIG = {
 // it's always available to every role that can see the patient file.
 // `initialSub` lets a deep link land on one sub-tab (the consultation's Glucose
 // card opens Charts here via location.state.diagnosticsSub).
+// "Histology / cytology" (7 Oct 2026) shows while the clinic has that module
+// on, for those who read the clinical record: every request with its result,
+// so a report that arrives after the visit is entered here.
 const DiagnosticsTab = ({ patient, initialSub = "documents", onEmailDocument = null }) => {
   const [sub, setSub] = useState(initialSub);
+  const { currentUser } = useUserContext();
+  const { modules } = useClinicModules();
+  const showHistology = !!modules.histology && !!currentUser
+    && (["doctor", "nurse", "admin"].includes(currentUser.role) || hasPermission(currentUser, PERMISSIONS.CLINICAL_VIEW));
   return (
     <div>
       <SwitcherTabs
@@ -145,12 +155,19 @@ const DiagnosticsTab = ({ patient, initialSub = "documents", onEmailDocument = n
           { id: "ultrasound", label: "Radiology" },
           { id: "neuropathy", label: "Neuropathy" },
           { id: "charts", label: "Sugars" },
+          ...(showHistology ? [{ id: "histology", label: "Histology / cytology" }] : []),
         ]}
       />
       {sub === "documents" && <MedicalDocumentsTab patient={patient} onEmailDocument={onEmailDocument} />}
       {sub === "ultrasound" && <UltrasoundTab patient={patient} />}
       {sub === "neuropathy" && <NeuropathyStudyList patient={patient} />}
       {sub === "charts" && <GlucoseManagementCentre patient={patient} />}
+      {sub === "histology" && showHistology && (
+        <HistologyRequestList
+          uhid={patient?.uhid}
+          canWrite={canRecordHistology(currentUser) && !patient?.mergedIntoUhid}
+        />
+      )}
     </div>
   );
 };
@@ -209,10 +226,10 @@ const InfoRow = ({ label, value, valueClass = "text-gray-800", action = null }) 
 
 const OverviewPanel = ({ patient, onEmailPatient = null }) => (
   <div className="space-y-6">
-    <PatientSummaryCard patient={patient} shadow={false} />
+    <PatientSummaryCard patient={patient} />
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card title="Personal Information" shadow={false} className="border border-gray-100">
+      <Card title="Personal Information">
         <div className="space-y-3">
           <InfoRow label="Full Name" value={patient.name} />
           <InfoRow label="UHID" value={patient.uhid} valueClass="text-primary" />
@@ -231,7 +248,7 @@ const OverviewPanel = ({ patient, onEmailPatient = null }) => (
         </div>
       </Card>
 
-      <Card title="Medical Information" shadow={false} className="border border-gray-100">
+      <Card title="Medical Information">
         <div className="space-y-3">
           <InfoRow label="Diagnosis" value={patient.diagnosis} />
           <InfoRow label="Diagnosis Date" value={fmtDate(patient.diagnosisDate)} />
@@ -244,7 +261,7 @@ const OverviewPanel = ({ patient, onEmailPatient = null }) => (
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <Card title="Emergency Contact" shadow={false} className="border border-gray-100">
+      <Card title="Emergency Contact">
         {patient.emergencyContact?.name ? (
           <div className="space-y-3">
             <InfoRow label="Name" value={patient.emergencyContact.name} />
@@ -256,7 +273,7 @@ const OverviewPanel = ({ patient, onEmailPatient = null }) => (
         )}
       </Card>
 
-      <Card title="Insurance & Payment" shadow={false} className="border border-gray-100">
+      <Card title="Insurance & Payment">
         {patient.insurance?.provider ? (
           <div className="space-y-3">
             <InfoRow label="Provider" value={patient.insurance.provider} />
@@ -269,14 +286,14 @@ const OverviewPanel = ({ patient, onEmailPatient = null }) => (
       </Card>
     </div>
 
-    <Card title="Allergies" shadow={false} className="border border-gray-100">
+    <Card title="Allergies">
       <div className="p-3 bg-red-50 border-l-4 border-red-500 rounded">
         <p className="text-sm font-semibold text-red-700">{patient.allergies || "None reported"}</p>
       </div>
     </Card>
 
     {patient.medicalEquipment?.insulinPump?.hasPump && (
-      <Card title="Medical Equipment" shadow={false} className="border border-gray-100">
+      <Card title="Medical Equipment">
         <div className="space-y-4">
           {patient.medicalEquipment.insulinPump.current && (
             <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
@@ -573,8 +590,8 @@ const PatientFile = () => {
       {/* Collapsible name bar — overview lives in the name tag. */}
       <div
         onClick={() => setOverviewOpen((o) => !o)}
-        className={`mb-1 px-4 py-2 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
-          overviewOpen ? "bg-primary border-primary text-white" : "bg-white border-gray-200 hover:bg-blue-50"
+        className={`mb-1 px-4 py-2 rounded-lg border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
+          overviewOpen ? "bg-primary border-primary text-white" : "bg-white border-gray-200 ui-hover"
         }`}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -649,12 +666,12 @@ const PatientFile = () => {
         )}
         {currentTab === "user-management" && (
           <div className="space-y-6">
-            <Card title="Barcode" shadow={false} className="border border-gray-100">
+            <Card title="Barcode">
               <p className="text-sm text-gray-500 mb-3">Scan or print this patient's identification barcode.</p>
               <BarcodeActions patient={patient} />
             </Card>
             {(cfg.canEditPatient || cfg.canEditVitals) && (
-              <Card title="Profile" shadow={false} className="border border-gray-100">
+              <Card title="Profile">
                 <p className="text-sm text-gray-500 mb-3">Edit this patient's details and recorded vitals.</p>
                 <div className="flex flex-wrap gap-2">
                   {cfg.canEditPatient && (
@@ -671,7 +688,7 @@ const PatientFile = () => {
               </Card>
             )}
             {cfg.canManageAccount && (
-              <Card title="Account" shadow={false} className="border border-gray-100">
+              <Card title="Account">
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={resetPassword} className="flex items-center gap-1.5 px-3 py-2 text-sm">
                     <KeyRound className="w-4 h-4" /> Reset password

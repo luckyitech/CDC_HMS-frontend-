@@ -7,6 +7,7 @@ import Spinner from "../shared/Spinner";
 import StockDashboardTab from "./StockDashboardTab";
 import StockReportsTab from "./StockReportsTab";
 import { StatCard, MovementBadge, ByLine } from "./stockUi";
+import Card from "../shared/Card";
 
 // Inventory Analytics — the merged command centre. Replaces the old separate
 // Dashboard and Reports tabs (PRD: Executive → Operational → Interactive
@@ -28,16 +29,11 @@ const BarRow = ({ label, value, max, tone = "bg-primary", suffix }) => (
   </div>
 );
 
+// The app's one box (Card), with an optional icon and an action on the right.
 const Panel = ({ title, icon: Icon, children, action }) => (
-  <div className="bg-white border border-gray-200 rounded-xl p-4">
-    <div className="flex items-center justify-between mb-3">
-      <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-        {Icon && <Icon className="w-4 h-4 text-gray-400" />}{title}
-      </h4>
-      {action}
-    </div>
+  <Card actions={action} title={<span className="flex items-center gap-2">{Icon && <Icon className="w-4 h-4 text-gray-400" />}{title}</span>}>
     {children}
-  </div>
+  </Card>
 );
 
 const StockAnalyticsTab = () => {

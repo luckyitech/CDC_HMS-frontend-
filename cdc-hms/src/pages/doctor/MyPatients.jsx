@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import SelectMenu from '../../components/shared/SelectMenu';
+import Pagination from '../../components/shared/Pagination';
 import { useNavigate } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
@@ -78,7 +80,7 @@ const MyPatients = ({ basePath = "/doctor" }) => {
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Filter by Risk Level</label>
-            <select
+            <SelectMenu
               value={filterRisk}
               onChange={e => setFilterRisk(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
@@ -87,7 +89,7 @@ const MyPatients = ({ basePath = "/doctor" }) => {
               <option value="high">High Risk</option>
               <option value="medium">Medium Risk</option>
               <option value="low">Low Risk</option>
-            </select>
+            </SelectMenu>
           </div>
         </div>
       </Card>
@@ -147,18 +149,18 @@ const MyPatients = ({ basePath = "/doctor" }) => {
             {/* Table — desktop */}
             <div className="hidden xl:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <thead className="ui-thead">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age/Gender</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Next Visit</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
+                    <th className="px-6 py-3 text-left">UHID</th>
+                    <th className="px-6 py-3 text-left">Name</th>
+                    <th className="px-6 py-3 text-left">Age/Gender</th>
+                    <th className="px-6 py-3 text-left">Next Visit</th>
+                    <th className="px-6 py-3 text-left">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {patients.map((patient) => (
-                    <tr key={patient.id} className="hover:bg-blue-50 transition">
+                    <tr key={patient.id} className="ui-hover transition">
                       <td className="px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                       <td className="px-6 py-4">
                         <p className="font-semibold text-gray-800">{patient.name}</p>
@@ -192,45 +194,8 @@ const MyPatients = ({ basePath = "/doctor" }) => {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-500">
-                {total === 0 ? "No results" : `Showing ${from}–${to} of ${total} patients`}
-              </p>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Prev
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-                  .map((p, idx, arr) => (
-                    <div key={p} className="flex items-center gap-1">
-                      {idx > 0 && arr[idx - 1] !== p - 1 && (
-                        <span className="px-2 text-gray-400">…</span>
-                      )}
-                      <button
-                        onClick={() => setPage(p)}
-                        className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${
-                          p === page ? "bg-primary text-white border-primary" : "border-gray-300 text-gray-700 hover:bg-blue-50"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    </div>
-                  ))
-                }
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage}
+              summary={total === 0 ? "No results" : `Showing ${from}–${to} of ${total} patients`} />
           </>
         )}
       </Card>

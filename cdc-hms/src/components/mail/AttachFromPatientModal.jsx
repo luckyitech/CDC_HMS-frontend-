@@ -140,7 +140,7 @@ const AttachFromPatientModal = ({ isOpen, onClose, onAttach, budget, alreadyIds,
                         <button
                           type="button" onClick={() => openPreview(d)}
                           aria-label={`Preview ${d.testType || d.fileName}`} aria-pressed={preview?.id === d.id}
-                          className="mr-2 inline-flex flex-shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-primary hover:bg-blue-50"
+                          className="mr-2 inline-flex flex-shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-primary ui-hover"
                         >
                           <Eye className="h-3.5 w-3.5" /> {preview?.id === d.id ? 'Hide' : 'Preview'}
                         </button>

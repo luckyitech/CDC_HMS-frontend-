@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart2, Stethoscope, Users, Clock, ChevronRight } from 'lucide-react';
+import { Stethoscope, Users, Clock, ChevronRight } from 'lucide-react';
 import analyticsService from '../../../services/analyticsService';
 import StatCard from '../../../components/shared/StatCard';
+import PageHeader from '../../../components/shared/PageHeader';
 
 const SECTIONS = [
   {
@@ -62,11 +63,7 @@ export default function AnalyticsOverview() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <BarChart2 className="text-blue-600" size={26} />
-          Analytics
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">Clinic performance overview — {CURRENT_YEAR}</p>
+        <PageHeader title="Analytics" subtitle={`Clinic performance overview — ${CURRENT_YEAR}`} className="mb-0" />
       </div>
 
       {/* Summary stat cards */}
@@ -87,7 +84,7 @@ export default function AnalyticsOverview() {
               <button
                 key={s.path}
                 onClick={() => navigate(s.path)}
-                className="bg-white rounded-xl shadow-md p-6 text-left hover:shadow-lg transition-all duration-200 group border border-gray-100 hover:border-blue-200"
+                className="ui-surface p-6 text-left transition-colors duration-200 group hover:border-blue-300"
               >
                 <div className={`inline-flex p-3 rounded-xl ${s.iconBg} mb-4`}>
                   <Icon size={24} className={s.iconColor} />

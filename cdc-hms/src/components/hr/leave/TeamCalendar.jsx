@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import SelectMenu from '../../shared/SelectMenu';
 import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import leaveService from '../../../services/leaveService';
 import Spinner from '../../shared/Spinner';
@@ -74,13 +75,13 @@ const TeamCalendar = () => {
   const clashLines = useMemo(() => collapseClashes(data?.clashes), [data]);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className="ui-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <h3 className="text-base font-semibold text-gray-800">{monthLabel(month)}</h3>
         <div className="flex items-center gap-2">
-          <select value={cadre} onChange={(e) => setCadre(e.target.value)} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" aria-label="Cadre">
+          <SelectMenu value={cadre} onChange={(e) => setCadre(e.target.value)} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" aria-label="Cadre">
             {CADRES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </SelectMenu>
           <button type="button" aria-label="Previous month" className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50" onClick={() => setMonth((m) => shiftMonth(m, -1))}><ChevronLeft className="w-4 h-4" /></button>
           <button type="button" aria-label="Next month" className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50" onClick={() => setMonth((m) => shiftMonth(m, 1))}><ChevronRight className="w-4 h-4" /></button>
         </div>

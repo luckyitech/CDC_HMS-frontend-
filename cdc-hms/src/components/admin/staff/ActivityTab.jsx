@@ -80,7 +80,7 @@ const ActivityTab = ({ employeeId, staffName }) => {
   const shown = typeFilter ? timeline.filter((a) => a.type === typeFilter.type) : timeline;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="ui-surface p-5">
       {/* Header + date filter */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
@@ -98,7 +98,7 @@ const ActivityTab = ({ employeeId, staffName }) => {
           {(fromDate || toDate) && (
             <button
               onClick={() => { setFromDate(''); setToDate(''); }}
-              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-blue-50"
+              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg ui-hover"
             >
               Clear
             </button>
@@ -168,7 +168,7 @@ const ActivityTab = ({ employeeId, staffName }) => {
           </p>
         </div>
         <table className="w-full text-sm">
-          <thead>
+          <thead className="ui-thead">
             <tr className="text-left border-b border-gray-300">
               <th className="py-1 pr-3">Time</th><th className="py-1 pr-3">Activity</th><th className="py-1 pr-3">Patient</th><th className="py-1">Detail</th>
             </tr>

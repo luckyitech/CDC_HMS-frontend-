@@ -24,7 +24,7 @@ export default function InpatientAdmissions() {
   useEffect(() => { load(); }, [load]);
 
   return (
-    <div className="p-4 sm:p-6">
+    <div>
       <PageHeader
         title={<span className="flex items-center gap-2"><BedDouble className="w-5 h-5 text-primary" /> Admissions awaiting bed</span>}
       />
@@ -33,7 +33,7 @@ export default function InpatientAdmissions() {
 
       <div className="space-y-2">
         {items.map((q) => (
-          <div key={q.id} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3">
+          <div key={q.id} className="ui-surface flex items-center justify-between p-3">
             <div>
               <p className="font-medium">{q.name} <span className="text-gray-400 text-sm">· {q.uhid}</span></p>
               <p className="text-xs text-gray-500">

@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom"; // Add useLocation
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import useSessionTimeout from "../hooks/useSessionTimeout";
 import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import { useEffect } from "react"; // TODO: restore when notifications are implemented
@@ -8,7 +8,9 @@ import { useUserContext } from "../contexts/UserContext";
 import { canOpenHrSettings } from "../components/hr/settings/settingsTabs";
 import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canUseSelfService, canApproveLeave, canViewAllLeave, canApproveProfileChanges, canVerifyCpd, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, canRunAppraisals, canReadAppraisals, isHrStaff, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
-import NotificationBell from "../components/shared/NotificationBell";
+import "./sidebar.css";
+import ProfileMenu from "../components/shared/ProfileMenu";
+import { PageHeaderSlotContext } from "../components/shared/pageHeaderSlot";
 import {
   LayoutDashboard,
   Search,
@@ -41,9 +43,9 @@ import {
   // CheckCircle, // TODO: notifications
   // Info,        // TODO: notifications
   // AlertCircle, // TODO: notifications
-  LogOut,
   ShieldCheck,
   ChevronDown,
+  ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
   Copy,
@@ -58,7 +60,6 @@ import {
   Clock,
   TreePalm,
   UserCheck,
-  UserRound,
   ClipboardCheck,
   BarChart3,
   ListChecks,
@@ -75,7 +76,6 @@ import { APPRAISALS_CHANGED } from "../components/hr/appraisals/appraisalFormat"
 import { PROFILE_REQUESTS_CHANGED } from "../components/hr/hrFormat";
 import hrService from "../services/hrService";
 import MailNudge from "../components/mail/MailNudge";
-import StaffAvatar from "../components/hr/profile/StaffAvatar";
 
 const MainLayout = ({ userRole = "Staff" }) => {
   const navigate = useNavigate();
@@ -92,14 +92,58 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // Effective visual state: a pinned-collapsed rail looks expanded while hovered.
   const isCollapsed = collapsed && !hovered;
   const [portalSwitcherOpen, setPortalSwitcherOpen] = useState(false);
-  // Profile footer — the action icons (bell, logout, …) stay hidden behind the
-  // profile row; the chevron (or the avatar, in the collapsed rail) reveals them.
-  const [profileOpen, setProfileOpen] = useState(false);
-  // Collapsing the sidebar (pinning it, or the hover-expand ending) tucks the
-  // profile menu away too — the rail always returns to just the avatar.
+
+  // ── Temporary opening (11 Oct 2026, phones and tablets) ────────────────────
+  // The sidebar is "temporarily open" when the phone drawer is open, or when a
+  // collapsed rail is expanded without being pinned. With a mouse, hovering
+  // does that and leaving undoes it. On touch there is no "leaving", so it got
+  // stuck open. Now a temporary opening closes when:
+  //   · anything outside the sidebar is touched or clicked (or Escape);
+  //   · something in the sidebar is chosen (on touch — a mouse is still over it);
+  //   · nothing happens inside it for SIDEBAR_IDLE_MS.
+  // A pinned sidebar is never closed by any of these.
+  const SIDEBAR_IDLE_MS = 6000;
+  const asideRef = useRef(null);
+  const pointerRef = useRef("mouse"); // the kind of pointer last used on the sidebar
+  // Close the drawer and the flyout, and a touch-expanded rail (a mouse-hovered
+  // rail closes itself when the pointer leaves). `force` also closes a
+  // mouse-hovered rail — used for a click outside the sidebar.
+  const closeTemporary = useCallback((force = false) => {
+    setSidebarOpen(false);
+    setPortalSwitcherOpen(false);
+    if (force || pointerRef.current !== "mouse") setHovered(false);
+  }, []);
   useEffect(() => {
-    if (isCollapsed) setProfileOpen(false);
-  }, [isCollapsed]);
+    if (!sidebarOpen && !portalSwitcherOpen && !(collapsed && hovered)) return undefined;
+    // The phone's hamburger toggles the drawer itself — don't fight it.
+    const onDown = (e) => {
+      if (asideRef.current?.contains(e.target) || e.target.closest?.("[data-sidebar-toggle]")) return;
+      closeTemporary(true);
+    };
+    const onKey = (e) => { if (e.key === "Escape") closeTemporary(true); };
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [sidebarOpen, portalSwitcherOpen, collapsed, hovered, closeTemporary]);
+  // Idle close — only for the touch openings; a mouse resting on the rail
+  // keeps it open on purpose.
+  useEffect(() => {
+    const touchExpanded = collapsed && hovered && pointerRef.current !== "mouse";
+    if (!sidebarOpen && !touchExpanded) return undefined;
+    const aside = asideRef.current;
+    let timer;
+    const arm = () => { clearTimeout(timer); timer = setTimeout(() => closeTemporary(), SIDEBAR_IDLE_MS); };
+    const events = ["pointerdown", "scroll", "wheel", "keydown", "focusin"];
+    arm();
+    events.forEach((ev) => aside?.addEventListener(ev, arm, true));
+    return () => {
+      clearTimeout(timer);
+      events.forEach((ev) => aside?.removeEventListener(ev, arm, true));
+    };
+  }, [sidebarOpen, collapsed, hovered, closeTemporary]);
 
   const toggleCollapsed = () => {
     // Any collapse/expand of the rail closes the portal dropdown — the narrow icon
@@ -238,7 +282,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // lets read their own record (routes/hrSelf.js SELF: every staff role,
   // withdrawable per person). Patients and anyone withdrawn keep the old toggle.
   const hasMyProfile = currentUser?.role !== 'patient' && canUseSelfService(currentUser);
-  const openMyProfile = () => { setSidebarOpen(false); navigate('/hr/me'); };
+  const openMyProfile = () => { closeTemporary(); navigate('/hr/me'); };
 
   const refreshInboxCount = useCallback(() => {
     commsService.badge()
@@ -434,15 +478,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // so the two concerns no longer share a single click.
   const handleLogoClick = () => {
     navigate(`/${userRole.toLowerCase()}/dashboard`);
-    setSidebarOpen(false);
-    setPortalSwitcherOpen(false);
+    closeTemporary();
   };
 
   // The Meta-style switcher pill toggles the portal dropdown. Opening it collapses
   // any open nav group (single-open accordion).
   const togglePortalSwitcher = () => {
     setPortalSwitcherOpen((open) => !open);
-    setOpenGroups({});
   };
   // const [notificationsOpen, setNotificationsOpen] = useState(false); // TODO: notifications
   // const [doctorApptCount, setDoctorApptCount] = useState(0); // TODO: notifications
@@ -477,13 +519,49 @@ const MainLayout = ({ userRole = "Staff" }) => {
     navigate("/");
   };
 
-  // Display name + initials for the sidebar user footer (moved out of the old topbar)
+  // Display name for the profile menu.
   const displayName = currentUser?.name || `${userRole} User`;
-  const initials = (
-    currentUser?.name
-      ? currentUser.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("")
-      : userRole[0]
-  ).toUpperCase();
+
+  // ── Profile menu (11 Oct 2026) ─────────────────────────────────────────────
+  // The round avatar + chevron, top right: My profile · Notifications ·
+  // (Switch workspace) · Sign out. It replaced the profile row and icon strip
+  // in the sidebar footer. Desktop: on each portal's home page only (dashboard
+  // / ward board), in the first row's right-hand corner. Phones: in the slim
+  // top bar on every page — that bar already exists, so it costs nothing.
+  const isHomePage = /^\/[a-z-]+\/(dashboard|inpatient-board|board)\/?$/.test(location.pathname);
+  // HMIS V3 workspace switcher, moved here from the footer. Nurses use it in
+  // both directions; anyone inside /inpatient/* needs it to get back out
+  // (the inpatient portal has no dashboard tabs and one sidebar entry, and the
+  // ward board — this portal's home — shows the menu).
+  const inInpatient = userRole.toLowerCase() === "inpatient";
+  const workspaceSwitch = currentUser?.role === "nurse" || inInpatient
+    ? {
+        label: inInpatient ? "Go to Outpatient" : "Go to Inpatient",
+        // Back to the user's own portal home, whoever they are.
+        onClick: () => navigate(inInpatient ? `/${currentUser?.role || "staff"}/dashboard` : "/inpatient/board"),
+      }
+    : null;
+  const myProfileAction = hasMyProfile
+    ? openMyProfile
+    : currentUser?.role === "patient"
+      ? () => navigate("/patient/profile")
+      : null;
+  const renderProfileMenu = (size = "md") => (
+    <ProfileMenu
+      userRole={userRole}
+      name={displayName}
+      showPhoto={hasMyProfile}
+      onMyProfile={myProfileAction}
+      workspaceSwitch={workspaceSwitch}
+      onSignOut={handleLogout}
+      size={size}
+    />
+  );
+  // Where the desktop menu goes on a home page: beside the dashboard tabs when
+  // the page has them (that row is the top of the page), otherwise at the right
+  // end of the page's title row (PageHeader reads it from context).
+  const menuBesideTabs = isHomePage && !!pageTabs;
+  const headerSlot = isHomePage && !pageTabs ? renderProfileMenu() : null;
 
   // TODO: implement real notifications — mock data preserved below for reference
   // const getNotifications = () => { ... };
@@ -677,6 +755,85 @@ const MainLayout = ({ userRole = "Staff" }) => {
     )
   );
 
+  // ── Portal switcher choices ───────────────────────────────────────────────
+  // Every portal the user can switch to. Normally the portal you're in is
+  // hidden — but Stocks is a sub-page OF a portal, so on a stock route the base
+  // portal is NOT where you are and must stay listed, otherwise it looks like
+  // the portal vanished. Stocks is the current destination on a stock route,
+  // so drop it there — unless it's the only thing the switcher can offer (a
+  // stock-only user who can't switch portals), where hiding it leaves an
+  // empty menu.
+  const portalChoices = [
+    ...openablePortalOptions.filter(({ path }) => onStockRoute || !path.startsWith(`/${userRole.toLowerCase()}/`)),
+    ...(!onStockRoute || !canSwitchPortal ? stockModule : []),
+  ];
+  // Desktop (11 Oct 2026): the switcher opens as a glass flyout to the RIGHT
+  // of the sidebar instead of inside it. It is a child of the <aside>, so
+  // moving the pointer into it doesn't count as leaving the sidebar (the
+  // hover-expanded rail stays open).
+  const choosePortal = (path) => {
+    navigate(path);
+    closeTemporary();
+  };
+  // The portal choices — ONE list for both places it opens: the desktop flyout,
+  // and on phones inside the switcher's own island, which grows downward and
+  // pushes the menu island down until a portal is chosen (Emu, 11 Oct 2026).
+  // Left alone it folds with the drawer's idle close (SIDEBAR_IDLE_MS).
+  const portalList = portalChoices.map(({ label, path, icon: Icon }) => (
+    <button
+      key={path}
+      type="button"
+      role="menuitem"
+      data-nav-path={path}
+      onClick={() => choosePortal(path)}
+      className="relative z-[1] w-full px-2 py-0.5 text-left"
+    >
+      <span className="flex items-center gap-3 sb-round px-3 py-2.5 text-sm font-medium sb-text sb-hover transition-colors">
+        <span className="w-7 h-7 flex-shrink-0 rounded-full sb-disc flex items-center justify-center">
+          <Icon size={16} className="sb-icon" />
+        </span>
+        {label}
+      </span>
+    </button>
+  ));
+
+  // ── Selection lens (Floating islands, 11 Oct 2026) ──────────────────────
+  // One glass capsule behind the active menu item, moved by measuring the
+  // item (data-sb-active) inside the scrolling <nav>. Re-measured whenever the
+  // nav or any slot changes size — the rail widening on hover, a group
+  // opening, the portal list dropping down — via a ResizeObserver, so it
+  // tracks those animations. Hidden when the current page isn't in the menu.
+  // The first placement skips the glide so a page load doesn't animate in.
+  const navRef = useRef(null);
+  const navLensRef = useRef(null);
+  const lensPlacedRef = useRef(false);
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const lens = navLensRef.current;
+    if (!nav || !lens) return undefined;
+    const place = () => {
+      const slot = nav.querySelector('[data-sb-active="true"]');
+      if (!slot) { lens.style.opacity = "0"; return; }
+      const n = nav.getBoundingClientRect();
+      const r = slot.getBoundingClientRect();
+      if (!lensPlacedRef.current) lens.style.transition = "none";
+      lens.style.width = `${r.width}px`;
+      lens.style.height = `${r.height}px`;
+      lens.style.transform = `translate(${r.left - n.left}px, ${r.top - n.top + nav.scrollTop}px)`;
+      lens.style.opacity = "1";
+      if (!lensPlacedRef.current) {
+        lensPlacedRef.current = true;
+        requestAnimationFrame(() => { lens.style.transition = ""; });
+      }
+    };
+    place();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(place);
+    ro.observe(nav);
+    nav.querySelectorAll("[data-sb-slot]").forEach((el) => ro.observe(el));
+    return () => ro.disconnect();
+  });
+
   // Single-open accordion: opening one nav dropdown closes the others (and the
   // portal switcher, which is itself a nav dropdown). See DRY-GUIDELINES §4f.
   const toggleGroup = (name) => {
@@ -698,8 +855,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
         data-nav-path={item.path}
         onClick={() => {
           navigate(item.path);
-          setSidebarOpen(false);
-          setPortalSwitcherOpen(false);
+          closeTemporary();
         }}
         title={item.name}
         className={`
@@ -708,30 +864,26 @@ const MainLayout = ({ userRole = "Staff" }) => {
           transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
         `}
       >
-        {/* Filled rounded slot — Meta-style active/hover highlight. A centered
-            square in the icon rail, a full-width pill when the rail is expanded. */}
+        {/* Rounded slot — a centered square in the icon rail, a full-width
+            pill when the rail is expanded. The active slot carries no fill of
+            its own: the glass lens (navLensRef) glides behind it. */}
         <span
+          data-sb-slot=""
+          data-sb-active={isActive ? "true" : undefined}
           className={`
-            relative flex items-center rounded-xl transition-colors duration-200
+            relative z-[1] flex items-center sb-round transition-colors duration-200
             ${isCollapsed ? "md:w-10 md:h-10 md:justify-center md:p-0 w-full px-3 py-2.5" : "w-full px-3 py-2.5"}
             ${
               isActive
-                ? "bg-white/15 text-white" // ← ACTIVE STATE (filled rounded slot)
-                : "text-blue-200 hover:bg-white/10 hover:text-white" // ← INACTIVE STATE
+                ? "sb-active" // ← ACTIVE STATE (the lens sits behind it)
+                : "sb-text sb-hover" // ← INACTIVE STATE (colours: sidebar.css)
             }
           `}
         >
           <IconComponent
             size={nested ? 18 : 20}
             strokeWidth={2}
-            className={`
-              flex-shrink-0 transition-colors
-              ${
-                isActive
-                  ? "text-white" // ← ACTIVE ICON COLOR
-                  : "text-blue-200 group-hover:text-white" // ← INACTIVE ICON COLOR
-              }
-            `}
+            className="flex-shrink-0 transition-colors sb-icon"
           />
           <span
             className={`
@@ -759,12 +911,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
           {item.badge > 0 && (
             <>
               <span
-                className={`ml-auto min-w-[1.35rem] h-5 px-1.5 rounded-full bg-secondary text-[#062a2b] text-[11px] font-extrabold flex items-center justify-center ${isCollapsed ? "md:hidden" : ""}`}
+                className={`ml-auto min-w-[1.35rem] h-5 px-1.5 rounded-full sb-badge text-[11px] font-extrabold flex items-center justify-center ${isCollapsed ? "md:hidden" : ""}`}
               >
                 {item.badge > 99 ? "99+" : item.badge}
               </span>
               <span
-                className={`hidden ${isCollapsed ? "md:block" : ""} absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-secondary ring-2 ring-[#0b2233]`}
+                className={`hidden ${isCollapsed ? "md:block" : ""} absolute top-1.5 right-1.5 w-2 h-2 rounded-full sb-dot`}
               />
             </>
           )}
@@ -795,16 +947,14 @@ const MainLayout = ({ userRole = "Staff" }) => {
         >
           <span
             className={`
-              flex items-center w-full rounded-xl px-3 py-2.5 transition-colors duration-200
-              ${hasActiveChild ? "bg-white/15 text-white" : "text-blue-200 hover:bg-white/10 hover:text-white"}
+              flex items-center w-full sb-round px-3 py-2.5 transition-colors duration-200
+              ${hasActiveChild ? "sb-group-active" : "sb-text sb-hover"}
             `}
           >
             <GroupIcon
               size={20}
               strokeWidth={2}
-              className={`flex-shrink-0 transition-colors ${
-                hasActiveChild ? "text-white" : "text-blue-200 group-hover:text-white"
-              }`}
+              className="flex-shrink-0 transition-colors sb-icon"
             />
             <span
               className={`ml-3 flex-1 text-left font-medium text-base whitespace-nowrap ${
@@ -815,7 +965,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
             </span>
             <ChevronDown
               size={16}
-              className={`flex-shrink-0 text-blue-200 transition-transform duration-200 ${
+              className={`flex-shrink-0 sb-muted transition-transform duration-200 ${
                 isOpen ? "rotate-180" : ""
               }`}
             />
@@ -830,41 +980,59 @@ const MainLayout = ({ userRole = "Staff" }) => {
   };
 
   return (
-    <div className="app-shell safe-x flex bg-gray-50 overflow-hidden">
-      {/* Mobile Overlay */}
+    <div className="app-shell app-canvas safe-x flex overflow-hidden">
+      {/* Phones: a clear tap-catcher behind the open drawer — a tap outside it
+          closes it without also pressing whatever is underneath. No tint: the
+          islands' own cast shadow (sidebar.css --sb-glass-shadow) lifts the
+          panel. The top bar sits above it, so its hamburger (now an X) still
+          works. */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          className="fixed inset-0 z-20 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar — fixed overlay on desktop so hover-expand floats over content.
-          Now a full-height flex column: header · nav · user/actions footer. */}
+          "Floating islands" (11 Oct 2026): three separate pieces of glass —
+          brand + portal switcher · menu · pin button — with gaps between them
+          (styles in ./sidebar.css). The aside itself is transparent. */}
       <aside
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => {
+        ref={asideRef}
+        // Hover-to-expand is for a mouse only; a touch tap on the rail's empty
+        // space expands it instead (onClick) — see "Temporary opening" above.
+        onPointerDown={(e) => { pointerRef.current = e.pointerType; }}
+        onPointerEnter={(e) => { if (e.pointerType === "mouse") { pointerRef.current = "mouse"; setHovered(true); } }}
+        onPointerLeave={(e) => {
+          if (e.pointerType !== "mouse") return;
           setHovered(false);
           // Leaving a pinned-collapsed rail shrinks it back to icons — close the
           // portal dropdown so it doesn't linger clipped in the narrow rail.
           if (collapsed) setPortalSwitcherOpen(false);
         }}
+        onClick={(e) => {
+          if (pointerRef.current !== "mouse" && collapsed && !hovered && !e.target.closest("button, a")) setHovered(true);
+        }}
         className={`
         ${sidebarOpen ? "translate-x-0" : "-translate-x-[calc(100%+1.5rem)] md:translate-x-0"}
-        fixed top-[calc(1rem+env(safe-area-inset-top,0px))] bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] z-30 flex flex-col overflow-hidden rounded-[20px]
+        fixed top-[calc(4.75rem+env(safe-area-inset-top,0px))] md:top-[calc(1rem+env(safe-area-inset-top,0px))] bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] z-30 flex flex-col gap-2.5
         w-72 ${isCollapsed ? "md:w-16" : "md:w-72"}
-        bg-gradient-to-b from-blue-600 to-blue-800 text-white
-        transition-[width,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-2xl
+        sb-white
+        transition-[width,transform] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
       `}
       >
-        <div className={`relative px-6 pt-6 transition-[padding] duration-200 ${canOpenSwitcher ? "pb-3" : "pb-6"} ${isCollapsed ? "md:p-2" : ""} flex items-center justify-between ${isCollapsed ? "md:justify-center" : ""}`}>
+        {/* ── Island 1: brand + portal switcher ──
+            Phones: the brand row is hidden (the top bar already shows it), so
+            the island holds only the switcher, or is hidden when there is none. */}
+        <div className={`sb-island flex-none ${canOpenSwitcher ? "" : "hidden md:block"}`}>
+        <div className={`relative px-3 pt-3 transition-[padding] duration-200 ${canOpenSwitcher ? "pb-2" : "pb-3"} ${isCollapsed ? "md:px-0" : ""} hidden md:flex items-center justify-between ${isCollapsed ? "md:justify-center" : ""}`}>
           {/* LEFT SIDE — Logo + brand. A plain shortcut back to the dashboard; portal
               switching now lives in the pill below (see the switcher pill). */}
           <button
             type="button"
             onClick={handleLogoClick}
             title="Go to dashboard"
-            className={`flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl px-3 py-2 transition hover:bg-blue-700/40 ${isCollapsed ? "md:flex-none md:justify-center md:px-0" : ""}`}
+            className={`flex items-center gap-3 flex-1 min-w-0 text-left sb-round px-2 py-1.5 transition sb-hover ${isCollapsed ? "md:flex-none md:justify-center md:px-0" : ""}`}
           >
             {/* Logo */}
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg p-1.5 flex-shrink-0">
@@ -878,17 +1046,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
             <div className={`min-w-0 ${isCollapsed ? "md:hidden" : ""}`}>
               <h2 className="text-xl font-bold truncate">CDC HMS</h2>
               {!canOpenSwitcher && (
-                <p className="text-xs text-blue-200 mt-0.5 truncate">{userRole} Portal</p>
+                <p className="text-xs sb-muted mt-0.5 truncate">{userRole} Portal</p>
               )}
             </div>
-          </button>
-
-          {/* RIGHT SIDE - Close Button (Mobile) */}
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden ml-2 text-white hover:bg-blue-700 p-2 rounded-lg flex-shrink-0"
-          >
-            <X size={20} />
           </button>
 
         </div>
@@ -898,7 +1058,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
             the rail is expanded; a single centered icon button in the icon rail.
             Only rendered for users who can actually switch (or stock users). */}
         {canOpenSwitcher && (
-          <div className={`px-4 pb-3 ${isCollapsed ? "md:px-0 md:flex md:justify-center" : ""}`}>
+          <div className={`px-3 pb-3 pt-3 md:pt-0 ${isCollapsed ? "md:px-0 md:flex md:justify-center" : ""}`}>
             <button
               type="button"
               onClick={togglePortalSwitcher}
@@ -906,158 +1066,70 @@ const MainLayout = ({ userRole = "Staff" }) => {
               aria-haspopup="menu"
               aria-expanded={portalSwitcherOpen}
               className={`
-                w-full flex items-center gap-3 rounded-xl px-3 py-2.5
-                bg-white/10 hover:bg-white/[0.17] border border-white/15 transition-colors
-                ${isCollapsed ? "md:w-10 md:h-10 md:p-0 md:gap-0 md:justify-center md:border-white/10" : ""}
+                w-full flex items-center gap-3 sb-round px-3 py-2.5
+                sb-chip ${portalSwitcherOpen ? "sb-chip-open" : ""}
+                ${isCollapsed ? "md:w-10 md:h-10 md:p-0 md:gap-0 md:justify-center" : ""}
               `}
             >
-              <span className="w-7 h-7 flex-shrink-0 rounded-full bg-white/15 flex items-center justify-center">
-                <SwitcherIcon size={16} className="text-white" />
+              <span className="w-7 h-7 flex-shrink-0 rounded-full sb-disc-on flex items-center justify-center">
+                <SwitcherIcon size={16} className="sb-icon" />
               </span>
-              <span className={`min-w-0 flex-1 text-left text-sm font-medium text-white truncate ${isCollapsed ? "md:hidden" : ""}`}>
+              <span className={`min-w-0 flex-1 text-left text-sm font-medium sb-strong truncate ${isCollapsed ? "md:hidden" : ""}`}>
                 {switcherLabel}
               </span>
               <ChevronDown
                 size={16}
-                className={`flex-shrink-0 text-blue-200 transition-transform duration-200 ${isCollapsed ? "md:hidden" : ""} ${portalSwitcherOpen ? "rotate-180" : ""}`}
+                className={`flex-shrink-0 sb-muted transition-transform duration-200 md:hidden ${portalSwitcherOpen ? "rotate-180" : ""}`}
+              />
+              {/* Desktop: the list opens to the right, so the chevron points there. */}
+              <ChevronRight
+                size={16}
+                className={`hidden flex-shrink-0 sb-muted ${isCollapsed ? "" : "md:block"}`}
               />
             </button>
           </div>
         )}
+        {/* Phones: the list opens inside this island, under the pill. */}
+        {canOpenSwitcher && portalSwitcherOpen && (
+          <div className="md:hidden -mt-1 pb-2" role="menu" aria-label="Switch portal">
+            {portalList}
+          </div>
+        )}
+        </div>
 
-        <nav className="flex-1 overflow-y-auto py-4">
-          {/* Portal switcher — opened from the switcher pill above. Renders inline and
-              pushes the menu down, exactly like the nav group dropdowns (reuses
-              renderLeaf). Negative top margin cancels the nav's top padding so the list
-              sits right under the pill. */}
-          {canOpenSwitcher && portalSwitcherOpen && (
-            <div className="-mt-4">
-              {/* Every portal the user can switch to. Normally the portal you're in
-                  is hidden — but Stocks is a sub-page OF a portal, so on a stock
-                  route the base portal is NOT where you are and must stay listed,
-                  otherwise it looks like the portal vanished. */}
-              {openablePortalOptions
-                .filter(({ path }) => onStockRoute || !path.startsWith(`/${userRole.toLowerCase()}/`))
-                .map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
-              {/* Stocks is the current destination on a stock route, so drop it there
-                  — unless it's the only thing the switcher can offer (a stock-only
-                  user who can't switch portals), where hiding it leaves an empty menu. */}
-              {(!onStockRoute || !canSwitchPortal) &&
-                stockModule.map(({ label, path, icon }) => renderLeaf({ name: label, path, icon }, true))}
+        {/* ── Portal flyout (desktop) — beside the brand island, to the right of
+            the sidebar. pl-2.5 is a transparent bridge over the gap, so the
+            pointer can cross it without leaving the sidebar. ── */}
+        {canOpenSwitcher && portalSwitcherOpen && (
+          <div className="hidden md:block absolute top-0 left-full pl-2.5 z-40">
+            <div className="sb-island sb-flyout w-64 py-2" role="menu" aria-label="Switch portal">
+              <p className="px-4 pt-1 pb-2 text-xs font-medium sb-muted">Open another portal</p>
+              {portalList}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* ── Island 2: the menu ── */}
+        <div className="sb-island flex-1 min-h-0 flex flex-col">
+
+        <nav ref={navRef} className={`relative flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-2 sidebar-scroll ${isCollapsed ? "sb-rail-scroll" : ""}`}>
+          {/* The selection lens — glides to the active item (see navRef effect). */}
+          <div ref={navLensRef} className="sb-lens" style={{ opacity: 0 }} aria-hidden="true" />
           {currentMenu
             .filter((item) => !item.path?.includes("change-password"))
             .map((item) => (item.children ? renderGroup(item) : renderLeaf(item)))}
         </nav>
+        </div>
 
-        {/* ── Footer: everything that used to live in the topbar ──────────── */}
-        <div>
-          {/* Profile row — clicking it (chevron expanded, avatar in the collapsed
-              rail) reveals the action icons below. */}
-          {/* B27 phase 4: the avatar and name open My profile (/hr/me); the
-              chevron still reveals the icons. In the collapsed rail the avatar
-              keeps revealing them, and the stack gains a My profile icon. */}
-          <div className={`w-full flex items-center gap-2 px-4 pt-3 pb-2 ${isCollapsed ? "md:justify-center md:px-0" : ""}`}>
-            <button
-              type="button"
-              onClick={() => (hasMyProfile && !isCollapsed ? openMyProfile() : setProfileOpen((o) => !o))}
-              aria-label={hasMyProfile && !isCollapsed ? "My profile" : "Profile menu"}
-              title={hasMyProfile && !isCollapsed ? "My profile" : undefined}
-              className={`flex items-center gap-2 min-w-0 flex-1 text-left rounded-lg hover:bg-white/5 transition-colors ${isCollapsed ? "md:justify-center md:flex-none" : ""}`}
-            >
-              {hasMyProfile ? (
-                // Own photo when one is set (2 Oct 2026), else the initials.
-                <StaffAvatar self name={displayName}
-                  className="w-9 h-9 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full text-white font-bold text-sm shadow-lg" />
-              ) : (
-                <div className="w-9 h-9 flex-shrink-0 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                  {initials}
-                </div>
-              )}
-              <div className={`min-w-0 flex-1 ${isCollapsed ? "md:hidden" : ""}`}>
-                <p className="font-semibold text-sm text-white truncate">{displayName}</p>
-                <p className="text-xs text-blue-200">{userRole} Portal</p>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setProfileOpen((o) => !o)}
-              aria-expanded={profileOpen}
-              aria-label="Profile menu"
-              className={`p-1 rounded-md text-blue-200 hover:text-white hover:bg-white/10 ${isCollapsed ? "md:hidden" : ""}`}
-            >
-              <ChevronDown className={`w-4 h-4 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
-            </button>
-          </div>
-
-          {/* Action icons — revealed by the profile row; stack in the collapsed rail */}
-          {profileOpen && (
-          <div className={`flex items-center gap-2 px-4 pb-3 ${isCollapsed ? "md:flex-col md:px-0" : ""}`}>
-            <NotificationBell userRole={userRole} />
-            {hasMyProfile && (
-              <button
-                onClick={openMyProfile}
-                title="My profile"
-                aria-label="Open my profile"
-                className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                <UserRound className="w-5 h-5" />
-              </button>
-            )}
-            {/* HMIS V3 — workspace switcher.
-                Nurses use it in both directions. Everyone else reaches the ward
-                board through the Outpatient/Inpatient dashboard tabs — but those
-                tabs do NOT render inside the Inpatient portal, and clicking a bed
-                on the board navigates to /inpatient/admission/:id. Without a way
-                out here, a doctor who opened a bed was stranded: no tabs, no
-                portal switcher (unless admin), and one sidebar entry. So the
-                button is also shown to anyone currently inside /inpatient/*. */}
-            {(currentUser?.role === "nurse" || userRole.toLowerCase() === "inpatient") && (
-              <button
-                onClick={() =>
-                  navigate(
-                    userRole.toLowerCase() === "inpatient"
-                      // Back to the user's own portal home, whoever they are.
-                      ? `/${currentUser?.role || "staff"}/dashboard`
-                      : "/inpatient/board"
-                  )
-                }
-                title={userRole.toLowerCase() === "inpatient" ? "Go to Outpatient" : "Go to Inpatient"}
-                aria-label="Switch workspace"
-                className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                <BedDouble className="w-5 h-5" />
-              </button>
-            )}
-            {userRole.toLowerCase() === "patient" ? (
-              <button
-                onClick={() => navigate("/patient/dashboard")}
-                title="Home"
-                aria-label="Home"
-                className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                <Home className="w-5 h-5" />
-              </button>
-            ) : (
-              <button
-                onClick={handleLogout}
-                title="Logout"
-                aria-label="Logout"
-                className="p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-          )}
-
-          {/* Collapse toggle — desktop only */}
-          <div className="hidden md:block">
+        {/* ── Island 3: the collapse toggle (desktop only). The profile row and
+            its icons (bell, my profile, workspace, logout) moved to the
+            top-right profile menu on 11 Oct 2026 — see renderProfileMenu. */}
+        <div className="sb-island flex-none hidden md:block">
+          <div>
             <button
               onClick={toggleCollapsed}
               title={collapsed ? "Pin sidebar open" : "Collapse sidebar"}
-              className={`w-full flex items-center px-6 py-3 ${isCollapsed ? "justify-center px-0" : ""} text-blue-200 hover:text-white hover:bg-blue-700 transition-all duration-200`}
+              className={`w-full flex items-center px-5 py-3 ${isCollapsed ? "justify-center px-0" : ""} sb-muted sb-hover transition-all duration-200`}
             >
               {/* The panel glyph says what the control acts on, which a bare
                   chevron does not: a rail with the arrow pointing out of it to
@@ -1082,21 +1154,26 @@ const MainLayout = ({ userRole = "Staff" }) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Slim mobile bar — desktop has no top bar at all now.
-            Exists only to open the sidebar drawer on small screens. */}
+        {/* Slim mobile bar — desktop has no top bar at all now. The drawer opens
+            BELOW it (11 Oct 2026), so the hamburger stays visible and turns
+            into the drawer's close button. */}
         <header className="md:hidden fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-[calc(1rem+env(safe-area-inset-left,0px))] right-[calc(1rem+env(safe-area-inset-right,0px))] z-20 h-14 bg-white shadow-lg border border-gray-200 rounded-2xl px-3 flex items-center justify-between">
           <button
+            type="button"
+            data-sidebar-toggle=""
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="text-gray-700 hover:text-primary hover:bg-blue-50 p-2 rounded-lg transition"
+            aria-label={sidebarOpen ? "Close menu" : "Open menu"}
+            aria-expanded={sidebarOpen}
+            className="text-gray-700 hover:text-primary ui-hover p-2 rounded-lg transition"
           >
-            <Menu size={26} />
+            {sidebarOpen ? <X size={26} /> : <Menu size={26} />}
           </button>
           <div className="flex items-center gap-2">
             <img src={logo} alt="CDC" className="w-7 h-7 object-contain" />
             <span className="font-bold text-gray-800">CDC HMS</span>
           </div>
-          {/* Spacer keeps the title centred (bell/actions live in the drawer) */}
-          <span className="w-10" />
+          {/* Profile menu — on phones it lives here, on every page. */}
+          {renderProfileMenu("sm")}
         </header>
 
         {/* Page Content */}
@@ -1104,10 +1181,19 @@ const MainLayout = ({ userRole = "Staff" }) => {
             table must scroll inside its own wrapper, never pan the whole app.
             Top margin clears the fixed mobile bar (+notch); bottom padding
             clears the home-indicator on installed iOS. */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar overscroll-contain px-4 pt-3 lg:px-8 lg:pt-4 bg-gray-50 mt-[calc(4.75rem+env(safe-area-inset-top,0px))] md:mt-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] lg:pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
-          {pageTabs && <PageTabs tabs={pageTabs} />}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar overscroll-contain px-4 pt-3 lg:px-8 lg:pt-4 mt-[calc(4.75rem+env(safe-area-inset-top,0px))] md:mt-0 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] lg:pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
+          {menuBesideTabs ? (
+            <div className="flex items-start justify-between gap-3">
+              <PageTabs tabs={pageTabs} />
+              <div className="hidden md:block">{renderProfileMenu()}</div>
+            </div>
+          ) : (
+            pageTabs && <PageTabs tabs={pageTabs} />
+          )}
           {mailInNav && <MailNudge state={mailState} userId={currentUser?.id} role={homeRole} />}
-          <Outlet />
+          <PageHeaderSlotContext.Provider value={headerSlot}>
+            <Outlet />
+          </PageHeaderSlotContext.Provider>
         </main>
       </div>
 

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ModalOverlay } from './Modal';
 import EmailReportButton from './EmailReportButton';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
@@ -50,7 +51,7 @@ const GlucoseReportPrint = ({ data, patient, unit = 'mmol', sections = [], onClo
   const ctx = { data, m, t, val, unitLabel, unit };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+    <ModalOverlay align="top">
       <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full my-4">
         {/* controls — never printed */}
         <div className="print:hidden sticky top-0 bg-white border-b-2 border-gray-200 p-4 flex justify-between items-center rounded-t-lg z-10">
@@ -100,7 +101,7 @@ const GlucoseReportPrint = ({ data, patient, unit = 'mmol', sections = [], onClo
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

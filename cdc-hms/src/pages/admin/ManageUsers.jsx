@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
 import toast from 'react-hot-toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, Users, ArrowLeft } from 'lucide-react';
+import { Search, ArrowLeft } from 'lucide-react';
 import api from '../../services/api';
 import StatusBadge from '../../components/shared/StatusBadge';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
@@ -11,6 +12,8 @@ import { ROLE_TONES, REGISTRATION_TONES, ACCOUNT_TONES } from '../../utils/statu
 // Shared with the Admin Dashboard's recent-accounts list so a user row opens
 // the same file wherever it is clicked.
 import { fileHref } from '../../utils/userLinks';
+import PageHeader from '../../components/shared/PageHeader';
+import StatCard from '../../components/shared/StatCard';
 
 // The clinic has hundreds of patient records; rendering them all at once
 // makes the page unusable, so the list is paged.
@@ -128,10 +131,7 @@ const ManageUsers = () => {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Users size={22} className="text-gray-600" /> Manage Users
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">View accounts and open a patient or staff file to manage them</p>
+        <PageHeader title="Manage Users" subtitle="View accounts and open a patient or staff file to manage them" className="mb-0" />
       </div>
 
       {/* View tabs — All / Patients / Staff files (non-patient roles) */}
@@ -149,22 +149,19 @@ const ManageUsers = () => {
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {[
           { label: 'Total',    value: stats.total,    bg: 'bg-gray-100',    text: 'text-gray-700',    num: 'text-gray-800'    },
-          { label: 'Doctors',  value: stats.doctors,  bg: 'bg-blue-50',     text: 'text-blue-600',    num: 'text-blue-800'    },
-          { label: 'Staff',    value: stats.staff,    bg: 'bg-violet-50',   text: 'text-violet-600',  num: 'text-violet-800'  },
-          { label: 'Lab Tech', value: stats.lab,      bg: 'bg-teal-50',     text: 'text-teal-600',    num: 'text-teal-800'    },
-          { label: 'Patients', value: stats.patients, bg: 'bg-emerald-50',  text: 'text-emerald-600', num: 'text-emerald-800' },
-          { label: 'Active',   value: stats.active,   bg: 'bg-green-50',    text: 'text-green-600',   num: 'text-green-800'   },
-          { label: 'Inactive', value: stats.inactive, bg: 'bg-red-50',      text: 'text-red-500',     num: 'text-red-700'     },
-        ].map(({ label, value, bg, text, num }) => (
-          <div key={label} className={`${bg} rounded-xl border border-gray-200 p-4 shadow-sm`}>
-            <p className={`text-xs font-medium ${text}`}>{label}</p>
-            <p className={`text-2xl font-bold mt-1 ${num}`}>{loading ? '—' : value}</p>
-          </div>
+          { label: 'Doctors',  value: stats.doctors,  gradient: 'from-blue-500 to-blue-600' },
+          { label: 'Staff',    value: stats.staff,    gradient: 'from-violet-500 to-violet-600' },
+          { label: 'Lab Tech', value: stats.lab,      gradient: 'from-teal-500 to-teal-600' },
+          { label: 'Patients', value: stats.patients, gradient: 'from-emerald-500 to-emerald-600' },
+          { label: 'Active',   value: stats.active,   gradient: 'from-green-500 to-green-600' },
+          { label: 'Inactive', value: stats.inactive, gradient: 'from-red-500 to-red-600' },
+        ].map(({ label, value, gradient }) => (
+          <StatCard key={label} title={label} value={loading ? '—' : value} gradient={gradient} />
         ))}
       </div>
 
       {/* Search & Filter */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+      <div className="ui-surface p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -176,7 +173,7 @@ const ManageUsers = () => {
               className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
             />
           </div>
-          <select
+          <SelectMenu
             value={filterRole}
             onChange={e => setFilterRole(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 text-gray-700"
@@ -186,8 +183,8 @@ const ManageUsers = () => {
             <option value="staff">Staff</option>
             <option value="lab">Lab Technicians</option>
             <option value="patient">Patients</option>
-          </select>
-          <select
+          </SelectMenu>
+          <SelectMenu
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-400 text-gray-700"
@@ -195,8 +192,8 @@ const ManageUsers = () => {
             <option value="all">All Status</option>
             <option value="Active">Active</option>
             <option value="Inactive">Inactive</option>
-          </select>
-          <select
+          </SelectMenu>
+          <SelectMenu
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
             aria-label="Sort users"
@@ -205,7 +202,7 @@ const ManageUsers = () => {
             {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
               <option key={key} value={key}>{label}</option>
             ))}
-          </select>
+          </SelectMenu>
         </div>
         {!loading && (
           <p className="text-xs text-gray-400 mt-3">
@@ -217,11 +214,11 @@ const ManageUsers = () => {
 
       {/* Loading / Empty */}
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-gray-400 text-sm bg-white rounded-xl border border-gray-200">
+        <div className="ui-surface flex items-center justify-center py-24 text-gray-400 text-sm">
           Loading users…
         </div>
       ) : filteredUsers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-gray-400 bg-white rounded-xl border border-gray-200">
+        <div className="ui-surface flex flex-col items-center justify-center py-24 text-gray-400">
           <Search className="w-10 h-10 mb-3 text-gray-300" />
           <p className="font-medium text-gray-500">No users found</p>
           <p className="text-sm mt-1">Try adjusting your search or filters</p>
@@ -233,7 +230,7 @@ const ManageUsers = () => {
             {paginatedUsers.map(user => {
               const isActive = user.status === 'Active';
               return (
-                <div key={user.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 space-y-3">
+                <div key={user.id} className="ui-surface p-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <div className={`w-10 h-10 rounded-full ${avatarColor(user.id)} flex items-center justify-center flex-shrink-0`}>
                       <span className="text-white text-sm font-bold">{getInitials(user.name)}</span>
@@ -282,9 +279,9 @@ const ManageUsers = () => {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="hidden md:block ui-surface overflow-hidden">
             <table className="w-full">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="bg-gray-50 border-b border-gray-200">
                   {['User', 'Role', 'Phone', 'Position', 'Status', 'Joined'].map((h) => (
                     <th key={h} className={`px-5 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wide ${
@@ -298,7 +295,7 @@ const ManageUsers = () => {
                 {paginatedUsers.map(user => {
                   const isActive = user.status === 'Active';
                   return (
-                    <tr key={user.id} className="hover:bg-blue-50 transition-colors">
+                    <tr key={user.id} className="ui-hover transition-colors">
 
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">

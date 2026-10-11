@@ -30,8 +30,8 @@ const StatCard = ({
     onClick={onClick}
     role={onClick ? "button" : undefined}
     tabIndex={onClick ? 0 : undefined}
-    className={`bg-gradient-to-br ${gradient} rounded-xl shadow-md px-4 py-3 text-white flex items-center justify-between gap-3 ${
-      onClick ? "cursor-pointer hover:shadow-lg transition-shadow" : ""
+    className={`bg-gradient-to-br ${gradient} rounded-xl px-4 py-3 text-white flex items-center justify-between gap-3 ${
+      onClick ? "cursor-pointer hover:brightness-105 transition" : ""
     } ${className}`}
   >
     <div className="min-w-0">

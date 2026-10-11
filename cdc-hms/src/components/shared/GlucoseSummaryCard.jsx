@@ -95,7 +95,7 @@ const GlucoseSummaryCard = ({ patient }) => {
       )}
 
       <div className="flex gap-1.5">
-        <button type="button" onClick={() => setOpen(true)} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-semibold border border-primary text-primary rounded-lg px-2 py-1.5 hover:bg-blue-50"><Bluetooth className="w-3.5 h-3.5" /> Download meter</button>
+        <button type="button" onClick={() => setOpen(true)} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-semibold border border-primary text-primary rounded-lg px-2 py-1.5 ui-hover"><Bluetooth className="w-3.5 h-3.5" /> Download meter</button>
         <button type="button" onClick={openCentre} className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-semibold bg-primary text-white rounded-lg px-2 py-1.5 hover:bg-blue-700">Open full centre <ExternalLink className="w-3.5 h-3.5" /></button>
       </div>
 

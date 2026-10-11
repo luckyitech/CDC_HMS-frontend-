@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import SelectMenu from '../shared/SelectMenu';
 import { notify } from "../../utils/notify";
 import { Undo2 } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
@@ -67,18 +68,18 @@ const StockMovementsTab = () => {
   return (
     <div>
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
-        <select className={inputCls} value={filters.itemId} onChange={(e) => setFilter("itemId", e.target.value)}>
+        <SelectMenu className={inputCls} value={filters.itemId} onChange={(e) => setFilter("itemId", e.target.value)}>
           <option value="">All items</option>
           {items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-        </select>
-        <select className={inputCls} value={filters.locationId} onChange={(e) => setFilter("locationId", e.target.value)}>
+        </SelectMenu>
+        <SelectMenu className={inputCls} value={filters.locationId} onChange={(e) => setFilter("locationId", e.target.value)}>
           <option value="">All locations</option>
           {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select>
-        <select className={inputCls} value={filters.type} onChange={(e) => setFilter("type", e.target.value)}>
+        </SelectMenu>
+        <SelectMenu className={inputCls} value={filters.type} onChange={(e) => setFilter("type", e.target.value)}>
           <option value="">All types</option>
           {Object.entries(MOVEMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+        </SelectMenu>
         <input
           className={inputCls}
           value={filters.uhid}
@@ -95,7 +96,7 @@ const StockMovementsTab = () => {
         <>
           <div className="overflow-x-auto">
             <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
                   <th className="px-3 py-2">When · who</th>
                   <th className="px-3 py-2">Type</th>

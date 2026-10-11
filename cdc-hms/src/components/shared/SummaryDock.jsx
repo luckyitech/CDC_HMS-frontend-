@@ -31,7 +31,7 @@ export default function SummaryDock({ children, panel, overviewOpen = false, xlT
         <div className="xl:hidden flex justify-end mb-3">
           <button
             onClick={() => setSummaryOpen(true)}
-            className="flex items-center gap-1.5 text-sm font-semibold border border-primary text-primary rounded-lg px-3 py-1.5 hover:bg-blue-50"
+            className="flex items-center gap-1.5 text-sm font-semibold border border-primary text-primary rounded-lg px-3 py-1.5 ui-hover"
           >
             <MenuIcon className="w-4 h-4" /> Patient Summary
           </button>
@@ -45,7 +45,7 @@ export default function SummaryDock({ children, panel, overviewOpen = false, xlT
       {!overviewOpen && (
         <>
           {/* Drawer backdrop — mobile/tablet only */}
-          {summaryOpen && (
+          {summaryOpen && ( // ui-allow: drawer scrim, not a dialog
             <div className="fixed inset-0 bg-black/40 z-40 xl:hidden" onClick={closeSummary} />
           )}
 

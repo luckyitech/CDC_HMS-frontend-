@@ -1,4 +1,5 @@
 import usePrint from "../../hooks/usePrint";
+import { ModalOverlay } from '../shared/Modal';
 import EmailReportButton from "../shared/EmailReportButton";
 import PrintLetterhead from "../shared/PrintLetterhead";
 import { parseDiagnoses } from "../shared/DiagnosisInput";
@@ -7,7 +8,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
   const { printRef, handlePrint } = usePrint();
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <ModalOverlay>
       <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header - Hide on print */}
         <div className="sticky top-0 bg-white border-b-2 border-gray-200 p-6 flex justify-between items-center print:hidden">
@@ -152,7 +153,7 @@ const TreatmentPlanPrint = ({ plan, patient, onClose }) => {
         </div>
 
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

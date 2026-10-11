@@ -102,10 +102,10 @@ const OnboardingCard = ({ employeeId, name, onMissing }) => {
 
   if (!c) {
     return (
-      <section className="bg-white rounded-xl border border-gray-200 p-4">
+      <section className="ui-surface p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Onboarding</h3>
+            <h3 className="ui-box-title">Onboarding</h3>
             <p className="text-sm text-gray-600">No onboarding checklist{data.templateItems ? '' : ' — this role has no template yet'}.</p>
           </div>
           {data.templateItems > 0 && (
@@ -135,9 +135,9 @@ const OnboardingCard = ({ employeeId, name, onMissing }) => {
       : c.progress.overdue ? <Pill tone="bad">{c.progress.overdue} overdue</Pill> : <Pill tone="info">In progress</Pill>;
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4">
+    <section className="ui-surface p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <h3 className="ui-box-title">
           Onboarding{c.startDate ? ` · started ${new Date(`${c.startDate}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}` : ''}
         </h3>
         <span className="flex items-center gap-2 text-xs text-gray-500">

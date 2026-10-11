@@ -19,7 +19,7 @@ const MyShiftsCard = () => {
   if (!shifts || !shifts.length) return null;
   const today = clinicToday();
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5" data-testid="my-shifts">
+    <div className="ui-surface p-5" data-testid="my-shifts">
       <h3 className="text-sm font-semibold text-gray-800 mb-3">My shifts</h3>
       <ul className="space-y-1.5">
         {shifts.map((s) => {

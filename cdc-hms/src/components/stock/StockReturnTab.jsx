@@ -85,7 +85,7 @@ const StockReturnTab = () => {
       </div>
 
       {/* Right — scan + return form */}
-      <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5">
+      <div className="ui-surface lg:col-span-2 p-5">
         <BatchScanBox onResolved={setScan} disabled={!patient} />
 
         {!scan ? (

@@ -68,6 +68,9 @@ export const PERMISSIONS = {
   CLINICAL_RECORD:  'clinical.record',
 
   GLP1_WRITE:       'glp1.write',
+  // Dermatology (specialist module): recording skin findings. Doctors by role.
+  DERM_RECORD:      'derm.record',
+  HISTOLOGY_RECORD: 'histology.record',
   EQUIPMENT_WRITE:  'equipment.write',
   STOCK_DISPENSE:   'stock.dispense',
 
@@ -413,3 +416,9 @@ export const HR_STAFF_CONTROLS = [
 ];
 export const isHrStaff = (user) => !!user
   && HR_STAFF_CONTROLS.some((p) => canUseCapability(user, p, HR_DEFAULT_ROLES));
+
+// Dermatology (7 Oct 2026): doctors by role, or anyone granted derm.record.
+// Mirrors the backend write gate authorize('doctor', 'derm.record') — no
+// admin.access bypass (running the clinic is not authoring a clinical record).
+export const canRecordDerm = (user) => !!user && (user.role === 'doctor' || hasPermission(user, PERMISSIONS.DERM_RECORD));
+export const canRecordHistology = (user) => !!user && (user.role === 'doctor' || hasPermission(user, PERMISSIONS.HISTOLOGY_RECORD));

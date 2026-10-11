@@ -24,7 +24,7 @@ const MyAppraisalCard = () => {
     : current.status === 'sent' ? 'Your review is ready — read it and acknowledge.'
       : current.status === 'review' ? `With ${current.reviewer?.name || 'your reviewer'}.` : 'Done for this year.');
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5" data-testid="my-appraisal">
+    <div className="ui-surface p-5" data-testid="my-appraisal">
       <h3 className="text-sm font-semibold text-gray-800 mb-3">Appraisal</h3>
       {current && (
         <Link to={`/hr/appraisals/${current.id}`} className="block rounded-lg border border-gray-100 p-3 hover:bg-gray-50">

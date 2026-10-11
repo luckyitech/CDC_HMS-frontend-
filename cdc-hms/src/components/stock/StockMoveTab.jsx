@@ -90,7 +90,7 @@ const StockMoveTab = ({ mode }) => {
       <BatchScanBox onResolved={onScan} />
 
       {resolved && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <div className="ui-surface p-5">
           <div className="flex items-start justify-between mb-3">
             <div>
               <p className="font-bold text-gray-800">{item.name}</p>

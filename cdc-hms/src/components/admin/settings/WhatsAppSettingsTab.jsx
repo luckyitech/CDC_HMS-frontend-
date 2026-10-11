@@ -180,7 +180,7 @@ const WhatsAppSettingsTab = () => {
           <label>Monthly budget<input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} className="ml-2 w-28 rounded border-gray-300" /></label>
         </div>
         {(cfg.rateCard || []).length > 0 && (
-          <table className="mb-2 w-full text-xs"><thead><tr className="text-left text-gray-400"><th>From</th><th>Service</th><th>Utility</th><th>Marketing</th><th>Auth</th></tr></thead>
+          <table className="mb-2 w-full text-xs"><thead className="ui-thead"><tr className="text-left text-gray-400"><th>From</th><th>Service</th><th>Utility</th><th>Marketing</th><th>Auth</th></tr></thead>
             <tbody>{cfg.rateCard.map((r, i) => <tr key={i} className="border-t"><td>{r.effectiveFrom}</td><td>{r.service}</td><td>{r.utility}</td><td>{r.marketing}</td><td>{r.authentication}</td></tr>)}</tbody></table>
         )}
         <div className="grid grid-cols-5 gap-1 text-xs">

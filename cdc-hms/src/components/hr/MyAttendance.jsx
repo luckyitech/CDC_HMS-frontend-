@@ -6,7 +6,7 @@ import Spinner from '../shared/Spinner';
 import ConfirmActionModal from '../shared/ConfirmActionModal';
 import { notify } from '../../utils/notify';
 import StarCalendar, { StarLegend } from './StarCalendar';
-import { Section } from './hrUi';
+import Card from '../shared/Card';
 import {
   dayLabel, monthLabel, monthShort, shiftMonth, thisMonth, todayIso, hoursMinutes, hoursColon,
   StarPair, Pill, hhmmOf,
@@ -21,10 +21,6 @@ import {
  * Everything here is the signed-in person's own. Nothing here can check
  * anyone in.
  */
-const Card = ({ title, right, className = '', children }) => (
-  <Section title={title} actions={right} className={className}>{children}</Section>
-);
-
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const MyAttendance = () => {
@@ -175,7 +171,7 @@ const MyAttendance = () => {
         </Card>
       </div>
 
-      <Card className="mt-3" title="My stars" right={(
+      <Card className="mt-3" title="My stars" actions={(
         <div className="inline-flex items-center rounded-lg border border-gray-300 overflow-hidden text-xs font-medium">
           <button type="button" onClick={() => setMonth((m) => shiftMonth(m, -1))} className="px-2 py-1.5 text-gray-600 hover:bg-gray-50" aria-label="Previous month"><ChevronLeft className="w-4 h-4" /></button>
           <span className="px-3 py-1.5 bg-primary text-white">{monthLabel(month)}</span>
@@ -190,7 +186,7 @@ const MyAttendance = () => {
             </div>
             <div className="space-y-4 overflow-x-auto">
               <table className="w-full text-sm">
-                <thead><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
+                <thead className="ui-thead"><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
                   <th className="text-left py-1.5 pr-2 font-semibold">{monthShort(summary.month)}</th>
                   <th className="text-right py-1.5 px-2 font-semibold"><span className="text-green-700">★</span> On time</th>
                   <th className="text-right py-1.5 px-2 font-semibold"><span className="text-[#D4A017]">★</span> Gold</th>
@@ -210,7 +206,7 @@ const MyAttendance = () => {
                 </tbody>
               </table>
               <table className="w-full text-sm">
-                <thead><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
+                <thead className="ui-thead"><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
                   <th className="text-left py-1.5 pr-2 font-semibold">{month === thisMonth() ? 'This month so far' : monthLabel(summary.month)}</th>
                   <th className="text-right py-1.5 px-2 font-semibold">Value</th>
                   <th className="py-1.5 px-2" />
@@ -250,7 +246,7 @@ const MyAttendance = () => {
         <Card title="Last 7 days">
           {!mine ? <Spinner /> : (mine.rows || []).filter((r) => r.status !== 'refused').length === 0 ? <p className="text-sm text-gray-500">No sessions in the last 7 days.</p> : (
             <table className="w-full text-sm">
-              <thead><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
+              <thead className="ui-thead"><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
                 <th className="text-left py-1.5 font-semibold">Date</th><th className="text-left py-1.5 font-semibold">In</th><th className="text-left py-1.5 font-semibold">Out</th><th className="text-right py-1.5 font-semibold">Hours</th><th className="text-left py-1.5 pl-3 font-semibold">Stars</th>
               </tr></thead>
               <tbody className="tabular-nums">

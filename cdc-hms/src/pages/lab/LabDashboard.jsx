@@ -92,21 +92,21 @@ const LabDashboard = () => {
       <Card title="🔬 Recent Test Orders">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b-2 border-gray-200">
+            <thead className="ui-thead">
               <tr>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Test</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Priority</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Ordered By</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
+                <th className="px-4 sm:px-6 py-3 text-left">Patient</th>
+                <th className="px-4 sm:px-6 py-3 text-left">UHID</th>
+                <th className="px-4 sm:px-6 py-3 text-left">Test</th>
+                <th className="px-4 sm:px-6 py-3 text-left">Status</th>
+                <th className="px-4 sm:px-6 py-3 text-left">Priority</th>
+                <th className="px-4 sm:px-6 py-3 text-left">Ordered By</th>
+                <th className="px-4 sm:px-6 py-3 text-left">Date</th>
+                <th className="px-4 sm:px-6 py-3 text-left">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {dashboardData.recentTests.map((test) => (
-                <tr key={test.id} className="hover:bg-blue-50">
+                <tr key={test.id} className="ui-hover">
                   <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium text-gray-800">
                     {test.patient}
                   </td>
@@ -154,7 +154,7 @@ const LabDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
         <button
           onClick={() => navigate('/lab/pending-tests')}
-          className="bg-gradient-to-br from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl shadow-lg p-6 text-white text-left transition-all hover:scale-105"
+          className="bg-gradient-to-br from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 rounded-xl p-6 text-white text-left transition-colors"
         >
           <div className="text-4xl mb-3">📋</div>
           <p className="font-bold text-lg">Pending Tests</p>
@@ -163,7 +163,7 @@ const LabDashboard = () => {
 
         <button
           onClick={() => navigate('/lab/enter-results')}
-          className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl shadow-lg p-6 text-white text-left transition-all hover:scale-105"
+          className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl p-6 text-white text-left transition-colors"
         >
           <div className="text-4xl mb-3">✍️</div>
           <p className="font-bold text-lg">Enter Results</p>
@@ -172,7 +172,7 @@ const LabDashboard = () => {
 
         <button
           onClick={() => navigate('/lab/generate-reports')}
-          className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-lg p-6 text-white text-left transition-all hover:scale-105"
+          className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl p-6 text-white text-left transition-colors"
         >
           <div className="text-4xl mb-3">📄</div>
           <p className="font-bold text-lg">Generate Reports</p>
@@ -181,7 +181,7 @@ const LabDashboard = () => {
 
         <button
           onClick={() => navigate('/lab/critical-alerts')}
-          className="bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg p-6 text-white text-left transition-all hover:scale-105"
+          className="bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 rounded-xl p-6 text-white text-left transition-colors"
         >
           <div className="text-4xl mb-3">🚨</div>
           <p className="font-bold text-lg">Critical Alerts</p>

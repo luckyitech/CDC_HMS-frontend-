@@ -85,7 +85,7 @@ const AmendDrawer = ({ session, person, people = [], onClose, onSaved }) => {
   const who = manual ? (people.find((p) => String(p.id) === String(userId)) || person) : session.person;
 
   return (
-    <aside className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+    <aside className="ui-surface p-4">
       <h4 className="text-sm font-bold text-gray-800">{manual ? 'Manual entry' : 'Amend session'}</h4>
       <p className="text-xs text-gray-500 mb-3">
         {manual ? 'Records a session HR witnessed or agreed — marked "manual", never "verified".'

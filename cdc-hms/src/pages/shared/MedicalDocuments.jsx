@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
 import { Search, Filter, FileText, SortAsc, SortDesc } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
@@ -9,6 +10,7 @@ import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import { showNotification } from '../../utils/documentHelpers';
 import documentService from '../../services/documentService';
+import StatCard from '../../components/shared/StatCard';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -226,28 +228,10 @@ const MedicalDocuments = () => {
       {/* Statistics */}
       {!showingArchived && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-50 p-4 rounded-lg text-center">
-          <p className="text-xs text-gray-600 uppercase font-semibold">Total</p>
-          <p className="text-3xl font-bold text-blue-700 mt-1">{visibleDocuments.length}</p>
-        </div>
-        <div className="bg-green-50 p-4 rounded-lg text-center">
-          <p className="text-xs text-gray-600 uppercase font-semibold">Reviewed</p>
-          <p className="text-3xl font-bold text-green-700 mt-1">
-            {visibleDocuments.filter(d => d.status === 'Reviewed').length}
-          </p>
-        </div>
-        <div className="bg-yellow-50 p-4 rounded-lg text-center">
-          <p className="text-xs text-gray-600 uppercase font-semibold">Pending</p>
-          <p className="text-3xl font-bold text-yellow-700 mt-1">
-            {visibleDocuments.filter(d => d.status === 'Pending Review').length}
-          </p>
-        </div>
-        <div className="bg-purple-50 p-4 rounded-lg text-center">
-          <p className="text-xs text-gray-600 uppercase font-semibold">Patients</p>
-          <p className="text-3xl font-bold text-purple-700 mt-1">
-            {new Set(visibleDocuments.map(d => d.uhid).filter(Boolean)).size}
-          </p>
-        </div>
+        <StatCard title="Total" value={visibleDocuments.length} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Reviewed" value={visibleDocuments.filter(d => d.status === 'Reviewed').length} gradient="from-green-500 to-green-600" />
+        <StatCard title="Pending" value={visibleDocuments.filter(d => d.status === 'Pending Review').length} gradient="from-yellow-500 to-yellow-600" />
+        <StatCard title="Patients" value={new Set(visibleDocuments.map(d => d.uhid).filter(Boolean)).size} gradient="from-purple-500 to-purple-600" />
       </div>
       )}
 
@@ -273,7 +257,7 @@ const MedicalDocuments = () => {
               <Filter className="w-4 h-4" />
               Category
             </label>
-            <select
+            <SelectMenu
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
@@ -282,12 +266,12 @@ const MedicalDocuments = () => {
               {DOCUMENT_CATEGORIES.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
-            </select>
+            </SelectMenu>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-            <select
+            <SelectMenu
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
@@ -297,7 +281,7 @@ const MedicalDocuments = () => {
               <option value="Pending Review">Pending Review</option>
               {isAdmin && <option value="Archived">Hidden from Patient</option>}
               {isAdmin && <option value="ArchivedFiles">Archived Files</option>}
-            </select>
+            </SelectMenu>
           </div>
 
           <div>
@@ -326,14 +310,14 @@ const MedicalDocuments = () => {
               {sortOrder === 'desc' ? <SortDesc className="w-4 h-4" /> : <SortAsc className="w-4 h-4" />}
               Sort by Date
             </label>
-            <select
+            <SelectMenu
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
             >
               <option value="desc">Newest First</option>
               <option value="asc">Oldest First</option>
-            </select>
+            </SelectMenu>
           </div>
         </div>
 

@@ -3,7 +3,7 @@ import { AlertTriangle } from "lucide-react";
 // Shown when the user has been inactive for 9 minutes.
 // They have 60 seconds to click "Stay Logged In" before being logged out.
 export default function SessionTimeoutWarning({ countdown, onStayLoggedIn }) {
-  return (
+  return ( // ui-allow: its own top layer (z-[9999]) above every dialog
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center space-y-4">
 

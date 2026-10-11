@@ -13,6 +13,8 @@ import AccordionPanel from './AccordionPanel';
 import ReasonModal from './ReasonModal';
 import AttachToPatientModal from './AttachToPatientModal';
 import PdfPreviewModal from './PdfPreviewModal';
+import UltrasoundThumb from './UltrasoundThumb';
+import useUltrasoundBlobs from '../../hooks/useUltrasoundBlobs';
 import { useUserContext } from '../../contexts/UserContext';
 import { canAccessAdmin } from '../../utils/permissions';
 import ultrasoundService from '../../services/ultrasoundService';
@@ -68,8 +70,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
   const [reports, setReports] = useState([]); // imaging-report PDFs filed to this patient
   const [inboxImages, setInboxImages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [blobUrls, setBlobUrls] = useState({});
-  const blobUrlsRef = useRef({});
+  const { blobUrls, loadBlobs } = useUltrasoundBlobs(); // grids load lazily (UltrasoundThumb)
 
   // ---- inbox table state ----
   const [rowSelected, setRowSelected] = useState(new Set()); // image ids
@@ -104,41 +105,16 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
   const dragRef = useRef(null);
 
   // ================= data loading =================
-  const loadBlobs = useCallback(async (list) => {
-    // Fetch only images we don't already have, into a local `fresh` map, then
-    // MERGE into blobUrlsRef at write time. loadAttached() and loadInbox() call
-    // this concurrently; snapshotting the ref before the awaits and overwriting
-    // it after would let whichever finished last clobber the other's URLs (the
-    // "Image unavailable" bug on the inbox grid). Merging keeps both sets.
-    const fresh = {};
-    await Promise.all(
-      list.map(async (img) => {
-        if (blobUrlsRef.current[img.id] || fresh[img.id]) return;
-        try {
-          const filename = ultrasoundService.filenameFromUrl(img.fileUrl);
-          const res = await ultrasoundService.getFile(filename);
-          fresh[img.id] = URL.createObjectURL(res.data ?? res);
-        } catch {
-          // placeholder shown
-        }
-      }),
-    );
-    if (!Object.keys(fresh).length) return;
-    blobUrlsRef.current = { ...blobUrlsRef.current, ...fresh };
-    setBlobUrls({ ...blobUrlsRef.current });
-  }, []);
-
   const loadAttached = useCallback(async () => {
     if (!patient?.uhid) { setAttached([]); return; }
     try {
       const res = await ultrasoundService.getByPatient(patient.uhid);
       const list = res.data || [];
       setAttached(list);
-      await loadBlobs(list);
     } catch (err) {
       console.error('Error loading attached ultrasound images:', err);
     }
-  }, [patient?.uhid, loadBlobs]);
+  }, [patient?.uhid]);
 
   // Imaging-report PDFs filed to this patient (shown in the Radiology tab as
   // well as in Medical Documents).
@@ -165,11 +141,10 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
         : await ultrasoundService.getInbox();
       const list = res.data || [];
       setInboxImages(list);
-      await loadBlobs(list);
     } catch (err) {
       console.error('Error loading ultrasound list:', err);
     }
-  }, [loadBlobs, unassignedOnly, patient]);
+  }, [unassignedOnly, patient]);
 
   useEffect(() => {
     let isMounted = true;
@@ -190,11 +165,6 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
     source.onerror = () => {};
     return () => source.close();
   }, [loadInbox, loadAttached]);
-
-  useEffect(() => () => {
-    Object.values(blobUrlsRef.current).forEach((u) => URL.revokeObjectURL(u));
-    blobUrlsRef.current = {};
-  }, []);
 
   // Close the "add to workspace" menu on outside click
   useEffect(() => {
@@ -349,6 +319,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
       return;
     }
     setWsItems((prev) => [...prev, ...added.filter((a) => !prev.some((p) => p.id === a.id))]);
+    loadBlobs(added); // the workspace and its PDF need every image, seen or not
     setView('workspace'); // opening images takes you straight into the workspace screen
     toast.success(`${added.length} image${added.length > 1 ? 's' : ''} added to the workspace.`);
   };
@@ -766,7 +737,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead>
+                <thead className="ui-thead">
                   <tr className="border-b-2 border-gray-200">
                     <th className="w-9"></th>
                     <th className="w-8 px-2 py-2 text-left text-[11px] font-bold uppercase text-gray-500">#</th>
@@ -843,9 +814,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
                                         isPicked ? 'border-blue-500 shadow-md' : 'border-gray-200 hover:border-blue-300'
                                       }`}
                                     >
-                                      {blobUrls[img.id]
-                                        ? <img src={blobUrls[img.id]} alt={img.fileName} className="max-w-full max-h-full object-contain" />
-                                        : <span className="text-gray-500 text-[10px]">Image unavailable</span>}
+                                      <UltrasoundThumb image={img} src={blobUrls[img.id]} load={loadBlobs} />
                                       <input type="checkbox" readOnly checked={isPicked} className="absolute top-1 left-1 w-4 h-4 accent-blue-600 pointer-events-none" />
                                       {img.isMultiframe && (
                                         <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] font-bold px-1 py-0.5 rounded">CLIP</span>
@@ -1121,7 +1090,7 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
                     <button
                       onClick={() => pickReportForSession(session)}
                       disabled={uploadingReport}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/40 hover:bg-blue-50 disabled:opacity-50 rounded-lg px-3 py-1.5"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/40 ui-hover disabled:opacity-50 rounded-lg px-3 py-1.5"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       {uploadingReport && reportUploadSession?.key === session.key ? 'Uploading…' : (sessionReports.length ? 'Upload another report' : 'Upload report (PDF)')}
@@ -1132,11 +1101,9 @@ const UltrasoundTab = ({ patient = null, source = 'inbox' }) => {
                       <div key={img.id} className="group rounded-lg border-2 border-gray-200 overflow-hidden bg-white">
                         <div
                           className="relative bg-black aspect-[4/3] flex items-center justify-center cursor-pointer"
-                          onClick={() => setPreviewImage({ images: session.images, index: imgIdx })}
+                          onClick={() => { loadBlobs(session.images); setPreviewImage({ images: session.images, index: imgIdx }); }}
                         >
-                          {blobUrls[img.id]
-                            ? <img src={blobUrls[img.id]} alt={img.fileName} className="max-w-full max-h-full object-contain" />
-                            : <span className="text-gray-500 text-[10px]">Image unavailable</span>}
+                          <UltrasoundThumb image={img} src={blobUrls[img.id]} load={loadBlobs} />
                           {img.isMultiframe && (
                             <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] font-bold px-1 py-0.5 rounded">CLIP</span>
                           )}

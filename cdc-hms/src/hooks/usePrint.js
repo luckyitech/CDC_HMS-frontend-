@@ -88,8 +88,10 @@ export const printElement = (content, { pageSize = "A4", pageMargin = "8mm 0" } 
       }
       /* Hide the live app; print ONLY the cloned document. This is what makes
          it work on iOS/iPadOS Safari (which prints the main document, never an
-         iframe). */
-      body > #root { display: none !important; }
+         iframe). Every other child of <body> is hidden too, not just #root:
+         dialogs are portaled to <body> (ModalOverlay), so a print started from
+         a preview dialog must not print the dialog over the document. */
+      body > :not(.print-portal) { display: none !important; }
       body > .print-portal { display: block !important; }
       /* The document's own top padding (p-6/p-8 on screen) would stack on the
          page margin — start the letterhead right at the margin instead. */

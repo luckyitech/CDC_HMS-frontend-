@@ -146,7 +146,7 @@ const AppraisalForm = () => {
   const ratings = Object.values(draft.ratings).sort((x, y) => x.sortOrder - y.sortOrder);
 
   return (
-    <div className="max-w-6xl space-y-4 p-4">
+    <div className="space-y-4">
       <Link to="/hr/appraisals" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"><ArrowLeft className="h-3.5 w-3.5" />Appraisals</Link>
       <PageHeader title={`${a.cycle.name} · ${a.person.name}`}
         subtitle={`${[a.person.position, a.person.department].filter(Boolean).join(' · ') || 'Staff'} · reviewer ${a.reviewer?.name || 'not chosen yet'}`} />

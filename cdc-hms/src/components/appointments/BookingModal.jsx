@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { ModalOverlay } from '../shared/Modal';
 import { X, Search, User, Calendar, Clock, CheckCircle, XCircle, Lock, Unlock, CalendarPlus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import patientService from '../../services/patientService';
@@ -342,7 +343,7 @@ const NewBookingForm = ({ slot, doctorId, doctorName, date, onBooked, onClose, o
                 <li key={p.id}>
                   <button
                     onClick={() => { setSelected(p); setSearch(''); setPatients([]); }}
-                    className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+                    className="w-full text-left px-3 py-2 ui-hover text-sm"
                   >
                     <span className="font-medium">{p.name}</span>
                     <span className="text-gray-400 ml-2 text-xs">{p.uhid}</span>
@@ -419,7 +420,7 @@ const BookingModal = ({ slot, doctorId, doctorName, date, onBooked, onClose, can
   else if (isPartial) title = 'Appointment Details';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+    <ModalOverlay>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="font-semibold text-gray-800">{title}</h2>
@@ -479,7 +480,7 @@ const BookingModal = ({ slot, doctorId, doctorName, date, onBooked, onClose, can
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

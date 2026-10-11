@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ModalOverlay } from '../shared/Modal';
 import { X, User, Activity, MapPin, AlertCircle, Shield, Key, CheckCircle2, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useUserContext } from '../../contexts/UserContext';
@@ -142,7 +143,7 @@ const EditPatientModal = ({ patient, onUpdated, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 overflow-y-auto">
+    <ModalOverlay align="top">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-6">
 
         {/* Header */}
@@ -334,7 +335,7 @@ const EditPatientModal = ({ patient, onUpdated, onClose }) => {
         <div className="px-6 py-4 border-t flex gap-3 justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-blue-50"
+            className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg ui-hover"
           >
             Cancel
           </button>
@@ -350,7 +351,7 @@ const EditPatientModal = ({ patient, onUpdated, onClose }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

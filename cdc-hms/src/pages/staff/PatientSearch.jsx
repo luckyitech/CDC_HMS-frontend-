@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Pagination from '../../components/shared/Pagination';
 import { formatDOB } from "../../utils/dateUtils";
 import toast from "react-hot-toast";
 import {
@@ -204,7 +205,7 @@ const PatientSearch = () => {
                     <div className="flex gap-2 mt-1">
                       <button
                         onClick={() => navigate(`/staff/patient-profile/${patient.uhid}`)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-2 border-primary text-primary rounded-lg hover:bg-blue-50 transition"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold border-2 border-primary text-primary rounded-lg ui-hover transition"
                       >
                         <UserCircle className="w-4 h-4" /> View
                       </button>
@@ -228,20 +229,20 @@ const PatientSearch = () => {
               {/* Desktop: table */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b-2 border-gray-200">
+                  <thead className="ui-thead">
                     <tr>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age/Gender</th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Phone</th>
+                      <th className="px-4 lg:px-6 py-3 text-left">UHID</th>
+                      <th className="px-4 lg:px-6 py-3 text-left">Name</th>
+                      <th className="px-4 lg:px-6 py-3 text-left">Age/Gender</th>
+                      <th className="px-4 lg:px-6 py-3 text-left">Phone</th>
                       <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">ID / Passport</th>
                       <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                      <th className="px-4 lg:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
+                      <th className="px-4 lg:px-6 py-3 text-left">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {searchResults.map((patient) => (
-                      <tr key={patient.id} className="hover:bg-blue-50">
+                      <tr key={patient.id} className="ui-hover">
                         <td className="px-4 lg:px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                         <td className="px-4 lg:px-6 py-4 text-sm">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -291,31 +292,8 @@ const PatientSearch = () => {
 
               {/* Pagination */}
               {pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">
-                    Showing {from}–{to} of {pagination.total} patients
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handlePageChange(page - 1)}
-                      disabled={page === 1 || isSearching}
-                      className="p-2 rounded-lg border border-gray-300 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-                    <span className="text-sm font-semibold text-gray-700">
-                      Page {page} of {pagination.totalPages}
-                    </span>
-                    <button
-                      onClick={() => handlePageChange(page + 1)}
-                      disabled={page === pagination.totalPages || isSearching}
-                      className="p-2 rounded-lg border border-gray-300 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
+<Pagination currentPage={page} totalPages={pagination.totalPages} onPageChange={handlePageChange} disabled={isSearching}
+                summary={`Showing ${from}–${to} of ${pagination.total} patients`} />)}
             </>
           ) : (
             <div className="text-center py-12">

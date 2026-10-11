@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import SelectMenu from './SelectMenu';
 import { useNavigate } from 'react-router-dom';
 import { Search, RefreshCw, CheckCircle, XCircle, ClipboardList } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import appointmentService from '../../services/appointmentService';
 import toast from 'react-hot-toast';
+import PageHeader from './PageHeader';
 
 const STATUS_STYLES = {
   scheduled:    'bg-blue-100 text-blue-700 border border-blue-200',
@@ -117,26 +119,23 @@ const AppointmentsListView = ({ mode }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-800">
-            {isDoctor ? 'My Appointments' : 'Appointments'}
-          </h1>
-          <p className="text-gray-500 text-sm mt-1">
-            {isDoctor ? 'Appointments booked by patients for you' : 'All patient-booked appointments'}
-          </p>
-        </div>
-        <button
-          onClick={fetchAppointments}
-          className="flex items-center gap-2 px-3 lg:px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-blue-50"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
-      </div>
+      <PageHeader
+        title={isDoctor ? 'My Appointments' : 'Appointments'}
+        subtitle={isDoctor ? 'Appointments booked by patients for you' : 'All patient-booked appointments'}
+        className="mb-0"
+        actions={(
+          <button
+            onClick={fetchAppointments}
+            className="flex items-center gap-2 px-3 lg:px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 ui-hover"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+        )}
+      />
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-3 lg:p-4">
+      <div className="ui-surface p-3 lg:p-4">
         <div className="flex flex-col gap-3">
           {/* Search — full width always */}
           <div className="relative">
@@ -151,7 +150,7 @@ const AppointmentsListView = ({ mode }) => {
           </div>
           {/* Status + Date side by side on all screen sizes */}
           <div className="flex gap-3">
-            <select
+            <SelectMenu
               value={filters.status}
               onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}
               className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400"
@@ -161,7 +160,7 @@ const AppointmentsListView = ({ mode }) => {
               <option value="checked-in">Checked In</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
-            </select>
+            </SelectMenu>
             <input
               type="date"
               value={filters.date}
@@ -198,7 +197,7 @@ const AppointmentsListView = ({ mode }) => {
           {/* Cards — mobile & tablet (< xl) */}
           <div className="xl:hidden space-y-3">
             {appointments.map(a => (
-              <div key={a.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div key={a.id} className="ui-surface overflow-hidden">
                 {/* Card header */}
                 <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
                   <div className="flex items-center gap-2">
@@ -280,10 +279,10 @@ const AppointmentsListView = ({ mode }) => {
           </div>
 
           {/* Table — desktop only (xl+) */}
-          <div className="hidden xl:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="ui-surface hidden xl:block overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="ui-thead">
                   <tr>
                     {tableHeaders.map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
@@ -292,7 +291,7 @@ const AppointmentsListView = ({ mode }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {appointments.map(a => (
-                    <tr key={a.id} className="hover:bg-blue-50 transition">
+                    <tr key={a.id} className="ui-hover transition">
                       <td className="px-4 py-3 font-mono text-xs text-gray-500">{a.appointmentNumber}</td>
                       <td className="px-4 py-3">
                         <button
@@ -375,7 +374,7 @@ const AppointmentsListView = ({ mode }) => {
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 ui-hover disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -396,7 +395,7 @@ const AppointmentsListView = ({ mode }) => {
                     className={`px-3 py-1.5 text-sm border rounded-lg ${
                       page === p
                         ? 'bg-blue-600 border-blue-600 text-white font-semibold'
-                        : 'border-gray-200 text-gray-600 hover:bg-blue-50'
+                        : 'border-gray-200 text-gray-600 ui-hover'
                     }`}
                   >
                     {p}
@@ -406,7 +405,7 @@ const AppointmentsListView = ({ mode }) => {
             <button
               onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
               disabled={page === pagination.totalPages}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 ui-hover disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Next
             </button>

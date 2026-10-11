@@ -252,7 +252,7 @@ const HistoryTrigger = ({ icon, label, count, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+    className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-700 hover:border-blue-300 ui-hover transition-colors"
   >
     {icon}
     {label}

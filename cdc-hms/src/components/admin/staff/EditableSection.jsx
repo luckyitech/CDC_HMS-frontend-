@@ -110,7 +110,7 @@ const EditableSection = ({
   const inputClass = 'w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="ui-surface p-5">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div>
           <h3 className="text-sm font-semibold text-gray-800">{title}</h3>

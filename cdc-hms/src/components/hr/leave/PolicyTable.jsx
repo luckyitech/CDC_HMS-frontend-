@@ -26,7 +26,7 @@ const yearly = (grant) => grant === 'up_front' || grant === 'monthly';
 const PolicyTable = ({ types, rows, onChange, onRetire, disabled = false, clinicNotice = 0 }) => (
   <div className="overflow-x-auto -mx-1 px-1">
     <table className="w-full min-w-[900px] text-sm">
-      <thead>
+      <thead className="ui-thead">
         <tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
           <th className="text-left font-semibold py-1.5 pr-2 w-[17%]">Type</th>
           <th className="text-left font-semibold py-1.5 px-1 w-[8%]">Days</th>

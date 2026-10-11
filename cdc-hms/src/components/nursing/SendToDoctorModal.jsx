@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ModalOverlay } from '../shared/Modal';
 import toast from "react-hot-toast";
 import { X, Stethoscope, CheckCircle2 } from "lucide-react";
 import Button from "../shared/Button";
@@ -37,7 +38,7 @@ const SendToDoctorModal = ({ patient, onSelect = () => {}, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <ModalOverlay onClose={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h3 className="font-bold text-gray-800 flex items-center gap-2"><Stethoscope className="w-5 h-5" /> Send to doctor</h3>
@@ -69,7 +70,7 @@ const SendToDoctorModal = ({ patient, onSelect = () => {}, onClose }) => {
           <Button onClick={next}>Next: bill your side</Button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

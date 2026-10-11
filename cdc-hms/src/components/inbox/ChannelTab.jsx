@@ -4,6 +4,7 @@ import commsService from '../../services/commsService';
 import useDebounce from '../../hooks/useDebounce';
 import ConversationList from './ConversationList';
 import Thread from './Thread';
+import { INBOX_PANE } from './inboxPane';
 
 // One channel's inbox: a conversation list beside the open thread. Channel-
 // generic — `channel` scopes the list to WhatsApp, Messenger or Instagram, so
@@ -38,7 +39,7 @@ const ChannelTab = ({ canWrite, channel = 'whatsapp' }) => {
   }, [fetchList]);
 
   return (
-    <div className="flex h-[calc(100vh-11rem)] overflow-hidden rounded-lg border bg-white">
+    <div className={`flex ${INBOX_PANE} ui-surface overflow-hidden`}>
       <div className={`w-full sm:w-80 sm:flex-shrink-0 ${active ? 'hidden sm:block' : 'block'}`}>
         <ConversationList
           conversations={conversations} activeId={active?.id} onSelect={setActive}

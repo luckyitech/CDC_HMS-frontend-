@@ -1,4 +1,5 @@
 import { useState, useEffect, useReducer } from "react";
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { Sunrise, Coffee, Clock3, Utensils, Clock6, Moon, BedDouble, Calendar, CheckCircle, AlertCircle, ClipboardList, Lightbulb, ArrowLeftRight, ChevronDown, ChevronUp, Pencil, Edit2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from "../../components/shared/Card";
@@ -223,10 +224,10 @@ const LogBloodSugar = () => {
 
   const getCardBorder = (slotKey, isConfirmed) => {
     const s = isConfirmed ? getStatus(savedMgDL[slotKey]) : getStatusFromInput(readings[slotKey]);
-    if (s === 'Normal')   return "border-green-400";
-    if (s === 'Elevated') return "border-yellow-400";
-    if (s === 'High')     return "border-red-400";
-    return "border-gray-200";
+    if (s === 'Normal')   return "border-l-green-400";
+    if (s === 'Elevated') return "border-l-yellow-400";
+    if (s === 'High')     return "border-l-red-400";
+    return "border-l-gray-200";
   };
 
   const getInputColor = (value) => {
@@ -280,7 +281,7 @@ const LogBloodSugar = () => {
       <div className="lg:hidden mb-4">
         <button
           onClick={() => setShowCalendar(!showCalendar)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-white border-2 border-primary rounded-xl shadow-sm"
+          className="w-full flex items-center justify-between px-4 py-3 bg-white border-2 border-primary rounded-xl"
         >
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-primary" />
@@ -295,7 +296,7 @@ const LogBloodSugar = () => {
         </button>
 
         {showCalendar && (
-          <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-md p-4">
+          <div className="mt-2 ui-surface p-4">
             <input
               type="date"
               value={selectedDate}
@@ -324,7 +325,7 @@ const LogBloodSugar = () => {
                         dayObj.isSelected ? "bg-primary text-white shadow" :
                         dayObj.isToday    ? "bg-blue-100 text-primary border-2 border-primary" :
                         dayObj.isLogged   ? "bg-green-100 text-green-700" :
-                                            "bg-white text-gray-700 hover:bg-blue-50"
+                                            "bg-white text-gray-700 ui-hover"
                       } ${new Date(dayObj.dateStr) > new Date() ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
                     >
                       {dayObj.day}
@@ -342,7 +343,7 @@ const LogBloodSugar = () => {
       </div>
 
       {/* Mobile: progress bar */}
-      <div className="lg:hidden mb-4 bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm">
+      <div className="lg:hidden mb-4 ui-surface px-4 py-3">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-semibold text-gray-700">Readings saved today</span>
           <span className="text-sm font-bold text-primary">{savedSlots.size} / 7</span>
@@ -393,7 +394,7 @@ const LogBloodSugar = () => {
                         dayObj.isSelected ? "bg-primary text-white shadow-lg" :
                         dayObj.isToday    ? "bg-blue-100 text-primary border-2 border-primary" :
                         dayObj.isLogged   ? "bg-green-100 text-green-700 hover:bg-green-200" :
-                                            "bg-white text-gray-700 hover:bg-blue-50"
+                                            "bg-white text-gray-700 ui-hover"
                       } ${new Date(dayObj.dateStr) > new Date() ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
                     >
                       {dayObj.day}
@@ -439,25 +440,19 @@ const LogBloodSugar = () => {
             {/* Unit toggle — full width row, easy to tap on mobile */}
             <div className="flex items-center justify-between mb-4 bg-gray-50 rounded-xl p-1.5">
               <span className="text-xs text-gray-500 font-medium pl-1">Unit</span>
-              <div className="flex items-center bg-white border border-gray-200 rounded-lg p-0.5 gap-0.5 shadow-sm">
-                {['mg/dL', 'mmol/L'].map((u) => (
-                  <button
-                    key={u}
-                    onClick={() => {
-                      if (unit !== u) {
-                        changeUnit(u);
-                        toast(`Log your blood sugar readings in ${u}`, {
-                          duration: 2000,
-                          icon: <ArrowLeftRight className="w-4 h-4 text-primary" />,
-                        });
-                      }
-                    }}
-                    className={`px-4 py-2 rounded-md text-sm font-semibold transition min-w-[72px] text-center ${unit === u ? 'bg-primary text-white shadow' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    {u}
-                  </button>
-                ))}
-              </div>
+              <SwitcherTabs
+                tabs={['mg/dL', 'mmol/L'].map((u) => ({ id: u, label: u }))}
+                active={unit}
+                onChange={(u) => {
+                  if (unit !== u) {
+                    changeUnit(u);
+                    toast(`Log your blood sugar readings in ${u}`, {
+                      duration: 2000,
+                      icon: <ArrowLeftRight className="w-4 h-4 text-primary" />,
+                    });
+                  }
+                }}
+              />
             </div>
 
             <div className="space-y-3">
@@ -474,7 +469,7 @@ const LogBloodSugar = () => {
                 return (
                   <div
                     key={slot.key}
-                    className={`border-l-4 ${getCardBorder(slot.key, isConfirmed)} bg-white rounded-xl shadow-sm p-3 sm:p-4 transition-all`}
+                    className={`border-l-4 ${getCardBorder(slot.key, isConfirmed)} ui-surface p-3 sm:p-4 transition-all`}
                   >
                     <div className="flex items-center justify-between mb-2 sm:mb-3">
                       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -503,7 +498,7 @@ const LogBloodSugar = () => {
                         <span className="text-xs text-gray-500 font-semibold bg-gray-100 px-2 py-0.5 rounded-full">Saved</span>
                         <button
                           onClick={() => startEditing(slot.key)}
-                          className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 border border-gray-300 hover:bg-blue-50 transition-all"
+                          className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 border border-gray-300 ui-hover transition-all"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                           Edit
@@ -527,7 +522,7 @@ const LogBloodSugar = () => {
                           {isEditing && (
                             <button
                               onClick={() => cancelEditing(slot.key)}
-                              className="px-3 py-2.5 rounded-xl text-xs font-semibold text-gray-500 border border-gray-300 hover:bg-blue-50 transition-all"
+                              className="px-3 py-2.5 rounded-xl text-xs font-semibold text-gray-500 border border-gray-300 ui-hover transition-all"
                             >
                               Cancel
                             </button>
@@ -553,7 +548,7 @@ const LogBloodSugar = () => {
           </Card>
 
           {/* Tips — collapsible */}
-          <div className="mt-4 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="mt-4 ui-surface overflow-hidden">
             <button
               onClick={() => setShowTips(!showTips)}
               className="w-full flex items-center justify-between px-4 py-3 text-left"

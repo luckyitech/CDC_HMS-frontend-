@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import SwitcherTabs from '../../shared/SwitcherTabs';
 import MyAttendance from '../MyAttendance';
 
 /**
@@ -10,16 +11,9 @@ const SelfActivity = () => {
   const [tab, setTab] = useState('attendance');
   return (
     <div>
-      <div className="flex gap-1 mb-3" role="tablist">
-        {[['attendance', 'Attendance'], ['work', 'My work']].map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === id ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <SwitcherTabs size="sm" className="mb-3" ariaLabel="My activity" tabs={[{ id: 'attendance', label: 'Attendance' }, { id: 'work', label: 'My work' }]} active={tab} onChange={setTab} />
       {tab === 'attendance' ? <MyAttendance /> : (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+        <div className="ui-surface p-6 text-sm text-gray-600">
           A view of your own clinical work — patients seen, notes written, results reviewed — is coming later.
         </div>
       )}

@@ -51,7 +51,7 @@ const MailSetupCard = ({ setup, account = null, reconnect = false, onConnected }
 
   return (
     <div className="flex justify-center rounded-lg bg-gray-50 px-3 py-6 sm:py-10">
-      <form onSubmit={connect} className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <form onSubmit={connect} className="w-full max-w-md ui-surface p-5">
         <div className="mb-4 flex items-start gap-3">
           <Mail className="mt-0.5 h-6 w-6 flex-shrink-0 text-primary" />
           <div>

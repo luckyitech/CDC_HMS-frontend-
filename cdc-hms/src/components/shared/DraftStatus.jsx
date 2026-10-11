@@ -79,7 +79,7 @@ export const DraftRestoreBanner = ({ draft, className = '' }) => {
       <button
         type="button"
         onClick={draft.keep}
-        className="px-3 py-1.5 rounded-lg border border-blue-300 bg-white text-sm font-semibold text-blue-900 hover:bg-blue-50 min-h-[36px]"
+        className="px-3 py-1.5 rounded-lg border border-blue-300 bg-white text-sm font-semibold text-blue-900 ui-hover min-h-[36px]"
       >
         Keep
       </button>

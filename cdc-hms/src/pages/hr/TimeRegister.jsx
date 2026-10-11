@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { useSearchParams } from 'react-router-dom';
 import { Download, Plus } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
@@ -144,40 +146,36 @@ const TimeRegister = () => {
         )}
       />
 
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+      <div className="ui-surface p-4 mb-4">
         <div className="flex flex-wrap items-end gap-3">
-          <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden">
-            {PRESETS.map((p) => (
-              <button key={p.key} type="button" onClick={() => applyPreset(p)} className={`px-3 py-2 text-xs font-medium ${preset === p.key ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{p.label}</button>
-            ))}
-          </div>
+          <SwitcherTabs tabs={PRESETS.map(({ key, label }) => ({ id: key, label }))} active={preset} onChange={(id) => applyPreset(PRESETS.find((p) => p.key === id))} />
           <label className="text-xs text-gray-600">From<br /><input type="date" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setPreset('custom'); }} className={inputCls} /></label>
           <label className="text-xs text-gray-600">To<br /><input type="date" value={to} min={from} max={todayIso()} onChange={(e) => { setTo(e.target.value); setPreset('custom'); }} className={inputCls} /></label>
           {isHr && (
             <>
-              <select value={userId} onChange={(e) => setUserId(e.target.value)} className={inputCls} aria-label="Person">
+              <SelectMenu value={userId} onChange={(e) => setUserId(e.target.value)} className={inputCls} aria-label="Person">
                 <option value="">Everyone</option>
                 {people.map((p) => <option key={p.id} value={p.id}>{p.role === 'doctor' ? 'Dr ' : ''}{p.name}</option>)}
-              </select>
-              <select value={role} onChange={(e) => setRole(e.target.value)} className={inputCls} aria-label="Role">
+              </SelectMenu>
+              <SelectMenu value={role} onChange={(e) => setRole(e.target.value)} className={inputCls} aria-label="Role">
                 {ROLE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
+              </SelectMenu>
             </>
           )}
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls} aria-label="Status">
+          <SelectMenu value={status} onChange={(e) => setStatus(e.target.value)} className={inputCls} aria-label="Status">
             {STATUS_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </SelectMenu>
         </div>
         {!rangeValid && <p className="text-sm text-red-600 mt-3">The From date must be on or before the To date.</p>}
       </div>
 
       <div className={`grid gap-4 ${drawer ? 'lg:grid-cols-[1fr_340px]' : ''} items-start`}>
-        <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+        <div className="ui-surface overflow-x-auto">
           {loading && !result ? <div className="p-8"><Spinner /></div> : rows.length === 0 ? (
             <p className="p-8 text-sm text-gray-500 text-center">No sessions match.</p>
           ) : (
             <table className="w-full text-sm">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
                   <th className="text-left px-3 py-2 font-semibold">Date</th>
                   {isHr && <th className="text-left px-3 py-2 font-semibold">Person</th>}
@@ -221,7 +219,7 @@ const TimeRegister = () => {
         </div>
         {drawer && canWrite && (
           drawer.session?.status === 'refused' ? (
-            <aside className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 text-sm">
+            <aside className="ui-surface p-4 text-sm">
               <h4 className="font-bold text-gray-800">Refused tap</h4>
               <p className="text-xs text-gray-500 mb-3">{drawer.session.person?.name} · {dayLabel(drawer.session.clinicDate, true)} · {drawer.session.checkInHHMM}</p>
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">

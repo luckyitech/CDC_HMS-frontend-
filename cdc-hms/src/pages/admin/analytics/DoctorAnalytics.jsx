@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowLeft, Stethoscope } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Card from '../../../components/shared/Card';
 import StatCard from '../../../components/shared/StatCard';
 import AnalyticsBarChart from '../../../components/shared/AnalyticsBarChart';
 import AnalyticsDateFilter, { DEFAULT_DATE_RANGE } from '../../../components/shared/AnalyticsDateFilter';
 import analyticsService from '../../../services/analyticsService';
+import PageHeader from '../../../components/shared/PageHeader';
 
 const PIE_COLORS = ['#2563eb', '#0d9488', '#7c3aed', '#f59e0b', '#ef4444', '#10b981', '#f97316', '#8b5cf6'];
 
@@ -62,11 +63,7 @@ export default function DoctorAnalytics() {
         >
           <ArrowLeft size={15} /> Back to Analytics
         </button>
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Stethoscope className="text-blue-600" size={24} />
-          Doctor Performance
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">Patients seen and consultation times per doctor</p>
+        <PageHeader title="Doctor Performance" subtitle="Patients seen and consultation times per doctor" className="mb-0" />
       </div>
 
       {/* Date filter */}

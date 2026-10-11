@@ -103,7 +103,7 @@ const AttachToPatientModal = ({
                   <button
                     type="button"
                     onClick={() => { setSelected(p); setSearch(''); setPatients([]); }}
-                    className="w-full text-left px-4 py-3 hover:bg-blue-50 transition"
+                    className="w-full text-left px-4 py-3 ui-hover transition"
                   >
                     <p className="font-bold text-primary text-sm">{p.uhid}</p>
                     <p className="font-semibold text-gray-800 text-sm">{p.name}</p>

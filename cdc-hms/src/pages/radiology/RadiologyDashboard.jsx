@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Pagination from '../../components/shared/Pagination';
 import { useNavigate } from 'react-router-dom';
 import { Activity } from 'lucide-react';
 import Card from '../../components/shared/Card';
@@ -128,23 +129,23 @@ const RadiologyDashboard = () => {
             {/* Table — desktop (xl+) */}
             <div className="hidden xl:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <thead className="ui-thead">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Age</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Service</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Assigned To</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
+                    <th className="px-6 py-3 text-left">Time</th>
+                    <th className="px-6 py-3 text-left">UHID</th>
+                    <th className="px-6 py-3 text-left">Patient Name</th>
+                    <th className="px-6 py-3 text-left">Age</th>
+                    <th className="px-6 py-3 text-left">Service</th>
+                    <th className="px-6 py-3 text-left">Assigned To</th>
+                    <th className="px-6 py-3 text-left">Status</th>
+                    <th className="px-6 py-3 text-left">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {paginated.map((item) => {
                     const isMine = Number(item.assignedDoctorId) === myId;
                     return (
-                      <tr key={item.id} className={`hover:bg-blue-50 transition ${isMine && item.status === 'Awaiting Doctor' ? 'bg-purple-50' : isMine ? 'bg-blue-50' : ''}`}>
+                      <tr key={item.id} className={`ui-hover transition ${isMine && item.status === 'Awaiting Doctor' ? 'bg-purple-50' : isMine ? 'bg-blue-50' : ''}`}>
                         <td className="px-6 py-4 text-sm font-semibold text-gray-700">{formatArrival(item.createdAt)}</td>
                         <td className="px-6 py-4 font-medium text-primary text-sm">{item.uhid}</td>
                         <td className="px-6 py-4 text-sm font-medium">{item.name}</td>
@@ -165,20 +166,8 @@ const RadiologyDashboard = () => {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-500">Showing {(page - 1) * PER_PAGE + 1}–{Math.min(page * PER_PAGE, displayList.length)} of {displayList.length} patients</p>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed">Prev</button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button key={p} onClick={() => setPage(p)}
-                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${p === page ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-700 hover:bg-blue-50'}`}>{p}</button>
-                  ))}
-                  <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
-                </div>
-              </div>
-            )}
+<Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage}
+              summary={`Showing ${(page - 1) * PER_PAGE + 1}–${Math.min(page * PER_PAGE, displayList.length)} of ${displayList.length} patients`} />)}
           </>
         ) : (
           <div className="text-center py-12">

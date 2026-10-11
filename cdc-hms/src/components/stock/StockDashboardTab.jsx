@@ -16,7 +16,7 @@ const ExpiryTable = ({ title, rows, tone, onWriteOff }) => {
       <h4 className={`text-sm font-bold mb-2 ${tone}`}>{title}</h4>
       <div className="overflow-x-auto">
         <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
-          <thead>
+          <thead className="ui-thead">
             <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
               <th className="px-3 py-2">Item</th>
               <th className="px-3 py-2">Label</th>

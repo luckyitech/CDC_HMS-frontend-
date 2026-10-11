@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ModalOverlay } from './Modal';
 import { X, Receipt } from "lucide-react";
 import Button from "./Button";
 import RecordUseModal from "../stock/RecordUseModal";
@@ -61,7 +62,7 @@ const BillingModal = ({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <ModalOverlay onClose={onClose}>
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0">
             <h3 className="font-bold text-gray-800 flex items-center gap-2"><Receipt className="w-5 h-5" /> {title}</h3>
@@ -125,7 +126,7 @@ const BillingModal = ({
             </Button>
           </div>
         </div>
-      </div>
+      </ModalOverlay>
 
       {scan && (
         <RecordUseModal

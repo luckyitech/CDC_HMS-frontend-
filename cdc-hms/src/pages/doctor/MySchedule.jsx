@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, CalendarDays, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import useSlots from '../../hooks/useSlots';
 import SlotGrid from '../../components/appointments/SlotGrid';
 import BookingModal from '../../components/appointments/BookingModal';
 import BlockAvailabilityModal from '../../components/appointments/BlockAvailabilityModal';
+import PageHeader from '../../components/shared/PageHeader';
 
 const toDateString = (date) => {
   const y = date.getFullYear();
@@ -40,32 +41,27 @@ const MySchedule = () => {
   const blockedCount = slots.filter(s => s.status === 'blocked').length;
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+    <div>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <CalendarDays className="w-6 h-6 text-primary" />
-          <div>
-            <h1 className="text-xl font-bold text-gray-800">My Schedule</h1>
-            <p className="text-sm text-gray-400">{doctorName}</p>
-          </div>
-        </div>
-
-        <button
-          onClick={() => setShowBlockModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors"
-        >
-          <Lock className="w-4 h-4" />
-          Block Availability
-        </button>
-      </div>
+      <PageHeader
+        title="My Schedule"
+        subtitle={doctorName}
+        actions={(
+          <button
+            onClick={() => setShowBlockModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors"
+          >
+            <Lock className="w-4 h-4" />
+            Block Availability
+          </button>
+        )}
+      />
 
       {/* Date navigation */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5">
+      <div className="ui-surface p-4 mb-5">
         <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Date</label>
         <div className="flex items-center gap-2 max-w-xs">
-          <button onClick={() => shiftDate(-1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-blue-50 text-gray-500">
+          <button onClick={() => shiftDate(-1)} className="p-1.5 rounded-lg border border-gray-200 ui-hover text-gray-500">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <input
@@ -74,14 +70,14 @@ const MySchedule = () => {
             onChange={e => setDate(e.target.value)}
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary"
           />
-          <button onClick={() => shiftDate(1)} className="p-1.5 rounded-lg border border-gray-200 hover:bg-blue-50 text-gray-500">
+          <button onClick={() => shiftDate(1)} className="p-1.5 rounded-lg border border-gray-200 ui-hover text-gray-500">
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* Slot grid */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="ui-surface p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
           <p className="text-sm font-semibold text-gray-700">{formatDisplayDate(date)}</p>
           {slots.length > 0 && (

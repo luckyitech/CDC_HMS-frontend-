@@ -61,7 +61,7 @@ const DraftChecklistModal = ({
               <button
                 type="button"
                 onClick={() => onOpen?.(d)}
-                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-semibold hover:bg-blue-50 min-h-[40px]"
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-semibold ui-hover min-h-[40px]"
               >
                 Open
               </button>

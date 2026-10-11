@@ -132,7 +132,7 @@ const CareLinkPartnersSection = ({ partners, onAdd, onEdit, onRemove }) => (
     ) : (
       <div className="space-y-2">
         {partners.map((p) => (
-          <div key={p.id} className="flex items-start justify-between bg-white rounded-lg p-3 border border-gray-200">
+          <div key={p.id} className="ui-surface flex items-start justify-between p-3">
             <div className="space-y-0.5">
               <p className="text-sm font-bold text-gray-800">{p.firstName} {p.lastName}</p>
               <p className="text-xs text-gray-500">{p.relationship}</p>

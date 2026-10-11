@@ -1,6 +1,8 @@
 import { Plus, ChevronRight } from 'lucide-react';
+import SelectMenu from '../../shared/SelectMenu';
 import { Pill } from '../hrFormat';
 import { primaryButtonCls } from '../hrUi';
+import StatCard from '../../shared/StatCard';
 import {
   fmtDays, rangeLabel, progressLabel, STATUS_TONES, holidayDateLabel, monthDayLabel,
 } from './leaveFormat';
@@ -18,13 +20,8 @@ import {
  *   actions  extra buttons beside Apply (the staff file's Record leave)
  *   year, years, onYear          the year switch
  */
-const Tile = ({ label, value, sub }) => (
-  <div className="rounded-lg bg-gray-50 px-3 py-2.5 min-w-0">
-    <div className="text-[11px] text-gray-500 truncate">{label}</div>
-    <div className="text-xl font-semibold text-gray-900 tabular-nums">{value}</div>
-    {sub && <div className="text-[11px] text-gray-500 truncate">{sub}</div>}
-  </div>
-);
+// The app's one number tile (StatCard).
+const Tile = ({ label, value, sub }) => <StatCard title={label} value={value} sub={sub} />;
 
 const tilesFor = (data) => {
   const bal = data.balances || [];
@@ -52,14 +49,14 @@ const LeaveOverview = ({ data, onApply, onOpen, year, years = [], onYear, action
   const apps = data.applications || [];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5" data-testid="leave-overview">
+    <div className="ui-surface p-4 sm:p-5" data-testid="leave-overview">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title} — {data.year}</h3>
+          <h3 className="ui-box-title">{title} — {data.year}</h3>
           {years.length > 1 && onYear && (
-            <select className="rounded-md border border-gray-300 px-2 py-1 text-xs" value={year} onChange={(e) => onYear(Number(e.target.value))} aria-label="Year">
+            <SelectMenu className="rounded-md border border-gray-300 px-2 py-1 text-xs" value={year} onChange={(e) => onYear(Number(e.target.value))} aria-label="Year">
               {years.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
+            </SelectMenu>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">

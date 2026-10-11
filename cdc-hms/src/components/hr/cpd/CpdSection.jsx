@@ -107,10 +107,10 @@ const CpdSection = ({ employeeId, readOnly = false }) => {
   const pPct = Math.min(100 - vPct, (s.pending / denom) * 100);
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4 md:col-span-2">
+    <section className="ui-surface p-4 md:col-span-2">
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">CPD {year}</h3>
+          <h3 className="ui-box-title">CPD {year}</h3>
           <div className="inline-flex items-center">
             <button type="button" aria-label="Previous year" className="p-1 text-gray-400 hover:text-gray-700" onClick={() => setYear((y) => y - 1)}><ChevronLeft className="w-4 h-4" /></button>
             <button type="button" aria-label="Next year" className="p-1 text-gray-400 hover:text-gray-700" onClick={() => setYear((y) => y + 1)}><ChevronRight className="w-4 h-4" /></button>

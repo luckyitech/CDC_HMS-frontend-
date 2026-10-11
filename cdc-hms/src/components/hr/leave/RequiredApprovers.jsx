@@ -63,8 +63,8 @@ const RequiredApprovers = ({ employeeId, personName, personUserId }) => {
   const noHolder = data.approvers.length > 0 && !data.approvers.some((a) => a.canApprove);
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-4" data-testid="required-approvers">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1 flex items-center gap-1.5">
+    <section className="ui-surface p-4" data-testid="required-approvers">
+      <h3 className="ui-box-title mb-1 flex items-center gap-1.5">
         <Lock className="w-3.5 h-3.5" /> Always on {personName.split(' ')[0]}&apos;s leave requests
       </h3>
       <p className="text-[11px] text-gray-500 mb-2">

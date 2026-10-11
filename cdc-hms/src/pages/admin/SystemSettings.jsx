@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Check, Inbox, MessageCircle, Layers, Mail } from 'lucide-react';
+import { KeyRound, Check, Inbox, MessageCircle, Layers, Mail, Puzzle } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -10,6 +10,7 @@ import LabInboxSettingsTab from '../../components/admin/settings/LabInboxSetting
 import WhatsAppSettingsTab from '../../components/admin/settings/WhatsAppSettingsTab';
 import PermissionPresetsTab from '../../components/admin/settings/PermissionPresetsTab';
 import EmailSettingsTab from '../../components/admin/settings/EmailSettingsTab';
+import SpecialistModulesTab from '../../components/admin/settings/SpecialistModulesTab';
 import { useUserContext } from '../../contexts/UserContext';
 
 // The settings page is tabbed — one tab per settings area. Add an entry here
@@ -20,6 +21,7 @@ const SETTINGS_TABS = [
   { id: 'whatsapp', label: 'WhatsApp',        Icon: MessageCircle },
   { id: 'email',    label: 'Email',           Icon: Mail },
   { id: 'presets',  label: 'Permission presets', Icon: Layers },
+  { id: 'modules',  label: 'Specialist modules', Icon: Puzzle },
 ];
 import settingsService from '../../services/settingsService';
 import { notify } from '../../utils/notify';
@@ -97,7 +99,7 @@ const SystemSettings = () => {
   const period = (intervalLabel || '').replace(/^every /, '');
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div>
       <PageHeader title="System Settings" subtitle="Clinic-wide policies and access controls" />
 
       <SwitcherTabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} className="mb-4" />
@@ -106,6 +108,7 @@ const SystemSettings = () => {
       {tab === 'whatsapp' && <WhatsAppSettingsTab />}
       {tab === 'email'    && <EmailSettingsTab />}
       {tab === 'presets'  && <PermissionPresetsTab currentUser={currentUser} />}
+      {tab === 'modules'  && <SpecialistModulesTab />}
 
       {/* Card is used without its `title` prop so the switch can sit on the
           header row itself, which is where a settings toggle belongs. */}
@@ -151,7 +154,7 @@ const SystemSettings = () => {
                 onClick={() => applyInterval(opt.value)}
                 className={`relative p-4 text-left transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                   i > 0 ? 'border-t sm:border-t-0 sm:border-l' : ''
-                } ${isSelected ? 'bg-blue-50' : 'bg-white hover:bg-blue-50'}`}
+                } ${isSelected ? 'bg-blue-50' : 'bg-white ui-hover'}`}
               >
                 {isSelected && (
                   <Check className="absolute top-3 right-3 w-4 h-4 text-primary" strokeWidth={3} />

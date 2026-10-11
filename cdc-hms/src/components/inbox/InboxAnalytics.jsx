@@ -2,13 +2,10 @@ import { useState, useEffect } from 'react';
 import commsService from '../../services/commsService';
 import { useUserContext } from '../../contexts/UserContext';
 import { passesAdminGate, PERMISSIONS } from '../../utils/permissions';
+import StatCard from '../shared/StatCard';
 
-const Tile = ({ label, value }) => (
-  <div className="rounded-lg border bg-white p-3 text-center">
-    <div className="text-2xl font-bold text-gray-800">{value}</div>
-    <div className="text-xs text-gray-500">{label}</div>
-  </div>
-);
+// The app's one number tile (StatCard).
+const Tile = ({ label, value }) => <StatCard title={label} value={value} />;
 
 const secs = (s) => (s == null ? '—' : s < 90 ? `${Math.round(s)}s` : `${Math.round(s / 60)}m`);
 
@@ -31,17 +28,17 @@ const Operations = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border bg-white p-3">
+        <div className="ui-surface p-3">
           <div className="mb-2 text-sm font-semibold">Topics</div>
           {(data.byTopic || []).slice(0, 8).map((x) => <div key={x.topic} className="flex justify-between text-sm"><span className="text-gray-600">{x.topic}</span><span className="font-medium">{x.count}</span></div>)}
         </div>
-        <div className="rounded-lg border bg-white p-3">
+        <div className="ui-surface p-3">
           <div className="mb-2 text-sm font-semibold">By staff</div>
           {(data.byStaff || []).slice(0, 8).map((x) => <div key={x.staffId} className="flex justify-between text-sm"><span className="text-gray-600">{x.name}</span><span className="font-medium">{x.sent} sent · {x.completed} done</span></div>)}
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white p-3">
+      <div className="ui-surface p-3">
         <div className="mb-2 text-sm font-semibold">When patients message (inbound heat-map)</div>
         <div className="overflow-x-auto">
           <table className="text-[10px]">
@@ -73,10 +70,10 @@ const Costs = () => {
         <Tile label={`Budget${data.monthlyBudgetKes ? '' : ' (unset)'}`} value={data.monthlyBudgetKes || '—'} />
       </div>
       {over && <div className="rounded bg-red-50 p-2 text-sm text-red-600">Over the monthly budget of KES {data.monthlyBudgetKes}.</div>}
-      <div className="rounded-lg border bg-white p-3">
+      <div className="ui-surface p-3">
         <div className="mb-2 text-sm font-semibold">By category</div>
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-xs text-gray-400"><th>Category</th><th>Count</th><th>Unit (KES)</th><th className="text-right">Cost</th></tr></thead>
+          <thead className="ui-thead"><tr className="text-left text-xs text-gray-400"><th>Category</th><th>Count</th><th>Unit (KES)</th><th className="text-right">Cost</th></tr></thead>
           <tbody>{(data.byCategory || []).map((c) => <tr key={c.category} className="border-t"><td className="capitalize">{c.category}</td><td>{c.count}</td><td>{c.unitRate}</td><td className="text-right">{c.cost}</td></tr>)}</tbody>
         </table>
       </div>
@@ -133,7 +130,7 @@ const EmailAnalytics = () => {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border bg-white p-3">
+            <div className="ui-surface p-3">
               <div className="mb-2 text-sm font-semibold">Volume by staff <span className="font-normal text-gray-400">(sent / received)</span></div>
               {data.byStaff.length === 0 && <div className="text-sm text-gray-400">No mail in this range.</div>}
               {data.byStaff.map((x) => (
@@ -147,7 +144,7 @@ const EmailAnalytics = () => {
               ))}
               {data.byStaff.length > 0 && <div className="mt-2 flex gap-3 text-[11px] text-gray-500"><span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-blue-600" />Sent</span><span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-sky-300" />Received</span></div>}
             </div>
-            <div className="rounded-lg border bg-white p-3">
+            <div className="ui-surface p-3">
               <div className="mb-2 text-sm font-semibold">Per day</div>
               <div className="flex h-28 items-end gap-0.5">
                 {days.map((d) => (
@@ -162,7 +159,7 @@ const EmailAnalytics = () => {
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border bg-white p-3">
+            <div className="ui-surface p-3">
               <div className="mb-2 text-sm font-semibold">Patients waiting on a reply</div>
               {data.waiting.length === 0 && <div className="text-sm text-gray-400">None — every patient thread has been answered.</div>}
               {data.waiting.map((w, i) => (
@@ -172,7 +169,7 @@ const EmailAnalytics = () => {
                 </div>
               ))}
             </div>
-            <div className="rounded-lg border bg-white p-3">
+            <div className="ui-surface p-3">
               <div className="mb-2 text-sm font-semibold">Most contacted patients</div>
               {data.patients.length === 0 && <div className="text-sm text-gray-400">No patient threads in this range.</div>}
               {data.patients.map((p, i) => (
@@ -182,7 +179,7 @@ const EmailAnalytics = () => {
                 </div>
               ))}
             </div>
-            <div className="rounded-lg border bg-white p-3">
+            <div className="ui-surface p-3">
               <div className="mb-2 text-sm font-semibold">Documents emailed <span className="font-normal text-gray-400">({data.documents.toPatients} to patients · {data.documents.toOthers} to others)</span></div>
               {data.documents.byCategory.length === 0 && <div className="text-sm text-gray-400">None in this range.</div>}
               {data.documents.byCategory.map((c) => <div key={c.category} className="flex justify-between text-sm"><span className="text-gray-600">{c.category}</span><span className="font-medium">{c.count}</span></div>)}

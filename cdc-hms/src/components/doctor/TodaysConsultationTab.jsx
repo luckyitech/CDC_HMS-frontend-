@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { ModalOverlay } from '../shared/Modal';
 import { useNavigate } from "react-router-dom";
 import {
   Check,
@@ -7,13 +8,18 @@ import {
   Pill,
   UserCircle,
   X,
-  Wrench,
   Syringe,
   ChevronUp,
   ChevronDown,
   Package,
   BedDouble,
   FlaskConical,
+  Microscope,
+  ScanFace,
+  SlidersHorizontal,
+  Stethoscope,
+  Target,
+  EyeOff,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Card from "../shared/Card";
@@ -30,14 +36,26 @@ import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from "../../constants/billingOption
 import { INJECTION_REASON, PENDING_INJECTION } from "../../utils/queueStatus";
 import patientService from "../../services/patientService";
 import inpatientService from "../../services/inpatientService";
-import ConsultationNotesPlan from "./ConsultationNotesPlan";
+import ConsultationNotes from "./ConsultationNotes";
+import TreatmentPlanModule from "./TreatmentPlanModule";
+import PhysicalExamList from "./PhysicalExamList";
 import PrescriptionManagement from "./PrescriptionManagement";
 import AccordionPanel from "../shared/AccordionPanel";
 import SwitcherTabs from "../shared/SwitcherTabs";
 import Glp1Kardex from "../shared/Glp1Kardex";
+import DermatologyTool from "./derm/DermatologyTool";
+import { CONSULTATION_NOTE_INSERT } from "../../utils/consultationNoteInsert";
+import ConsultationLayoutModal from "./ConsultationLayoutModal";
+import useClinicModules from "../../hooks/useClinicModules";
+import useToolPrefs from "../../hooks/useToolPrefs";
+import useTodaysWork from "../../hooks/useTodaysWork";
+import { arrangeTools, toolForDraft } from "../../constants/consultationTools";
+import { LEGACY_PLAN_RESTORE } from "../../utils/legacyNotesDraft";
 import LabRequest from "../shared/LabRequest";
+import HistologyPanel from "../histology/HistologyPanel";
 import ConsultationSummaryContainer from "./ConsultationSummaryContainer";
 import SummaryDock from "../shared/SummaryDock";
+import ClinicalCalculator from "../shared/calculator/ClinicalCalculator";
 import { isToday } from "../../utils/dateUtils";
 import useDraft from "../../hooks/useDraft";
 import { useDraftContext } from "../../contexts/DraftContext";
@@ -46,22 +64,26 @@ import { DraftStatus, DraftRestoreBanner, DraftDot } from "../shared/DraftStatus
 import DraftChecklistModal from "../shared/DraftChecklistModal";
 
 // ---------------------------------------------------------------------------
-// Accordion section definitions for "Today's Consultation" tab
+// Modules of Today's Consultation (10 Oct 2026, plan M1–M9)
 // ---------------------------------------------------------------------------
-const ACCORDION_SECTIONS = [
-  // Notes + Assessment + Physical Exam + Diagnosis & Treatment Plan merged into
-  // ONE section. Assessment, exam and plan are optional click-to-add blocks
-  // inside it. Keeps the id 'diagnosis' so completion gating, drafts and jumps
-  // are unchanged.
-  { id: 'diagnosis',     label: 'Notes',          icon: MessageSquare, required: true  },
-  // 'prescriptions' is the Orders panel — a Prescriptions / Laboratory switcher.
-  // Keeps the id so completion gating, the summary panel's "open meds" jump and
-  // drafts are unchanged.
-  { id: 'prescriptions', label: 'Orders',         icon: Pill,          required: false },
-];
-
-// NOTE: 'tools' is deliberately NOT in ACCORDION_SECTIONS — it renders as its
-// own full-width panel between Consultation and Prescriptions.
+// Every section is a module (constants/consultationTools): each doctor chooses
+// which they see, in what order, and which open expanded ("Customise my
+// consultation", saved to their account). The old ACCORDION_SECTIONS list and
+// its two-column parity trap are gone — modules are one full-width column.
+//
+// How each module is mounted:
+//   always  rendered whenever shown (holds this visit's typed text; Orders as before)
+//   lazy    rendered from its first opening, then kept (typed work survives a collapse)
+//   open    rendered only while open (Physical exam: restarts a fresh entry each time;
+//           its own autosave draft keeps unsaved work)
+const MODULE_VIEW = {
+  notes:       { icon: MessageSquare, mount: 'always' },
+  exam:        { icon: Stethoscope,   mount: 'open' },
+  plan:        { icon: Target,        mount: 'always' },
+  glp1:        { icon: Syringe,       mount: 'lazy' },
+  dermatology: { icon: ScanFace,      mount: 'lazy' },
+  orders:      { icon: Pill,          mount: 'always' },
+};
 
 // AccordionPanel, HistoryField, VisitSectionHeader — moved to shared components
 
@@ -81,7 +103,7 @@ const NO_OPEN_VISIT_MESSAGE =
   'This visit is already closed. Referral and admission can only be recorded during an open consultation.';
 
 const NoOpenVisitNotice = ({ onClose }) => (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <ModalOverlay>
     <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full text-center space-y-4">
       <p className="text-gray-700 font-medium">This visit is already closed.</p>
       <p className="text-sm text-gray-500">
@@ -94,7 +116,7 @@ const NoOpenVisitNotice = ({ onClose }) => (
         Close
       </button>
     </div>
-  </div>
+  </ModalOverlay>
 );
 
 // ---------------------------------------------------------------------------
@@ -124,7 +146,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   // State
   // ---------------------------------------------------------------------------
 
-  // Live consultation note text, handed up from ConsultationNotesPlan so the
+  // Live consultation note text, handed up from ConsultationNotes so the
   // Admit modal can pre-fill the admission note.
   const notesTextRef = useRef('');
   // Patient summary drawer — mobile/tablet only (always visible ≥ xl)
@@ -135,8 +157,28 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   const activeDiagnoses = trackedDiagnoses.filter((d) => d.status === 'active');
   const hasActiveDx = activeDiagnoses.length > 0;
 
-  // Only one accordion section open at a time (stores the open section id or null)
-  const [openSections, setOpenSections] = useState(null);
+  // Modules open now (several may be), and modules rendered at least once
+  // (MODULE_VIEW.mount 'lazy' keeps them rendered after a collapse).
+  const [openModules, setOpenModules] = useState([]);
+  const [mountedModules, setMountedModules] = useState([]);
+  // Hidden modules shown for this visit — by "Show one for this visit", a
+  // draft opened from the checklist, or a nurse's GLP-1 note. Per patient.
+  const [shownForVisit, setShownForVisit] = useState([]);
+  const isModuleOpen = (id) => openModules.includes(id);
+  const openModule = useCallback((id, { forceShow = false } = {}) => {
+    setOpenModules((m) => (m.includes(id) ? m : [...m, id]));
+    setMountedModules((m) => (m.includes(id) ? m : [...m, id]));
+    if (forceShow) setShownForVisit((m) => (m.includes(id) ? m : [...m, id]));
+  }, []);
+  const toggleModule = (id) => {
+    setOpenModules((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
+    setMountedModules((m) => (m.includes(id) ? m : [...m, id]));
+  };
+  const closeModule = (id) => setOpenModules((m) => m.filter((x) => x !== id));
+  // Saved-this-visit flags reported by the Notes and Plan modules (header chips)
+  const [notesSaved, setNotesSaved] = useState(false);
+  const [planSaved, setPlanSaved] = useState(false);
+  const [examRun, setExamRun] = useState(0);   // a fresh exam entry after each save
 
   // Tab completion — only tracks the fields that gate the Complete button
   const [tabsCompleted, setTabsCompleted] = useState(() => {
@@ -162,13 +204,22 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   // Consultation — only Diagnosis does.
   const [toolsDirty, setToolsDirty] = useState(false);
 
-  // Which tool inside the Tools card is open. GLP-1 is the only one so far.
-  const [openTool, setOpenTool] = useState(null);
-  // Orders panel switcher — Prescriptions | Laboratory.
+  // Orders panel switcher — Prescriptions | Laboratory | Histology (the last
+  // only while the clinic has the Histology / cytology module on).
   const [ordersTab, setOrdersTab] = useState('prescriptions');
   // How many GLP-1 week notes were written for this patient today — drives the
   // count on the collapsed tool header
   const [notesToday, setNotesToday] = useState(0);
+
+  // This doctor's layout (constants/consultationTools, saved to their account
+  // via useToolPrefs) and the clinic's specialist-module switches.
+  const [customising, setCustomising] = useState(false);
+  const { modules, loaded: modulesLoaded } = useClinicModules();
+  const { prefs: toolPrefs, loaded: toolPrefsLoaded, save: saveToolPrefs } = useToolPrefs();
+  const allTools = useMemo(() => arrangeTools(toolPrefs, modules), [toolPrefs, modules]);
+  // Modules this doctor keeps open: opened once per patient, when both the
+  // clinic's modules and their layout are known.
+  const autoOpenedFor = useRef(null);
 
   /**
    * The patient's live queue entry for today.
@@ -192,7 +243,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   const [showReferModal, setShowReferModal]         = useState(false);
   // Point-of-care stock use mid-consultation ("I used a dressing pack").
   // Floating-bar button — deliberately NOT an accordion section (see the
-  // ACCORDION_SECTIONS column-parity note). Open to all clinical roles.
+  // module). Open to all clinical roles.
   const [showRecordUse, setShowRecordUse]           = useState(false);
   const [showActions, setShowActions]               = useState(false);
   const actionsRef = useRef(null);
@@ -246,15 +297,44 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
     ? draftCtx.draftsFor(uhid, { consultationOnly: true }).filter((d) => !String(d.contextKey).startsWith('remote'))
     : []), [draftCtx, uhid]);
 
-  // Orange dot shown on accordion section headers when fields are dirty — or
-  // hold an autosaved draft not yet saved to the record.
-  const tabsUnsaved = useMemo(() => ({
-    tools: toolsDirty || visitDrafts.some((d) => d.formKey === 'glp1-review'),
-    diagnosis: visitDrafts.some((d) => ['consultation-notes', 'initial-assessment', 'physical-exam'].includes(d.formKey)),
-    prescriptions: visitDrafts.some((d) => ['prescription', 'lab-request'].includes(d.formKey)),
-  }), [
-    toolsDirty, visitDrafts,
-  ]);
+  // Orange dot on a module's header when it holds an autosaved draft not yet
+  // saved to the record (GLP-1 also while a review is part-typed).
+  const draftModules = useMemo(() => {
+    const out = new Set(visitDrafts.map((d) => toolForDraft(d.formKey)).filter(Boolean));
+    if (toolsDirty) out.add('glp1');
+    return out;
+  }, [toolsDirty, visitDrafts]);
+
+  // Hidden modules that still show on this visit, and why (plan M6): nothing
+  // typed or recorded today may disappear because a layout hides its module.
+  const visitStartedAt = findQueueItem()?.createdAt || null;
+  const hiddenIds = useMemo(() => allTools.filter((t) => t.hidden).map((t) => t.id), [allTools]);
+  const todaysWork = useTodaysWork({ uhid, hiddenIds, doctorId: currentUser?.id, visitStartedAt, dermOn: !!modules.dermatology });
+  const liveReason = useCallback((t) => {
+    if (draftModules.has(t.id)) return 'you have an unsaved draft';
+    if (t.id === 'glp1' && notesToday > 0) return 'a nurse left a note today';
+    if (todaysWork[t.id]) return todaysWork[t.id];
+    return null;
+  }, [draftModules, notesToday, todaysWork]);
+  // Once a hidden module is shown on this visit it stays shown until the
+  // patient changes: a module must never vanish under the doctor's hands
+  // (e.g. while its form reloads its own draft, or right after a save).
+  const [stickyReasons, setStickyReasons] = useState({});
+  useEffect(() => {
+    setStickyReasons((r) => {
+      const add = {};
+      allTools.forEach((t) => {
+        if (t.hidden && !r[t.id]) { const why = liveReason(t); if (why) add[t.id] = why; }
+      });
+      return Object.keys(add).length ? { ...r, ...add } : r;
+    });
+  }, [allTools, liveReason]);
+  const shownBecause = (t) => {
+    if (!t.hidden) return null;
+    return liveReason(t) || stickyReasons[t.id] || (shownForVisit.includes(t.id) ? 'you chose it for this visit' : null);
+  };
+  const visibleModules = allTools.filter((t) => !t.hidden || shownBecause(t));
+  const stillHidden = allTools.filter((t) => t.hidden && !shownBecause(t));
 
   // visitDates — moved to VisitHistoryPanel (shared component)
 
@@ -282,14 +362,32 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
         n => n.authorRole !== 'doctor' && isToday(n.createdAt)
       ).length;
       setNotesToday(written);
-      if (written > 0) {
-        setOpenSections('tools');
-        setOpenTool('glp1');
-      }
+      if (written > 0) openModule('glp1');
     });
 
     return () => { isMounted = false; };
-  }, [uhid, getWeekNotes]);
+  }, [uhid, getWeekNotes, openModule]);
+
+  // A new patient starts from this doctor's layout.
+  useEffect(() => {
+    setOpenModules([]);
+    setMountedModules([]);
+    setShownForVisit([]);
+    setStickyReasons({});
+  }, [uhid]);
+
+  useEffect(() => {
+    if (!uhid || !modulesLoaded || !toolPrefsLoaded || autoOpenedFor.current === uhid) return;
+    autoOpenedFor.current = uhid;
+    allTools.filter((t) => !t.hidden && t.alwaysOpen).forEach((t) => openModule(t.id));
+  }, [uhid, modulesLoaded, toolPrefsLoaded, allTools, openModule]);
+
+  // Plan text from an old combined notes + plan draft: show and open the plan.
+  useEffect(() => {
+    const onLegacy = (e) => { if (e.detail?.uhid === uhid) openModule('plan', { forceShow: true }); };
+    window.addEventListener(LEGACY_PLAN_RESTORE, onLegacy);
+    return () => window.removeEventListener(LEGACY_PLAN_RESTORE, onLegacy);
+  }, [uhid, openModule]);
 
   // Does the patient already have an active tracked diagnosis?
   // (Waives the diagnosis requirement for returning patients; the summary panel
@@ -354,27 +452,24 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   // scroll itself into view.
   const openDraft = (entry) => {
     setShowDraftChecklist(false);
-    if (['prescription', 'lab-request'].includes(entry.formKey)) {
-      setOrdersTab(entry.formKey === 'lab-request' ? 'labs' : 'prescriptions');
-      setOpenSections('prescriptions');
-    } else if (entry.formKey === 'glp1-review') {
-      setOpenSections('tools');
-    } else {
-      setOpenSections('diagnosis');
+    const id = toolForDraft(entry.formKey) || 'notes';
+    if (id === 'orders') {
+      setOrdersTab(entry.formKey === 'lab-request' ? 'labs' : entry.formKey === 'histology-request' ? 'histology' : 'prescriptions');
     }
+    openModule(id, { forceShow: true });
     setTimeout(() => draftCtx?.open(entry), 300);
   };
 
   const handleCompleteConsultation = ({ skipDraftCheck = false } = {}) => {
-    // Diagnosis is required only for patients with no active tracked diagnosis —
+    // Completing needs at least one ACTIVE diagnosis in Diagnosis &
+    // differentials (plan M4) — hiding Notes or Plan never blocks a doctor;
     // returning patients don't re-enter the same diagnosis every visit.
-    if (!tabsCompleted.diagnosis && !hasActiveDx) {
+    if (!hasActiveDx) {
       toast.error(
-        "Please complete Diagnosis & Treatment Plan before completing consultation",
+        "Add a diagnosis in Diagnosis & differentials before completing the consultation",
         { duration: 4000, position: "top-right", icon: "❌",
           style: { background: "#EF4444", color: "#FFFFFF", fontWeight: "bold", padding: "16px" } }
       );
-      setOpenSections('diagnosis');
       return;
     }
     // Unsaved drafts? Warn first (Emu, 6 Oct: warn, never block).
@@ -564,9 +659,13 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   const toggleProcedure = (item) =>
     setSelectedProcedures(prev => prev.includes(item) ? prev.filter(p => p !== item) : [...prev, item]);
 
-  const toggleSection = useCallback((id) => {
-    setOpenSections(prev => prev === id ? null : id);
-  }, []);
+  // Text inserted into the note from a tool — open the notes module (shown
+  // for this visit even if hidden) so the doctor sees it land.
+  useEffect(() => {
+    const onInsert = (e) => { if (e.detail?.uhid === uhid) openModule('notes', { forceShow: true }); };
+    window.addEventListener(CONSULTATION_NOTE_INSERT, onInsert);
+    return () => window.removeEventListener(CONSULTATION_NOTE_INSERT, onInsert);
+  }, [uhid, openModule]);
 
   // toggleHistoryDate — moved to VisitHistoryPanel (shared component)
 
@@ -576,7 +675,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
 
   if (showSuccessMessage) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <ModalOverlay>
         <Card className="max-w-lg">
           <div className="text-center py-8 px-6">
             <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
@@ -587,7 +686,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
             <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
           </div>
         </Card>
-      </div>
+      </ModalOverlay>
     );
   }
 
@@ -597,8 +696,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   return (
     <div className="pb-12">
       {/* Two-column layout: consultation body + right summary panel. The panel
-          lives OUTSIDE the accordion grid, so ACCORDION_SECTIONS parity is
-          untouched. */}
+          lives OUTSIDE the column of modules. */}
       <SummaryDock
         overviewOpen={overviewOpen}
         panel={({ closeSummary }) => (
@@ -613,7 +711,8 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
               }))
             )}
             onOpenMeds={() => {
-              setOpenSections("prescriptions");
+              setOrdersTab("prescriptions");
+              openModule("orders");
               closeSummary();
             }}
             onEditVitals={() => setShowVitalsModal(true)}
@@ -621,175 +720,172 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
           />
         )}
       >
-      {/* ── Today's Consultation (accordion) ── */}
+      {/* ── Today's Consultation — this doctor's modules, in their order ── */}
       <div className="space-y-3">
-          {/* Reminder banner — only for patients with no active tracked diagnosis */}
-          {!tabsCompleted.diagnosis && !hasActiveDx && (
+          {/* Reminder — only while the patient has no active diagnosis */}
+          {!hasActiveDx && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
               <p className="text-sm text-amber-800">
-                Complete <strong>Diagnosis &amp; Treatment Plan</strong> before sending the patient to billing.
+                Add a diagnosis in <strong>Diagnosis &amp; differentials</strong> before completing the consultation.
               </p>
             </div>
           )}
 
-          {/* Triage Vitals block removed — vitals (with reason for visit, trends and
-              edit/record action) live in the summary panel's Vitals card. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-gray-500">Your layout · saved to your account</span>
+            <button
+              type="button"
+              onClick={() => setCustomising(true)}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-primary bg-white px-3 py-1.5 text-xs font-semibold text-primary ui-hover"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" /> Customise my consultation
+            </button>
+          </div>
 
-          {/* The merged consultation section — full width (Assessment, Physical
-              Exam and Treatment Plan are optional click-to-add blocks inside).
-              The old two-column parity split is gone with only one section left. */}
+          {/* One full-width column of modules (constants/consultationTools).
+              A hidden module with today's work or a draft still shows, marked. */}
+          {/* Nothing renders until this doctor's layout and the clinic's modules
+              are known — otherwise the default layout flashes up first and a
+              module the doctor hides would mount (and restore its draft) for
+              a moment. */}
+          {!(toolPrefsLoaded && modulesLoaded) && (
+            <p className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-500">Loading your layout…</p>
+          )}
           <div className="flex flex-col gap-3">
-            {ACCORDION_SECTIONS.filter((s) => s.id !== 'prescriptions').map((section) => {
-              const isOpen      = openSections === section.id;
-              const isCompleted = !!tabsCompleted[section.id];
-              const isUnsaved   = !!tabsUnsaved[section.id]; // an autosaved draft shows even after a save
-
+            {toolPrefsLoaded && modulesLoaded && visibleModules.map((tool) => {
+              const view = MODULE_VIEW[tool.id] || { icon: MessageSquare, mount: 'always' };
+              const isOpen = isModuleOpen(tool.id);
+              const because = shownBecause(tool);
+              const render = view.mount === 'always' || (view.mount === 'lazy' ? mountedModules.includes(tool.id) : isOpen);
+              const saved = (tool.id === 'notes' && notesSaved) || (tool.id === 'plan' && planSaved)
+                || (tool.id === 'orders' && tabsCompleted.prescriptions && ordersTab === 'prescriptions');
               const badge = (
                 <>
-                  {section.required && !hasActiveDx && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Required</span>
-                  )}
-                  {isCompleted && (
+                  {saved && (
                     <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                      <Check className="w-3.5 h-3.5" /> Done
+                      <Check className="w-3.5 h-3.5" /> Saved
                     </span>
                   )}
-                  {isUnsaved && (
-                    <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes" />
+                  {tool.id === 'orders' && !isOpen && (
+                    <span className="hidden sm:inline text-xs text-gray-500">Prescriptions · Laboratory{modules.histology ? ' · Histology' : ''}</span>
                   )}
+                  {/* The nurse wrote something today — said on the closed header. */}
+                  {tool.id === 'glp1' && notesToday > 0 && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-300">
+                      {notesToday === 1 ? '1 nurse note today' : `${notesToday} nurse notes today`}
+                    </span>
+                  )}
+                  {because && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800">
+                      <EyeOff className="w-3.5 h-3.5" /> Hidden in your layout — shown because {because}
+                    </span>
+                  )}
+                  {draftModules.has(tool.id) && <DraftDot />}
                 </>
               );
-
               return (
                 <AccordionPanel
-                  key={section.id}
-                  icon={section.icon}
-                  label={section.label}
+                  key={tool.id}
+                  icon={view.icon}
+                  label={tool.label}
                   badge={badge}
                   isOpen={isOpen}
-                  onToggle={() => toggleSection(section.id)}
+                  onToggle={() => toggleModule(tool.id)}
                 >
-                  {section.id === 'diagnosis' && (
-                    <ConsultationNotesPlan
+                  {render && tool.id === 'notes' && (
+                    <ConsultationNotes
+                      patient={patient}
+                      currentUser={currentUser}
+                      notesRef={notesTextRef}
+                      // This visit = this queue row: a second same-day check-in
+                      // starts fresh instead of overwriting the earlier note.
+                      visitStartedAt={visitStartedAt}
+                      onSavedChange={setNotesSaved}
+                    />
+                  )}
+                  {render && tool.id === 'exam' && (
+                    <PhysicalExamList
+                      key={examRun}
+                      patient={patient}
+                      embedded={true}
+                      autoStart
+                      onSaved={() => { closeModule('exam'); setExamRun((n) => n + 1); }}
+                    />
+                  )}
+                  {render && tool.id === 'plan' && (
+                    <TreatmentPlanModule
                       patient={patient}
                       currentUser={currentUser}
                       activeDiagnoses={activeDiagnoses}
+                      visitStartedAt={visitStartedAt}
                       onSuccess={handleDiagnosisSuccess}
-                      notesRef={notesTextRef}
-                      // This visit = this queue row. Scopes the "note/plan already
-                      // saved" prefill so a second same-day check-in starts fresh
-                      // instead of overwriting the earlier visit's note.
-                      visitStartedAt={findQueueItem()?.createdAt || null}
+                      onSavedChange={setPlanSaved}
                     />
+                  )}
+                  {render && tool.id === 'glp1' && <Glp1Kardex patient={patient} onDirtyChange={setToolsDirty} />}
+                  {render && tool.id === 'dermatology' && <DermatologyTool patient={patient} />}
+                  {render && tool.id === 'orders' && (
+                    <>
+                      <div className="mb-4">
+                        <SwitcherTabs
+                          active={ordersTab}
+                          onChange={setOrdersTab}
+                          tabs={[
+                            { id: 'prescriptions', label: 'Prescriptions', Icon: Pill },
+                            { id: 'labs',          label: 'Laboratory',    Icon: FlaskConical },
+                            ...(modules.histology ? [{ id: 'histology', label: 'Histology', Icon: Microscope }] : []),
+                          ]}
+                        />
+                      </div>
+                      {ordersTab === 'prescriptions' ? (
+                        <PrescriptionManagement
+                          patient={patient}
+                          patientPrescriptions={patientPrescriptions}
+                          addPrescription={addPrescription}
+                          currentUser={currentUser}
+                          onSuccess={handlePrescriptionSuccess}
+                          hideCurrentStrip
+                        />
+                      ) : ordersTab === 'histology' && modules.histology ? (
+                        <HistologyPanel patient={patient} />
+                      ) : (
+                        <LabRequest patient={patient} />
+                      )}
+                    </>
                   )}
                 </AccordionPanel>
               );
             })}
           </div>
 
-          {/* Tools — full width, between the grid and Prescriptions.
-              Not part of ACCORDION_SECTIONS: see the note by that constant. */}
-          <AccordionPanel
-            icon={Wrench}
-            label="Clinical Tools"
-            badge={
-              <>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">
-                  1 tool
-                </span>
-                {tabsUnsaved.tools && (
-                  <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes" />
-                )}
-              </>
-            }
-            isOpen={openSections === 'tools'}
-            onToggle={() => toggleSection('tools')}
-          >
-            {/* Tools is a container for several clinical tools. GLP-1 monitoring
-                is the only one so far; others get their own entry here. */}
-            <div className="border border-gray-200 rounded-lg">
-              <button
-                onClick={() => setOpenTool(openTool === 'glp1' ? null : 'glp1')}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 text-left"
-              >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Syringe className={`w-4 h-4 ${openTool === 'glp1' ? 'text-primary' : 'text-gray-400'}`} />
-                  <span className={`text-sm font-medium ${openTool === 'glp1' ? 'text-primary' : 'text-gray-700'}`}>
-                    GLP-1 / GIP agonist monitoring
-                  </span>
-                  {/* The nurse wrote something today. Said on the closed header
-                      because a note nobody opens the panel to read is no use. */}
-                  {notesToday > 0 && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 border border-teal-300">
-                      {notesToday === 1 ? '1 nurse note today' : `${notesToday} nurse notes today`}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-gray-400">
-                  {openTool === 'glp1' ? 'Hide' : 'Open'}
-                </span>
-              </button>
-              {openTool === 'glp1' && (
-                <div className="border-t border-gray-100 p-4">
-                  <Glp1Kardex
-                    patient={patient}
-                    onDirtyChange={setToolsDirty}
-                  />
-                </div>
-              )}
+          {toolPrefsLoaded && modulesLoaded && stillHidden.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
+              <span>Hidden in your layout:</span>
+              {stillHidden.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => openModule(t.id, { forceShow: true })}
+                  title="Show it for this visit only"
+                  className="rounded-full border border-gray-300 bg-white px-2.5 py-0.5 text-xs font-medium text-gray-700 ui-hover"
+                >
+                  {t.label}
+                </button>
+              ))}
+              <span className="text-xs text-gray-500">— tap one to show it for this visit</span>
             </div>
-          </AccordionPanel>
-
-          {/* Orders — full width at the bottom. A Prescriptions / Laboratory
-              switcher in one panel (keeps the 'prescriptions' section id so
-              completion gating and the summary panel's jump are unchanged). */}
-          {(() => {
-            const section = ACCORDION_SECTIONS.find(s => s.id === 'prescriptions');
-            const isCompleted = !!tabsCompleted['prescriptions'];
-            return (
-              <AccordionPanel
-                icon={section.icon}
-                label={section.label}
-                badge={
-                  <>
-                    {isCompleted && ordersTab === 'prescriptions' && (
-                      <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
-                        <Check className="w-3.5 h-3.5" /> Done
-                      </span>
-                    )}
-                    {tabsUnsaved.prescriptions && <DraftDot />}
-                  </>
-                }
-                isOpen={openSections === 'prescriptions'}
-                onToggle={() => toggleSection('prescriptions')}
-              >
-                <div className="mb-4">
-                  <SwitcherTabs
-                    active={ordersTab}
-                    onChange={setOrdersTab}
-                    tabs={[
-                      { id: 'prescriptions', label: 'Prescriptions', Icon: Pill },
-                      { id: 'labs',          label: 'Laboratory',    Icon: FlaskConical },
-                    ]}
-                  />
-                </div>
-                {ordersTab === 'prescriptions' ? (
-                  <PrescriptionManagement
-                    patient={patient}
-                    patientPrescriptions={patientPrescriptions}
-                    addPrescription={addPrescription}
-                    currentUser={currentUser}
-                    onSuccess={handlePrescriptionSuccess}
-                    hideCurrentStrip
-                  />
-                ) : (
-                  <LabRequest patient={patient} />
-                )}
-              </AccordionPanel>
-            );
-          })()}
+          )}
         </div>
+
+      <ConsultationLayoutModal
+        isOpen={customising}
+        onClose={() => setCustomising(false)}
+        tools={allTools}
+        prefs={toolPrefs}
+        modules={modules}
+        onSave={saveToolPrefs}
+      />
 
       {/* ===== Action Buttons — in flow at the very end of the content column:
              visible after scrolling past the last section ===== */}
@@ -798,7 +894,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
         <div className="relative" ref={actionsRef}>
           <button
             onClick={() => setShowActions((o) => !o)}
-            className="flex items-center gap-1.5 bg-white hover:bg-blue-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+            className="flex items-center gap-1.5 bg-white ui-hover text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
           >
             Actions
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showActions ? "rotate-180" : ""}`} />
@@ -808,19 +904,19 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
             <div className="absolute right-0 top-full mt-2 z-20 w-44 bg-white border border-gray-200 rounded-lg shadow-xl py-1">
               <button
                 onClick={() => { setShowActions(false); setShowRecordUse(true); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 ui-hover transition-colors"
               >
                 <Package className="w-3.5 h-3.5" /> Record Use
               </button>
               <button
                 onClick={() => { setShowActions(false); setShowReferModal(true); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 ui-hover transition-colors"
               >
                 <UserCircle className="w-3.5 h-3.5" /> Refer Patient
               </button>
               <button
                 onClick={() => { setShowActions(false); setShowAdmitModal(true); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-blue-50 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-gray-700 ui-hover transition-colors"
               >
                 <BedDouble className="w-3.5 h-3.5" /> Admit Patient
               </button>
@@ -830,7 +926,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
 
         <button
           onClick={handleCompleteConsultation}
-          disabled={!tabsCompleted.diagnosis && !hasActiveDx}
+          disabled={!hasActiveDx}
           className="flex items-center gap-1.5 bg-primary hover:opacity-90 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Check className="w-3.5 h-3.5" />
@@ -847,10 +943,13 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
 
       </SummaryDock>
 
+      {/* Floating clinical calculator — nothing it does is saved */}
+      <ClinicalCalculator patient={patient} />
+
 
       {/* ===== Billing Checklist Modal ===== */}
       {showBillingModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <ModalOverlay>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
               <div>
@@ -867,7 +966,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
               </div>
               <button
                 onClick={closeBilling}
-                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-gray-600"
+                className="p-1.5 rounded-lg ui-hover text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -884,7 +983,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
                       className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                         selectedCharges.includes(item)
                           ? 'bg-green-50 border-green-400 text-gray-800'
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 ui-hover'
                       }`}
                     >
                       <input
@@ -928,7 +1027,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
                         className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                           selectedProcedures.includes(item)
                             ? 'bg-green-50 border-green-400 text-gray-800'
-                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 ui-hover'
                         }`}
                       >
                         <input
@@ -966,7 +1065,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
                   className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-all ${
                     sendForInjection
                       ? 'bg-green-50 border-green-400 text-gray-800'
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-blue-50'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 ui-hover'
                   }`}
                 >
                   <input
@@ -1093,7 +1192,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
               <div className="flex gap-3">
                 <button
                   onClick={closeBilling}
-                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 ui-hover"
                 >
                   Cancel
                 </button>
@@ -1111,7 +1210,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
               </div>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
 

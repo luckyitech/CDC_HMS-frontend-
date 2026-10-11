@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import AnalyticsBarChart from '../../../components/shared/AnalyticsBarChart';
 import AnalyticsDateFilter, { DEFAULT_DATE_RANGE } from '../../../components/shared/AnalyticsDateFilter';
 import StatCard from '../../../components/shared/StatCard';
 import analyticsService from '../../../services/analyticsService';
+import PageHeader from '../../../components/shared/PageHeader';
 
 const formatHour = (h) => {
   if (h === 0)  return '12am';
@@ -45,11 +46,7 @@ export default function ConsultationAnalytics() {
         >
           <ArrowLeft size={15} /> Back to Analytics
         </button>
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Clock className="text-green-600" size={24} />
-          Consultation Timing
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">When consultations happen and how long they take</p>
+        <PageHeader title="Consultation Timing" subtitle="When consultations happen and how long they take" className="mb-0" />
       </div>
 
       {/* Date filter */}

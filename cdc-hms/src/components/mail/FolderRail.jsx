@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import SelectMenu from '../shared/SelectMenu';
 import { Inbox, Send, FileText, Archive, AlertOctagon, Trash2, Folder, Plus, MoreHorizontal, Pencil } from 'lucide-react';
 
 const ICONS = { inbox: Inbox, sent: Send, drafts: FileText, archive: Archive, junk: AlertOctagon, trash: Trash2 };
@@ -102,12 +103,12 @@ const FolderRail = ({ folders, active, onSelect, onManage = null }) => {
         {own.map(item)}
       </nav>
       <div className="flex items-center gap-1 border-b p-2 lg:hidden">
-        <select
+        <SelectMenu
           value={active} onChange={(e) => onSelect(e.target.value)} aria-label="Mail folder"
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
         >
           {folders.map((f) => <option key={f.path} value={f.path}>{f.name}{f.unseen ? ` (${f.unseen})` : ''}</option>)}
-        </select>
+        </SelectMenu>
         {onManage && activeOwn && <FolderMenu folder={activeOwn} onManage={onManage} />}
         {onManage && (
           <button type="button" onClick={() => onManage('create')} className="rounded p-2 text-gray-500 hover:bg-gray-100" aria-label="New folder" title="New folder">

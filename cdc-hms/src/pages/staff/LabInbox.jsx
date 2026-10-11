@@ -196,7 +196,7 @@ const LabInbox = ({ embedded = false }) => {
       {loading ? (
         <div className="flex justify-center py-16"><Spinner /></div>
       ) : visible.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl py-16 text-center">
+        <div className="ui-surface py-16 text-center">
           <Inbox className="w-10 h-10 mx-auto text-gray-300 mb-3" />
           <p className="font-semibold text-gray-700">
             {query ? 'Nothing matches your search.' : tab === 'New' ? 'No new reports — the inbox is clear.' : `No ${tab === 'Matched' ? 'paired' : tab.toLowerCase()} reports.`}

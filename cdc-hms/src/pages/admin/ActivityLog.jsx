@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
 import { useSearchParams } from 'react-router-dom';
 import { Activity, Filter, RefreshCw, ChevronLeft, ChevronRight, ChevronDown, Printer } from 'lucide-react';
 import Card from '../../components/shared/Card';
@@ -7,6 +8,7 @@ import ActivityDrilldownModal from '../../components/admin/ActivityDrilldownModa
 import usePrint from '../../hooks/usePrint';
 import activityService from '../../services/activityService';
 import { ACTION_STYLE, formatDateTime } from './activityLogShared';
+import PageHeader from '../../components/shared/PageHeader';
 
 const PAGE_SIZE = 100;
 
@@ -222,19 +224,20 @@ const ActivityLog = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Activity Log</h1>
-          <p className="text-sm text-gray-500 mt-1">Track every action performed by staff and doctors</p>
-        </div>
-        <button
-          onClick={fetchData}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
-      </div>
+      <PageHeader
+        title="Activity Log"
+        subtitle="Track every action performed by staff and doctors"
+        className="mb-0"
+        actions={(
+          <button
+            onClick={fetchData}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        )}
+      />
 
       {/* Filters — kept above the Summary section so they're reachable without
           scrolling past a potentially long staff list first. */}
@@ -261,23 +264,23 @@ const ActivityLog = () => {
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Role</label>
-            <select value={role} onChange={e => handleRoleChange(e.target.value)}
+            <SelectMenu value={role} onChange={e => handleRoleChange(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
               <option value="all">All Roles</option>
               <option value="staff">Staff Only</option>
               <option value="doctor">Doctors Only</option>
               <option value="lab">Lab Only</option>
               <option value="admin">Admin Only</option>
-            </select>
+            </SelectMenu>
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Action Type</label>
-            <select value={actionType} onChange={e => setActionType(e.target.value)}
+            <SelectMenu value={actionType} onChange={e => setActionType(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary">
               {filteredActionTypes.map(t => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
-            </select>
+            </SelectMenu>
           </div>
         </div>
         <label className="flex items-center gap-2 mt-3 text-xs text-gray-600 cursor-pointer w-fit">
@@ -378,7 +381,7 @@ const ActivityLog = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <thead className="ui-thead">
                 <tr>
                   <th className="px-4 py-3 text-left">Date & Time</th>
                   <th className="px-4 py-3 text-left">Name</th>
@@ -393,7 +396,7 @@ const ActivityLog = () => {
                   const style = ACTION_STYLE[e.type] || { color: 'bg-gray-100 text-gray-600', icon: Activity };
                   const Icon = style.icon;
                   return (
-                    <tr key={i} className="hover:bg-blue-50 transition">
+                    <tr key={i} className="ui-hover transition">
                       <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDateTime(e.timestamp)}</td>
                       <td className="px-4 py-3 font-semibold text-gray-800">{e.staff}</td>
                       <td className="px-4 py-3">
@@ -428,12 +431,12 @@ const ActivityLog = () => {
             </span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg ui-hover disabled:opacity-40 disabled:cursor-not-allowed transition">
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
               <span className="text-sm font-semibold text-gray-700">Page {page} of {totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg ui-hover disabled:opacity-40 disabled:cursor-not-allowed transition">
                 Next <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -456,7 +459,7 @@ const ActivityLog = () => {
           </p>
         </div>
         <table className="w-full text-sm">
-          <thead>
+          <thead className="ui-thead">
             <tr className="text-left border-b border-gray-300">
               <th className="py-1 pr-3">Time</th><th className="py-1 pr-3">Staff</th><th className="py-1 pr-3">Activity</th><th className="py-1 pr-3">Patient</th><th className="py-1 pr-3">UHID</th><th className="py-1">Detail</th>
             </tr>

@@ -343,13 +343,13 @@ const AdminDashboard = () => {
           <>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <thead className="ui-thead">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase hidden md:table-cell">Specialty / Position</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase hidden lg:table-cell">Created</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left">Name</th>
+                    <th className="px-6 py-3 text-left">Role</th>
+                    <th className="px-6 py-3 text-left hidden md:table-cell">Specialty / Position</th>
+                    <th className="px-6 py-3 text-left hidden lg:table-cell">Created</th>
+                    <th className="px-6 py-3 text-left">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -361,7 +361,7 @@ const AdminDashboard = () => {
                     <tr
                       key={account.id}
                       onClick={href ? () => navigate(href) : undefined}
-                      className={`hover:bg-blue-50 ${href ? 'cursor-pointer' : ''}`}
+                      className={`ui-hover ${href ? 'cursor-pointer' : ''}`}
                     >
                       <td className="px-6 py-4">
                         <p className={`font-semibold ${href ? 'text-primary hover:underline' : 'text-gray-800'}`}>{account.name}</p>

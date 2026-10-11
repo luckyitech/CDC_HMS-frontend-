@@ -14,6 +14,7 @@
 // backend averageReadings would keep the study list in step — flagged, not yet
 // done.)
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ModalOverlay } from './Modal';
 import { Printer, Download, Save, Loader2, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PrintLetterhead from './PrintLetterhead';
@@ -200,7 +201,7 @@ const NeuropathyReport = ({ study, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+    <ModalOverlay align="top">
       <div className="bg-white rounded-lg shadow-2xl my-4" style={{ width: 834 }}>
         {/* toolbar — screen only */}
         <div className="sticky top-0 bg-white border-b-2 border-gray-200 p-3 flex justify-between items-center rounded-t-lg z-10">
@@ -346,7 +347,7 @@ const NeuropathyReport = ({ study, onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

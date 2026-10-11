@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { formatDOB } from "../../utils/dateUtils";
 import VitalsGrid from '../../components/shared/VitalsGrid';
 import { useNavigate, useParams, useLocation } from "react-router-dom";
@@ -226,27 +227,7 @@ const StaffPatientProfile = () => {
       </Card>
 
       {/* Tabs */}
-      <div className="mb-6 overflow-x-auto">
-        <div className="flex gap-2 border-b-2 border-gray-200 pb-2 min-w-max">
-          {tabs.map((tab) => {
-            const IconComponent = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-6 py-3 rounded-t-lg font-semibold transition whitespace-nowrap flex items-center gap-2 ${
-                  activeTab === tab.id
-                    ? "bg-primary text-white shadow-lg"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                <IconComponent className="w-5 h-5" />
-                {tab.name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <SwitcherTabs className="mb-6" tabs={tabs.map(({ id, name, icon }) => ({ id, label: name, Icon: icon }))} active={activeTab} onChange={setActiveTab} />
 
       {/* Tab Content */}
       <div>

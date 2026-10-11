@@ -593,7 +593,7 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="ui-surface p-5">
         <h3 className="text-sm font-semibold text-gray-800 mb-3">Account</h3>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between gap-4">
@@ -770,7 +770,7 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           // An empty list here means the catalog request came back without one —
           // in practice a frontend running ahead of the backend it is talking to.
           // Rendering nothing at all just looks like a broken screen, so say so.
-          <div className="text-sm text-gray-500 bg-white rounded-xl border border-gray-200 p-5">
+          <div className="ui-surface text-sm text-gray-500 p-5">
             <p className="font-semibold text-gray-700">No permission list available.</p>
             <p className="mt-1">
               The server did not return one. This usually means the API is running an older

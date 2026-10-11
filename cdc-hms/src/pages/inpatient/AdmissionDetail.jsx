@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import useDraft from "../../hooks/useDraft";
 import { DraftStatus, DraftRestoreBanner } from "../../components/shared/DraftStatus";
 import { useParams, useNavigate } from "react-router-dom";
@@ -26,6 +27,7 @@ export default function AdmissionDetail() {
 
   const [adm, setAdm] = useState(null);
   const [tab, setTab] = useState("Observations");
+  const [now] = useState(() => Date.now()); // render must stay pure
 
   const loadAdm = useCallback(async () => {
     try {
@@ -58,13 +60,13 @@ export default function AdmissionDetail() {
   if (!adm) return <div className="p-6 text-gray-500">Loading admission…</div>;
 
   const p = adm.Patient || {};
-  const losHours = Math.round((Date.now() - new Date(adm.admissionDateTime)) / 36e5);
+  const losHours = Math.round((now - new Date(adm.admissionDateTime)) / 36e5);
 
   return (
-    <div className="p-4 sm:p-6">
+    <div>
       <button onClick={() => navigate("/inpatient/board")} className="text-sm text-primary hover:underline mb-3">← Ward Board</button>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+      <div className="ui-surface p-4 mb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-800">{p.firstName} {p.lastName}</h1>
@@ -80,21 +82,14 @@ export default function AdmissionDetail() {
           </div>
           <div className="flex gap-2">
             {(isDoctor || isNurse) && adm.status === "Admitted" &&
-              <button onClick={doTransfer} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50">Transfer</button>}
+              <button onClick={doTransfer} className="px-3 py-1.5 rounded text-sm border border-gray-300 ui-hover">Transfer</button>}
             {(isDoctor || role === "staff") && adm.status === "Admitted" &&
               <button onClick={doDischarge} className="px-3 py-1.5 rounded text-sm bg-red-600 text-white hover:opacity-90">Discharge</button>}
           </div>
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-gray-200 mb-4 overflow-x-auto">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-3 py-2 text-sm whitespace-nowrap ${tab === t ? "border-b-2 border-primary text-primary font-medium" : "text-gray-500"}`}>
-            {t}
-          </button>
-        ))}
-      </div>
+      <SwitcherTabs className="mb-4" ariaLabel="Admission" tabs={TABS.map((t) => ({ id: t, label: t }))} active={tab} onChange={setTab} />
 
       {tab === "Observations" && <ObservationsTab admissionId={id} canWrite={isDoctor || isNurse} />}
       {tab === "Medications" && <MedicationsTab admissionId={id} isDoctor={isDoctor} isNurse={isNurse} />}
@@ -371,7 +366,7 @@ function BillingTab({ admissionId, canWrite }) {
           </div>
           <div className="flex gap-2 mt-2">
             <button onClick={add} className={btn}>Add charge</button>
-            <button onClick={accrue} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50">Accrue bed-days</button>
+            <button onClick={accrue} className="px-3 py-1.5 rounded text-sm border border-gray-300 ui-hover">Accrue bed-days</button>
           </div>
         </div>
       )}
@@ -521,7 +516,7 @@ function DischargeTab({ admissionId, isDoctor, onSigned, uhid }) {
           </div>
           {summary?.status !== "signed" && (
             <div className="flex gap-2">
-              <button onClick={save} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50">Save draft</button>
+              <button onClick={save} className="px-3 py-1.5 rounded text-sm border border-gray-300 ui-hover">Save draft</button>
               <button onClick={sign} className={btn}>Sign</button>
               <DraftStatus draft={autosave} />
             </div>

@@ -134,7 +134,7 @@ const QuickRegisterForm = ({ onRegistered }) => {
             <button
               type="button"
               onClick={reset}
-              className="flex-1 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors"
+              className="flex-1 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg ui-hover transition-colors"
             >
               Cancel
             </button>

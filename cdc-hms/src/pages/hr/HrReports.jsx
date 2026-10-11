@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
 import { Download } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { canViewHrReports } from '../../utils/permissions';
@@ -8,6 +9,7 @@ import Spinner from '../../components/shared/Spinner';
 import { notify } from '../../utils/notify';
 import { Pill, monthLabel, thisMonth } from '../../components/hr/hrFormat';
 import { Section, buttonCls } from '../../components/hr/hrUi';
+import StatCard from '../../components/shared/StatCard';
 
 /**
  * HrReports — /hr/reports (HR Tier 3 Phase 2, mockup B of hr-tier3-mockup;
@@ -29,13 +31,8 @@ const dayText = (iso) => (iso
   : '—');
 const CPD_PILL = { met: ['ok', 'Target met'], on_track: ['info', 'On track'], behind: ['warn', 'Behind'] };
 
-const Tile = ({ label, value, note }) => (
-  <div className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 min-w-0">
-    <span className="block text-xs text-gray-500">{label}</span>
-    <b className="block text-xl text-gray-800 tabular-nums">{value}</b>
-    {note && <span className="block text-[11px] text-gray-500">{note}</span>}
-  </div>
-);
+// The app's one number tile (StatCard).
+const Tile = ({ label, value, note }) => <StatCard title={label} value={value} sub={note} />;
 
 /** A plain table: columns [{ key, label, render?, num? }]. */
 const Table = ({ columns, rows, empty, rowKey = (r, i) => r.id ?? i, footer }) => {
@@ -43,7 +40,7 @@ const Table = ({ columns, rows, empty, rowKey = (r, i) => r.id ?? i, footer }) =
   return (
     <div className="overflow-x-auto -mx-1">
       <table className="w-full text-sm">
-        <thead>
+        <thead className="ui-thead">
           <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
             {columns.map((c) => <th key={c.key} className={`py-2 px-1 font-semibold whitespace-nowrap ${c.num ? 'text-right' : ''}`}>{c.label}</th>)}
           </tr>
@@ -123,16 +120,16 @@ const HrReports = () => {
   const dl = (report) => <DownloadButton report={report} busy={busy} onClick={download} />;
 
   return (
-    <div className="p-4 space-y-4 max-w-6xl">
+    <div className="space-y-4">
       <PageHeader
         title="HR reports"
         subtitle={data ? `${data.people} member${data.people === 1 ? '' : 's'} of staff in your reach` : 'Headcount, leave, expiries, CPD and punctuality'}
         actions={(
           <div className="flex flex-wrap gap-2">
             <label className="text-xs text-gray-500 flex items-center gap-1">Year
-              <select aria-label="Year" className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              <SelectMenu aria-label="Year" className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" value={year} onChange={(e) => setYear(Number(e.target.value))}>
                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
+              </SelectMenu>
             </label>
           </div>
         )}
@@ -225,9 +222,9 @@ const HrReports = () => {
             title="Licences and documents expiring"
             actions={(
               <div className="flex gap-2 items-center">
-                <select aria-label="Expiry window" className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs" value={windowDays} onChange={(e) => setWindowDays(Number(e.target.value))}>
+                <SelectMenu aria-label="Expiry window" className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs" value={windowDays} onChange={(e) => setWindowDays(Number(e.target.value))}>
                   {data.windows.map((w) => <option key={w} value={w}>Next {w} days</option>)}
-                </select>
+                </SelectMenu>
                 {dl('expiries')}
               </div>
             )}

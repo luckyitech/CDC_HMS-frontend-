@@ -21,14 +21,14 @@ const StockDispenseHistory = ({ uhid }) => {
   if (!rows || rows.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mt-6">
+    <div className="ui-surface p-5 mt-6">
       <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
         <Package className="w-5 h-5 text-primary" />
         Dispensed Medications
       </h3>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="ui-thead">
             <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
               <th className="px-3 py-2">Date</th>
               <th className="px-3 py-2">Item</th>

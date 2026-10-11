@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { Link } from 'react-router-dom';
 import { Check, X, Paperclip } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
@@ -26,11 +27,8 @@ const show = (v) => (v === null || v === undefined || v === '' ? '—' : v);
 const CATEGORY_LABEL = { conference: 'Conference', course: 'Course', webinar: 'Webinar', workshop: 'Workshop', 'self-study': 'Self-study', other: 'Other' };
 
 const InnerTabs = ({ tab, setTab, decidedLabel }) => (
-  <div className="flex gap-1 p-2 border-b border-gray-100" role="tablist">
-    {[['pending', 'Waiting'], ['decided', decidedLabel]].map(([id, label]) => (
-      <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
-        className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === id ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{label}</button>
-    ))}
+  <div className="p-2 border-b border-gray-100">
+    <SwitcherTabs size="sm" ariaLabel="Requests" tabs={[{ id: 'pending', label: 'Waiting' }, { id: 'decided', label: decidedLabel }]} active={tab} onChange={setTab} />
   </div>
 );
 
@@ -69,7 +67,7 @@ const ProfileChanges = ({ currentUser }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200">
+    <div className="ui-surface">
       <InnerTabs tab={tab} setTab={setTab} decidedLabel="Decided" />
       {rows === null ? <div className="p-4"><Spinner /></div> : rows.length === 0 ? (
         <p className="p-4 text-sm text-gray-500">{tab === 'pending' ? 'Nothing is waiting.' : 'No requests decided yet.'}</p>
@@ -159,7 +157,7 @@ const CpdToVerify = ({ currentUser }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200">
+    <div className="ui-surface">
       <InnerTabs tab={tab} setTab={setTab} decidedLabel="Decided" />
       {rows === null ? <div className="p-4"><Spinner /></div> : rows.length === 0 ? (
         <p className="p-4 text-sm text-gray-500">{tab === 'pending' ? 'No CPD waiting to verify.' : 'No CPD decided yet.'}</p>
@@ -225,7 +223,7 @@ const ProfileRequests = () => {
     return (
       <div>
         <PageHeader title="Profile requests" />
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+        <div className="ui-surface p-6 text-sm text-gray-600">
           This page needs the “Profile change requests” or “Verify CPD” permission.
         </div>
       </div>
@@ -238,12 +236,7 @@ const ProfileRequests = () => {
     <div>
       <PageHeader title="Profile requests" subtitle="Changes colleagues asked for, and CPD to verify." />
       {sections.length > 1 && (
-        <div className="flex gap-2 mb-3" role="tablist">
-          {sections.map((s) => (
-            <button key={s.id} type="button" role="tab" aria-selected={active === s.id} onClick={() => setSection(s.id)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${active === s.id ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{s.label}</button>
-          ))}
-        </div>
+        <SwitcherTabs className="mb-3" ariaLabel="Request type" tabs={sections.map((s) => ({ id: s.id, label: s.label }))} active={active} onChange={setSection} />
       )}
       {active === 'profile' ? <ProfileChanges currentUser={currentUser} /> : <CpdToVerify currentUser={currentUser} />}
     </div>

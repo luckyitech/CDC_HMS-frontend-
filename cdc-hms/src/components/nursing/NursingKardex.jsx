@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { ModalOverlay } from '../shared/Modal';
 import toast from "react-hot-toast";
 import { Plus, X, Trash2, FileText } from "lucide-react";
 import Button from "../shared/Button";
@@ -126,7 +127,7 @@ const NursingKardex = ({ patient }) => {
       )}
 
       {adding && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => !saving && setAdding(false)}>
+        <ModalOverlay onClose={() => !saving && setAdding(false)}>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0">
               <h3 className="font-bold text-gray-800 flex items-center gap-2"><FileText className="w-5 h-5" /> New nursing note</h3>
@@ -152,7 +153,7 @@ const NursingKardex = ({ patient }) => {
               <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Add note"}</Button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

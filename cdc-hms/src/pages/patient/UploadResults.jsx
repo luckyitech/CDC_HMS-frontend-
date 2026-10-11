@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
 import toast from 'react-hot-toast';
 import { Upload, FileText, Eye, Download, Search, Filter, Clock, CheckCircle, FlaskConical, ScanLine, Stethoscope, Heart, Droplets, Brain, ClipboardList, FolderOpen } from 'lucide-react';
 import Card from '../../components/shared/Card';
@@ -8,6 +9,7 @@ import UploadDocumentModal from '../../components/shared/UploadDocumentModal';
 import { usePatientContext } from '../../contexts/PatientContext';
 import { useUserContext } from '../../contexts/UserContext';
 import documentService from '../../services/documentService';
+import StatCard from '../../components/shared/StatCard';
 
 const UploadResults = () => {
   const { currentUser } = useUserContext();
@@ -138,11 +140,13 @@ const UploadResults = () => {
 
   return (
     <div className="pb-6">
-      {/* Header — sticky so Upload button stays visible while scrolling */}
+      {/* Header — sticky so Upload button stays visible while scrolling. Frosted
+          (not grey) so it sits on the page canvas like the sidebar glass. Its
+          bleed matches <main>'s padding (px-4, lg:px-8). */}
       <PageHeader
         title="My Documents"
         subtitle={`${documents.length} document${documents.length !== 1 ? 's' : ''} uploaded`}
-        className="sticky top-0 z-10 bg-gray-50 pt-1 pb-4 -mx-4 px-4 sm:-mx-8 sm:px-8 mb-5"
+        className="sticky top-0 z-10 bg-white/70 backdrop-blur-md pt-1 pb-4 -mx-4 px-4 lg:-mx-8 lg:px-8 mb-5"
         actions={
           <Button
             onClick={() => setShowUploadModal(true)}
@@ -156,29 +160,19 @@ const UploadResults = () => {
 
       {/* Stats - Compact on mobile */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-5">
-        <div className="bg-blue-50 p-3 sm:p-4 rounded-xl text-center">
-          <p className="text-[10px] sm:text-xs text-gray-600 uppercase font-semibold">Total</p>
-          <p className="text-2xl sm:text-3xl font-bold text-blue-700 mt-0.5">{documents.length}</p>
-        </div>
-        <div className="bg-green-50 p-3 sm:p-4 rounded-xl text-center">
-          <p className="text-[10px] sm:text-xs text-gray-600 uppercase font-semibold">Reviewed</p>
-          <p className="text-2xl sm:text-3xl font-bold text-green-700 mt-0.5">{reviewedCount}</p>
-        </div>
-        <div className="bg-yellow-50 p-3 sm:p-4 rounded-xl text-center">
-          <p className="text-[10px] sm:text-xs text-gray-600 uppercase font-semibold">Pending</p>
-          <p className="text-2xl sm:text-3xl font-bold text-yellow-700 mt-0.5">{pendingCount}</p>
-        </div>
-        <div className="bg-purple-50 p-3 sm:p-4 rounded-xl text-center">
-          <p className="text-[10px] sm:text-xs text-gray-600 uppercase font-semibold">This Month</p>
-          <p className="text-2xl sm:text-3xl font-bold text-purple-700 mt-0.5">
-            {documents.filter(d => {
-              const docDate = new Date(d.uploadedAt);
-              const now = new Date();
-              return docDate.getMonth() === now.getMonth() &&
-                     docDate.getFullYear() === now.getFullYear();
-            }).length}
-          </p>
-        </div>
+        <StatCard title="Total" value={documents.length} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Reviewed" value={reviewedCount} gradient="from-green-500 to-green-600" />
+        <StatCard title="Pending" value={pendingCount} gradient="from-yellow-500 to-yellow-600" />
+        <StatCard
+          title="This Month"
+          gradient="from-purple-500 to-purple-600"
+          value={documents.filter(d => {
+            const docDate = new Date(d.uploadedAt);
+            const now = new Date();
+            return docDate.getMonth() === now.getMonth() &&
+                   docDate.getFullYear() === now.getFullYear();
+          }).length}
+        />
       </div>
 
       {/* Search and Filter */}
@@ -196,7 +190,7 @@ const UploadResults = () => {
           </div>
           <div className="relative">
             <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <select
+            <SelectMenu
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full pl-10 pr-4 py-3 sm:py-2 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-primary text-sm appearance-none bg-white"
@@ -205,7 +199,7 @@ const UploadResults = () => {
               {DOCUMENT_CATEGORIES.filter(cat => !['Patient File', 'Specialist Consultation Report'].includes(cat)).map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
-            </select>
+            </SelectMenu>
           </div>
         </div>
       )}
@@ -317,14 +311,14 @@ const UploadResults = () => {
                 <div className="mt-3 ml-9 sm:ml-11 flex gap-2">
                   <button
                     onClick={() => handleView(doc)}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-blue-50 active:bg-gray-100 transition"
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 ui-hover active:bg-gray-100 transition"
                   >
                     <Eye className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     View
                   </button>
                   <button
                     onClick={() => handleDownload(doc)}
-                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-blue-50 active:bg-gray-100 transition"
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 ui-hover active:bg-gray-100 transition"
                   >
                     <Download className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     Download

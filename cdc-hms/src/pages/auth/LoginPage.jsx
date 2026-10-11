@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUserContext } from '../../contexts/UserContext';
 import LoginLayout from '../../layouts/LoginLayout';
@@ -55,8 +56,17 @@ const LoginPage = () => {
   };
 
   return (
-    <LoginLayout>
-      <Card title="Sign In">
+    <LoginLayout
+      help={(
+        <>
+          <button type="button" onClick={() => navigate('/forgot-password')} className="text-primary font-semibold hover:underline">
+            Forgot password?
+          </button>
+          <span className="login-secure">● Secure connection</span>
+        </>
+      )}
+    >
+      <Card title="Welcome back">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -85,18 +95,10 @@ const LoginPage = () => {
           />
 
           <Button type="submit" className="w-full mt-6" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? 'Signing in…' : 'Sign in'}
+            {/* Hover: the round arrow slides right (login.css .login-arrow). */}
+            {!loading && <span className="login-arrow" aria-hidden="true"><ArrowRight className="w-4 h-4" /></span>}
           </Button>
-
-          <div className="text-center mt-2">
-            <button
-              type="button"
-              onClick={() => navigate('/forgot-password')}
-              className="text-primary hover:underline text-sm"
-            >
-              Forgot password?
-            </button>
-          </div>
         </form>
       </Card>
     </LoginLayout>

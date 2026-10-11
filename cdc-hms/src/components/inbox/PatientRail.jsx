@@ -18,7 +18,7 @@ const PatientRail = ({ conversation, candidates = [], lastInboundText, onLink, o
       <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">{windowLabel(c)}</div>
 
       {/* Contact card */}
-      <div className="mt-2 rounded-lg border bg-white p-3">
+      <div className="ui-surface mt-2 p-3">
         {isPatient && c.patient ? (
           <>
             <div className="font-semibold text-gray-800">{c.patient.firstName} {c.patient.lastName}</div>
@@ -74,7 +74,7 @@ const PatientRail = ({ conversation, candidates = [], lastInboundText, onLink, o
         <div className="mt-1 flex flex-wrap gap-1">
           {c.topic && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">{c.topic} {canWrite && <button type="button" onClick={() => onSetTopic('')} className="ml-0.5"><X size={10} className="inline" /></button>}</span>}
           {canWrite && !c.topic && topicSuggestions.map((t) => (
-            <button key={t} type="button" onClick={() => onSetTopic(t)} className="rounded-full border border-dashed border-blue-300 px-2 py-0.5 text-xs text-blue-500 hover:bg-blue-50">+ {t}</button>
+            <button key={t} type="button" onClick={() => onSetTopic(t)} className="rounded-full border border-dashed border-blue-300 px-2 py-0.5 text-xs text-blue-500 ui-hover">+ {t}</button>
           ))}
         </div>
       </div>

@@ -23,7 +23,7 @@ const NoAccess = ({ message }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-gray-200 p-8 text-center">
+      <div className="ui-surface max-w-md w-full p-8 text-center">
         <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
           <ShieldOff className="w-6 h-6 text-amber-500" />
         </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ModalOverlay } from '../shared/Modal';
 import useDraft from '../../hooks/useDraft';
 import { DraftStatus, DraftRestoreBanner } from '../shared/DraftStatus';
 import { X, UserCheck, ExternalLink, AlertCircle, Eye } from 'lucide-react';
@@ -129,7 +130,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <ModalOverlay>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
 
         {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -140,7 +141,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-gray-600 transition"
+            className="p-1.5 rounded-lg ui-hover text-gray-400 hover:text-gray-600 transition"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -264,7 +265,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
               type="button"
               onClick={saveAndPreview}
               disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-primary text-primary text-sm font-semibold hover:bg-blue-50 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border border-primary text-primary text-sm font-semibold ui-hover transition disabled:opacity-50"
             >
               <Eye className="w-4 h-4" /> {saving ? 'Saving…' : 'Save & preview'}
             </button>
@@ -272,7 +273,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50 transition"
+                className="px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 ui-hover transition"
               >
                 Cancel
               </button>
@@ -298,7 +299,7 @@ const ReferPatientModal = ({ patient, queueItem, defaultNote = '', onClose, onSe
           onClose={() => setPreview(null)}
         />
       )}
-    </div>
+    </ModalOverlay>
   );
 };
 

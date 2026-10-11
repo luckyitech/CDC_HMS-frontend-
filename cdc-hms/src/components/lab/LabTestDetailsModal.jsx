@@ -1,6 +1,7 @@
 // LabTestDetailsModal.jsx - Reusable modal component for viewing test details
 
 import Button from "../shared/Button";
+import { ModalOverlay } from '../shared/Modal';
 import StatusBadge from "../shared/StatusBadge";
 import { LAB_RESULT_TONES } from "../../utils/statusStyles";
 
@@ -15,7 +16,7 @@ const LabTestDetailsModal = ({ test, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <ModalOverlay>
       <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Modal Header */}
         <div className="sticky top-0 bg-white border-b-2 border-gray-200 p-6">
@@ -80,7 +81,7 @@ const LabTestDetailsModal = ({ test, onClose }) => {
             <h3 className="font-bold text-gray-800 mb-3">🔬 Test Results</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-200">
+                <thead className="ui-thead">
                   <tr>
                     <th className="px-4 py-2 text-left text-sm font-bold text-gray-700">Parameter</th>
                     <th className="px-4 py-2 text-left text-sm font-bold text-gray-700">Result</th>
@@ -89,7 +90,7 @@ const LabTestDetailsModal = ({ test, onClose }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-300">
                   {formatTestResults(test.results).map((item, index) => (
-                    <tr key={index} className="hover:bg-blue-50">
+                    <tr key={index} className="ui-hover">
                       <td className="px-4 py-3 text-sm font-semibold text-gray-800 capitalize">
                         {item.parameter.replace(/([A-Z])/g, ' $1').trim()}
                       </td>
@@ -203,7 +204,7 @@ const LabTestDetailsModal = ({ test, onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

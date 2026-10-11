@@ -65,6 +65,14 @@ export const consultationNotesService = {
   create: (data) => api.post('/consultation-notes', data),
 
   /**
+   * What pre-fills a new note's history sections (10 Oct 2026): the last
+   * saved copy of each carry-forward section, the patient file (allergies,
+   * comorbidities, registration medicines), prescriptions (current / stopped)
+   * and the retired initial assessment.
+   */
+  carryForward: (uhid) => api.get('/consultation-notes/carry-forward', { params: { uhid } }),
+
+  /**
    * Update consultation note
    * @param {number} id - Consultation note ID
    * @param {Object} data - Updated fields

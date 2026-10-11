@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { ModalOverlay } from '../shared/Modal';
 import {
   X, Lock, Unlock, CalendarDays, Clock,
   Sunrise, Sun, SlidersHorizontal, RefreshCw, Trash2,
@@ -195,7 +196,7 @@ const BlockAvailabilityModal = ({ onClose, onDone }) => {
       className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 text-sm font-semibold transition-all ${
         selected
           ? 'border-red-500 bg-red-50 text-red-700'
-          : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-blue-50'
+          : 'border-gray-200 text-gray-600 hover:border-gray-300 ui-hover'
       }`}
     >
       {Icon && <Icon className="w-4 h-4" />}
@@ -204,7 +205,7 @@ const BlockAvailabilityModal = ({ onClose, onDone }) => {
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+    <ModalOverlay>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
 
         {/* Header */}
@@ -225,13 +226,13 @@ const BlockAvailabilityModal = ({ onClose, onDone }) => {
           <div className="flex rounded-xl border border-gray-200 overflow-hidden">
             <button
               onClick={() => switchMode('block')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${isBlock ? 'bg-red-500 text-white' : 'text-gray-500 hover:bg-blue-50'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${isBlock ? 'bg-red-500 text-white' : 'text-gray-500 ui-hover'}`}
             >
               <Lock className="w-4 h-4" /> Block
             </button>
             <button
               onClick={() => switchMode('unblock')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${!isBlock ? 'bg-green-500 text-white' : 'text-gray-500 hover:bg-blue-50'}`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold transition-colors ${!isBlock ? 'bg-green-500 text-white' : 'text-gray-500 ui-hover'}`}
             >
               <Unlock className="w-4 h-4" /> Unblock
             </button>
@@ -321,7 +322,7 @@ const BlockAvailabilityModal = ({ onClose, onDone }) => {
                         key={value}
                         onClick={() => setTimePreset(value)}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left ${
-                          timePreset === value ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 hover:border-gray-300 hover:bg-blue-50'
+                          timePreset === value ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 hover:border-gray-300 ui-hover'
                         }`}
                       >
                         <Icon className="w-4 h-4 shrink-0" />
@@ -446,7 +447,7 @@ const BlockAvailabilityModal = ({ onClose, onDone }) => {
         {/* Footer */}
         <div className="flex gap-3 px-5 py-4 border-t shrink-0">
           <button onClick={onClose}
-            className={`py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-blue-50 transition-colors ${isBlock ? 'flex-1' : 'w-full'}`}>
+            className={`py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 ui-hover transition-colors ${isBlock ? 'flex-1' : 'w-full'}`}>
             {isBlock ? 'Cancel' : 'Close'}
           </button>
           {isBlock && (
@@ -457,7 +458,7 @@ const BlockAvailabilityModal = ({ onClose, onDone }) => {
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

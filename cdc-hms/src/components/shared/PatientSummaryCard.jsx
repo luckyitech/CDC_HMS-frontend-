@@ -15,7 +15,7 @@ const fmtDateTime = (iso) => {
   });
 };
 
-const PatientSummaryCard = ({ patient, shadow = true }) => {
+const PatientSummaryCard = ({ patient }) => {
   const [summary, setSummary]     = useState(patient.patientSummary   || '');
   const [updatedBy, setUpdatedBy] = useState(patient.summaryUpdatedBy || null);
   const [updatedAt, setUpdatedAt] = useState(patient.summaryUpdatedAt || null);
@@ -75,7 +75,7 @@ const PatientSummaryCard = ({ patient, shadow = true }) => {
   };
 
   return (
-    <Card className="overflow-hidden" shadow={shadow}>
+    <Card className="overflow-hidden">
       {/* Header — always visible, clicking toggles the dropdown.
           Edit is a SIBLING of the toggle, not a child — <button> cannot
           nest a <button> (invalid HTML; React warns, browsers may eject it). */}

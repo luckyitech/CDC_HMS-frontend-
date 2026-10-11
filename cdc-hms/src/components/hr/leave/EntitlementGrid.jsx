@@ -71,7 +71,7 @@ const OverrideModal = ({ person, types, year, policyWeek, onClose, onSaved }) =>
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm mb-4">
-          <thead>
+          <thead className="ui-thead">
             <tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
               <th className="text-left font-semibold py-1.5 pr-2">Type</th>
               <th className="text-left font-semibold py-1.5 px-2">Policy gives</th>
@@ -150,7 +150,7 @@ const EntitlementGrid = ({ year, canEdit }) => {
 
   if (!data) return <Spinner />;
   if (data.policyStatus === 'none') {
-    return <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">There is no {year} leave policy yet. Start one on the Leave policy tab — entitlements follow from it.</div>;
+    return <div className="ui-surface p-6 text-sm text-gray-600">There is no {year} leave policy yet. Start one on the Leave policy tab — entitlements follow from it.</div>;
   }
 
   const saved = (row) => {
@@ -159,10 +159,10 @@ const EntitlementGrid = ({ year, canEdit }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
+    <div className="ui-surface p-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Staff entitlements {year}</h3>
+          <h3 className="ui-box-title">Staff entitlements {year}</h3>
           <p className="text-xs text-gray-500 mt-0.5">
             {data.policyStatus === 'draft' ? `Previewing the ${year} draft — these apply once it is published. ` : ''}
             <span className="text-primary font-semibold">Blue</span> = differs from the clinic default (an override with a reason).
@@ -179,7 +179,7 @@ const EntitlementGrid = ({ year, canEdit }) => {
       </div>
       <div className="overflow-x-auto -mx-1 px-1">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="ui-thead">
             <tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
               <th className="text-left font-semibold py-1.5 pr-2">Person</th>
               {columns.map((t) => <th key={t.key} className="text-right font-semibold py-1.5 px-2 whitespace-nowrap">{t.name}<span className="block normal-case font-normal text-gray-400">{fmtDays(t.days)}</span></th>)}

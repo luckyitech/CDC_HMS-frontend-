@@ -33,7 +33,7 @@ export default function WardConfig() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div>
       <PageHeader
         title={<span className="flex items-center gap-2"><Building2 className="w-5 h-5 text-primary" /> Ward Configuration</span>}
       />
@@ -49,7 +49,7 @@ export default function WardConfig() {
 
       <div className="space-y-5">
         {wards.map((w) => (
-          <div key={w.id} className="bg-white border border-gray-200 rounded-xl p-4">
+          <div key={w.id} className="ui-surface p-4">
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-semibold text-gray-700">{w.name} <span className="text-xs text-gray-400">({w.type})</span></h2>
               <button onClick={() => addRoom(w.id)} className="text-sm text-primary hover:underline">+ Room</button>

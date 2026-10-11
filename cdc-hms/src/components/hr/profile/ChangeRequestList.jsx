@@ -23,7 +23,7 @@ const ChangeRequestList = ({ requests = [], onWithdraw }) => {
   const [confirm, setConfirm] = useState(null);
   if (!requests.length) return null;
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5" data-testid="change-requests">
+    <div className="ui-surface p-5" data-testid="change-requests">
       <h3 className="text-sm font-semibold text-gray-800 mb-3">Changes you asked for</h3>
       <ul className="divide-y divide-gray-100">
         {requests.slice(0, 12).map((r) => {

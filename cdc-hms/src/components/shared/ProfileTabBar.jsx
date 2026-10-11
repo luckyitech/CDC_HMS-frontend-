@@ -1,7 +1,9 @@
+import SwitcherTabs from './SwitcherTabs';
+
 /**
- * ProfileTabBar — the horizontal tab strip used by the record "file" pages
- * (PatientProfile, StaffFile). One source of truth for the tab look so both
- * files stay identical and neither drifts.
+ * ProfileTabBar — the tab strip of the record "file" pages (PatientProfile,
+ * PatientFile, StaffFile, HR settings). Since 11 Oct 2026 it is SwitcherTabs
+ * (one tab style app-wide); this wrapper only maps `name` → `label`.
  *
  * @param {{id:string,name:string,Icon:React.Component}[]} tabs
  * @param {string}   activeTab   id of the active tab
@@ -12,27 +14,15 @@
  * @param {string}   className   replaces the default bottom margin (mb-6)
  */
 const ProfileTabBar = ({ tabs, activeTab, onChange, ariaLabel, idPrefix = 'tab', panelId, className = 'mb-6' }) => (
-  <div className={`${className} bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto`}>
-    <div className="flex" {...(ariaLabel ? { role: 'tablist', 'aria-label': ariaLabel } : {})}>
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          {...(ariaLabel ? { type: 'button', role: 'tab', id: `${idPrefix}-${tab.id}`, 'aria-selected': activeTab === tab.id, 'aria-controls': panelId } : {})}
-          className={`flex-1 min-w-max px-4 py-2.5 text-sm font-medium transition-all ${
-            activeTab === tab.id
-              ? "bg-primary text-white"
-              : "text-gray-600 hover:bg-blue-50"
-          }`}
-        >
-          <span className="flex items-center justify-center gap-2">
-            <tab.Icon className="w-4 h-4" />
-            {tab.name}
-          </span>
-        </button>
-      ))}
-    </div>
-  </div>
+  <SwitcherTabs
+    className={className}
+    tabs={tabs.map(({ id, name, Icon, count }) => ({ id, label: name, Icon, count }))}
+    active={activeTab}
+    onChange={onChange}
+    ariaLabel={ariaLabel}
+    idPrefix={idPrefix}
+    panelId={panelId}
+  />
 );
 
 export default ProfileTabBar;

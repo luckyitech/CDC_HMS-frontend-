@@ -1,0 +1,57 @@
+/* UI tokens: ONE definition for what every page repeats (11 Oct 2026,
+   design audit, claude/hms-design-audit.html). Rules: docs/DRY-GUIDELINES.md.
+
+   Loaded BEFORE index.css (see main.jsx), so these behave like Tailwind's
+   component layer: a utility on the same element still wins — e.g. a red
+   border on an alert card, or a different padding. Never put a shadow here:
+   boxes on a page are flat; only things that float (Modal, menus, the
+   sidebar) are raised. */
+
+/* The one hover colour for anything you can point at in a list (table rows,
+   list items, menu entries): the ui-hover class, or var(--ui-hover) — the
+   sidebar reads it.
+   The one count badge (CDC cyan, as on the sidebar's Inbox): .ui-badge, or
+   var(--ui-badge) / var(--ui-badge-text). The sidebar's white theme reads these. */
+:root {
+  --ui-primary: theme('colors.primary'); /* CDC blue — the switcher's active tab, bg-primary */
+  --ui-hover: theme('colors.blue.50');
+  --ui-badge: #00ced1;
+  --ui-badge-text: #fff; /* white number (11 Oct 2026, Emu) */
+}
+.ui-badge {
+  background-color: var(--ui-badge);
+  color: var(--ui-badge-text);
+  font-weight: 700;
+}
+
+/* The list/row hover: ui-hover on the row (replaces `hover:bg-blue-50`). */
+.ui-hover:hover {
+  background-color: var(--ui-hover);
+}
+
+/* The face of a SelectMenu (the filter/sort dropdown): what a native <select>
+   gives for free. Border, padding and size come from the classes it is given. */
+.ui-select {
+  @apply inline-flex items-center gap-2 bg-white text-left cursor-pointer disabled:cursor-not-allowed disabled:opacity-60;
+}
+
+/* A box on a page: white, hairline border, 12 px corners, no shadow. */
+.ui-surface {
+  @apply bg-white border border-gray-200 rounded-xl;
+}
+
+/* A box's title — always smaller than the page title (PageHeader). */
+.ui-box-title {
+  @apply text-base font-semibold text-gray-800;
+}
+
+/* Table header: put ui-thead on <thead> and every header cell gets the one
+   style. Padding and alignment stay on each <th>, so they keep matching that
+   table's body cells. :where() keeps the cell rule at utility strength, so a
+   utility on a single <th> still wins. */
+.ui-thead {
+  @apply bg-gray-50 border-b border-gray-200;
+}
+.ui-thead :where(th) {
+  @apply text-xs font-semibold uppercase tracking-wide text-gray-600;
+}

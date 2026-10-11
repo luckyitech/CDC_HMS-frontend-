@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ModalOverlay } from '../shared/Modal';
 import toast from "react-hot-toast";
 import { X } from "lucide-react";
 import inpatientService from "../../services/inpatientService";
@@ -44,7 +45,7 @@ export default function ConvertToInpatientModal({ queueItem, onClose, onSuccess 
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <ModalOverlay>
       <div className="bg-white rounded-xl w-full max-w-md p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">Convert to Inpatient</h2>
@@ -71,6 +72,6 @@ export default function ConvertToInpatientModal({ queueItem, onClose, onSuccess 
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 }

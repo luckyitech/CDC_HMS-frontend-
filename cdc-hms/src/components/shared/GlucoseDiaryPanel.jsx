@@ -168,7 +168,7 @@ const GlucoseDiaryPanel = ({ uhid, events = [], onChanged = () => {}, canEdit = 
                   const meta = DIARY_META[ev.eventType] || DIARY_META.note;
                   const bits = diaryDetailBits(ev).join(' · ');
                   return (
-                    <div key={ev.id} className="flex items-center gap-2.5 p-2 rounded-lg border border-gray-100 bg-white">
+                    <div key={ev.id} className="ui-surface flex items-center gap-2.5 p-2">
                       <span className="inline-flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0" style={{ background: `${meta.color}1a`, color: meta.color }}><meta.Icon className="w-4 h-4" /></span>
                       <span className="text-xs text-gray-500 w-12 flex-shrink-0 tabular-nums">{fmtTime(ev.at)}</span>
                       <span className="text-sm text-gray-800 flex-1 min-w-0 truncate"><span className="font-semibold">{ev.label || meta.label}</span>{bits && <span className="text-gray-500"> · {bits}</span>}</span>

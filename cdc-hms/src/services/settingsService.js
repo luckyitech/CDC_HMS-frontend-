@@ -63,6 +63,17 @@ export const settingsService = {
 
   /** Save any subset of enabled, domains[], blockedAddresses[]. */
   setEmail: (changes) => api.put('/settings/email', changes),
+
+  // ---- Specialist modules (Dermatology first) ----
+
+  /** { modules: { dermatology: bool }, list: [{ key, label, description }] } — every internal role may read. */
+  getModules: () => api.get('/settings/modules'),
+
+  /** Switch modules on/off: setModules({ dermatology: true }). Admin gate; logged. */
+  setModules: (modules) => api.put('/settings/modules', { modules }),
+
+  /** The Dermatology procedure list (read it with dermService.procedureList). Admin gate; logged. */
+  setDermProcedures: (procedures) => api.put('/settings/derm-procedures', { procedures }),
 };
 
 export default settingsService;

@@ -318,7 +318,7 @@ const StaffFile = ({ mode = 'staff' }) => {
     return (
       <div>
         <PageHeader title="My profile" />
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+        <div className="ui-surface p-6 text-sm text-gray-600">
           You don&apos;t have a staff file yet, so there is nothing to show here. Ask HR to set one up.
         </div>
       </div>
@@ -395,7 +395,7 @@ const StaffFile = ({ mode = 'staff' }) => {
           identical. */}
       <div
         onClick={() => setOverviewOpen((o) => !o)}
-        className={`mb-1 px-4 py-2 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
+        className={`mb-1 px-4 py-2 rounded-lg border flex items-center justify-between gap-4 cursor-pointer transition-colors ${
           overviewOpen ? 'bg-primary border-primary text-white' : 'bg-white border-gray-200 hover:bg-gray-50'
         }`}
       >

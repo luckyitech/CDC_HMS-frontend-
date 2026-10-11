@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import SelectMenu from '../../shared/SelectMenu';
 import { useSearchParams } from 'react-router-dom';
 import { Plus, Lock, RefreshCw } from 'lucide-react';
 import { useUserContext } from '../../../contexts/UserContext';
@@ -269,11 +270,11 @@ const LeaveSettingsPanel = ({ tab, subTabs }) => {
 
   const header = (
     <div className="flex flex-wrap items-center gap-2">
-      <select value={year || ''} onChange={(e) => setParam('year', e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" aria-label="Year">
+      <SelectMenu value={year || ''} onChange={(e) => setParam('year', e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" aria-label="Year">
         {yearOptions.map((y) => (
           <option key={y} value={y}>{y}{statusOf(y) === 'published' ? ' · published' : statusOf(y) === 'draft' ? ' · draft' : statusOf(y) === 'none' ? ' · not started' : ''}</option>
         ))}
-      </select>
+      </SelectMenu>
     </div>
   );
 

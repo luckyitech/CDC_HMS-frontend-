@@ -187,7 +187,7 @@ const StockDispenseTab = ({ onLockChange }) => {
       </div>
 
       {/* Right — the cart: scan box on top, then the dispensing list */}
-      <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5">
+      <div className="ui-surface lg:col-span-2 p-5">
         {/* Scan straight into the cart */}
         <BatchScanBox onResolved={onScan} disabled={!patient} />
 
@@ -229,7 +229,7 @@ const StockDispenseTab = ({ onLockChange }) => {
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <button type="button" aria-label="Decrease"
                     onClick={() => setLine(idx, { quantity: Math.max(1, Number(s.quantity) - 1) })}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50">
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 ui-hover">
                     <Minus className="w-3.5 h-3.5" />
                   </button>
                   <input type="number" min="1" value={s.quantity}
@@ -237,7 +237,7 @@ const StockDispenseTab = ({ onLockChange }) => {
                     className="w-12 text-center text-sm font-semibold border border-gray-300 rounded-lg py-1 focus:outline-none focus:border-primary" />
                   <button type="button" aria-label="Increase"
                     onClick={() => setLine(idx, { quantity: Number(s.quantity) + 1 })}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50">
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 ui-hover">
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                   <button type="button" aria-label="Remove" onClick={() => removeLine(idx)}

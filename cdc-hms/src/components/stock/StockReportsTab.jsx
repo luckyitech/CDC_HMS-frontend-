@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import SelectMenu from '../shared/SelectMenu';
+import SwitcherTabs from '../shared/SwitcherTabs';
 import { notify } from "../../utils/notify";
 import { Download, Search, DatabaseZap, FileSpreadsheet } from "lucide-react";
 import { useUserContext } from "../../contexts/UserContext";
@@ -76,7 +78,7 @@ const inventoryRows = (rows = []) => rows.map((r) => [
 // Shared movement-row table used by disposal and FEFO views.
 const MovementTable = ({ rows }) => (
   <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
-    <thead>
+    <thead className="ui-thead">
       <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
         <th className="px-3 py-2">When · who</th>
         <th className="px-3 py-2">Type</th>
@@ -250,22 +252,13 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex gap-2 flex-wrap">
-          {SUB_TABS.map((t) => (
-            <button key={t.id} onClick={() => { setSub(t.id); setData(null); }}
-              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition ${
-                sub === t.id ? "bg-primary text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <SwitcherTabs tabs={SUB_TABS.map(({ id, label }) => ({ id, label }))} active={sub} onChange={(id) => { setSub(id); setData(null); }} />
         <div className="flex items-center gap-2 flex-wrap">
           {rangeApplies && (
             <>
-              <select className={`${inputCls} !w-auto !py-1.5 text-xs`} value={preset} onChange={(e) => setPreset(e.target.value)}>
+              <SelectMenu className={`${inputCls} !w-auto !py-1.5 text-xs`} value={preset} onChange={(e) => setPreset(e.target.value)}>
                 {RANGE_PRESETS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-              </select>
+              </SelectMenu>
               {preset === "custom" && (
                 <>
                   <input type="date" className={`${inputCls} !w-auto !py-1.5 text-xs`} value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
@@ -292,10 +285,10 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
       {!loading && sub === "inventory" && Array.isArray(data) && (
         <>
           <div className="flex justify-between items-center mb-2 gap-2 flex-wrap">
-            <select className={`${inputCls} !w-auto`} value={invSort} onChange={(e) => setInvSort(e.target.value)}>
+            <SelectMenu className={`${inputCls} !w-auto`} value={invSort} onChange={(e) => setInvSort(e.target.value)}>
               <option value="name">Sort A–Z</option>
               <option value="availability">Sort by availability (low → high)</option>
-            </select>
+            </SelectMenu>
             <Button variant="outline" className="!px-3 !py-1.5 text-xs"
               onClick={() => downloadCsv("inventory-overview.csv", INVENTORY_HEADERS, inventoryRows(sortedInventory))}>
               <Download className="w-4 h-4" /> Export CSV
@@ -303,7 +296,7 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
                   <th className="px-3 py-2">Item</th>
                   <th className="px-3 py-2">Available</th>
@@ -373,7 +366,7 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
             </Button>
           </div>
           <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
-            <thead>
+            <thead className="ui-thead">
               <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
                 <th className="px-3 py-2">Item</th><th className="px-3 py-2">In stock</th>
                 <th className="px-3 py-2">Reorder level</th><th className="px-3 py-2">Suggested order</th>
@@ -400,9 +393,9 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
       {!loading && sub === "consumption" && data && (
         <>
           <div className="flex justify-between items-center mb-2">
-            <select className={`${inputCls} !w-auto`} value={months} onChange={(e) => setMonths(Number(e.target.value))}>
+            <SelectMenu className={`${inputCls} !w-auto`} value={months} onChange={(e) => setMonths(Number(e.target.value))}>
               {[3, 6, 12, 24].map((m) => <option key={m} value={m}>Last {m} months</option>)}
-            </select>
+            </SelectMenu>
             <Button variant="outline" className="!px-3 !py-1.5 text-xs"
               onClick={() => downloadCsv("consumption-report.csv",
                 ["Item", ...data.months, "Written off"],
@@ -416,7 +409,7 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
                   <th className="px-3 py-2">Item</th>
                   {data.months.map((k) => <th key={k} className="px-3 py-2 text-center">{k}</th>)}
@@ -456,7 +449,7 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
             <Button onClick={runRecall}><Search className="w-4 h-4" /> Trace</Button>
           </div>
           {Array.isArray(data) && data.map((r) => (
-            <div key={r.batch.id} className="bg-white border border-gray-200 rounded-xl p-5 mb-4">
+            <div key={r.batch.id} className="ui-surface p-5 mb-4">
               <div className="flex flex-wrap justify-between gap-2 mb-3">
                 <div>
                   <p className="font-bold">{r.item?.name}</p>

@@ -386,7 +386,7 @@ const LabRequest = ({ patient, onDirtyChange = () => {}, draftContextKey = "", d
                   <button
                     key={`${kind}:${item.id}`}
                     onClick={() => { kind === "package" ? addPackage(item) : addTest(item); setQuery(""); }}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-blue-50"
+                    className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left text-sm ui-hover"
                   >
                     <span className="flex items-center gap-2 min-w-0">
                       {kind === "package" && <PackageIcon className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />}

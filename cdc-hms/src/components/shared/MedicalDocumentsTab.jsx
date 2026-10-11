@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import SelectMenu from './SelectMenu';
 import { Upload, FileText, Filter, SortAsc, SortDesc, Search } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
@@ -197,7 +198,7 @@ const MedicalDocumentsTab = ({ patient, onEmailDocument = null }) => {
               <Filter className="w-4 h-4" />
               Category
             </label>
-            <select
+            <SelectMenu
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
@@ -206,7 +207,7 @@ const MedicalDocumentsTab = ({ patient, onEmailDocument = null }) => {
               {DOCUMENT_CATEGORIES.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
-            </select>
+            </SelectMenu>
           </div>
 
           {/* Sort Order */}
@@ -215,14 +216,14 @@ const MedicalDocumentsTab = ({ patient, onEmailDocument = null }) => {
               {sortOrder === 'desc' ? <SortDesc className="w-4 h-4" /> : <SortAsc className="w-4 h-4" />}
               Sort by Date
             </label>
-            <select
+            <SelectMenu
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
               className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-primary"
             >
               <option value="desc">Newest First</option>
               <option value="asc">Oldest First</option>
-            </select>
+            </SelectMenu>
           </div>
 
           {/* Search */}

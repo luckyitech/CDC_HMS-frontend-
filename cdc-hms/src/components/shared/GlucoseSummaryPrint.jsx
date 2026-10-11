@@ -1,4 +1,5 @@
 import usePrint from '../../hooks/usePrint';
+import { ModalOverlay } from './Modal';
 import PrintLetterhead from './PrintLetterhead';
 import { BAND, makeVal } from './gmc/gmcShared';
 
@@ -32,7 +33,7 @@ const GlucoseSummaryPrint = ({ data, patient, unit = 'mmol', onClose }) => {
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <ModalOverlay>
       <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="print:hidden sticky top-0 bg-white border-b-2 border-gray-200 p-4 flex justify-between items-center">
           <h3 className="text-xl font-bold text-gray-800">Glucose Summary</h3>
@@ -117,7 +118,7 @@ const GlucoseSummaryPrint = ({ data, patient, unit = 'mmol', onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

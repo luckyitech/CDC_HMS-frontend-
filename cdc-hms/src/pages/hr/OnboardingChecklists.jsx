@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Archive, RotateCcw, Check, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
@@ -188,7 +189,7 @@ const OnboardingChecklists = () => {
 
   if (!canRun && !canEdit) {
     return (
-      <div className="p-4">
+      <div>
         <PageHeader title="Onboarding" />
         <p className="text-sm text-gray-500">You don&apos;t have access to onboarding checklists.</p>
       </div>
@@ -201,16 +202,9 @@ const OnboardingChecklists = () => {
   ];
 
   return (
-    <div className="p-4 space-y-4 max-w-5xl">
+    <div className="space-y-4">
       <PageHeader title="Onboarding" subtitle="New colleagues' checklists, and the template each role starts with" />
-      <div className="flex gap-1 border-b border-gray-200" role="tablist">
-        {tabs.map((t) => (
-          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-            className={`px-3 py-2 text-sm font-semibold -mb-px border-b-2 ${tab === t.key ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SwitcherTabs ariaLabel="Onboarding" tabs={tabs.map((t) => ({ id: t.key, label: t.label }))} active={tab} onChange={setTab} />
       {tab === 'templates' ? <Templates editable={canEdit} /> : (
         <Section>
           {!rows ? <Spinner /> : rows.length === 0 ? (

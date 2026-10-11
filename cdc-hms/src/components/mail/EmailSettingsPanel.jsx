@@ -55,7 +55,7 @@ const EmailSettingsPanel = ({ account, setup, onChange, onClose }) => {
   const connected = account.status === 'connected';
 
   return (
-    <div className="rounded-lg border bg-white">
+    <div className="ui-surface">
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <button type="button" onClick={onClose} className="rounded p-1 text-gray-500 hover:bg-gray-100" aria-label="Back to mail">
           <ArrowLeft className="h-5 w-5" />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { Pill } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
@@ -74,19 +75,7 @@ const PatientPrescriptions = () => {
       <PageHeader
         title="My Prescriptions"
         actions={
-          <div className="flex gap-2">
-            {['active', 'past', 'all'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-4 py-2 rounded-lg font-semibold transition text-sm capitalize ${
-                  filter === f ? 'bg-primary text-white shadow-lg' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+          <SwitcherTabs tabs={['active', 'past', 'all'].map((f) => ({ id: f, label: f[0].toUpperCase() + f.slice(1) }))} active={filter} onChange={setFilter} />
         }
       />
 
@@ -166,20 +155,20 @@ const PatientPrescriptions = () => {
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm text-gray-600">
-                        <div className="bg-white rounded-lg p-2 border border-gray-200">
+                        <div className="ui-surface p-2">
                           <p className="text-[10px] text-gray-500 font-semibold uppercase">Dosage</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm">{med.dosage}</p>
                         </div>
-                        <div className="bg-white rounded-lg p-2 border border-gray-200">
+                        <div className="ui-surface p-2">
                           <p className="text-[10px] text-gray-500 font-semibold uppercase">Frequency</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm">{med.frequency}</p>
                         </div>
-                        <div className="bg-white rounded-lg p-2 border border-gray-200">
+                        <div className="ui-surface p-2">
                           <p className="text-[10px] text-gray-500 font-semibold uppercase">Duration</p>
                           <p className="font-semibold text-gray-800 text-xs sm:text-sm">{med.duration}</p>
                         </div>
                         {med.quantity && (
-                          <div className="bg-white rounded-lg p-2 border border-gray-200">
+                          <div className="ui-surface p-2">
                             <p className="text-[10px] text-gray-500 font-semibold uppercase">Quantity</p>
                             <p className="font-semibold text-gray-800 text-xs sm:text-sm">{med.quantity}</p>
                           </div>

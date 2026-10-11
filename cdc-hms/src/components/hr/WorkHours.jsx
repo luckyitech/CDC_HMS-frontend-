@@ -193,7 +193,7 @@ const WorkHours = ({ canEdit }) => {
     <div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
+          <thead className="ui-thead"><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
             <th className="text-left py-1.5 pr-2 font-semibold">Person</th><th className="text-left py-1.5 px-2 font-semibold">Mon–Fri</th><th className="text-left py-1.5 px-2 font-semibold">Sat</th><th className="text-left py-1.5 px-2 font-semibold">Sun</th><th className="text-left py-1.5 px-2 font-semibold">Grace</th><th className="py-1.5" />
           </tr></thead>
           <tbody className="tabular-nums">

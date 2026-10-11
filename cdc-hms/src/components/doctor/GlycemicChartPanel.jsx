@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import SwitcherTabs from '../shared/SwitcherTabs';
 import {
   ComposedChart,
   Bar,
@@ -171,21 +172,7 @@ const GlycemicChartPanel = ({ patient, getDataForPeriod, readings = null, embedd
         <h3 className="text-xl lg:text-2xl font-bold text-gray-800">
           {patient?.name} - Sugar Trends
         </h3>
-        <div className="flex gap-2 flex-wrap">
-          {["7days", "14days", "30days", "all"].map((period) => (
-            <button
-              key={period}
-              onClick={() => setFilterPeriod(period)}
-              className={`px-4 py-2 rounded-lg font-semibold transition text-sm ${
-                filterPeriod === period
-                  ? "bg-primary text-white shadow-lg"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              {period === "all" ? "All" : period.replace("days", " Days")}
-            </button>
-          ))}
-        </div>
+        <SwitcherTabs tabs={["7days", "14days", "30days", "all"].map((period) => ({ id: period, label: period === "all" ? "All" : period.replace("days", " Days") }))} active={filterPeriod} onChange={setFilterPeriod} />
       </div>
       )}
 

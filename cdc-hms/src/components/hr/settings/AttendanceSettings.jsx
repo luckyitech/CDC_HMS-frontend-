@@ -166,11 +166,11 @@ const AttendanceSettings = ({ tab }) => {
   return (
     <div>
           {tab === 'tags' && (canTags || canConfig) && (
-          <Section title="Entrance tags" className="max-w-4xl">
+          <Section title="Entrance tags">
             {!canTags ? null : tags === null ? <Spinner /> : tags.length === 0 ? <p className="text-sm text-gray-500 mb-3">No tag registered yet.</p> : (
               <div className="overflow-x-auto mb-3">
                 <table className="w-full text-sm">
-                  <thead><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
+                  <thead className="ui-thead"><tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
                     <th className="text-left py-1.5 pr-2 font-semibold">Label</th><th className="text-left py-1.5 px-2 font-semibold">UID</th><th className="text-left py-1.5 px-2 font-semibold">Last tap</th><th className="text-right py-1.5 px-2 font-semibold">Counter</th><th className="text-left py-1.5 px-2 font-semibold">Status</th><th className="py-1.5" />
                   </tr></thead>
                   <tbody className="tabular-nums">
@@ -230,19 +230,22 @@ const AttendanceSettings = ({ tab }) => {
           )}
 
           {tab === 'rules' && canReadSettings && (
-          <Section title="Rules" className="max-w-3xl">
+          <Section title="Rules">
             {!form || !hoursForm ? <Spinner /> : (
               <div className="space-y-3">
                 {!canConfig && <p className="text-xs text-amber-700">Changing rules needs the "HR Suite settings" permission — an administrator can do this.</p>}
-                <Toggle label="Check-out asks for confirmation" checked={form.confirmCheckout} onChange={(v) => set('confirmCheckout', v)} disabled={!canConfig} />
-                <Toggle label="Positive feedback on tap (mood lines)" checked={form.positiveFeedback} onChange={(v) => set('positiveFeedback', v)} disabled={!canConfig} />
-                <div className="grid grid-cols-2 gap-3">
+                {/* Full page width (11 Oct 2026): switches in two columns, numbers in four. */}
+                <div className="grid lg:grid-cols-2 gap-x-10">
+                  <Toggle label="Check-out asks for confirmation" checked={form.confirmCheckout} onChange={(v) => set('confirmCheckout', v)} disabled={!canConfig} />
+                  <Toggle label="Positive feedback on tap (mood lines)" checked={form.positiveFeedback} onChange={(v) => set('positiveFeedback', v)} disabled={!canConfig} />
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <Field label="Ignore repeat taps within (seconds)"><input type="number" min="0" max="3600" value={form.debounceSeconds} onChange={(e) => set('debounceSeconds', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
                   <Field label="Shortest session counted (minutes)"><input type="number" min="0" max="720" value={form.minSessionMinutes} onChange={(e) => set('minSessionMinutes', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
                   <Field label="Grace (minutes)" hint="Late / early counted after this."><input type="number" min="0" max="240" value={form.graceMinutes} onChange={(e) => set('graceMinutes', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
                   <Field label="Remembered phones expire after (days)" hint="Unused for this long → sign in again."><input type="number" min="1" max="3650" value={form.deviceDays} onChange={(e) => set('deviceDays', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
                 </div>
-                <Field label="Phone location">
+                <Field label="Phone location" className="lg:w-1/2">
                   <select value={form.geo} onChange={(e) => set('geo', e.target.value)} className={inputCls} disabled={!canConfig}>
                     <option value="log">Log only (asks the phone once; never enforced)</option>
                     <option value="off">Off (no location prompt)</option>
@@ -270,7 +273,7 @@ const AttendanceSettings = ({ tab }) => {
           )}
 
           {tab === 'changes' && canReadSettings && (
-          <Section title="Recent changes" className="max-w-3xl">
+          <Section title="Recent changes">
             <p className="text-xs text-gray-500 mb-2">The last 20 changes to any HR Suite setting. Leave policy changes have their own list on Leave → Leave policy.</p>
             {!settings ? <Spinner /> : (settings.recentChanges || []).length === 0 ? <p className="text-sm text-gray-500">No changes recorded yet.</p> : (
               <ul className="divide-y divide-gray-100">

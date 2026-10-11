@@ -333,7 +333,7 @@ const BookAppointment = () => {
                       className={`px-3 py-2.5 rounded-lg font-semibold transition text-sm border-2 ${
                         bookingData.timeSlot === slot
                           ? 'bg-primary text-white border-primary'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-primary hover:bg-blue-50'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-primary ui-hover'
                       }`}
                     >
                       {slot}

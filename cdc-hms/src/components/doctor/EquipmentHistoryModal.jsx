@@ -140,7 +140,7 @@ const EditHistorySection = ({ edits }) => {
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200">
       <table className="w-full text-sm">
-        <thead>
+        <thead className="ui-thead">
           <tr className="bg-gray-50 border-b-2 border-gray-200">
             {['Date & Time', 'Field Changed', 'Old Value', 'New Value', 'Changed By'].map((h) => (
               <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
@@ -149,7 +149,7 @@ const EditHistorySection = ({ edits }) => {
         </thead>
         <tbody>
           {edits.map((entry, i) => (
-            <tr key={entry.id} className={`border-b border-gray-100 hover:bg-blue-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+            <tr key={entry.id} className={`border-b border-gray-100 ui-hover transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
               <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDateTime(entry.changedAt)}</td>
               <td className="px-4 py-3 text-xs font-semibold text-gray-700">{FIELD_LABELS[entry.field] || entry.field || '—'}</td>
               <td className="px-4 py-3 text-xs text-gray-500">{entry.oldValue || '—'}</td>

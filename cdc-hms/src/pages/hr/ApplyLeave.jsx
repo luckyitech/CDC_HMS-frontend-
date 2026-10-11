@@ -30,7 +30,7 @@ const ApplyLeave = () => {
     return (
       <div>
         <PageHeader title="Apply for leave" />
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-600">
+        <div className="ui-surface p-6 text-sm text-gray-600">
           Applying for leave here has been switched off for your account. Ask HR to record your leave.
         </div>
       </div>

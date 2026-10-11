@@ -53,7 +53,7 @@ const WardBoard = () => {
   if (loading) return <div className="p-6 text-gray-500">Loading ward board…</div>;
 
   return (
-    <div className="p-4 sm:p-6">
+    <div>
       <PageHeader
         title={<span className="flex items-center gap-2"><BedDouble className="w-5 h-5 text-primary" /> Ward Board</span>}
         actions={<Button variant="secondary" onClick={load}><RefreshCw size={16} /> Refresh</Button>}

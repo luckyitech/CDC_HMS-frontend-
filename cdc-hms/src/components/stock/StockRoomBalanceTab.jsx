@@ -209,7 +209,7 @@ const StockRoomBalanceTab = () => {
       {grid && grid.rooms.length > 0 ? (
         <div className="overflow-x-auto mb-6">
           <table className="w-full bg-white border border-gray-200 rounded-lg overflow-hidden text-sm">
-            <thead>
+            <thead className="ui-thead">
               <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
                 <th className="px-3 py-2">Item</th>
                 {grid.rooms.map((r) => (
@@ -268,7 +268,7 @@ const StockRoomBalanceTab = () => {
       )}
 
       {/* Restock */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="ui-surface p-5">
         <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
           <Truck className="w-5 h-5 text-primary" /> Restock picklist
         </h4>
@@ -289,7 +289,7 @@ const StockRoomBalanceTab = () => {
         {plan?.lines.length > 0 && (
           <>
             <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
                   <th className="px-3 py-2">Item</th>
                   <th className="px-3 py-2">Batch</th>
@@ -360,7 +360,7 @@ const StockRoomBalanceTab = () => {
 
           <div className="max-h-72 overflow-y-auto border border-gray-200 rounded-lg">
             <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-gray-50">
+              <thead className="ui-thead sticky top-0">
                 <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500">
                   <th className="px-3 py-2">Item</th>
                   <th className="px-3 py-2 w-24">Min</th>

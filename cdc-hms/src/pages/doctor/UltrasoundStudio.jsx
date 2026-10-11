@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Waves, ArrowLeft, FileDown, Printer, Save, RefreshCw, Film, Search,
   ChevronLeft, ChevronRight, X, Undo2, User, Calendar, Cake, LayoutGrid,
@@ -8,6 +8,8 @@ import Card from '../../components/shared/Card';
 import Button from '../../components/shared/Button';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
+import UltrasoundThumb from '../../components/shared/UltrasoundThumb';
+import useUltrasoundBlobs from '../../hooks/useUltrasoundBlobs';
 import ultrasoundService from '../../services/ultrasoundService';
 import documentService from '../../services/documentService';
 import exportUltrasoundPdf from '../../utils/ultrasoundPdf';
@@ -41,8 +43,7 @@ const UltrasoundStudio = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState('received');
   const [search, setSearch] = useState('');
-  const [blobUrls, setBlobUrls] = useState({});
-  const blobUrlsRef = useRef({});
+  const { blobUrls, loadBlobs } = useUltrasoundBlobs(); // worklist thumbnails load lazily
 
   // Editor state
   const [study, setStudy] = useState(null);        // opened study
@@ -55,35 +56,15 @@ const UltrasoundStudio = () => {
   const layout = LAYOUTS.find((l) => l.id === layoutId);
 
   // ---------------- data ----------------
-  const loadBlobs = useCallback(async (images) => {
-    const urls = { ...blobUrlsRef.current };
-    await Promise.all(
-      images.map(async (img) => {
-        if (urls[img.id]) return;
-        try {
-          const filename = ultrasoundService.filenameFromUrl(img.fileUrl);
-          const res = await ultrasoundService.getFile(filename);
-          urls[img.id] = URL.createObjectURL(res.data ?? res);
-        } catch {
-          // placeholder shown
-        }
-      }),
-    );
-    blobUrlsRef.current = urls;
-    setBlobUrls({ ...urls });
-  }, []);
-
   const loadStudies = useCallback(async () => {
     try {
       const res = await ultrasoundService.getStudies();
       const list = res.data || [];
       setStudies(list);
-      // Thumbnails: first image of each study
-      await loadBlobs(list.map((s) => s.images[0]).filter(Boolean));
     } catch (err) {
       console.error('Error loading studies:', err);
     }
-  }, [loadBlobs]);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -103,12 +84,6 @@ const UltrasoundStudio = () => {
     source.onerror = () => {};
     return () => source.close();
   }, [loadStudies]);
-
-  // Revoke object URLs on unmount
-  useEffect(() => () => {
-    Object.values(blobUrlsRef.current).forEach((u) => URL.revokeObjectURL(u));
-    blobUrlsRef.current = {};
-  }, []);
 
   // ---------------- worklist sorting / search ----------------
   const visibleStudies = useMemo(() => {
@@ -480,8 +455,8 @@ const UltrasoundStudio = () => {
               >
                 <div className="flex">
                   <div className="w-32 bg-black aspect-[4/3] flex-shrink-0 flex items-center justify-center">
-                    {s.images[0] && blobUrls[s.images[0].id] ? (
-                      <img src={blobUrls[s.images[0].id]} alt="" className="max-w-full max-h-full object-contain" />
+                    {s.images[0] ? (
+                      <UltrasoundThumb image={s.images[0]} src={blobUrls[s.images[0].id]} load={loadBlobs} alt="" placeholder={<Waves className="w-6 h-6 text-gray-600" />} />
                     ) : (
                       <Waves className="w-6 h-6 text-gray-600" />
                     )}

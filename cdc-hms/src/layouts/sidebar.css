@@ -1,0 +1,233 @@
+/* Sidebar look — "Floating islands" (11 Oct 2026, Emu chose concept 3 of
+   claude/sidebar-glass-concepts.html). The sidebar is three floating pieces
+   of glass — brand + portal switcher, the menu, the pin button — with the
+   page's colour wash showing through the gaps. The current page is marked by
+   a "lens" that glides to whatever is clicked (MainLayout measures the active
+   item and moves .sb-lens there).
+
+   ONE place for every sidebar colour: a theme class on the <aside> (sb-white
+   or sb-blue) sets the --sb-* tokens below, and MainLayout uses only the
+   semantic classes (sb-text, sb-icon, sb-hover, sb-badge …), never colour
+   utilities. Changing the theme is changing that one class.
+   Kept out of index.css because the dermatology branch also edits that file. */
+
+/* ── Themes ─────────────────────────────────────────────────────────────── */
+/* White frosted glass, dark text; the lens is a solid CDC-blue capsule. */
+.sb-white {
+  --sb-glass: rgba(255, 255, 255, 0.58);
+  --sb-glass-solid: rgba(255, 255, 255, 0.96);
+  --sb-glass-border: rgba(255, 255, 255, 0.85);
+  /* Lifted off the page: a drop shadow plus a cast shadow reaching right. */
+  --sb-glass-shadow: 0 22px 46px -16px rgba(0, 60, 130, 0.32), 16px 10px 40px -12px rgba(15, 42, 74, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --sb-sheen: rgba(255, 255, 255, 0.45);
+  --sb-text: #334155;
+  --sb-strong: #0f2a4a;
+  --sb-muted: #64748b;
+  --sb-icon: #2a6bb0;
+  --sb-hover: var(--ui-hover); /* the app's list hover (ui.css) */
+  --sb-chip: rgba(255, 255, 255, 0.6);
+  --sb-chip-open: rgba(255, 255, 255, 0.9);
+  --sb-chip-border: rgba(15, 42, 74, 0.08);
+  --sb-disc: rgba(0, 102, 204, 0.1);
+  /* The "on" disc (11 Oct 2026, Emu chose option 2 of
+     claude/sidebar-selected-item-mockup.html): a CDC-blue circle (the app's
+     one primary, as on the switcher's active tab) with a white icon marks
+     what is current — the portal in the switcher pill and the
+     selected menu item. The lens is a white pill, the same as the open chip. */
+  --sb-disc-on: var(--ui-primary);
+  --sb-disc-on-icon: #fff;
+  --sb-lens: var(--sb-chip-open);
+  --sb-lens-border: var(--sb-chip-border);
+  --sb-lens-shadow: 0 8px 18px -12px rgba(0, 60, 130, 0.5);
+  --sb-active: var(--sb-disc-on);
+  --sb-badge: var(--ui-badge); /* the app's one badge (ui.css) */
+  --sb-badge-text: var(--ui-badge-text);
+  --sb-dot: #00b8bb;
+  --sb-dot-ring: rgba(255, 255, 255, 0.95);
+  --sb-thumb: rgba(15, 42, 74, 0.15);
+  --sb-thumb-hover: rgba(15, 42, 74, 0.32);
+}
+/* CDC-blue liquid glass, white text; the lens is clear glass. */
+.sb-blue {
+  --sb-glass: linear-gradient(160deg, rgba(0, 102, 204, 0.66), rgba(30, 64, 175, 0.76));
+  --sb-glass-solid: linear-gradient(160deg, #0a6fd0, #1e40af);
+  --sb-glass-border: rgba(255, 255, 255, 0.3);
+  --sb-glass-shadow: 0 18px 40px -14px rgba(0, 50, 120, 0.5), 16px 10px 40px -12px rgba(0, 40, 100, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  --sb-sheen: rgba(255, 255, 255, 0.26);
+  --sb-text: rgba(255, 255, 255, 0.85);
+  --sb-strong: #fff;
+  --sb-muted: #dbeafe;
+  --sb-icon: #dbeafe;
+  --sb-hover: rgba(255, 255, 255, 0.1);
+  --sb-chip: rgba(255, 255, 255, 0.14);
+  --sb-chip-open: rgba(255, 255, 255, 0.2);
+  --sb-chip-border: rgba(255, 255, 255, 0.2);
+  --sb-disc: rgba(255, 255, 255, 0.15);
+  --sb-disc-on: rgba(255, 255, 255, 0.24);
+  --sb-disc-on-icon: #fff;
+  --sb-lens: rgba(255, 255, 255, 0.22);
+  --sb-lens-border: rgba(255, 255, 255, 0.5);
+  --sb-lens-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 8px 18px -8px rgba(0, 25, 70, 0.6);
+  --sb-active: #fff;
+  --sb-badge: #fff;
+  --sb-badge-text: #0066cc;
+  --sb-dot: #fff;
+  --sb-dot-ring: rgba(37, 99, 235, 0.7);
+  --sb-thumb: rgba(255, 255, 255, 0.2);
+  --sb-thumb-hover: rgba(255, 255, 255, 0.45);
+}
+.sb-white, .sb-blue { color: var(--sb-strong); }
+
+/* The page canvas. Glass needs something behind it to blur; on flat grey it
+   would read as a plain panel. A soft cyan / blue / sky wash on the app
+   shell, which is exactly the viewport and never scrolls itself (<main>
+   scrolls inside it) — so the wash stays put without background-attachment:
+   fixed, which iOS Safari mishandles. */
+.app-canvas {
+  background-color: #edf4fb;
+  background-image:
+    radial-gradient(42rem 34rem at -8% -10%, rgba(0, 206, 209, 0.30), transparent 62%),
+    radial-gradient(38rem 32rem at 6% 78%, rgba(0, 102, 204, 0.20), transparent 62%),
+    radial-gradient(46rem 38rem at 106% 110%, rgba(56, 189, 248, 0.22), transparent 62%);
+}
+
+/* ── Shape (11 Oct 2026, after Outlook's rail) ─────────────────────────── */
+/* Islands are capsules: the corner is half the 64 px rail, so the collapsed
+   rail has fully round ends. Every item, the hover and the lens are pills —
+   a circle in the rail, a capsule when the sidebar is open. */
+:root {
+  --sb-island-radius: 32px;
+}
+.sb-round { border-radius: 9999px; }
+
+/* ── Glass ──────────────────────────────────────────────────────────────── */
+/* One island of glass. */
+.sb-island {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--sb-island-radius);
+  background: var(--sb-glass);
+  -webkit-backdrop-filter: blur(24px) saturate(175%);
+  backdrop-filter: blur(24px) saturate(175%);
+  border: 1px solid var(--sb-glass-border);
+  box-shadow: var(--sb-glass-shadow);
+}
+/* The sheen across the top-left of each piece — what gives it depth. */
+.sb-island::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(125deg, var(--sb-sheen) 0%, transparent 36%);
+  pointer-events: none;
+}
+
+/* The selection lens. Position and size are set inline by MainLayout. */
+.sb-lens {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 9999px;
+  background: var(--sb-lens);
+  border: 1px solid var(--sb-lens-border);
+  box-shadow: var(--sb-lens-shadow);
+  pointer-events: none;
+  z-index: 0;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s;
+}
+
+/* Portal flyout (desktop) — a short slide-in from the sidebar, answering the
+   click that opened it. */
+.sb-flyout { animation: sb-flyout-in 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes sb-flyout-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Drop-downs from the top bar (profile menu, notifications) use the same
+   glass: wrap them in .sb-white (or .sb-blue) and give the panel .sb-island
+   .sb-drop. The panel slides down from what opened it. */
+.sb-drop { animation: sb-drop-in 0.2s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes sb-drop-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+/* A row in a floating menu: the sidebar's pill, hover and icon colours. */
+.sb-menu-item {
+  display: flex; width: 100%; align-items: center; gap: 0.75rem;
+  padding: 0.55rem 0.9rem; border-radius: 9999px; text-align: left;
+  font-size: 0.875rem; font-weight: 500; color: var(--sb-text);
+  transition: background-color 0.15s, color 0.15s;
+}
+.sb-menu-item:hover { background-color: var(--sb-hover); color: var(--sb-strong); }
+.sb-menu-item .sb-icon { flex-shrink: 0; }
+.sb-menu-item:hover .sb-icon { color: var(--sb-strong); }
+.sb-divider { height: 1px; margin: 0.35rem 0.9rem; background: var(--sb-chip-border); }
+
+/* ── Semantic colours (MainLayout uses only these) ──────────────────────── */
+.sb-text { color: var(--sb-text); }
+.sb-strong { color: var(--sb-strong); }
+.sb-muted { color: var(--sb-muted); }
+.sb-icon { color: var(--sb-icon); }
+.sb-hover:hover { background-color: var(--sb-hover); color: var(--sb-strong); }
+.sb-hover:hover .sb-icon { color: var(--sb-strong); }
+/* The active item sits on the lens. */
+.sb-active, .sb-active .sb-icon { color: var(--sb-active); }
+/* A group header whose child page is open (group collapsed). */
+.sb-group-active { background-color: var(--sb-hover); color: var(--sb-strong); }
+.sb-group-active .sb-icon { color: var(--sb-strong); }
+/* The portal switcher pill and the round icon disc inside it / the flyout. */
+.sb-chip { background-color: var(--sb-chip); border: 1px solid var(--sb-chip-border); }
+.sb-chip:hover, .sb-chip-open { background-color: var(--sb-chip-open); }
+.sb-disc { background-color: var(--sb-disc); }
+/* What is current — the portal in the switcher pill, and the selected menu
+   item's icon (given the same circle here, so no markup changes per item). */
+.sb-disc-on, .sb-active > .sb-icon { background-color: var(--sb-disc-on); }
+.sb-disc-on .sb-icon, .sb-active > .sb-icon { color: var(--sb-disc-on-icon); }
+.sb-active > .sb-icon { box-sizing: content-box; padding: 5px; margin: -5px; border-radius: 9999px; }
+/* Count badge (expanded) and its dot (icon rail). */
+.sb-badge { background-color: var(--sb-badge); color: var(--sb-badge-text); }
+.sb-dot { background-color: var(--sb-dot); box-shadow: 0 0 0 2px var(--sb-dot-ring); }
+
+/* ── Menu scroll bar — option B "slim see-through" (11 Oct 2026) ───────── */
+/* A thin, rounded, translucent thumb with no track: faint at rest, stronger
+   while the pointer is over the menu. Chrome / Safari / Edge use the
+   ::-webkit-scrollbar rules; Firefox falls back to scrollbar-width/color.
+   The standard properties are kept out of WebKit/Blink on purpose — Chrome
+   121+ ignores ::-webkit-scrollbar when they are set, and the rounded,
+   inset thumb only comes from the pseudo-elements. */
+.sidebar-scroll::-webkit-scrollbar { width: 10px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--sb-thumb);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb { background-color: var(--sb-thumb-hover); }
+
+@supports not selector(::-webkit-scrollbar) {
+  .sidebar-scroll { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }
+  .sidebar-scroll:hover { scrollbar-color: var(--sb-thumb-hover) transparent; }
+}
+
+/* The slim rail (collapsed, desktop/tablet) still scrolls but shows no bar —
+   a bar in a 64 px capsule spoils its shape and pushes the icons off-centre.
+   The bar returns as soon as the sidebar opens. Phones' drawer keeps it. */
+@media (min-width: 768px) {
+  .sb-rail-scroll { scrollbar-width: none; }
+  .sb-rail-scroll::-webkit-scrollbar { display: none; }
+}
+
+/* ── Fallbacks ──────────────────────────────────────────────────────────── */
+/* Without backdrop blur, fall back to solid glass colours. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .sb-island { background: var(--sb-glass-solid); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-lens { transition: opacity 0.2s; }
+  .sb-flyout, .sb-drop { animation: none; }
+}

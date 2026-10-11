@@ -11,7 +11,7 @@ const ICON = { bad: AlertTriangle, warn: Clock, info: Info };
 const TONE = { bad: 'text-red-700', warn: 'text-amber-700', info: 'text-blue-700' };
 
 const SelfTodo = ({ items = [], onGo }) => (
-  <div className="bg-white rounded-xl border border-gray-200 p-5" data-testid="self-todo">
+  <div className="ui-surface p-5" data-testid="self-todo">
     <h3 className="text-sm font-semibold text-gray-800 mb-3">To do</h3>
     {items.length === 0 ? (
       <p className="text-sm text-gray-500">Nothing needs your attention.</p>

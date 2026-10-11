@@ -5,6 +5,7 @@ import { notify } from "../../utils/notify";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
 import StatusBadge from "../shared/StatusBadge";
+import SharedStatCard from "../shared/StatCard";
 import {
   STOCK_STATUS_TONES, STOCK_MOVEMENT_TONES, STOCK_MOVEMENT_LABELS,
 } from "../../utils/statusStyles";
@@ -28,7 +29,7 @@ export const Field = ({ label, children, hint }) => (
 export const inputCls =
   "w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary";
 
-// Headline stat tile — the app's gradient dashboard card (AdminDashboard).
+// Headline stat tile — stock's name for the shared StatCard (11 Oct 2026).
 export const StatCard = ({ label, value, sub, tone = "blue" }) => {
   const gradients = {
     blue:  "from-blue-500 to-blue-600",
@@ -38,13 +39,8 @@ export const StatCard = ({ label, value, sub, tone = "blue" }) => {
     cyan:  "from-cyan-500 to-cyan-600",
     purple:"from-purple-500 to-purple-600",
   };
-  return (
-    <div className={`bg-gradient-to-br ${gradients[tone] || gradients.blue} rounded-xl shadow-lg p-6 text-white`}>
-      <p className="text-sm opacity-90">{label}</p>
-      <p className="text-4xl font-bold mt-2">{value}</p>
-      {sub && <p className="text-sm mt-3 opacity-75">{sub}</p>}
-    </div>
-  );
+  // The app's one number tile (shared StatCard), in the stock tones.
+  return <SharedStatCard title={label} value={value} sub={sub} gradient={gradients[tone] || gradients.blue} />;
 };
 
 // Lifecycle status badge (active / retired / expired …).

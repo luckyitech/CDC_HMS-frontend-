@@ -81,7 +81,7 @@ const CredentialsReminders = ({ canEdit }) => {
   };
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4">
       <Section title="CPD targets — points per calendar year">
         <table className="w-full text-sm max-w-sm">
           <tbody>

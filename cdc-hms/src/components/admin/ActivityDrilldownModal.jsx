@@ -81,7 +81,7 @@ const ActivityDrilldownModal = ({ isOpen, onClose, staff, type, label, startDate
         <>
           <div className="overflow-x-auto rounded-xl border border-gray-200">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="bg-gray-50 border-b-2 border-gray-200">
                   {['Date & Time', 'Patient', 'UHID', 'Detail'].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap">{h}</th>
@@ -90,7 +90,7 @@ const ActivityDrilldownModal = ({ isOpen, onClose, staff, type, label, startDate
               </thead>
               <tbody>
                 {paginated.map((e, i) => (
-                  <tr key={i} className="border-b border-gray-100 hover:bg-blue-50 transition-colors">
+                  <tr key={i} className="border-b border-gray-100 ui-hover transition-colors">
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDateTime(e.timestamp)}</td>
                     <td className="px-4 py-3 text-gray-700">{e.patient || '—'}</td>
                     <td className="px-4 py-3 text-gray-500 font-mono text-xs">{e.uhid || '—'}</td>
@@ -108,12 +108,12 @@ const ActivityDrilldownModal = ({ isOpen, onClose, staff, type, label, startDate
               </span>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg ui-hover disabled:opacity-40 disabled:cursor-not-allowed transition">
                   <ChevronLeft className="w-4 h-4" /> Previous
                 </button>
                 <span className="text-sm font-semibold text-gray-700">Page {page} of {totalPages}</span>
                 <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg ui-hover disabled:opacity-40 disabled:cursor-not-allowed transition">
                   Next <ChevronRight className="w-4 h-4" />
                 </button>
               </div>

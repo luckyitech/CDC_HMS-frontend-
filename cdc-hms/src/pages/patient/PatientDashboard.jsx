@@ -133,7 +133,7 @@ const PatientDashboard = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Last Reading */}
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 sm:p-6 text-white">
           <p className="text-xs sm:text-sm opacity-90">Last Reading</p>
           {lastReading ? (
             <>
@@ -155,7 +155,7 @@ const PatientDashboard = () => {
         </div>
 
         {/* Weekly Average */}
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white">
           <p className="text-xs sm:text-sm opacity-90">Weekly Avg</p>
           {weeklyAverage !== null ? (
             <>
@@ -169,7 +169,7 @@ const PatientDashboard = () => {
         </div>
 
         {/* Days Logged */}
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white">
           <p className="text-xs sm:text-sm opacity-90">Days Logged</p>
           <p className="text-3xl sm:text-4xl font-bold mt-1 sm:mt-2">
             {daysLoggedThisWeek}<span className="text-lg sm:text-2xl">/7</span>
@@ -181,7 +181,7 @@ const PatientDashboard = () => {
         </div>
 
         {/* Next Appointment */}
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-4 sm:p-6 text-white">
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 sm:p-6 text-white">
           <p className="text-xs sm:text-sm opacity-90">Next Appt.</p>
           {nextAppointment ? (
             <>
@@ -235,18 +235,18 @@ const PatientDashboard = () => {
             {/* Desktop: table */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <thead className="ui-thead">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reading</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
+                    <th className="px-4 py-3 text-left">Date</th>
+                    <th className="px-4 py-3 text-left">Time</th>
+                    <th className="px-4 py-3 text-left">Type</th>
+                    <th className="px-4 py-3 text-left">Reading</th>
+                    <th className="px-4 py-3 text-left">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {recentReadings.map((reading, index) => (
-                    <tr key={reading.id || index} className="hover:bg-blue-50">
+                    <tr key={reading.id || index} className="ui-hover">
                       <td className="px-4 py-3 text-sm">{formatDate(reading.date)}</td>
                       <td className="px-4 py-3 text-sm">{reading.displayTime}</td>
                       <td className="px-4 py-3 text-sm">{reading.typeLabel}</td>

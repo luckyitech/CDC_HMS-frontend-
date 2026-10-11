@@ -122,7 +122,7 @@ const TidyTable = ({ kind, groups, entries, choice, setChoice, onAddFrom }) => {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead>
+        <thead className="ui-thead">
           <tr className="text-left text-xs text-gray-500 border-b border-gray-200">
             <th className="py-2 pr-3 font-semibold">Typed today</th>
             <th className="py-2 pr-3 font-semibold">Staff</th>
@@ -253,7 +253,7 @@ const StaffListsPanel = ({ tab }) => {
   const untidy = !!tidy && (tidy.departments.length > 0 || tidy.positions.length > 0);
 
   return (
-    <div className="space-y-4 max-w-4xl">
+    <div className="space-y-4">
       {!lists || !tidy ? <Spinner /> : (
         <>
           {tab === 'departments' && (

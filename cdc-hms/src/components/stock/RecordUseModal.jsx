@@ -145,7 +145,7 @@ const RecordUseModal = ({ scan = null, patient = null, onClose }) => {
               <button
                 key={b.stockBatchId}
                 onClick={() => setStockBatchId(String(b.stockBatchId))}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 ${
+                className={`w-full text-left px-3 py-2 text-sm ui-hover ${
                   Number(stockBatchId) === b.stockBatchId ? "bg-blue-50 font-semibold" : ""
                 }`}
               >

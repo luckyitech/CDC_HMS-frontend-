@@ -34,7 +34,7 @@ const AwayStrip = ({ away, applicant, start, end }) => {
     <div data-testid="away-strip">
       <div className="overflow-x-auto">
         <table className="text-[11px] border-separate" style={{ borderSpacing: 2 }}>
-          <thead>
+          <thead className="ui-thead">
             <tr>
               <th className="text-left font-normal text-gray-400 pr-2" />
               {cols.map((d) => (

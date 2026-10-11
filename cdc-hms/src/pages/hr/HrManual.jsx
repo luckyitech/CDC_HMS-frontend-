@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
 import { createPortal, flushSync } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { Search, X, Printer, ChevronLeft, ChevronRight, ListChecks, BookOpen } from 'lucide-react';
@@ -178,7 +179,7 @@ const HrManual = () => {
   ) : <div className="py-10"><Spinner /></div>;
 
   return (
-    <div className="p-4 max-w-7xl">
+    <div>
       <PageHeader
         title="HR Suite manual"
         subtitle="How to run every part of the HR Suite, and the HR team's shared checklist"
@@ -203,7 +204,7 @@ const HrManual = () => {
             <ul>
               {results.map((r, i) => (
                 <li key={`${r.tab}-${r.index}-${i}`}>
-                  <button type="button" className="block w-full px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none" onClick={() => openResult(r)}>
+                  <button type="button" className="block w-full px-3 py-2 text-left ui-hover focus:bg-blue-50 focus:outline-none" onClick={() => openResult(r)}>
                     <span className="block text-[11px] font-semibold text-primary">{r.tabTitle}{r.heading && r.heading !== r.text ? ` › ${r.heading}` : ''}</span>
                     <span className="block text-sm text-gray-700"><Highlight text={snippetOf(r.text, query)} query={query} /></span>
                   </button>
@@ -217,11 +218,11 @@ const HrManual = () => {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
         {/* Tabs: a list on wide screens, a picker on narrow ones */}
         <nav aria-label="Manual tabs" className="lg:sticky lg:top-4 lg:w-60 lg:flex-none">
-          <select aria-label="Manual tab" className={`${inputCls} lg:hidden`} value={view} onChange={(e) => go(e.target.value)}>
+          <SelectMenu aria-label="Manual tab" className={`${inputCls} lg:hidden`} value={view} onChange={(e) => go(e.target.value)}>
             <option value={CHECKLIST}>✓ HR checklist ({doneCount}/{totalCount})</option>
             {MANUAL_TABS.map((t) => <option key={t.slug} value={t.slug}>{t.n}. {t.title}</option>)}
-          </select>
-          <div className="hidden rounded-xl border border-gray-200 bg-white p-2 lg:block">
+          </SelectMenu>
+          <div className="ui-surface hidden p-2 lg:block">
             <button type="button" onClick={() => go(CHECKLIST)} aria-current={view === CHECKLIST ? 'page' : undefined}
               className={`mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-semibold ${view === CHECKLIST ? 'bg-primary text-white' : 'text-gray-800 hover:bg-gray-50'}`}>
               <ListChecks className="h-4 w-4 flex-none" />
@@ -247,7 +248,7 @@ const HrManual = () => {
 
         <main ref={contentRef} className="min-w-0 flex-1 scroll-mt-4">
           {view === CHECKLIST ? checklistView : (
-            <div className="rounded-xl border border-gray-200 bg-white px-5 py-5 lg:px-8">
+            <div className="ui-surface px-5 py-5 lg:px-8">
               {tabContent(tab, true)}
               <div className="mt-10 flex items-center justify-between gap-2 border-t border-gray-100 pt-4">
                 {prev ? <button type="button" className={`${buttonCls} inline-flex items-center gap-1`} onClick={() => go(prev.slug)}><ChevronLeft className="h-3.5 w-3.5" /> {prev.n}. {prev.title}</button> : <span />}

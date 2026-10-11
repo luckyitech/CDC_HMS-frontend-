@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Waves, Link2, RefreshCw, Film } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '../../components/shared/Card';
@@ -6,6 +6,8 @@ import Button from '../../components/shared/Button';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
 import ultrasoundService from '../../services/ultrasoundService';
+import UltrasoundThumb from '../../components/shared/UltrasoundThumb';
+import useUltrasoundBlobs from '../../hooks/useUltrasoundBlobs';
 
 /**
  * HMIS V4 — Unassigned ultrasound queue.
@@ -16,32 +18,15 @@ import ultrasoundService from '../../services/ultrasoundService';
 const UnassignedUltrasound = () => {
   const [images, setImages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [blobUrls, setBlobUrls] = useState({});
+  const { blobUrls, loadBlobs } = useUltrasoundBlobs(); // thumbnails load lazily
   const [uhidInputs, setUhidInputs] = useState({});   // id -> typed uhid
   const [assigning, setAssigning] = useState(null);   // id being assigned
-  const blobUrlsRef = useRef({});
 
   const load = useCallback(async () => {
     try {
       const res = await ultrasoundService.getUnassigned();
       const list = res.data || [];
       setImages(list);
-
-      const urls = { ...blobUrlsRef.current };
-      await Promise.all(
-        list.map(async (img) => {
-          if (urls[img.id]) return;
-          try {
-            const filename = ultrasoundService.filenameFromUrl(img.fileUrl);
-            const fileRes = await ultrasoundService.getFile(filename);
-            urls[img.id] = URL.createObjectURL(fileRes.data ?? fileRes);
-          } catch {
-            // placeholder shown
-          }
-        }),
-      );
-      blobUrlsRef.current = urls;
-      setBlobUrls({ ...urls });
     } catch (err) {
       console.error('Error loading unassigned ultrasound images:', err);
     }
@@ -65,12 +50,6 @@ const UnassignedUltrasound = () => {
     source.onerror = () => {};
     return () => source.close();
   }, [load]);
-
-  // Revoke object URLs on unmount
-  useEffect(() => () => {
-    Object.values(blobUrlsRef.current).forEach((u) => URL.revokeObjectURL(u));
-    blobUrlsRef.current = {};
-  }, []);
 
   const handleAssign = async (img) => {
     const uhid = (uhidInputs[img.id] || '').trim();
@@ -112,15 +91,7 @@ const UnassignedUltrasound = () => {
             {images.map((img) => (
               <div key={img.id} className="rounded-lg border-2 border-amber-300 overflow-hidden">
                 <div className="bg-black aspect-[4/3] flex items-center justify-center relative">
-                  {blobUrls[img.id] ? (
-                    <img
-                      src={blobUrls[img.id]}
-                      alt={img.fileName}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-gray-500 text-xs">Image unavailable</span>
-                  )}
+                  <UltrasoundThumb image={img} src={blobUrls[img.id]} load={loadBlobs} unavailableClass="text-gray-500 text-xs" />
                   {img.isMultiframe && (
                     <span className="absolute top-1.5 right-1.5 bg-purple-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
                       <Film className="w-3 h-3" /> CLIP

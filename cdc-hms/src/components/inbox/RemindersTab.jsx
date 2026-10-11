@@ -25,7 +25,7 @@ const RemindersTab = ({ canWrite }) => {
   };
 
   return (
-    <div className="rounded-lg border bg-white p-4">
+    <div className="ui-surface p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {FILTERS.map(([k, l]) => <button key={k} type="button" onClick={() => setFilter(k)} className={`rounded-full px-3 py-1 text-xs ${filter === k ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{l}</button>)}
         <label className="ml-auto flex items-center gap-1 text-xs text-gray-600"><input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Only mine</label>
@@ -43,7 +43,7 @@ const RemindersTab = ({ canWrite }) => {
             {canWrite && (
               <div className="flex gap-1">
                 <button type="button" onClick={() => action(r.id, 'done')} className="rounded p-1 text-emerald-600 hover:bg-emerald-50" title="Done"><Check size={15} /></button>
-                <button type="button" onClick={() => action(r.id, 'snooze', { remindAt: new Date(Date.now() + 3600_000).toISOString() })} className="rounded p-1 text-blue-500 hover:bg-blue-50" title="Snooze 1h"><Clock size={15} /></button>
+                <button type="button" onClick={() => action(r.id, 'snooze', { remindAt: new Date(Date.now() + 3600_000).toISOString() })} className="rounded p-1 text-blue-500 ui-hover" title="Snooze 1h"><Clock size={15} /></button>
                 <button type="button" onClick={() => action(r.id, 'cancel')} className="rounded p-1 text-gray-400 hover:bg-gray-100" title="Cancel"><X size={15} /></button>
               </div>
             )}

@@ -12,6 +12,7 @@ import RemindersTab from '../../components/inbox/RemindersTab';
 import InboxAnalytics from '../../components/inbox/InboxAnalytics';
 import MailTab from '../../components/mail/MailTab';
 import NewMailToast from '../../components/mail/NewMailToast';
+import PageHeader from '../../components/shared/PageHeader';
 
 // One "Inbox" for everything reaching the clinic from outside: patient messages
 // on WhatsApp, Facebook Messenger and Instagram, external lab reports (email +
@@ -96,13 +97,17 @@ const Inbox = () => {
 
   if (!liveTabs.length && !mailTabs.length) return <div className="p-8 text-center text-gray-400">You don't have access to the Inbox.</div>;
 
+  // A full-height column: the mail / channel pane grows to the bottom of the
+  // window (components/inbox/inboxPane.js); the other tabs flow as before.
   return (
-    <div className="mx-auto max-w-7xl p-3 sm:p-4">
-      <h1 className="mb-3 flex items-center gap-2 text-xl font-bold text-gray-800"><MessageCircle className="text-emerald-600" /> Inbox</h1>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {mailTabs.length > 0 && <SwitcherTabs tabs={mailTabs} active={tab} onChange={setTab} />}
-        {mailTabs.length > 0 && liveTabs.length > 0 && <span className="hidden h-8 w-px bg-gray-300 sm:block" aria-hidden="true" />}
-        {liveTabs.length > 0 && <SwitcherTabs tabs={liveTabs} active={tab} onChange={setTab} />}
+    <div className="flex h-full flex-col">
+      <PageHeader title="Inbox" className="mb-3" />
+      {/* One line on every screen (Emu, 11 Oct 2026): My mail keeps its size,
+          the channel strip takes the rest and scrolls sideways if it must. */}
+      <div className="mb-3 flex flex-nowrap items-center gap-2">
+        {mailTabs.length > 0 && <SwitcherTabs className="flex-none" tabs={mailTabs} active={tab} onChange={setTab} />}
+        {mailTabs.length > 0 && liveTabs.length > 0 && <span className="h-8 w-px flex-none bg-gray-300" aria-hidden="true" />}
+        {liveTabs.length > 0 && <SwitcherTabs className="min-w-0" tabs={liveTabs} active={tab} onChange={setTab} />}
       </div>
 
       {tab === 'mail' && canUseMail && (

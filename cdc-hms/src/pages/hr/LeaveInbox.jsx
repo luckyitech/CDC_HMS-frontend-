@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { notify } from '../../utils/notify';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Download } from 'lucide-react';
@@ -77,20 +79,16 @@ const LeaveInbox = () => {
     <div>
       <PageHeader title="Leave to approve" subtitle="Requests colleagues have listed you on." />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)]">
-        <div className={`bg-white rounded-xl border border-gray-200 min-w-0 ${openId ? 'hidden lg:block' : ''}`}>
-          <div className="flex flex-wrap gap-1 p-2 border-b border-gray-100" role="tablist">
-            {tabs.map((t) => (
-              <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => choose({ tab: t.id })}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === t.id ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-                {t.label}{t.id === 'waiting' && waiting > 0 ? ` · ${waiting}` : ''}
-              </button>
-            ))}
+        <div className={`ui-surface min-w-0 ${openId ? 'hidden lg:block' : ''}`}>
+          <div className="p-2 border-b border-gray-100">
+            <SwitcherTabs size="sm" ariaLabel="Leave lists" active={tab} onChange={(id) => choose({ tab: id })}
+              tabs={tabs.map((t) => ({ ...t, count: t.id === 'waiting' && waiting > 0 ? waiting : undefined }))} />
           </div>
           {tab === 'all' && canRegister && (
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100" data-testid="register-export">
-              <select className="rounded-md border border-gray-300 px-2 py-1 text-xs" value={regYear} onChange={(e) => setRegYear(Number(e.target.value))} aria-label="Year to download">
+              <SelectMenu className="rounded-md border border-gray-300 px-2 py-1 text-xs" value={regYear} onChange={(e) => setRegYear(Number(e.target.value))} aria-label="Year to download">
                 {[thisYear - 1, thisYear, thisYear + 1].map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
+              </SelectMenu>
               <button type="button" onClick={download} disabled={downloading}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60">
                 <Download className="w-3.5 h-3.5" /> {downloading ? 'Preparing…' : 'Download leave register (.csv)'}
@@ -125,7 +123,7 @@ const LeaveInbox = () => {
           )}
         </div>
 
-        <div className={`bg-white rounded-xl border border-gray-200 p-4 sm:p-5 min-w-0 ${openId ? '' : 'hidden lg:block'}`}>
+        <div className={`ui-surface p-4 sm:p-5 min-w-0 ${openId ? '' : 'hidden lg:block'}`}>
           {openId ? (
             <>
               <button type="button" className="lg:hidden mb-3 inline-flex items-center gap-1 text-xs font-semibold text-primary" onClick={() => choose({ id: null })}>

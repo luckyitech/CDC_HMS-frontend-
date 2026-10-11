@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
 import Button from "../../components/shared/Button";
-import Modal from "../../components/shared/Modal";
+import Modal, { ModalOverlay } from '../../components/shared/Modal';
 import { useUserContext } from "../../contexts/UserContext";
 import { usePrescriptionContext } from "../../contexts/PrescriptionContext";
 import { usePatientContext } from "../../contexts/PatientContext";
@@ -151,7 +151,7 @@ const DoctorPrescriptions = () => {
 // Keep ViewPrescriptionModal here since it's only used in this page
 const ViewPrescriptionModal = ({ prescription, onClose, onPrint }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <ModalOverlay>
       <div className="bg-white rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b-2 border-gray-200 p-6 flex justify-between items-center">
           <div>
@@ -294,7 +294,7 @@ const ViewPrescriptionModal = ({ prescription, onClose, onPrint }) => {
           </button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

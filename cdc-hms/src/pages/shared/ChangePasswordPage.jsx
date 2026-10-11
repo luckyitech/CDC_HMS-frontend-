@@ -106,7 +106,7 @@ const ChangePasswordPage = () => {
   };
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div>
       {/* Both the title and the supporting line change when rotation has
           expired the password: there is nowhere to go "back" to, and the
           state is the page's subject rather than a tinted callout shouting at
@@ -125,6 +125,9 @@ const ChangePasswordPage = () => {
 
       <Card title={<CardTitle icon={KeyRound}>Update Your Password</CardTitle>}>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Full page width (11 Oct 2026): the three fields sit side by side on
+              wider screens and stack on phones. */}
+          <div className="grid gap-x-4 md:grid-cols-3">
           <Input
             label="Current Password *"
             type="password"
@@ -134,17 +137,19 @@ const ChangePasswordPage = () => {
             required
           />
 
-          <Input
-            label="New Password *"
-            type="password"
-            value={form.newPassword}
-            onChange={set('newPassword')}
-            placeholder="At least 6 characters"
-            required
-          />
-          <p className="-mt-2 text-xs text-gray-500">
-            Must be different from your current password.
-          </p>
+          <div>
+            <Input
+              label="New Password *"
+              type="password"
+              value={form.newPassword}
+              onChange={set('newPassword')}
+              placeholder="At least 6 characters"
+              required
+            />
+            <p className="-mt-4 mb-6 text-xs text-gray-500">
+              Must be different from your current password.
+            </p>
+          </div>
 
           <Input
             label="Confirm New Password *"
@@ -154,19 +159,19 @@ const ChangePasswordPage = () => {
             placeholder="Re-enter new password"
             required
           />
+          </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex justify-end gap-3">
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
               onClick={() => setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })}
             >
               Clear
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-primary hover:bg-blue-700"
+              className="bg-primary hover:bg-blue-700"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Changing...' : (<><Check className="w-4 h-4" /> Change Password</>)}

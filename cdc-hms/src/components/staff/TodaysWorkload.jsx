@@ -117,7 +117,7 @@ const TodaysWorkload = () => {
       ) : (
         <div className="overflow-x-auto -mx-2 px-2">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="ui-thead">
               <tr className="text-left text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200">
                 <th className="py-2 pr-3">Patient</th>
                 <th className="py-2 pr-3">Arrived</th>
@@ -132,7 +132,7 @@ const TodaysWorkload = () => {
                 <tr
                   key={it.id}
                   onClick={() => navigate(`/staff/patient-profile/${it.uhid}`)}
-                  className="cursor-pointer hover:bg-blue-50 transition-colors"
+                  className="cursor-pointer ui-hover transition-colors"
                 >
                   <td className="py-2.5 pr-3">
                     <p className="font-semibold text-gray-800">{it.name}</p>

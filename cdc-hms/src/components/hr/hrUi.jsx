@@ -7,6 +7,8 @@
  * WhatsAppSettingsTab bug, A5).
  */
 
+import Card from '../shared/Card';
+
 export const inputCls = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-primary disabled:bg-gray-50 disabled:text-gray-500';
 export const cellInputCls = 'w-full rounded-md border border-gray-300 px-2 py-1 text-sm tabular-nums focus:outline-none focus:border-primary disabled:bg-gray-50 disabled:text-gray-500';
 export const buttonCls = 'rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 whitespace-nowrap hover:bg-gray-50 disabled:opacity-60';
@@ -34,14 +36,7 @@ export const SwitchRow = ({ label, checked, onChange, disabled, hint }) => (
   </label>
 );
 
+/** The HR name for the app's one box — it IS Card (11 Oct 2026 design audit). */
 export const Section = ({ title, actions, children, className = '' }) => (
-  <section className={`bg-white rounded-xl border border-gray-200 p-4 ${className}`}>
-    {(title || actions) && (
-      <div className="flex items-center justify-between gap-2 mb-3">
-        {title && <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h3>}
-        {actions}
-      </div>
-    )}
-    {children}
-  </section>
+  <Card title={title} actions={actions} className={className}>{children}</Card>
 );

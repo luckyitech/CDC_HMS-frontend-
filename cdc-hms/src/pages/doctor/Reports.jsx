@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import SelectMenu from '../../components/shared/SelectMenu';
 import { useLocation, useNavigate } from "react-router-dom";
 import Card from "../../components/shared/Card";
 import PageHeader from "../../components/shared/PageHeader";
@@ -171,7 +172,7 @@ const Reports = () => {
 
       {/* Quick Reports */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <button className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white text-left hover:scale-105 transition-all">
+        <button className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white text-left hover:brightness-110 transition">
           <div className="text-4xl mb-3">👥</div>
           <p className="font-semibold text-lg">Patient Summary</p>
           <p className="text-sm opacity-90 mt-1">
@@ -179,19 +180,19 @@ const Reports = () => {
           </p>
         </button>
 
-        <button className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white text-left hover:scale-105 transition-all">
+        <button className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white text-left hover:brightness-110 transition">
           <div className="text-4xl mb-3">📊</div>
           <p className="font-semibold text-lg">Glycemic Analysis</p>
           <p className="text-sm opacity-90 mt-1">Blood sugar trends & HbA1c</p>
         </button>
 
-        <button className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white text-left hover:scale-105 transition-all">
+        <button className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white text-left hover:brightness-110 transition">
           <div className="text-4xl mb-3">💊</div>
           <p className="font-semibold text-lg">Medication Report</p>
           <p className="text-sm opacity-90 mt-1">Prescriptions & adherence</p>
         </button>
 
-        <button className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white text-left hover:scale-105 transition-all">
+        <button className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white text-left hover:brightness-110 transition">
           <div className="text-4xl mb-3">⚠️</div>
           <p className="font-semibold text-lg">Risk Assessment</p>
           <p className="text-sm opacity-90 mt-1">High-risk patient analysis</p>
@@ -205,7 +206,7 @@ const Reports = () => {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Time Period
             </label>
-            <select
+            <SelectMenu
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
@@ -216,14 +217,14 @@ const Reports = () => {
               <option value="last3Months">Last 3 Months</option>
               <option value="last6Months">Last 6 Months</option>
               <option value="thisYear">This Year</option>
-            </select>
+            </SelectMenu>
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Report Type
             </label>
-            <select
+            <SelectMenu
               value={selectedReportType}
               onChange={(e) => setSelectedReportType(e.target.value)}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-4 focus:ring-blue-200 focus:border-primary"
@@ -233,7 +234,7 @@ const Reports = () => {
               <option value="Glycemic Analysis">Glycemic Analysis</option>
               <option value="Medication Report">Medication Report</option>
               <option value="Risk Assessment">Risk Assessment</option>
-            </select>
+            </SelectMenu>
           </div>
         </div>
       </Card>

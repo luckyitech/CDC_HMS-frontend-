@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { ModalOverlay } from '../../components/shared/Modal';
 import toast from 'react-hot-toast';
 import useNotificationSound from '../../hooks/useNotificationSound';
 import {
@@ -336,7 +337,7 @@ const QueueManagement = () => {
             const on = destFilter === d;
             return (
               <button key={d} onClick={() => setDestFilter(d)}
-                className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${on ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 hover:bg-blue-50'}`}>
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold border transition ${on ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-300 ui-hover'}`}>
                 {d === 'all' ? 'All' : DESTINATION_META[d].short}<span className={`ml-1.5 ${on ? 'opacity-90' : 'text-gray-400'}`}>{count}</span>
               </button>
             );
@@ -445,25 +446,25 @@ const QueueManagement = () => {
             {/* Table — desktop only (xl+) */}
             <div className="hidden xl:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <thead className="ui-thead">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">#</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">UHID</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Patient Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Destination</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Arrival</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Est. Wait</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Priority</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Booking</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Assigned Doctor</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reason</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Action</th>
+                    <th className="px-6 py-3 text-left">#</th>
+                    <th className="px-6 py-3 text-left">UHID</th>
+                    <th className="px-6 py-3 text-left">Patient Name</th>
+                    <th className="px-6 py-3 text-left">Destination</th>
+                    <th className="px-6 py-3 text-left">Arrival</th>
+                    <th className="px-6 py-3 text-left">Est. Wait</th>
+                    <th className="px-6 py-3 text-left">Priority</th>
+                    <th className="px-6 py-3 text-left">Booking</th>
+                    <th className="px-6 py-3 text-left">Status</th>
+                    <th className="px-6 py-3 text-left">Assigned Doctor</th>
+                    <th className="px-6 py-3 text-left">Reason</th>
+                    <th className="px-6 py-3 text-left">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {filteredQueue.map((patient, index) => (
-                    <tr key={patient.id} className={`hover:bg-blue-50 ${patient.priority === 'Urgent' ? 'bg-red-50' : ''}`}>
+                    <tr key={patient.id} className={`ui-hover ${patient.priority === 'Urgent' ? 'bg-red-50' : ''}`}>
                       <td className="px-6 py-4 font-bold text-gray-800 text-sm">{index + 1}</td>
                       <td className="px-6 py-4 font-medium text-primary text-sm">{patient.uhid}</td>
                       <td className="px-6 py-4 font-semibold text-sm">
@@ -535,7 +536,7 @@ const QueueManagement = () => {
 
       {/* Confirm & Discharge Modal */}
       {showDischargeModal && dischargePatient && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <ModalOverlay>
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
@@ -550,7 +551,7 @@ const QueueManagement = () => {
               </div>
               <button
                 onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); setSupplies([]); }}
-                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-gray-600"
+                className="p-1.5 rounded-lg ui-hover text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -663,7 +664,7 @@ const QueueManagement = () => {
                             type="button"
                             aria-label="Decrease"
                             onClick={() => setSupply(idx, { quantity: Math.max(1, Number(s.quantity) - 1) })}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 ui-hover"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
@@ -678,7 +679,7 @@ const QueueManagement = () => {
                             type="button"
                             aria-label="Increase"
                             onClick={() => setSupply(idx, { quantity: Number(s.quantity) + 1 })}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-blue-50"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 ui-hover"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -750,7 +751,7 @@ const QueueManagement = () => {
             <div className="flex gap-3 px-6 py-4 border-t flex-shrink-0">
               <button
                 onClick={() => { setShowDischargeModal(false); setDischargePatient(null); setDischargeComment(''); setSupplies([]); }}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-blue-50"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 ui-hover"
               >
                 Cancel
               </button>
@@ -771,12 +772,12 @@ const QueueManagement = () => {
               })()}
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Confirmation Modal */}
       {showConfirmModal && patientToRemove && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <ModalOverlay>
           <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -841,7 +842,7 @@ const QueueManagement = () => {
               </Button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </div>
   );

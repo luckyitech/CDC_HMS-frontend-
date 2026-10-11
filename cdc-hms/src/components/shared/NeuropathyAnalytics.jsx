@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import SelectMenu from './SelectMenu';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area,
@@ -7,6 +8,7 @@ import { Loader2, RefreshCw, Info, Download } from 'lucide-react';
 import neuropathyService from '../../services/neuropathyService';
 import NeuropathyFootMap from './NeuropathyFootMap';
 import { GRADES, GRADE_SPOT, FEET } from '../../constants/neuropathy';
+import Card from './Card';
 
 // Neuropathy Suite -> Analytics — the live prospective PNS cohort dashboard.
 // Phase 1: prevalence & severity + screening throughput. Read-only; all numbers
@@ -20,16 +22,15 @@ const GRADE_COLOR = {
 const OVERALL_LABEL = { Normal: 'No evidence', Mild: 'Mild', Moderate: 'Moderate', Severe: 'Severe' };
 const MOD_LABEL = { VPT: 'Vibration (VPT)', HOT: 'Hot', COLD: 'Cold' };
 
+// The app's one box (Card), with a caption under the title.
 const Panel = ({ title, cap, children, className = '' }) => (
-  <div className={`rounded-xl border border-slate-200 bg-white shadow-sm p-4 ${className}`}>
-    <h3 className="text-[13.5px] font-bold text-slate-800">{title}</h3>
-    {cap && <p className="text-[11.5px] text-slate-500 mt-0.5">{cap}</p>}
+  <Card className={className} title={<>{title}{cap && <span className="block text-xs font-normal text-gray-500 mt-0.5">{cap}</span>}</>}>
     {children}
-  </div>
+  </Card>
 );
 
 const Kpi = ({ label, value, unit, meta, accent }) => (
-  <div className={`rounded-xl border p-3.5 shadow-sm ${accent ? 'border-cyan-700 bg-gradient-to-br from-cyan-900 to-cyan-700 text-cyan-50' : 'border-slate-200 bg-white'}`}>
+  <div className={`rounded-xl border p-3.5 ${accent ? 'border-cyan-700 bg-gradient-to-br from-cyan-900 to-cyan-700 text-cyan-50' : 'border-slate-200 bg-white'}`}>
     <div className={`text-[11px] font-semibold uppercase tracking-wide ${accent ? 'text-cyan-200' : 'text-slate-500'}`}>{label}</div>
     <div className="mt-1.5 text-[26px] font-extrabold leading-none tabular-nums">
       {value}{unit && <span className={`text-sm font-semibold ${accent ? 'text-cyan-200' : 'text-slate-400'}`}>{unit}</span>}
@@ -192,16 +193,16 @@ const NeuropathyAnalytics = () => {
           ['sex', [['', 'All sexes'], ['Female', 'Female'], ['Male', 'Male']]],
           ['ageBand', [['', 'All ages'], ['<40', '<40'], ['40-65', '40–65'], ['>65', '>65']]],
         ].map(([key, opts]) => (
-          <select key={key} value={filters[key]} onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
+          <SelectMenu key={key} value={filters[key]} onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12.5px] text-slate-700 shadow-sm">
             {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </SelectMenu>
         ))}
-        <select value={filters.performedById} onChange={(e) => setFilters((f) => ({ ...f, performedById: e.target.value }))}
+        <SelectMenu value={filters.performedById} onChange={(e) => setFilters((f) => ({ ...f, performedById: e.target.value }))}
           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[12.5px] text-slate-700 shadow-sm">
           <option value="">All clinicians</option>
           {(data.performers || []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </SelectMenu>
         <button onClick={() => setFilters({ period: 'all', sex: '', ageBand: '', performedById: '' })}
           className="text-[12.5px] text-slate-500 px-2">Clear</button>
         <div className="flex-1" />
@@ -414,7 +415,7 @@ const NeuropathyAnalytics = () => {
           </Panel>
         </div>
       ) : (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-8 text-center text-slate-500 text-sm">
+        <div className="ui-surface p-8 text-center text-slate-500 text-sm">
           No patients have a second study yet — this view fills in as patients are re-screened.
         </div>
       )}

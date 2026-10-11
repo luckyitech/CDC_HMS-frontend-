@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ModalOverlay } from '../shared/Modal';
 import { ScanLine, FolderOpen, UserPlus, X } from "lucide-react";
 import Button from "../shared/Button";
 import { useQueueContext } from "../../contexts/QueueContext";
@@ -17,7 +18,7 @@ const ScanActionModal = ({ patient, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <ModalOverlay>
       <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -57,7 +58,7 @@ const ScanActionModal = ({ patient, onClose }) => {
           )}
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SelectMenu from '../shared/SelectMenu';
 import { notify } from "../../utils/notify";
 import { ClipboardCheck } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
@@ -77,15 +78,15 @@ const StockStocktakeTab = () => {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <div className="flex items-end gap-3 mb-5">
         <div className="flex-1 max-w-xs">
           <Field label="Location to count">
-            <select className={inputCls} value={locationId}
+            <SelectMenu className={inputCls} value={locationId}
                     onChange={(e) => { setLocationId(e.target.value); setRows(null); }}>
               <option value="">— choose —</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            </SelectMenu>
           </Field>
         </div>
         <div className="mb-4">
@@ -103,9 +104,9 @@ const StockStocktakeTab = () => {
             doesn’t yet know about, use the <b>Receive</b> tab.
           </p>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <div className="ui-surface p-5">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="text-left text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
                   <th className="px-2 py-2">Item</th>
                   <th className="px-2 py-2">Batch</th>

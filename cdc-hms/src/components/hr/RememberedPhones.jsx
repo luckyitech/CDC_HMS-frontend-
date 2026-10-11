@@ -35,7 +35,7 @@ const RememberedPhones = ({ userId, canRevoke }) => {
 
   if (devices === null) return null;
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="ui-surface p-5">
       <h3 className="text-sm font-semibold text-gray-800 mb-1">Remembered phones</h3>
       <p className="text-xs text-gray-400 mb-3">Phones that check this person in at the entrance tag without signing in. Remove one if it is lost, replaced or shared.</p>
       {devices.length === 0 ? <p className="text-sm text-gray-500">None.</p> : devices.map((d) => (

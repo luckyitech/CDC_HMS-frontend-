@@ -34,7 +34,7 @@ const ScopePicker = ({ capabilityLabel, personName, spec, departments, ownDepart
   const save = () => onSave(kind === 'departments' ? { kind, departmentIds: [...ids].sort((a, b) => a - b) } : { kind });
 
   return (
-    <div className="mt-2 rounded-lg border border-blue-300 bg-white p-3 shadow-sm space-y-2" role="group" aria-label={`${capabilityLabel}: for whom?`}>
+    <div className="mt-2 rounded-lg border border-blue-300 bg-white p-3 space-y-2" role="group" aria-label={`${capabilityLabel}: for whom?`}>
       <p className="text-sm font-semibold text-gray-800">{capabilityLabel}: for whom?</p>
       <Radio value="all" kind={kind} setKind={setKind} disabled={!canAll} sub={!canAll ? 'Wider than you hold it yourself' : null}>All staff</Radio>
       <Radio value="own" kind={kind} setKind={setKind} disabled={!canOwn}

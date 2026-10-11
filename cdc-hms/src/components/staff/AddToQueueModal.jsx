@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { ModalOverlay } from '../shared/Modal';
 import { UserPlus, X, AlertCircle, CheckCircle2, BedDouble } from "lucide-react";
 import toast from "react-hot-toast";
 import Button from "../shared/Button";
@@ -127,7 +128,7 @@ const AddToQueueModal = ({ patient, onClose, onAdded }) => {
     : "Add to Queue";
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+    <ModalOverlay align="top">
       <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md my-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -308,7 +309,7 @@ const AddToQueueModal = ({ patient, onClose, onAdded }) => {
           </Button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 

@@ -9,6 +9,7 @@ import {
 import VitalsGrid from '../shared/VitalsGrid';
 import GlucoseSummaryCard from '../shared/GlucoseSummaryCard';
 import useCatalogSearch from '../../hooks/useCatalogSearch';
+import SwitcherTabs from '../shared/SwitcherTabs';
 
 /**
  * ConsultationSummaryPanel — sticky right-hand summary for the consultation screen.
@@ -44,11 +45,11 @@ const CollapsibleCard = ({ icon, title, open, onToggle, headerAction, children }
   // No overflow-hidden: dropdowns (e.g. the diagnosis autocomplete) must
   // be able to extend past the card — DRY §4c spirit.
   return (
-  <div className="bg-white border border-gray-200 rounded-2xl">
+  <div className="ui-surface">
     <div className="flex items-center">
       <button
         onClick={onToggle}
-        className="flex-1 flex items-center gap-2 px-4 py-3 text-left font-bold text-[13.5px] text-gray-700 hover:bg-blue-50 transition-colors rounded-t-2xl"
+        className="flex-1 flex items-center gap-2 px-4 py-3 text-left font-bold text-[13.5px] text-gray-700 ui-hover transition-colors rounded-t-2xl"
       >
         <Icon className="w-4 h-4 text-primary flex-shrink-0" />
         <span className="flex-1">{title}</span>
@@ -132,7 +133,7 @@ const ConsultationSummaryPanel = ({
           <button
             onClick={onEditVitals}
             title="Edit / add vitals"
-            className="mr-3 p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
+            className="mr-3 p-1.5 text-gray-400 hover:text-primary ui-hover rounded-lg transition-colors"
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
@@ -159,7 +160,7 @@ const ConsultationSummaryPanel = ({
             {onEditVitals && (
               <button
                 onClick={onEditVitals}
-                className="text-[11px] font-semibold text-primary border border-primary rounded-lg px-2.5 py-1 hover:bg-blue-50 transition-colors flex-shrink-0"
+                className="text-[11px] font-semibold text-primary border border-primary rounded-lg px-2.5 py-1 ui-hover transition-colors flex-shrink-0"
               >
                 Record vitals
               </button>
@@ -172,14 +173,14 @@ const ConsultationSummaryPanel = ({
           Clinical record: "remove" retires with date + attribution, never deletes. */}
       <CollapsibleCard
         icon={ClipboardList}
-        title="Diagnoses"
+        title="Diagnosis & differentials"
         open={openCard === 'diagnoses'}
         onToggle={() => toggleCard('diagnoses')}
         headerAction={onAddDiagnosis && (
           <button
             onClick={() => { setOpenCard('diagnoses'); setDxAdding(true); }}
             title="Add diagnosis"
-            className="mr-3 p-1.5 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition-colors"
+            className="mr-3 p-1.5 text-gray-400 hover:text-primary ui-hover rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -216,7 +217,7 @@ const ConsultationSummaryPanel = ({
                   <button
                     key={item.id ?? item.name}
                     onClick={() => submitDiagnosis({ diagnosis: item.name, code: item.detail || '' })}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                    className="w-full text-left px-3 py-2 text-xs ui-hover transition-colors border-b border-gray-50 last:border-0"
                   >
                     <span className="font-semibold text-gray-800">{item.name}</span>
                     {item.detail && <span className="text-gray-400 ml-1.5">{item.detail}</span>}
@@ -271,7 +272,7 @@ const ConsultationSummaryPanel = ({
                     <button
                       onClick={() => onReactivateDiagnosis(d.id)}
                       title="Restore as active"
-                      className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+                      className="p-1.5 text-gray-400 hover:text-gray-600 ui-hover rounded-lg transition-colors flex-shrink-0"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                     </button>
@@ -293,7 +294,7 @@ const ConsultationSummaryPanel = ({
               <button
                 key={v.id ?? v.date}
                 onClick={() => onOpenVisit(v)}
-                className="w-full flex items-center gap-2 px-3 py-2 border border-gray-100 rounded-lg text-[13px] hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 border border-gray-100 rounded-lg text-[13px] ui-hover hover:border-blue-200 transition-colors"
               >
                 <span className="min-w-0 text-left">
                   <span className="block font-semibold text-gray-700">{fmtDay(v.date)}</span>
@@ -311,19 +312,13 @@ const ConsultationSummaryPanel = ({
 
       {/* Labs */}
       <CollapsibleCard icon={FlaskConical} title="Labs" open={openCard === 'labs'} onToggle={() => toggleCard('labs')}>
-        <div className="inline-flex gap-1 bg-gray-100 p-1 rounded-lg mb-2">
-          {['Laboratory', 'Imaging'].map((t) => (
-            <button
-              key={t}
-              onClick={() => setLabTab(t)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
-                labTab === t ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <SwitcherTabs
+          size="sm"
+          className="mb-2"
+          tabs={['Laboratory', 'Imaging'].map((t) => ({ id: t, label: t }))}
+          active={labTab}
+          onChange={setLabTab}
+        />
         {shownDocs.length === 0 ? (
           <p className="text-xs text-gray-400">No {labTab.toLowerCase()} uploads.</p>
         ) : (
@@ -332,7 +327,7 @@ const ConsultationSummaryPanel = ({
               <button
                 key={d.id}
                 onClick={() => onOpenPdf(d)}
-                className="w-full flex items-center gap-2 px-3 py-2 border border-gray-100 rounded-lg text-[12.5px] hover:bg-blue-50 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 border border-gray-100 rounded-lg text-[12.5px] ui-hover transition-colors"
               >
                 <FileText className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                 <span className="truncate text-gray-700">{d.name}</span>

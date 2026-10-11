@@ -88,7 +88,7 @@ const PatientPicker = ({ onPick }) => {
               <button
                 type="button"
                 onClick={() => onPick(p)}
-                className="w-full text-left px-3 py-2.5 hover:bg-blue-50 flex items-center gap-3"
+                className="w-full text-left px-3 py-2.5 ui-hover flex items-center gap-3"
               >
                 <User className="w-4 h-4 text-primary flex-shrink-0" />
                 <div className="min-w-0">
@@ -440,7 +440,7 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
         <>
         <div
           onClick={() => setOverviewOpen((o) => !o)}
-          className={`mb-1 px-4 py-2 rounded-lg shadow-sm border flex items-center justify-between gap-4 cursor-pointer transition-colors ${overviewOpen ? 'bg-primary border-primary text-white' : 'bg-white border-gray-200 hover:bg-blue-50'}`}
+          className={`mb-1 px-4 py-2 rounded-lg border flex items-center justify-between gap-4 cursor-pointer transition-colors ${overviewOpen ? 'bg-primary border-primary text-white' : 'bg-white border-gray-200 ui-hover'}`}
         >
           <div className="flex items-center gap-3 min-w-0">
             <ChevronDown className={`w-4 h-4 flex-shrink-0 transition-transform ${overviewOpen ? 'rotate-180 text-white' : 'text-gray-400'}`} />

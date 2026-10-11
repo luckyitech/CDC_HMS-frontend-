@@ -98,7 +98,7 @@ const MedicationSearchInput = ({ value, onChange, onSelect, placeholder }) => {
               key={item.id}
               type="button"
               onClick={() => handleSelect(item)}
-              className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-start gap-3 border-b border-gray-100 last:border-0 transition-colors"
+              className="w-full text-left px-4 py-3 ui-hover flex items-start gap-3 border-b border-gray-100 last:border-0 transition-colors"
             >
               <Pill className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
               <div>
@@ -113,7 +113,7 @@ const MedicationSearchInput = ({ value, onChange, onSelect, placeholder }) => {
           <button
             type="button"
             onClick={() => commitTyped(containerRef.current?.querySelector('input'))}
-            className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center gap-3 bg-gray-50 border-t-2 border-gray-200 transition-colors"
+            className="w-full text-left px-4 py-3 ui-hover flex items-center gap-3 bg-gray-50 border-t-2 border-gray-200 transition-colors"
           >
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <p className="text-sm text-gray-600">

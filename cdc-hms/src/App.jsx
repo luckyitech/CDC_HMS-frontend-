@@ -33,6 +33,7 @@ import LoginPage from "./pages/auth/LoginPage";
 import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
 
 // Shared pages (lazy)
+const SkinCapture = lazy(() => import("./pages/capture/SkinCapture"));
 const MedicalDocuments = lazy(() => import("./pages/shared/MedicalDocuments"));
 const PatientVisitsReport = lazy(() => import("./pages/shared/PatientVisitsReport"));
 const AttendanceRegister = lazy(() => import("./pages/shared/AttendanceRegister"));
@@ -53,13 +54,13 @@ const StaffBookAppointment  = lazy(() => import("./pages/staff/BookAppointment")
 const DoctorDashboard = lazy(() => import("./pages/doctor/DoctorDashboard"));
 const MyPatients = lazy(() => import("./pages/doctor/MyPatients"));
 const PatientProfile = lazy(() => import("./pages/doctor/PatientProfile"));
-const InitialAssessment = lazy(() => import("./pages/doctor/InitialAssessment"));
 const DoctorPrescriptions = lazy(() => import("./pages/doctor/DoctorPrescriptions"));
 const Reports = lazy(() => import("./pages/doctor/Reports"));
 const PhysicalExamination = lazy(() => import("./pages/doctor/PhysicalExamination"));
 const GlycemicCharts = lazy(() => import("./pages/doctor/GlycemicCharts"));
 const DoctorAppointmentsList = lazy(() => import("./pages/doctor/AppointmentsList"));
 const MySchedule             = lazy(() => import("./pages/doctor/MySchedule"));
+const CalculatorFacts        = lazy(() => import("./pages/doctor/CalculatorFacts"));
 
 // Patient pages (lazy)
 const PatientDashboard = lazy(() => import("./pages/patient/PatientDashboard"));
@@ -200,6 +201,9 @@ function App() {
                   session (remembered phone → device-session, else a one-time
                   login) because a URL opened from a tag always lands logged out. */}
               <Route path="/hr/tap" element={<TapLanding />} />
+              {/* Dermatology — the phone page a skin-photo QR opens (8 Oct 2026). Outside
+                  login on purpose: the one-time link is the key; it can only add photos. */}
+              <Route path="/capture/:token" element={<SkinCapture />} />
 
               {/* Authenticated portal routes — data providers mount only here */}
               <Route element={<AuthenticatedLayout />}>
@@ -240,7 +244,6 @@ function App() {
                   {/* The consultation opens the shared patient file; Today's
                       Consultation is its first (queue-gated) tab. */}
                   <Route path="consultation/:uhid" element={<PatientFile />} />
-                  <Route path="initial-assessment" element={<InitialAssessment />} />
                   <Route path="prescriptions" element={<DoctorPrescriptions />} />
                   <Route path="reports" element={<Reports />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
@@ -251,6 +254,7 @@ function App() {
                   <Route path="ultrasound-studio" element={<UltrasoundStudio />} />
                   <Route path="appointments" element={<DoctorAppointmentsList />} />
                   <Route path="my-schedule" element={<MySchedule />} />
+                  <Route path="calculator-facts" element={<CalculatorFacts />} />
                   <Route path="stock" element={<Stocks />} />
                   <Route path="inbox" element={<Inbox />} />
                   <Route path="lab-inbox" element={<Navigate to="../inbox?tab=lab" replace />} />

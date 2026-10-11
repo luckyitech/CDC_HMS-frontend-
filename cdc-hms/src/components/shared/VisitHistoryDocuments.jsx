@@ -28,7 +28,7 @@ const Shell = ({ loading, problem, empty, emptyText, children }) => {
 };
 
 const Row = ({ Icon, iconCls, date, title, sub, tags, onOpen }) => (
-  <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-blue-50">
+  <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ui-hover">
     <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${iconCls}`}><Icon className="h-4 w-4" /></span>
     <span className="w-24 flex-shrink-0 text-sm text-gray-500">{date}</span>
     <span className="min-w-0 flex-1">

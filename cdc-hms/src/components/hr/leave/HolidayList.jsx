@@ -92,9 +92,9 @@ const HolidayList = ({ year, canEdit }) => {
 
   return (
     <div className="grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4 items-start">
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="ui-surface p-4">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Public holidays {year}</h3>
+          <h3 className="ui-box-title">Public holidays {year}</h3>
           {retiredCount > 0 && (
             <label className="text-xs text-gray-500 flex items-center gap-1.5">
               <input type="checkbox" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300" />
@@ -139,7 +139,7 @@ const HolidayList = ({ year, canEdit }) => {
 
       <div className="space-y-4">
         {observe !== null && (
-          <div className="bg-white rounded-xl border border-gray-200 px-4 py-2" data-testid="observe-sunday">
+          <div className="ui-surface px-4 py-2" data-testid="observe-sunday">
             <SwitchRow
               label="When a holiday falls on a Sunday, also observe the next day"
               hint="Adds the day after (the next one that isn't already a holiday) for every year. Retire one here if a gazette says otherwise."
@@ -150,8 +150,8 @@ const HolidayList = ({ year, canEdit }) => {
           </div>
         )}
         {canEdit && (
-          <form onSubmit={add} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Add a holiday</h3>
+          <form onSubmit={add} className="ui-surface p-4 space-y-3">
+            <h3 className="ui-box-title">Add a holiday</h3>
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-3">
               <Field label="Date"><input type="date" value={form.date} min={`${year}-01-01`} max={`${year}-12-31`} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} className={inputCls} required /></Field>
               <Field label="Name"><input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Idd-ul-Fitr" className={inputCls} required minLength={2} maxLength={120} /></Field>

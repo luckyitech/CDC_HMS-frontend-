@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { Link } from 'react-router-dom';
 import { Plus, Pencil, Archive, RotateCcw, Check, X, Lock, Unlock, UserPlus } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
@@ -151,9 +153,9 @@ const CycleView = ({ me }) => {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {cycles.length ? (
-              <select aria-label="Appraisal year" className="rounded-lg border border-gray-300 px-2 py-2 text-sm" value={cycleId || ''} onChange={(e) => setCycleId(Number(e.target.value))}>
+              <SelectMenu aria-label="Appraisal year" className="rounded-lg border border-gray-300 px-2 py-2 text-sm" value={cycleId || ''} onChange={(e) => setCycleId(Number(e.target.value))}>
                 {cycles.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              </SelectMenu>
             ) : <span className="text-sm text-gray-500">No appraisal opened yet.</span>}
             {data && (open ? <Pill tone="ok">open</Pill> : <Pill tone="n"><Lock className="h-3 w-3" />closed</Pill>)}
             {data && <span className="text-xs text-gray-500">{data.cycle.selfDueOn && `self due ${shortDate(data.cycle.selfDueOn)}`}{data.cycle.reviewDueOn && ` · review due ${shortDate(data.cycle.reviewDueOn)}`}</span>}
@@ -185,7 +187,7 @@ const CycleView = ({ me }) => {
           {!data.rows.length ? <p className="text-sm text-gray-500">Nobody in this appraisal yet{data.canRun && open ? ' — use Add people.' : '.'}</p> : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-sm">
-                <thead><tr className="text-left text-xs text-gray-500"><th className="py-2 font-semibold">Person</th><th className="py-2 font-semibold">Reviewer</th><th className="py-2 font-semibold">Step</th><th className="py-2" /></tr></thead>
+                <thead className="ui-thead"><tr className="text-left text-xs text-gray-500"><th className="py-2 font-semibold">Person</th><th className="py-2 font-semibold">Reviewer</th><th className="py-2 font-semibold">Step</th><th className="py-2" /></tr></thead>
                 <tbody>
                   {data.rows.map((r) => {
                     const mine = r.person.id === me?.id;
@@ -302,16 +304,9 @@ const Appraisals = () => {
   }, []);
   const tabs = [{ key: 'mine', label: 'Mine' }, ...(runs || reads ? [{ key: 'cycle', label: 'Cycle' }, { key: 'competencies', label: 'Competencies' }] : [])];
   return (
-    <div className="max-w-6xl space-y-4 p-4">
+    <div className="space-y-4">
       <PageHeader title="Appraisals" subtitle="Once a year: your self-assessment, then your reviewer's, then you acknowledge" />
-      <div className="flex gap-1 border-b border-gray-200" role="tablist">
-        {tabs.map((t) => (
-          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${tab === t.key ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SwitcherTabs ariaLabel="Appraisals" tabs={tabs.map((t) => ({ id: t.key, label: t.label }))} active={tab} onChange={setTab} />
       {tab === 'mine' && (mine ? <Mine data={mine} /> : <Spinner />)}
       {tab === 'cycle' && <CycleView me={currentUser} />}
       {tab === 'competencies' && <Competencies editable={runs} />}

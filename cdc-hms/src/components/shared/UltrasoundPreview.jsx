@@ -34,7 +34,7 @@ const UltrasoundPreview = ({ images = [], startIndex = 0, blobUrls = {}, brightn
   const go = (delta) => setIdx((i) => (count ? (i + delta + count) % count : 0));
 
   return createPortal(
-    <div
+    <div // ui-allow: image viewer layer (z-[100]) above dialogs
       className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-6"
       onClick={onClose}
     >

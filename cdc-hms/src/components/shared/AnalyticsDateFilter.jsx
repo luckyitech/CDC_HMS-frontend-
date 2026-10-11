@@ -105,7 +105,7 @@ const AnalyticsDateFilter = ({ onChange }) => {
   const weekDays   = week  ? getWeekDays(year, month, week) : [];
 
   return (
-    <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm space-y-3">
+    <div className="ui-surface px-5 py-4 space-y-3">
       {/* Year */}
       <FilterRow label="Year">
         {years.map(y => (

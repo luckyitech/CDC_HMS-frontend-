@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import {
   Loader2, CalendarDays, Clock, UserSquare2, X,
   User, Stethoscope, Calendar, BarChart2, FlaskConical, Pill, Bell,
@@ -164,24 +165,7 @@ const MyProfile = () => {
       <PageHeader title="My Profile" />
 
       {/* Tabs */}
-      <div className="mb-6 overflow-x-auto">
-        <div className="flex gap-2 min-w-max">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 sm:px-5 py-3 rounded-lg font-semibold transition whitespace-nowrap text-sm sm:text-base ${
-                activeTab === tab.key
-                  ? 'bg-primary text-white shadow-lg'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              <tab.Icon className="w-4 h-4 flex-shrink-0" />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SwitcherTabs className="mb-6" tabs={tabs.map(({ key, label, Icon }) => ({ id: key, label, Icon }))} active={activeTab} onChange={setActiveTab} />
 
       {/* ── PROFILE TAB ── */}
       {activeTab === 'profile' && (
@@ -453,19 +437,19 @@ const MyProfile = () => {
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-gray-50 border-b-2 border-gray-200">
+                      <thead className="ui-thead">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Time</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Doctor</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Type</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Reason</th>
+                          <th className="px-4 py-3 text-left">Date</th>
+                          <th className="px-4 py-3 text-left">Time</th>
+                          <th className="px-4 py-3 text-left">Doctor</th>
+                          <th className="px-4 py-3 text-left">Type</th>
+                          <th className="px-4 py-3 text-left">Status</th>
+                          <th className="px-4 py-3 text-left">Reason</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
                         {pastAppointments.map((apt) => (
-                          <tr key={apt.id} className="hover:bg-blue-50">
+                          <tr key={apt.id} className="ui-hover">
                             <td className="px-4 py-3 text-sm">
                               {new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', {
                                 month: 'short', day: 'numeric', year: 'numeric',
@@ -523,18 +507,18 @@ const MyProfile = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b-2 border-gray-200">
+                <thead className="ui-thead">
                   <tr>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Date</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Test Type</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Interpretation</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
-                    <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Ordered By</th>
+                    <th className="px-4 sm:px-6 py-3 text-left">Date</th>
+                    <th className="px-4 sm:px-6 py-3 text-left">Test Type</th>
+                    <th className="px-4 sm:px-6 py-3 text-left">Interpretation</th>
+                    <th className="px-4 sm:px-6 py-3 text-left">Status</th>
+                    <th className="px-4 sm:px-6 py-3 text-left">Ordered By</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {labTests.map((test) => (
-                    <tr key={test.id} className="hover:bg-blue-50">
+                    <tr key={test.id} className="ui-hover">
                       <td className="px-4 sm:px-6 py-3 sm:py-4 text-sm">
                         {fmtDate(test.completedDate || test.orderedDate)}
                       </td>

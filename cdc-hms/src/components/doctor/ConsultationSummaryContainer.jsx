@@ -36,6 +36,7 @@ const ConsultationSummaryContainer = ({ patient, medications = [], onOpenMeds = 
   const [vitalsHistory, setVitalsHistory] = useState([]);
   const [diagnoses, setDiagnoses] = useState([]);
   const [doctorsByDay, setDoctorsByDay] = useState({});   // dayKey → "Dr. A, Dr. B"
+  const [now] = useState(() => Date.now()); // render must stay pure; the panel remounts per patient
   const [labDocs, setLabDocs] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [selectedMetrics, setSelectedMetrics] = useState(DEFAULT_METRICS);
@@ -172,7 +173,7 @@ const ConsultationSummaryContainer = ({ patient, medications = [], onOpenMeds = 
     });
     // Side panel shows the last month only — the full history lives in the
     // Visit History tab; this keeps the summary rail short.
-    const cutoff = Date.now() - 31 * 24 * 60 * 60 * 1000;
+    const cutoff = now - 31 * 24 * 60 * 60 * 1000;
     return [...map.values()]
       .filter((v) => new Date(v.date).getTime() >= cutoff)
       .sort((a, b) => new Date(b.date) - new Date(a.date));

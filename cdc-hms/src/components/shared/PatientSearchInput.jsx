@@ -149,7 +149,7 @@ const PatientSearchInput = ({
               key={patient.id || patient.uhid}
               type="button"
               onClick={() => handleSelect(patient)}
-              className="w-full text-left px-4 py-3 hover:bg-blue-50 transition border-b border-gray-100 last:border-0"
+              className="w-full text-left px-4 py-3 ui-hover transition border-b border-gray-100 last:border-0"
             >
               <div className="flex items-center justify-between">
                 <div>

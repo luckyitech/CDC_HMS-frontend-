@@ -12,6 +12,7 @@
 //     </div>
 //   </PrintPreviewModal>
 import { Printer } from "lucide-react";
+import { ModalOverlay } from './Modal';
 
 const btn = "px-6 py-2 rounded-lg font-semibold transition flex items-center gap-2";
 
@@ -19,7 +20,7 @@ const btn = "px-6 py-2 rounded-lg font-semibold transition flex items-center gap
 export const PrintPreviewModal = ({
   title, onPrint, onClose, closeLabel = "Close", leadingActions, trailingActions, maxWidth = "max-w-4xl", children,
 }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <ModalOverlay>
     <div className={`bg-white rounded-lg shadow-2xl ${maxWidth} w-full max-h-[90vh] overflow-y-auto`}>
       <div className="print:hidden sticky top-0 bg-white border-b-2 border-gray-200 p-4 flex justify-between items-center gap-3">
         <h3 className="text-xl font-bold text-gray-800">{title}</h3>
@@ -36,7 +37,7 @@ export const PrintPreviewModal = ({
       </div>
       {children}
     </div>
-  </div>
+  </ModalOverlay>
 );
 
 /** Document number on the left (with its symbol), issue date opposite it. */

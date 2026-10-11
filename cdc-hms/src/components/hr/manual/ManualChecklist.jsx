@@ -169,7 +169,7 @@ const ManualChecklist = ({ sections, data, busyKey, onToggle, onNote, onAdd, onS
         if (!secs.length) return null;
         return (
           <div key={g.title} className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{g.title}</h3>
+            <h3 className="ui-box-title">{g.title}</h3>
             {secs.map((s) => (
               <Section key={s.id} className="hr-manual-checklist-section"
                 title={s.title}

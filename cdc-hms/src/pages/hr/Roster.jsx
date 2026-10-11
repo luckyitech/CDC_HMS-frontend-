@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import SelectMenu from '../../components/shared/SelectMenu';
+import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { ChevronLeft, ChevronRight, Copy, Send, Plus, Pencil, Archive, RotateCcw, Check, X, AlertTriangle, Moon } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import { canEditRoster, canEditShiftTypes } from '../../utils/permissions';
@@ -178,9 +180,9 @@ const WeekView = ({ types: allTypes }) => {
             {data && (published ? <Pill tone="ok">published</Pill> : <Pill tone="warn">draft</Pill>)}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <select aria-label="Department" className="rounded-lg border border-gray-300 px-2 py-2 text-sm" value={department} onChange={(e) => setDepartment(e.target.value)}>
+            <SelectMenu aria-label="Department" className="rounded-lg border border-gray-300 px-2 py-2 text-sm" value={department} onChange={(e) => setDepartment(e.target.value)}>
               {departments.map((d) => <option key={d.id} value={String(d.id)}>{d.name}</option>)}
-            </select>
+            </SelectMenu>
             <button type="button" className={buttonCls} disabled={busy || !data} onClick={copy}><Copy className="-mt-0.5 mr-1 inline h-3.5 w-3.5" />Copy last week</button>
             {(!published || data?.unpublished > 0) && (
               <button type="button" className={primaryButtonCls} disabled={busy || !data} onClick={() => setConfirmPublish(true)}>
@@ -217,7 +219,7 @@ const WeekView = ({ types: allTypes }) => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] border-collapse text-xs">
-                <thead>
+                <thead className="ui-thead">
                   <tr>
                     <th scope="col" className="sticky left-0 z-10 bg-white px-2 py-2 text-left font-semibold text-gray-500">Person</th>
                     {dates.map((d) => {
@@ -409,16 +411,9 @@ const Roster = () => {
   const tabs = [...(canRoster ? [{ key: 'week', label: 'Week' }] : []), { key: 'types', label: 'Shift types' }];
 
   return (
-    <div className="max-w-6xl space-y-4 p-4">
+    <div className="space-y-4">
       <PageHeader title="Roster" subtitle="Weekly shifts for nurses, lab and front office — published shifts set each day's expected hours" />
-      <div className="flex gap-1 border-b border-gray-200" role="tablist">
-        {tabs.map((t) => (
-          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${tab === t.key ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SwitcherTabs ariaLabel="Roster" tabs={tabs.map((t) => ({ id: t.key, label: t.label }))} active={tab} onChange={setTab} />
       {tab === 'week' ? <WeekView types={types} /> : <ShiftTypes editable={canTypes} types={types} setTypes={setTypes} />}
     </div>
   );

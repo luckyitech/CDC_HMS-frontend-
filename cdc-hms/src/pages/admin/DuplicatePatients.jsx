@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { Copy, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import patientService from '../../services/patientService';
 import Spinner from '../../components/shared/Spinner';
+import PageHeader from '../../components/shared/PageHeader';
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ const ComparisonSection = ({ fields, hint }) => {
     <div className="space-y-3">
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="ui-thead">
             <tr>
               <th className="text-left text-gray-400 font-medium pb-1 pr-4">Field</th>
               <th className="text-left text-gray-400 font-medium pb-1 pr-4">Patient A</th>
@@ -113,7 +114,7 @@ const PanelButtons = ({ onConfirm, onCancel, submitting, confirmLabel, confirmCl
       {submitting ? '...' : confirmLabel}
     </button>
     <button onClick={onCancel} disabled={submitting}
-      className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors">
+      className="px-3 py-1.5 border border-gray-300 text-gray-700 text-sm rounded-lg ui-hover disabled:opacity-50 transition-colors">
       Cancel
     </button>
   </div>
@@ -224,7 +225,7 @@ const PairCard = ({ pair, onResolved }) => {
   });
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+    <div className="ui-surface p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2 text-sm text-gray-500">
         <Copy className="w-4 h-4 text-red-400" />
@@ -253,11 +254,11 @@ const PairCard = ({ pair, onResolved }) => {
             Keep {b.name} ({b.uhid})
           </button>
           <button onClick={() => setAction({ type: 'update-id' })}
-            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-blue-50 transition-colors">
+            className="px-3 py-1.5 text-sm border border-gray-300 text-gray-700 rounded-lg ui-hover transition-colors">
             Update ID
           </button>
           <button onClick={() => setAction({ type: 'flag' })}
-            className="px-3 py-1.5 text-sm border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors">
+            className="px-3 py-1.5 text-sm border border-blue-300 text-blue-700 rounded-lg ui-hover transition-colors">
             Flag for Follow-up
           </button>
         </div>
@@ -300,22 +301,19 @@ const DuplicatePatients = () => {
   useEffect(() => { loadDuplicates(); }, [loadDuplicates]);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Duplicate Patients</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Patients sharing the same ID number, Passport, or Birth Certificate
-          </p>
-        </div>
-        {!loading && (
+    <div className="space-y-6">
+      <PageHeader
+        title="Duplicate Patients"
+        subtitle="Patients sharing the same ID number, Passport, or Birth Certificate"
+        className="mb-0"
+        actions={!loading && (
           <span className={`text-sm font-medium px-3 py-1 rounded-full ${
             pairs.length === 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
           }`}>
             {pairs.length === 0 ? 'No duplicates found' : `${pairs.length} pair${pairs.length !== 1 ? 's' : ''} found`}
           </span>
         )}
-      </div>
+      />
 
       {loading ? (
         <div className="flex justify-center py-16"><Spinner /></div>

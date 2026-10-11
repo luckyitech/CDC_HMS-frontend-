@@ -31,8 +31,16 @@ export const authService = {
    */
   logout: async () => {
     try {
-      // Tell backend to invalidate the token
-      await api.post('/auth/logout');
+      // Tell backend to invalidate the token — but never wait more than 3 s
+      // for it (Emu, 11 Oct 2026: "sign out doesn't seem to work"). With
+      // several HMS tabs open, each tab's live-update connections can use up
+      // the browser's 6 connections to the API, so this request queued
+      // forever and the button looked dead. The request already carries the
+      // token, so the server still drops it when it gets through.
+      await Promise.race([
+        api.post('/auth/logout'),
+        new Promise((resolve) => { setTimeout(resolve, 3000); }),
+      ]);
     } catch (error) {
       // Even if backend call fails, still clear local storage
       console.warn('Logout API call failed:', error.message);

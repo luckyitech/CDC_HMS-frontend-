@@ -68,7 +68,7 @@ const LabRequestPrint = ({ request, patient, onClose, onBackToEdit }) => {
       leadingActions={onBackToEdit && (
         <button
           onClick={onBackToEdit}
-          className="px-5 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-blue-50 font-semibold text-sm"
+          className="px-5 py-2 border border-gray-300 bg-white text-gray-700 rounded-lg ui-hover font-semibold text-sm"
         >
           ‹ Back to edit
         </button>

@@ -404,7 +404,7 @@ const PhysicalExamEntry = ({
             >
               {/* Section Header */}
               <div
-                className="flex items-center justify-between cursor-pointer hover:bg-blue-50 p-4 -m-4 rounded-lg transition"
+                className="flex items-center justify-between cursor-pointer ui-hover p-4 -m-4 rounded-lg transition"
                 onClick={() => toggleSection(section.id)}
               >
                 <div className="flex items-center gap-3">
@@ -619,7 +619,7 @@ const PhysicalExamEntry = ({
                               className={`flex items-center space-x-3 p-3 bg-gray-50 rounded-lg transition ${
                                 readOnly
                                   ? "cursor-not-allowed opacity-75"
-                                  : "hover:bg-blue-50 cursor-pointer"
+                                  : "ui-hover cursor-pointer"
                               }`}
                             >
                               <input

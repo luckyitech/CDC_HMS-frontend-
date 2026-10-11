@@ -12,6 +12,7 @@ import Composer from './Composer';
 import EmptyTrashDialog from './EmptyTrashDialog';
 import FolderDialog from './FolderDialog';
 import { errorCode } from './mailFormat';
+import { INBOX_PANE } from '../inbox/inboxPane';
 
 /**
  * My mail — the signed-in user's OWN clinic mailbox (Staff Email, B26),
@@ -330,7 +331,7 @@ const MailApp = ({ account, onOpenSettings, onAccountChange, onNeedsPassword, do
   const paneOpen = !!(openUid || compose);
 
   return (
-    <div className="flex h-[calc(100vh-13rem)] min-h-[26rem] flex-col overflow-hidden rounded-lg border bg-white">
+    <div className={`flex ${INBOX_PANE} ui-surface flex-col overflow-hidden`}>
       <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
         <div className="relative min-w-[10rem] flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />

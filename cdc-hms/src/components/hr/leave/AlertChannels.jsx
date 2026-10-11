@@ -3,7 +3,7 @@ import { Bell, Mail, MessageCircle, UserRound } from 'lucide-react';
 import hrService from '../../../services/hrService';
 import Spinner from '../../shared/Spinner';
 import { notify } from '../../../utils/notify';
-import { primaryButtonCls } from '../hrUi';
+import { primaryButtonCls, Section } from '../hrUi';
 
 /**
  * AlertChannels — which HR alerts go out by bell and by email (B27, D9,
@@ -70,16 +70,15 @@ const AlertChannels = ({ canEdit }) => {
 
   let lastGroup = null;
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 max-w-3xl">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Leave and HR alerts</h3>
-      <p className="text-xs text-gray-500 mb-3">
+    <Section title="Leave and HR alerts">
+      <p className="text-xs text-gray-500 -mt-2 mb-3">
         Who hears about what, and how. Emails come from the clinic address and never name the type or reason of sick leave.
         Alerts start going out as each part arrives — leave with the application wizard, profile and credential alerts after that.
         WhatsApp joins once the HMS WhatsApp number is registered.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="ui-thead">
             <tr className="text-[11px] uppercase tracking-wide text-gray-500 border-b border-gray-200">
               <th className="text-left font-semibold py-1.5 pr-2">Event</th>
               <th className="font-semibold py-1.5 px-2 text-center"><Bell className="w-3.5 h-3.5 inline" /> Bell</th>
@@ -116,7 +115,7 @@ const AlertChannels = ({ canEdit }) => {
       ) : (
         <p className="text-xs text-amber-700 mt-3">Changing alerts needs the "HR Suite settings" permission.</p>
       )}
-    </div>
+    </Section>
   );
 };
 

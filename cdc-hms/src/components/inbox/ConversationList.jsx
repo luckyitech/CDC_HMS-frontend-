@@ -1,4 +1,5 @@
 import { Search, Pin, FlaskConical, User } from 'lucide-react';
+import SelectMenu from '../shared/SelectMenu';
 import { fmtRelative, contactName } from './inboxHelpers';
 
 // "All" is the everyday default and stays a one-tap button; the narrower filters
@@ -28,14 +29,14 @@ const ConversationList = ({ conversations, activeId, onSelect, filter, setFilter
         >
           All
         </button>
-        <select
+        <SelectMenu
           value={filter === 'all' ? '' : filter}
           onChange={(e) => setFilter(e.target.value || 'all')}
           className={`flex-1 rounded-full border px-2.5 py-1 text-xs ${filter !== 'all' ? 'border-emerald-600 text-emerald-700 font-medium' : 'border-gray-300 text-gray-600'}`}
         >
           <option value="">Filter…</option>
           {MORE_FILTERS.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
-        </select>
+        </SelectMenu>
       </div>
     </div>
 

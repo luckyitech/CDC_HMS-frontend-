@@ -1,12 +1,16 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import SelectMenu from './SelectMenu';
+import { ModalOverlay } from './Modal';
 import {
   Calendar, ChevronDown, ChevronRight, Printer, X,
   Activity, Target, FileEdit, Stethoscope, MessageSquare, Pill, Syringe, ClipboardList,
   BedDouble, Share2, FileText, Clock, FlaskConical, Footprints, Bluetooth, Phone,
+  ScanFace, Microscope, Grid3x3,
 } from 'lucide-react';
 import usePrint from '../../hooks/usePrint';
 import PrintLetterhead from './PrintLetterhead';
 import PrintRoot from './PrintRoot';
+import NoteSectionsView from './NoteSectionsView';
 import LetterPrint from './LetterPrint';
 import Tag from './Tag';
 import { referralLetter, admissionLetter } from '../../utils/letters';
@@ -24,6 +28,14 @@ import neuropathyService from '../../services/neuropathyService';
 import { glucoseService } from '../../services/glucoseService';
 import remoteRequestService from '../../services/remoteRequestService';
 import NeuropathyReport from './NeuropathyReport';
+import useClinicModules from '../../hooks/useClinicModules';
+import { dermService } from '../../services/dermService';
+import { histologyService } from '../../services/histologyService';
+import DermVisitReview, { SkinHistoryProvider } from '../doctor/derm/DermVisitReview';
+import { DermFigureContext, figureFor } from '../doctor/derm/dermFigure';
+import DermSkinVisitsGrid from '../doctor/derm/DermSkinVisitsGrid';
+import HistologyDayEvents from '../histology/HistologyDayEvents';
+import { histologyEvents } from '../../utils/histologyEvents';
 import { notify } from '../../utils/notify';
 import { useInitialAssessmentContext } from '../../contexts/InitialAssessmentContext';
 import { usePhysicalExamContext } from '../../contexts/PhysicalExamContext';
@@ -88,6 +100,13 @@ const DATE_FIELD_MAP = {
   // a consultation (phone, WhatsApp, email, walk-in). A doctor "action"; a day
   // that has one and no visit is tagged "… request · not a visit".
   remoteRequests:  'createdAt',
+  // Dermatology Phase 4 (7 Oct 2026): one skin review per clinic day (the
+  // Dermatology module), and histology / cytology events — requested, and
+  // result typed — each on its own day (the Histology module). Both render
+  // under the consultation note on the Doctor's Notes tab, and print with it.
+  // Fetched only while their module is on.
+  skinDays:        'date',
+  histology:       'day',
 };
 
 const fmtDay = (d) =>
@@ -108,6 +127,15 @@ const DAY_PILLS = [
 ];
 
 const HISTORY_PAGE_SIZE = 10;
+
+// Skin / Histo pills (Phase 4, V2) — they open the day on the Doctor's Notes
+// tab, where the skin review and histology sit under the consultation note.
+const SKIN_PILLS = [
+  { key: 'skin',  label: 'Skin',  Icon: ScanFace,   cls: 'border border-blue-200 bg-blue-50 text-blue-700',
+    list: (r) => r.skinDays || [],  title: 'Show the skin review of this visit' },
+  { key: 'histo', label: 'Histo', Icon: Microscope, cls: 'border border-amber-200 bg-amber-50 text-amber-800',
+    list: (r) => r.histology || [], title: 'Show the histology / cytology of this day' },
+];
 
 // ── Small read-only helpers ───────────────────────────────────────────────────
 const SectionHeader = ({ icon, label }) => (
@@ -231,7 +259,8 @@ const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) =>
         <SectionHeader icon={<MessageSquare className="w-3.5 h-3.5" />} label="Consultation Notes" />
         {records.notes.map(note => (
           <DocBox key={note.id}>
-            <p className="whitespace-pre-wrap">{note.notes}</p>
+            {/* history sections with their formatting (10 Oct 2026), or the old plain text */}
+            <NoteSectionsView note={note} />
           </DocBox>
         ))}
       </div>
@@ -240,7 +269,7 @@ const EncounterBlock = ({ records, fullExamCache, showNursingNotes = false }) =>
     {/* Assessment */}
     {records.assessments.length > 0 && (
       <div>
-        <SectionHeader icon={<FileEdit className="w-3.5 h-3.5" />} label="Assessment" />
+        <SectionHeader icon={<FileEdit className="w-3.5 h-3.5" />} label="Initial assessment (old form)" />
         {records.assessments.map(a => (
           <DocBox key={a.id}>
             <div className="space-y-2">
@@ -517,51 +546,21 @@ const encounterDoctor = (r) =>
   (r.glp1Reviews?.[0]?.clinicianRole === 'doctor' ? r.glp1Reviews[0].clinicianName : null) ||
   null;
 
-// Mobile day-tab dropdown. A custom menu (not a native <select>) so the option
-// list always opens BELOW the box — native pickers position wherever the OS
-// likes, including over the content above.
-const DayTabSelect = ({ value, onChange, options }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [open]);
-  const current = options.find((o) => o.id === value) || options[0];
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 border-2 border-gray-200 rounded-lg text-base font-semibold text-gray-800 bg-white focus:outline-none focus:border-primary"
-      >
-        <span>{current.label}{current.count != null ? ` (${current.count})` : ''}</span>
-        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-          {options.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => { onChange(o.id); setOpen(false); }}
-              className={`w-full text-left px-4 py-3 text-base border-b border-gray-100 last:border-0 ${
-                o.id === value ? 'bg-blue-50 text-primary font-semibold' : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              {o.label}{o.count != null ? ` (${o.count})` : ''}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+// Mobile day-tab dropdown — the shared SelectMenu, so the list always opens
+// BELOW the box (a native picker positions wherever the OS likes).
+const DayTabSelect = ({ value, onChange, options }) => (
+  <SelectMenu
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    aria-label="Day section"
+    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg text-base font-semibold text-gray-800 focus:outline-none focus:border-primary"
+    options={options.map((o) => ({ value: o.id, label: `${o.label}${o.count != null ? ` (${o.count})` : ''}` }))}
+  />
+);
 
-const VisitDocument = ({ records, fullExamCache }) => {
+const VisitDocument = ({ records, fullExamCache, print = false }) => {
   const encounters = splitEncounters(records);
+  const skinDays = [...(records.skinDays || [])].sort((a, b) => a.date.localeCompare(b.date));
 
   // Day-level fallback when a single encounter carries no attribution.
   const dayDoctor = encounterDoctor(records);
@@ -602,6 +601,11 @@ const VisitDocument = ({ records, fullExamCache }) => {
         );
       })}
 
+      {/* Skin review (Dermatology) and histology / cytology — under the
+          consultation note, the same document and the same print (D13, V3). */}
+      {skinDays.map((d) => <DermVisitReview key={d.date} day={d} print={print} />)}
+      {(records.histology || []).length > 0 && <HistologyDayEvents events={records.histology} />}
+
       {/* Document footer — once per day document */}
       <div>
         <p className="text-xs text-gray-500">This is a computer-generated report</p>
@@ -615,7 +619,7 @@ const VisitDocument = ({ records, fullExamCache }) => {
 
 const ActionRow = ({ icon, iconCls, title, sub, onClick }) => (
   <button onClick={onClick}
-    className="w-full flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left">
+    className="w-full flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-4 py-3 ui-hover hover:border-blue-200 transition-colors text-left">
     <span className="flex items-center gap-3 min-w-0">
       <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${iconCls}`}>{icon}</span>
       <span className="min-w-0">
@@ -711,6 +715,7 @@ const NURSING_BLANK = {
   vitals: [], plans: [], assessments: [], exams: [], notes: [], prescriptions: [],
   glp1Injections: [], glp1Reviews: [], glp1WeekNotes: [], nursingNotes: [], admissions: [], referrals: [],
   labRequests: [], neuropathyStudies: [], meterImports: [], remoteRequests: [],
+  skinDays: [], histology: [],
 };
 
 const nursingTasks = (records) => {
@@ -953,7 +958,7 @@ const DoctorNotesView = ({ records, patient, fullExamCache }) => {
       <VisitDocument records={records} fullExamCache={fullExamCache} />
       <PrintRoot printRef={printRef}>
         <ArtifactMeta patient={patient} sub="Visit notes" />
-        <VisitDocument records={records} fullExamCache={fullExamCache} />
+        <VisitDocument records={records} fullExamCache={fullExamCache} print />
       </PrintRoot>
     </div>
   );
@@ -1028,7 +1033,7 @@ const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact, onViewL
                     onViewRecord(t);
                   }
                 }}
-                className="flex-1 min-w-0 my-1.5 flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-200 transition-colors text-left"
+                className="flex-1 min-w-0 my-1.5 flex items-center justify-between gap-3 border border-gray-200 rounded-xl px-4 py-3 ui-hover hover:border-blue-200 transition-colors text-left"
               >
                 <span className="flex items-center gap-3 min-w-0">
                   <span className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0"><Icon className="w-4 h-4" /></span>
@@ -1052,7 +1057,7 @@ const VisitTimeline = ({ records, patient, onViewRecord, onViewArtifact, onViewL
 const RecordDetailModal = ({ item, fullExamCache, onClose }) => {
   if (!item) return null;
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <ModalOverlay onClose={onClose}>
       <div className="bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-800">{item.title}</h3>
@@ -1062,10 +1067,10 @@ const RecordDetailModal = ({ item, fullExamCache, onClose }) => {
           <EncounterBlock records={item.records} fullExamCache={fullExamCache} showNursingNotes />
         </div>
         <div className="flex justify-end px-5 py-3 flex-shrink-0 border-t border-gray-100">
-          <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Close</button>
+          <button onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 ui-hover transition-colors">Close</button>
         </div>
       </div>
-    </div>
+    </ModalOverlay>
   );
 };
 
@@ -1102,7 +1107,35 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   const { getPrescriptionsByPatient }                    = usePrescriptionContext();
   const { getNotesByPatient }                            = useConsultationNotesContext();
 
-  const [historyData, setHistoryData]           = useState(null);
+  const [baseHistory, setHistoryData]           = useState(null);
+  // Specialist modules (Phase 4): the skin record and histology / cytology,
+  // fetched only while the clinic has them on. A failure leaves them out —
+  // Visit History never breaks over a module.
+  const { modules } = useClinicModules();
+  const [skin, setSkin]                         = useState(null);   // { days, grid, canViewPhotos }
+  const [histoRequests, setHistoRequests]       = useState([]);
+  const [showSkinGrid, setShowSkinGrid]         = useState(false);
+  useEffect(() => {
+    if (!uhid || !modules.dermatology) { setSkin(null); return undefined; }
+    let live = true;
+    dermService.getVisits(uhid)
+      .then((res) => { if (live) setSkin(res?.data || null); })
+      .catch(() => { if (live) setSkin(null); });
+    return () => { live = false; };
+  }, [uhid, modules.dermatology]);
+  useEffect(() => {
+    if (!uhid || !modules.histology) { setHistoRequests([]); return undefined; }
+    let live = true;
+    histologyService.list(uhid)
+      .then((res) => { if (live) setHistoRequests(res?.data?.requests || []); })
+      .catch(() => { if (live) setHistoRequests([]); });
+    return () => { live = false; };
+  }, [uhid, modules.histology]);
+  const historyData = useMemo(() => (baseHistory ? {
+    ...baseHistory,
+    skinDays: skin?.days || [],
+    histology: histologyEvents(histoRequests),
+  } : null), [baseHistory, skin, histoRequests]);
   const [historyLoading, setHistoryLoading]     = useState(false);
   const [openHistoryDate, setOpenHistoryDate] = useState(null);
   const [historyFromDate, setHistoryFromDate]   = useState('');
@@ -1347,7 +1380,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       if (isOpening) group.dates.forEach(d => fetchExamsForDate(d));
       return isOpening ? group.key : null;
     });
-  }, [fetchExamsForDate]);
+  }, [fetchExamsForDate, defaultDayTab]);
 
   // Single-date mode: prefetch the shown day's exams whenever it changes (initial
   // open, or the doctor picking another date from the rail).
@@ -1455,10 +1488,12 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
   };
 
   return (
+    <DermFigureContext.Provider value={{ figure: figureFor(patient), setFigure: null }}>
+    <SkinHistoryProvider canViewPhotos={!!skin?.canViewPhotos}>
     <div className="space-y-4">
 
       {/* Date range filters + print scope — hidden in single-date mode */}
-      <div className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm ${singleDate ? 'hidden' : ''}`}>
+      <div className={`ui-surface p-4 ${singleDate ? 'hidden' : ''}`}>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-500 mb-1">From</label>
@@ -1481,7 +1516,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
           {(historyFromDate || historyToDate) && (
             <button
               onClick={() => { setHistoryFromDate(''); setHistoryToDate(''); }}
-              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-blue-50 transition-colors"
+              className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg ui-hover transition-colors"
             >
               Clear
             </button>
@@ -1492,10 +1527,18 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             <button
               onClick={openPrintOptions}
               disabled={printing}
-              className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg ui-hover transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
               <Printer className="w-4 h-4" />
               {printing ? 'Preparing…' : `Print ${visitGroups.length} visit${visitGroups.length !== 1 ? 's' : ''}`}
+            </button>
+          )}
+          {(skin?.grid?.rows || []).length > 0 && (
+            <button
+              onClick={() => setShowSkinGrid(true)}
+              className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg ui-hover transition-colors flex items-center gap-1.5"
+            >
+              <Grid3x3 className="w-4 h-4" /> All skin visits
             </button>
           )}
           {historyData && (
@@ -1588,13 +1631,13 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
               <button
                 onClick={printVisits}
                 disabled={printing}
-                className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3 py-1.5 text-sm font-semibold text-primary border border-primary rounded-lg ui-hover transition-colors disabled:opacity-50 flex items-center gap-1.5"
               >
                 <Printer className="w-4 h-4" />
                 {printing ? 'Preparing…' : 'Print visit'}
               </button>
             </div>
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+            <div className="ui-surface p-5">
               {renderDayBody(getRecordsForDate(activeDate))}
             </div>
           </div>
@@ -1626,7 +1669,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
         const HeaderIcon = group.ongoing ? Clock : Calendar;
 
         return (
-          <div key={group.key} className={`bg-white border rounded-xl overflow-hidden shadow-sm ${group.ongoing ? 'border-amber-300' : 'border-gray-200'}`}>
+          <div key={group.key} className={`ui-surface overflow-hidden ${group.ongoing ? 'border-amber-300' : ''}`}>
 
             {/* Header row */}
             {/* A div, not a <button>: the pills inside are buttons of their own. */}
@@ -1634,7 +1677,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
               role="button" tabIndex={0} aria-expanded={isOpen}
               onClick={() => toggleHistoryGroup(group)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleHistoryGroup(group); } }}
-              className="w-full flex items-center justify-between px-5 py-4 hover:bg-blue-50 transition-colors text-left cursor-pointer"
+              className="w-full flex items-center justify-between px-5 py-4 ui-hover transition-colors text-left cursor-pointer"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <HeaderIcon className={`w-5 h-5 flex-shrink-0 ${group.ongoing ? 'text-amber-500' : isOpen ? 'text-primary' : 'text-gray-400'}`} />
@@ -1652,6 +1695,21 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
                     {records.remoteRequests[0].channelLabel} request{(records.workflow || []).length === 0 && !group.ongoing ? ' · not a visit' : ''}
                   </span>
                 )}
+                {/* Skin / Histo (Phase 4) — open the day on Doctor's Notes. */}
+                {SKIN_PILLS.map(({ key, label, Icon, cls, list, title }) => {
+                  const n = list(records).length;
+                  if (!n) return null;
+                  return (
+                    <Tag key={key} Icon={Icon} className={cls} title={title}
+                      onClick={() => {
+                        if (!isOpen) toggleHistoryGroup(group);
+                        setDayTab('notes');
+                      }}
+                    >
+                      {label}
+                    </Tag>
+                  );
+                })}
                 {/* Document pills (Communications-tab style). One of a kind that
                     day → the pill opens it; several → the pill opens the day. */}
                 {DAY_PILLS.map(({ key, label, Icon, cls, list, open }) => {
@@ -1706,14 +1764,14 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
             <button
               onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
               disabled={historyPage === 1}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-blue-50 transition-colors"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 ui-hover transition-colors"
             >
               Previous
             </button>
             <button
               onClick={() => setHistoryPage(p => Math.min(totalPages, p + 1))}
               disabled={historyPage === totalPages}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-blue-50 transition-colors"
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 ui-hover transition-colors"
             >
               Next
             </button>
@@ -1752,7 +1810,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
                 {printInclude.notes && (
                   <div className="mb-4">
                     <h3 className="text-sm font-bold text-gray-700 mb-2">Doctor's notes</h3>
-                    <VisitDocument records={recs} fullExamCache={fullExamCache} />
+                    <VisitDocument records={recs} fullExamCache={fullExamCache} print />
                   </div>
                 )}
                 {printInclude.kardex && kardexTasks.length > 0 && (
@@ -1781,7 +1839,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
 
       {/* ── Master print chooser — what to include for the filtered visits ── */}
       {showPrintOptions && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowPrintOptions(false)}>
+        <ModalOverlay onClose={() => setShowPrintOptions(false)}>
           <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-800">Print visits</h3>
@@ -1811,7 +1869,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
               ))}
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={() => setShowPrintOptions(false)} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Cancel</button>
+              <button onClick={() => setShowPrintOptions(false)} className="px-3 py-1.5 rounded text-sm border border-gray-300 ui-hover transition-colors">Cancel</button>
               <button
                 onClick={() => { setShowPrintOptions(false); printVisits(); }}
                 disabled={!printInclude.notes && !printInclude.kardex && !printInclude.timeline}
@@ -1821,7 +1879,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
               </button>
             </div>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Actions artifact viewer. Prescriptions use the shared PrescriptionPrint
@@ -1850,7 +1908,14 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
         <NeuropathyReport study={viewNeuro} onClose={() => setViewNeuro(null)} />
       )}
 
+      {/* "All skin visits" — every finding against every skin visit (V6). */}
+      {showSkinGrid && skin?.grid && (
+        <DermSkinVisitsGrid grid={skin.grid} patient={patient} onClose={() => setShowSkinGrid(false)} />
+      )}
+
     </div>
+    </SkinHistoryProvider>
+    </DermFigureContext.Provider>
   );
 };
 

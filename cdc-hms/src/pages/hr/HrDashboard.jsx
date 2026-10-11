@@ -5,7 +5,9 @@ import { useHrContext } from '../../contexts/HrContext';
 import { canViewHr, canRunOnboarding } from '../../utils/permissions';
 import hrService from '../../services/hrService';
 import PageHeader from '../../components/shared/PageHeader';
+import Card from '../../components/shared/Card';
 import MyAttendance from '../../components/hr/MyAttendance';
+import StatCard from '../../components/shared/StatCard';
 import {
   dayLabel, hoursMinutes, initials, VerificationPill, Pill, roleLabel, greetingFor, titleFor, firstNameOf, hhmmOf,
 } from '../../components/hr/hrFormat';
@@ -19,24 +21,15 @@ import {
  * hr.view holders additionally get the clinic's day at the top: five tiles,
  * Who's in now, Not yet in, Needs attention — polled every 60 s.
  */
-const Card = ({ title, children, className = '', right }) => (
-  <section className={`bg-white rounded-xl border border-gray-200 p-4 ${className}`}>
-    {(title || right) && (
-      <div className="flex items-center justify-between gap-3 mb-3">
-        {title && <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h3>}
-        {right}
-      </div>
-    )}
-    {children}
-  </section>
-);
-
+// The app's one number tile (StatCard); the tone picks its colour.
+const TONE = { '': 'from-blue-500 to-blue-600', warn: 'from-amber-500 to-amber-600', bad: 'from-red-500 to-red-600' };
 const Tile = ({ value, of, label, tone = '', to }) => (
-  <Link to={to} className={`block rounded-xl border bg-white px-4 py-3 hover:bg-gray-50 transition-colors ${tone === 'warn' ? 'border-amber-400' : tone === 'bad' ? 'border-red-500' : 'border-gray-200'}`}>
-    <b className="block text-2xl font-bold leading-tight tabular-nums text-gray-800">
-      {value}{of != null && <small className="text-sm font-medium text-gray-500"> of {of}</small>}
-    </b>
-    <span className="text-xs text-gray-500">{label}</span>
+  <Link to={to} className="block rounded-xl hover:brightness-105 transition">
+    <StatCard
+      title={label}
+      gradient={TONE[tone] || TONE['']}
+      value={<span className="tabular-nums">{value}{of != null && <small className="text-sm font-medium opacity-80"> of {of}</small>}</span>}
+    />
   </Link>
 );
 

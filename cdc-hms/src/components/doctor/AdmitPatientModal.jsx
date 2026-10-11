@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ModalOverlay } from '../shared/Modal';
 import toast from "react-hot-toast";
 import { X, BedDouble, Printer } from "lucide-react";
 import inpatientService from "../../services/inpatientService";
@@ -74,7 +75,7 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <ModalOverlay>
       <div className="bg-white rounded-xl w-full max-w-md p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold flex items-center gap-2"><BedDouble size={18} className="text-primary" /> Advise Admission</h2>
@@ -100,11 +101,11 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
           </div>
           <div className="flex flex-wrap justify-between items-center gap-2 pt-2">
             <button type="button" onClick={saveAndPrint} disabled={saving}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border border-primary text-primary font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-sm border border-primary text-primary font-semibold ui-hover transition-colors disabled:opacity-50">
               <Printer size={15} /> {saving ? "Saving…" : "Save & Print"}
             </button>
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 hover:bg-blue-50 transition-colors">Cancel</button>
+              <button type="button" onClick={onClose} className="px-3 py-1.5 rounded text-sm border border-gray-300 ui-hover transition-colors">Cancel</button>
               <button type="submit" className="px-3 py-1.5 rounded text-sm bg-primary text-white">
                 Send for admission
               </button>
@@ -124,6 +125,6 @@ export default function AdmitPatientModal({ patient, queueItem, defaultNote = ""
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Admission note</p>
         <p className="text-sm whitespace-pre-wrap">{form.admissionNote}</p>
       </PrintRoot>
-    </div>
+    </ModalOverlay>
   );
 }

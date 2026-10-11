@@ -50,8 +50,10 @@ export const TreatmentPlanProvider = ({ children }) => {
     try {
       const response = await treatmentPlanService.create(planData);
       if (response.success) {
-        // Refresh to get updated statuses (previous plans marked as Completed)
-        await fetchTreatmentPlans();
+        // Refresh to get updated statuses (previous plans marked as Completed).
+        // The list endpoint requires a uhid — without it this refresh was a
+        // silent 400 (found 10 Oct 2026).
+        await fetchTreatmentPlans({ uhid: planData.uhid });
         return response.data.treatmentPlan || response.data;
       }
       return null;

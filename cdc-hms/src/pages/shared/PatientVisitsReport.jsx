@@ -7,6 +7,7 @@ import Pagination from '../../components/shared/Pagination';
 import api from '../../services/api';
 import { notify } from '../../utils/notify';
 import { downloadCsv } from '../../utils/exportCsv';
+import StatCard from '../../components/shared/StatCard';
 
 const DAYS_PER_PAGE = 31;
 
@@ -31,12 +32,12 @@ const PRESETS = [
 
 // New + Return = Total Visits; Walk-in + Booked = Total Visits
 const SUMMARY_CARDS = [
-  { key: 'visits',         label: 'Total Visits',    icon: Users,         tone: 'text-blue-700 bg-blue-50' },
-  { key: 'newPatients',    label: 'New Patients',    icon: UserPlus,      tone: 'text-green-700 bg-green-50' },
-  { key: 'returnPatients', label: 'Return Patients', icon: Repeat,        tone: 'text-teal-700 bg-teal-50' },
-  { key: 'walkIn',         label: 'Walk-ins',        icon: Footprints,    tone: 'text-amber-700 bg-amber-50' },
-  { key: 'booked',         label: 'Booked',          icon: CalendarCheck, tone: 'text-violet-700 bg-violet-50' },
-  { key: 'uniquePatients', label: 'Unique Patients', icon: UserCheck,     tone: 'text-rose-700 bg-rose-50' },
+  { key: 'visits',         label: 'Total Visits',    icon: Users,         gradient: 'from-blue-500 to-blue-600' },
+  { key: 'newPatients',    label: 'New Patients',    icon: UserPlus,      gradient: 'from-green-500 to-green-600' },
+  { key: 'returnPatients', label: 'Return Patients', icon: Repeat,        gradient: 'from-teal-500 to-teal-600' },
+  { key: 'walkIn',         label: 'Walk-ins',        icon: Footprints,    gradient: 'from-amber-500 to-amber-600' },
+  { key: 'booked',         label: 'Booked',          icon: CalendarCheck, gradient: 'from-violet-500 to-violet-600' },
+  { key: 'uniquePatients', label: 'Unique Patients', icon: UserCheck,     gradient: 'from-rose-500 to-rose-600' },
 ];
 
 const TABLE_COLUMNS = [
@@ -132,7 +133,7 @@ const PatientVisitsReport = () => {
               key={preset.label}
               type="button"
               onClick={() => applyPreset(preset)}
-              className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              className="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:border-blue-300 ui-hover transition-colors"
             >
               {preset.label}
             </button>
@@ -170,17 +171,9 @@ const PatientVisitsReport = () => {
       {/* Summary */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-          {SUMMARY_CARDS.map((card) => {
-            const Icon = card.icon;
-            return (
-              <div key={card.key} className={`p-4 rounded-lg ${card.tone}`}>
-                <p className="text-xs uppercase font-semibold flex items-center gap-1.5">
-                  <Icon className="w-3.5 h-3.5" /> {card.label}
-                </p>
-                <p className="text-3xl font-bold mt-1">{summary[card.key]}</p>
-              </div>
-            );
-          })}
+          {SUMMARY_CARDS.map((card) => (
+            <StatCard key={card.key} title={card.label} value={summary[card.key]} icon={card.icon} gradient={card.gradient} />
+          ))}
         </div>
       )}
 
@@ -204,7 +197,7 @@ const PatientVisitsReport = () => {
         <Card>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="text-left text-xs uppercase text-gray-500 border-b">
                   <th className="px-4 py-3 font-semibold">Date</th>
                   {TABLE_COLUMNS.map((c) => (
@@ -214,7 +207,7 @@ const PatientVisitsReport = () => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {paginatedDays.map((day) => (
-                  <tr key={day.date} className="hover:bg-blue-50">
+                  <tr key={day.date} className="ui-hover">
                     <td className="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap">
                       {new Date(`${day.date}T00:00:00`).toLocaleDateString('en-GB', {
                         weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',

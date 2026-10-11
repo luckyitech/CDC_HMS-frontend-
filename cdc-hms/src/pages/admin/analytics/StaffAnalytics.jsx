@@ -11,6 +11,7 @@ import Card from '../../../components/shared/Card';
 import AnalyticsBarChart from '../../../components/shared/AnalyticsBarChart';
 import AnalyticsDateFilter, { DEFAULT_DATE_RANGE } from '../../../components/shared/AnalyticsDateFilter';
 import analyticsService from '../../../services/analyticsService';
+import PageHeader from '../../../components/shared/PageHeader';
 
 const formatHour = (h) => {
   if (h === 0)  return '12am';
@@ -76,11 +77,11 @@ function WaitTimeSection({ title, data, dateLabel, theme }) {
   const t = WAIT_THEMES[theme];
   const Icon = t.Icon;
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div className="ui-surface p-6">
 
       {/* Section header */}
       <div className={`flex items-center gap-3 mb-6 pb-5 border-b-2 ${t.borderAccent} border-opacity-30 border-b border-gray-100`}>
-        <div className={`w-11 h-11 rounded-xl ${t.iconBg} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+        <div className={`w-11 h-11 rounded-xl ${t.iconBg} flex items-center justify-center flex-shrink-0`}>
           <Icon className={`w-5 h-5 ${t.iconColor}`} />
         </div>
         <div>
@@ -90,7 +91,7 @@ function WaitTimeSection({ title, data, dateLabel, theme }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
-        <div className={`bg-gradient-to-br ${t.avgCard} rounded-xl shadow-lg p-5 text-white`}>
+        <div className={`bg-gradient-to-br ${t.avgCard} rounded-xl p-5 text-white`}>
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm opacity-90">Avg Wait</p>
             <Clock className="w-4 h-4 opacity-50" />
@@ -98,7 +99,7 @@ function WaitTimeSection({ title, data, dateLabel, theme }) {
           <p className="text-3xl font-bold mt-1">{fmtMinutes(data?.avgWaitMinutes)}</p>
           <p className="text-xs mt-3 opacity-75">Per patient</p>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-5 text-white">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-5 text-white">
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm opacity-90">Shortest Wait</p>
             <TrendingDown className="w-4 h-4 opacity-50" />
@@ -106,7 +107,7 @@ function WaitTimeSection({ title, data, dateLabel, theme }) {
           <p className="text-3xl font-bold mt-1">{fmtMinutes(data?.minWaitMinutes)}</p>
           <p className="text-xs mt-3 opacity-75">Best recorded</p>
         </div>
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-5 text-white">
+        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-5 text-white">
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm opacity-90">Longest Wait</p>
             <TrendingUp className="w-4 h-4 opacity-50" />
@@ -114,7 +115,7 @@ function WaitTimeSection({ title, data, dateLabel, theme }) {
           <p className="text-3xl font-bold mt-1">{fmtMinutes(data?.maxWaitMinutes)}</p>
           <p className="text-xs mt-3 opacity-75">Worst recorded</p>
         </div>
-        <div className={`bg-gradient-to-br ${t.trackedCard} rounded-xl shadow-lg p-5 text-white`}>
+        <div className={`bg-gradient-to-br ${t.trackedCard} rounded-xl p-5 text-white`}>
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm opacity-90">Patients Tracked</p>
             <Users className="w-4 h-4 opacity-50" />
@@ -287,11 +288,7 @@ export default function StaffAnalytics() {
         >
           <ArrowLeft size={15} /> Back to Analytics
         </button>
-        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Users className="text-purple-600" size={24} />
-          Staff & Triage
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">Triage volume, timing, and staff performance</p>
+        <PageHeader title="Staff & Triage" subtitle="Triage volume, timing, and staff performance" className="mb-0" />
       </div>
 
       {/* Date filter */}
@@ -307,26 +304,26 @@ export default function StaffAnalytics() {
         <>
           {/* Summary stat cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
               <p className="text-sm opacity-90">Total Triages</p>
               <p className="text-4xl font-bold mt-2">{triage?.totalTriages ?? '—'}</p>
               <p className="text-sm mt-3 opacity-75">{dateRange.label}</p>
             </div>
-            <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl p-6 text-white">
               <p className="text-sm opacity-90">Avg Triage Time</p>
               <p className="text-4xl font-bold mt-2">
                 {triage?.avgTriageMinutes != null ? `${triage.avgTriageMinutes} min` : '—'}
               </p>
               <p className="text-sm mt-3 opacity-75">Per patient</p>
             </div>
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white">
               <p className="text-sm opacity-90">Fastest Triage</p>
               <p className="text-4xl font-bold mt-2">
                 {triage?.minTriageMinutes != null ? `${triage.minTriageMinutes} min` : '—'}
               </p>
               <p className="text-sm mt-3 opacity-75">Minimum recorded</p>
             </div>
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
               <p className="text-sm opacity-90">Active Staff</p>
               <p className="text-4xl font-bold mt-2">{staffCount}</p>
               <p className="text-sm mt-3 opacity-75">Performed triage</p>
@@ -474,7 +471,7 @@ export default function StaffAnalytics() {
           <Card title="Patient Length of Stay">
             <div className="flex flex-col gap-6">
               <div className="flex items-center gap-4">
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl px-6 py-4 text-white shadow-md">
+                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl px-6 py-4 text-white">
                   <p className="text-xs opacity-90">Average Stay</p>
                   <p className="text-3xl font-bold mt-1">
                     {los?.avgMinutes != null ? fmtMinutes(los.avgMinutes) : '—'}

@@ -169,7 +169,7 @@ const DocumentsTab = ({ staff, canManage, canSeeConfidential, canUpload = true, 
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="ui-surface p-5">
       <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-semibold text-gray-800">

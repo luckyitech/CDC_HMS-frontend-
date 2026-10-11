@@ -319,7 +319,7 @@ const CatalogManager = ({ config }) => {
         ) : (
           <>
             <table className="w-full text-sm">
-              <thead>
+              <thead className="ui-thead">
                 <tr className="text-left text-xs uppercase text-gray-500 border-b">
                   <th className="px-4 py-3 font-semibold">Name</th>
                   <th className="px-4 py-3 font-semibold">{detailLabel.replace(' (optional)', '')}</th>
@@ -331,7 +331,7 @@ const CatalogManager = ({ config }) => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {paginated.map((item) => (
-                  <tr key={item.id} className="hover:bg-blue-50">
+                  <tr key={item.id} className="ui-hover">
                     <td className="px-4 py-3 font-semibold text-gray-800">
                       <div className="flex items-center gap-2 flex-wrap">
                         {item.name}
@@ -585,7 +585,7 @@ const LabPackageManager = () => {
           <p className="text-center py-10 text-gray-500">No packages yet — create one above.</p>
         ) : (
           <table className="w-full text-sm">
-            <thead>
+            <thead className="ui-thead">
               <tr className="text-left text-xs uppercase text-gray-500 border-b">
                 <th className="px-4 py-3 font-semibold">Package</th>
                 <th className="px-4 py-3 font-semibold">Tests</th>
@@ -597,7 +597,7 @@ const LabPackageManager = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {packages.map((p) => (
-                <tr key={p.id} className="hover:bg-blue-50">
+                <tr key={p.id} className="ui-hover">
                   <td className="px-4 py-3 font-semibold text-gray-800">
                     {p.name}
                     {p.status === 'archived' && <span className="ml-2 text-xs text-gray-400">(archived)</span>}
@@ -654,7 +654,7 @@ const LabPackageManager = () => {
                 {filteredTests.length === 0 ? (
                   <p className="text-sm text-gray-400 p-3">No lab tests in the catalogue yet — add them on the Lab tests tab.</p>
                 ) : filteredTests.map((t) => (
-                  <label key={t.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-blue-50 cursor-pointer">
+                  <label key={t.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm ui-hover cursor-pointer">
                     <span className="flex items-center gap-2">
                       <input type="checkbox" checked={editing.testIds.includes(t.id)} onChange={() => toggleTest(t.id)} className="w-4 h-4 accent-primary" />
                       <span className="font-medium text-gray-800">{t.name}</span>

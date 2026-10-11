@@ -148,7 +148,7 @@ const NursingActionsTab = ({ patient, onRefresh = () => {}, onDone = () => {} })
                 disabled={!withNursing}
                 title={triageQueueItem && !withNursing ? `Already ${triageQueueItem.status.toLowerCase()}` : undefined}
                 onClick={() => { setMenuOpen(false); setModal("doctor"); }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left ui-hover disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Stethoscope className="w-4 h-4 flex-shrink-0" /> Send to doctor
               </button>
@@ -156,14 +156,14 @@ const NursingActionsTab = ({ patient, onRefresh = () => {}, onDone = () => {} })
                 type="button"
                 disabled={!triageQueueItem}
                 onClick={() => { setMenuOpen(false); setBillingMode("add"); setModal("billing"); }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-blue-50 border-t border-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left ui-hover border-t border-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Receipt className="w-4 h-4 flex-shrink-0" /> Add to bill
               </button>
               <button
                 type="button"
                 onClick={() => { setMenuOpen(false); setModal("record"); }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-blue-50 border-t border-gray-100"
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left ui-hover border-t border-gray-100"
               >
                 <ClipboardPlus className="w-4 h-4 flex-shrink-0" /> Record use
               </button>
@@ -172,7 +172,7 @@ const NursingActionsTab = ({ patient, onRefresh = () => {}, onDone = () => {} })
                 disabled={!withNursing}
                 title={triageQueueItem && !withNursing ? `Already ${triageQueueItem.status.toLowerCase()} — the doctor or reception sends them on` : undefined}
                 onClick={() => { setMenuOpen(false); setBillingMode("bill"); setModal("billing"); }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left hover:bg-blue-50 border-t border-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left ui-hover border-t border-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Receipt className="w-4 h-4 flex-shrink-0" /> Send to billing
               </button>

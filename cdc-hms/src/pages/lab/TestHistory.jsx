@@ -165,34 +165,34 @@ const TestHistory = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b-2 border-gray-200">
+              <thead className="ui-thead">
                 <tr>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                  <th className="px-4 sm:px-6 py-3 text-left">
                     Patient
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                  <th className="px-4 sm:px-6 py-3 text-left">
                     Test
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                  <th className="px-4 sm:px-6 py-3 text-left">
                     Result
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                  <th className="px-4 sm:px-6 py-3 text-left">
                     Status
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                  <th className="px-4 sm:px-6 py-3 text-left">
                     Date
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                  <th className="px-4 sm:px-6 py-3 text-left">
                     Completed By
                   </th>
-                  <th className="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">
+                  <th className="px-4 sm:px-6 py-3 text-left">
                     Action
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredTests.map((test) => (
-                  <tr key={test.id} className="hover:bg-blue-50">
+                  <tr key={test.id} className="ui-hover">
                     <td className="px-4 sm:px-6 py-3 sm:py-4">
                       <p className="text-sm font-semibold text-gray-800">
                         {test.patientName}

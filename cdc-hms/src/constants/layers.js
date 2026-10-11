@@ -13,7 +13,10 @@ export const TOAST_Z = 2147483000;
 // Every dialog (the shared Modal and the dialogs built on it) sits on MODAL_Z,
 // ABOVE any panel — a dialog opened from inside a panel ("Attach from patient
 // file", "Discard this draft?") must never open behind it (Emu, 29 Sep).
-// Order, bottom to top: page chrome (z-50) → PANEL_Z → MODAL_Z → image viewer
-// (z-[100]) → session timeout (z-[9999]) → TOAST_Z.
+// Order, bottom to top: page chrome (z-50) → PANEL_Z → MODAL_Z → POPOVER_Z →
+// image viewer (z-[100]) → session timeout (z-[9999]) → TOAST_Z.
 export const PANEL_Z = 60;
 export const MODAL_Z = 70;
+// A list that opens from a control (SelectMenu) — above any dialog it was
+// opened from.
+export const POPOVER_Z = 80;
