@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { notify } from "../../utils/notify";
 import { PackagePlus, Printer } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
@@ -6,15 +6,23 @@ import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import { Field, inputCls } from "./stockUi";
 import { printStockBatchLabel } from "../../utils/print";
+import ReceiptDocuments from "./ReceiptDocuments";
 
 // Receive Stock (intake): choose/scan item → batch no, expiry, quantity,
 // supplier → receiving location → save → print the STK- shelf label.
 // Scanning a retail box's GTIN in the item search selects the matching item.
+//
+// 12 Oct 2026 (Emu): a line may name the supplier's INVOICE / RECEIPT number
+// (optional); lines received on one document share it, and the document is
+// scanned once (now, or later from Movements → Deliveries — until then it is
+// flagged "No scan yet"). The delivery block stays filled between lines;
+// "New delivery" clears it.
 
 const EMPTY = {
   stockItemId: "", batchNo: "", expiryDate: "", supplierId: "",
-  locationId: "", packs: "", quantity: "",
+  locationId: "", packs: "", quantity: "", receiptNo: "", receiptKind: "invoice",
 };
+const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
 
 const StockReceiveTab = () => {
   const { items, locations, suppliers } = useStockContext();
@@ -24,6 +32,36 @@ const StockReceiveTab = () => {
   const [received, setReceived] = useState([]);   // this session's intakes, for reprint
 
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+
+  // The invoice / receipt already on file for this supplier + number (lines
+  // received before, scans attached) — looked up as the number is typed.
+  const [receipt, setReceipt] = useState(null);
+  useEffect(() => {
+    const n = form.receiptNo.trim();
+    if (!n) { setReceipt(null); return undefined; }
+    let live = true;
+    const t = setTimeout(() => {
+      stockService.lookupReceipt(n, form.supplierId)
+        .then((res) => { if (live) setReceipt(res?.data || null); })
+        .catch(() => { if (live) setReceipt(null); });
+    }, 400);
+    return () => { live = false; clearTimeout(t); };
+  }, [form.receiptNo, form.supplierId]);
+
+  const ensureReceipt = async () => {
+    if (!form.receiptNo.trim()) { notify("error", "Enter the invoice / receipt number first"); return null; }
+    const res = await stockService.ensureReceipt({
+      number: form.receiptNo.trim(), kind: form.receiptKind,
+      supplierId: form.supplierId ? Number(form.supplierId) : undefined,
+    });
+    if (res.success) { setReceipt(res.data); return res.data.id; }
+    return null;
+  };
+
+  const newDelivery = () => {
+    setForm((prev) => ({ ...prev, supplierId: "", receiptNo: "", receiptKind: "invoice" }));
+    setReceipt(null);
+  };
 
   const selectedItem = useMemo(
     () => items.find((i) => i.id === Number(form.stockItemId)) || null,
@@ -61,11 +99,14 @@ const StockReceiveTab = () => {
         batchNo: form.batchNo || undefined,
         expiryDate: form.expiryDate || undefined,
         supplierId: form.supplierId ? Number(form.supplierId) : undefined,
+        receiptNo: form.receiptNo.trim() || undefined,
+        receiptKind: form.receiptKind,
       });
       if (res.success) {
-        const { batch, item } = res.data;
+        const { batch, item, receipt: r } = res.data;
         notify("success", `Received ${form.quantity} × ${item.name} — label ${batch.labelCode}`);
-        setReceived((prev) => [{ ...batch, itemName: item.name }, ...prev]);
+        setReceived((prev) => [{ ...batch, itemName: item.name, receiptNo: r?.number }, ...prev]);
+        if (r) setReceipt((prev) => ({ ...(prev || {}), id: r.id, number: r.number, kind: r.kind, documents: prev?.documents || [], itemCount: (prev?.itemCount || 0) + 1 }));
         printStockBatchLabel({
           labelCode: batch.labelCode,
           itemName: item.name,
@@ -89,7 +130,43 @@ const StockReceiveTab = () => {
       <div className="ui-surface p-5">
         <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
           <PackagePlus className="w-5 h-5 text-primary" /> Receive a delivery
+          {(form.receiptNo || form.supplierId) && (
+            <button type="button" onClick={newDelivery} className="ml-auto text-xs font-semibold text-primary hover:underline">New delivery</button>
+          )}
         </h4>
+
+        {/* The supplier's document — kept between lines of one delivery. */}
+        <div className="rounded-lg border border-gray-200 p-3 mb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Supplier">
+              <select className={inputCls} value={form.supplierId} onChange={(e) => set("supplierId", e.target.value)}>
+                <option value="">— none —</option>
+                {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Document">
+              <select className={inputCls} value={form.receiptKind} onChange={(e) => set("receiptKind", e.target.value)}>
+                {Object.entries(KIND_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field label={`${KIND_LABEL[form.receiptKind]} number`} hint="optional — several items can share one number; enter it to attach a scan">
+            <input className={inputCls} value={form.receiptNo} onChange={(e) => set("receiptNo", e.target.value)} placeholder="e.g. INV-20431" />
+          </Field>
+          {receipt?.itemCount > 0 && (
+            <p className="text-xs text-gray-500 -mt-1">
+              Already on file: {receipt.itemCount} item{receipt.itemCount === 1 ? "" : "s"} received on this {KIND_LABEL[receipt.kind]?.toLowerCase() || "document"}.
+            </p>
+          )}
+          {form.receiptNo.trim() && (
+            <ReceiptDocuments
+              receiptId={receipt?.id || null}
+              documents={receipt?.documents || []}
+              onNeedReceipt={ensureReceipt}
+              onChange={(documents, id) => setReceipt((prev) => ({ ...(prev || {}), id, documents }))}
+            />
+          )}
+        </div>
 
         <Field label="Item" hint="type a name, or scan the retail box barcode (GTIN)">
           {selectedItem ? (
@@ -142,12 +219,6 @@ const StockReceiveTab = () => {
           <Field label={`Quantity${selectedItem ? ` (${selectedItem.unit}s)` : ""}`}>
             <input type="number" min="1" className={inputCls} value={form.quantity} onChange={(e) => set("quantity", e.target.value)} />
           </Field>
-          <Field label="Supplier">
-            <select className={inputCls} value={form.supplierId} onChange={(e) => set("supplierId", e.target.value)}>
-              <option value="">— none —</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </Field>
           <Field label="Receiving location">
             <select className={inputCls} value={form.locationId} onChange={(e) => set("locationId", e.target.value)}>
               <option value="">— choose —</option>
@@ -185,6 +256,7 @@ const StockReceiveTab = () => {
                     {b.batchNo && ` · batch ${b.batchNo}`}
                     {b.expiryDate && ` · exp ${b.expiryDate}`}
                     {` · ${b.qtyReceived} unit(s)`}
+                    {b.receiptNo && ` · doc ${b.receiptNo}`}
                   </p>
                 </div>
                 <button

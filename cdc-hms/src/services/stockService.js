@@ -42,6 +42,19 @@ export const stockService = {
   writeoff: (data) => api.post('/stock/writeoff', data),
   reverseMovement: (id, reason) => api.post(`/stock/movements/${id}/reverse`, { reason }),
 
+  // ---------- Supplier invoices / receipts + scans (12 Oct 2026) ----------
+  getReceipts: (params = {}) => api.get('/stock/receipts', { params }),
+  lookupReceipt: (number, supplierId) => api.get('/stock/receipts/lookup', { params: { number, supplierId: supplierId || undefined } }),
+  getReceipt: (id) => api.get(`/stock/receipts/${id}`),
+  ensureReceipt: (data) => api.post('/stock/receipts', data),
+  addReceiptDocument: (id, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post(`/stock/receipts/${id}/documents`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  receiptDocumentFile: (id, docId) => api.get(`/stock/receipts/${id}/documents/${docId}`, { responseType: 'blob' }),
+  removeReceiptDocument: (id, docId) => api.delete(`/stock/receipts/${id}/documents/${docId}`),
+
   // ---------- Reads ----------
   getMovements: (params = {}) => api.get('/stock/movements', { params }),
   getLevels: (params = {}) => api.get('/stock/levels', { params }),
