@@ -211,6 +211,7 @@ const NeuropathyActions = ({ study }) => {
           procedureOptions={PROCEDURE_OPTIONS}
           existingCharges={openVisit?.selectedCharges || []}
           existingProcedures={openVisit?.selectedProcedures || []}
+          queueId={openVisit?.id || null}
           onSubmit={onBillingSubmit}
           onClose={() => setBilling(null)}
         />

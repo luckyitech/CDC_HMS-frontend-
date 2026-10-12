@@ -31,6 +31,9 @@ import stockService from '../../services/stockService';
 import TriageWorklist from '../../components/nursing/TriageWorklist';
 import { QueueBookingBadge, QueuePriorityLegend } from '../../components/shared/QueueBooking';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
+import queueService from '../../services/queueService';
+import { useVisitBill, whoAdded } from '../../components/shared/BillOnFile';
+import { CHARGE_OPTIONS, PROCEDURE_OPTIONS } from '../../constants/billingOptions';
 
 const formatArrival = (iso) => {
   if (!iso) return '-';
@@ -99,6 +102,36 @@ const QueueManagement = () => {
     setDischargeComment('');
     setSupplies([]);              // supplies are scanned fresh at checkout
     setShowDischargeModal(true);
+  };
+
+  // The bill with who added each line (12 Oct 2026), and adding a line the
+  // earlier stages missed — recorded as added at billing, by the cashier.
+  const [billKey, setBillKey] = useState(0);
+  const [visitBill] = useVisitBill(showDischargeModal ? dischargePatient?.id : null, billKey);
+  const lineFor = (kind, name) => visitBill?.lines?.find((l) => l.kind === kind && l.name === name);
+  // The server's bill is the truth: a line another stage added after this list
+  // was loaded joins the checkout (ticked) as soon as the bill arrives.
+  useEffect(() => {
+    if (!visitBill?.lines || !dischargePatient) return;
+    for (const [kind, field, setFinal] of [['charge', 'selectedCharges', setFinalCharges], ['procedure', 'selectedProcedures', setFinalProcedures]]) {
+      const missing = visitBill.lines.filter((l) => l.kind === kind && !(dischargePatient[field] || []).includes(l.name)).map((l) => l.name);
+      if (missing.length) {
+        setDischargePatient((prev) => ({ ...prev, [field]: [...(prev[field] || []), ...missing] }));
+        setFinal((prev) => [...new Set([...prev, ...missing])]);
+      }
+    }
+  }, [visitBill]); // eslint-disable-line react-hooks/exhaustive-deps
+  const addAtCheckout = async (kind, name) => {
+    if (!name || !dischargePatient) return;
+    try {
+      await queueService.addCharges(dischargePatient.id, kind === 'charge' ? { charges: [name], stage: 'billing' } : { procedures: [name], stage: 'billing' });
+      const field = kind === 'charge' ? 'selectedCharges' : 'selectedProcedures';
+      setDischargePatient((prev) => ({ ...prev, [field]: [...new Set([...(prev[field] || []), name])] }));
+      if (kind === 'charge') setFinalCharges((prev) => [...new Set([...prev, name])]);
+      else setFinalProcedures((prev) => [...new Set([...prev, name])]);
+      setBillKey((k) => k + 1);
+      toast.success(`${name} added to the bill`);
+    } catch (err) { toast.error(err?.message || 'Could not add it to the bill'); }
   };
 
   const toggleFinalCharge = (item) =>
@@ -579,13 +612,20 @@ const QueueManagement = () => {
                           onChange={() => toggleFinalCharge(item)}
                           className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                         />
-                        <span className="text-sm font-medium leading-tight">{item}</span>
+                        <span className="text-sm font-medium leading-tight">{item}
+                          <span className="block text-[11px] font-normal text-gray-500 no-underline">{whoAdded(lineFor('charge', item))}</span>
+                        </span>
                       </label>
                     ))}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400 italic">No charges selected</p>
                 )}
+                <select aria-label="Add a charge" value="" onChange={(e) => addAtCheckout('charge', e.target.value)}
+                  className="mt-2 w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                  <option value="">+ Add a charge…</option>
+                  {CHARGE_OPTIONS.filter((c) => !(dischargePatient.selectedCharges || []).includes(c)).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
 
               {/* Procedures */}
@@ -608,13 +648,20 @@ const QueueManagement = () => {
                           onChange={() => toggleFinalProcedure(item)}
                           className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                         />
-                        <span className="text-sm font-medium leading-tight">{item}</span>
+                        <span className="text-sm font-medium leading-tight">{item}
+                          <span className="block text-[11px] font-normal text-gray-500 no-underline">{whoAdded(lineFor('procedure', item))}</span>
+                        </span>
                       </label>
                     ))}
                   </div>
                 ) : (
                   <p className="text-sm text-gray-400 italic">No procedures selected</p>
                 )}
+                <select aria-label="Add a procedure" value="" onChange={(e) => addAtCheckout('procedure', e.target.value)}
+                  className="mt-2 w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                  <option value="">+ Add a procedure…</option>
+                  {PROCEDURE_OPTIONS.filter((c) => !(dischargePatient.selectedProcedures || []).includes(c)).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
 
               {/* Supplies — scanned onto the bill at checkout. Finalising
