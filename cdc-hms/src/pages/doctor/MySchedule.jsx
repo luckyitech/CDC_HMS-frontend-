@@ -141,6 +141,7 @@ const MySchedule = () => {
       {showBlockModal && (
         <WeekBlockPlanner
           doctorId={doctorId}
+          ownDiary
           onClose={() => setShowBlockModal(false)}
           onDone={refreshSlots}
         />

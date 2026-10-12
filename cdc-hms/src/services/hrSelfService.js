@@ -10,6 +10,8 @@ const hrSelfService = {
   leave:         (year)          => api.get('/hr/me/leave', { params: year ? { year } : {} }),
   preview:       (body)          => api.post('/hr/me/leave/preview', body),
   submit:        (body)          => api.post('/hr/me/leave', body),
+  // A doctor records their own leave (clinics set to 'record', 12 Oct 2026)
+  record:        (body)          => api.post('/hr/me/leave/record', body),
   getLeave:      (id)            => api.get(`/hr/me/leave/${id}`),
   reply:         (id, note)      => api.post(`/hr/me/leave/${id}/reply`, { note }),
   withdraw:      (id, note)      => api.post(`/hr/me/leave/${id}/withdraw`, { note: note || null }),

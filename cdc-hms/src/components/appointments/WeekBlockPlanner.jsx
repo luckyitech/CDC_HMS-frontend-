@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { ModalOverlay } from '../shared/Modal';
 import appointmentService from '../../services/appointmentService';
 import doctorBlockService from '../../services/doctorBlockService';
+import hrSelfService from '../../services/hrSelfService';
 import { TIME_SLOTS } from '../../constants/appointmentSlots';
 
 // Block time — "tap the week" (12 Oct 2026, Emu chose Option A of
@@ -16,6 +17,12 @@ import { TIME_SLOTS } from '../../constants/appointmentSlots';
 //
 // Patients already booked in the chosen time are NOT cancelled — the bar
 // warns how many, so the front desk can call them.
+//
+// Leave (12 Oct 2026): where HR set "How doctors take leave" to 'record', a
+// doctor on their OWN diary (ownDiary) who picks whole days can tick "This is
+// leave" — it is recorded as approved leave of the chosen type (charged to
+// their balance; the server blocks the diary and tells HR). Elsewhere doctors
+// apply through My leave.
 
 const toDateString = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -24,7 +31,7 @@ const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); r
 const key = (date, time) => `${date}|${time}`;
 const REPEAT_WEEKS = [2, 4, 8, 12];
 
-const WeekBlockPlanner = ({ doctorId, doctorName = '', onClose, onDone }) => {
+const WeekBlockPlanner = ({ doctorId, doctorName = '', ownDiary = false, onClose, onDone }) => {
   const today = toDateString(new Date());
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [week, setWeek] = useState({});          // date → { dayBlocked, slots: { time → {status, booked} } }
@@ -34,6 +41,26 @@ const WeekBlockPlanner = ({ doctorId, doctorName = '', onClose, onDone }) => {
   const [repeat, setRepeat] = useState(false);
   const [repeatWeeks, setRepeatWeeks] = useState(4);
   const [busy, setBusy] = useState(false);
+  const [leaveMode, setLeaveMode] = useState(null);     // 'record' | 'apply' | null
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [leaveType, setLeaveType] = useState('');
+  const [asLeave, setAsLeave] = useState(false);
+
+  useEffect(() => {
+    if (!ownDiary) return undefined;
+    let live = true;
+    hrSelfService.leave()
+      .then((r) => {
+        if (!live) return;
+        const d = r.data || {};
+        const types = Array.isArray(d.types) ? d.types : [];
+        setLeaveMode(d.doctorLeaveMode || null);
+        setLeaveTypes(types);
+        setLeaveType((types.find((t) => /annual/i.test(`${t.key} ${t.name}`)) || types[0])?.key || '');
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [ownDiary]);
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
     const d = addDays(weekStart, i);
@@ -80,6 +107,14 @@ const WeekBlockPlanner = ({ doctorId, doctorName = '', onClose, onDone }) => {
   const toUnblock = picked.filter((p) => blocked(p.date, p.time));
   const patients = toBlock.reduce((n, p) => n + cell(p.date, p.time).booked, 0);
   const byDate = (list) => list.reduce((m, p) => { (m[p.date] ||= []).push(p.time); return m; }, {});
+  // Whole days: every slot still open on that date is picked (today counts
+  // from now). Only whole days can be leave.
+  const blockDates = byDate(toBlock);
+  const isWholeDay = (date, times) => TIME_SLOTS.filter((t) => !isPast(date, t)).every((t) => times.includes(t));
+  const canLeave = leaveMode === 'record' && toBlock.length > 0 && toUnblock.length === 0 && leaveTypes.length > 0
+    && Object.entries(blockDates).every(([d, times]) => isWholeDay(d, times));
+  const recording = canLeave && asLeave;
+  const leaveDates = Object.keys(blockDates).sort();
   const pickedDays = [...new Set(picked.map((p) => p.date))].sort()
     .map((d) => days.find((x) => x.date === d)?.label).filter(Boolean).join(', ');
 
@@ -88,7 +123,7 @@ const WeekBlockPlanner = ({ doctorId, doctorName = '', onClose, onDone }) => {
     try {
       await fn();
       toast.success(okText);
-      setSel(new Set()); setReason(''); setRepeat(false);
+      setSel(new Set()); setReason(''); setRepeat(false); setAsLeave(false);
       onDone?.();
       await load();
     } catch (err) {
@@ -99,10 +134,23 @@ const WeekBlockPlanner = ({ doctorId, doctorName = '', onClose, onDone }) => {
     }
   };
 
+  // Leave: consecutive dates become one record each.
+  const doRecordLeave = () => run(async () => {
+    const runs = [];
+    leaveDates.forEach((d) => {
+      const last = runs[runs.length - 1];
+      if (last && toDateString(addDays(new Date(`${last.endDate}T00:00:00`), 1)) === d) last.endDate = d;
+      else runs.push({ startDate: d, endDate: d });
+    });
+    for (const r of runs) {
+      await hrSelfService.record({ leaveType, startDate: r.startDate, endDate: r.endDate, reason: reason.trim() || null });
+    }
+  }, `Leave recorded — ${leaveDates.length} day${leaveDates.length === 1 ? '' : 's'}; your diary is blocked`);
+
   const doBlock = () => run(async () => {
     const r = reason.trim() || undefined;
     for (const [date, times] of Object.entries(byDate(toBlock))) {
-      const wholeDay = times.length === TIME_SLOTS.length;
+      const wholeDay = isWholeDay(date, times);
       const slots = wholeDay ? ['ALL_DAY'] : times;
       if (repeat) {
         const until = toDateString(addDays(new Date(`${date}T00:00:00`), 7 * (repeatWeeks - 1)));
@@ -213,19 +261,33 @@ const WeekBlockPlanner = ({ doctorId, doctorName = '', onClose, onDone }) => {
           <div className="border-t-2 border-primary px-5 py-4 space-y-3">
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm font-bold text-gray-800">{sel.size} slot{sel.size === 1 ? '' : 's'} selected · {pickedDays}</span>
+              {canLeave && (
+                <label className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <input type="checkbox" checked={asLeave} onChange={(e) => setAsLeave(e.target.checked)} className="w-4 h-4" />
+                  This is leave
+                  {asLeave && (
+                    <select value={leaveType} onChange={(e) => setLeaveType(e.target.value)} aria-label="Leave type"
+                      className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm font-normal">
+                      {leaveTypes.map((t) => (
+                        <option key={t.key} value={t.key}>{t.name}{!t.unlimited && t.remaining != null ? ` (${t.remaining} left)` : ''}</option>
+                      ))}
+                    </select>
+                  )}
+                </label>
+              )}
               {toBlock.length > 0 && (
                 <>
                   <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional) — e.g. conference"
                     aria-label="Reason (optional)"
                     className="flex-1 min-w-[12rem] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary" />
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                  {!recording && <label className="flex items-center gap-2 text-sm text-gray-700">
                     <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} className="w-4 h-4" />
                     Repeat weekly for
                     <select value={repeatWeeks} onChange={(e) => setRepeatWeeks(Number(e.target.value))}
                       className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
                       {REPEAT_WEEKS.map((w) => <option key={w} value={w}>{w} weeks</option>)}
                     </select>
-                  </label>
+                  </label>}
                 </>
               )}
             </div>
@@ -244,10 +306,12 @@ const WeekBlockPlanner = ({ doctorId, doctorName = '', onClose, onDone }) => {
                 </button>
               )}
               {toBlock.length > 0 && (
-                <button type="button" onClick={doBlock} disabled={busy}
+                <button type="button" onClick={recording ? doRecordLeave : doBlock} disabled={busy || (recording && !leaveType)}
                   className="px-5 py-2 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2">
                   {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Block {toBlock.length} slot{toBlock.length === 1 ? '' : 's'}
+                  {recording
+                    ? `Record leave · ${leaveDates.length} day${leaveDates.length === 1 ? '' : 's'}`
+                    : `Block ${toBlock.length} slot${toBlock.length === 1 ? '' : 's'}`}
                 </button>
               )}
             </div>

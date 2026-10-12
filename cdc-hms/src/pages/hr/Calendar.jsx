@@ -7,7 +7,7 @@ import TeamCalendar from '../../components/hr/leave/TeamCalendar';
  */
 const Calendar = () => (
   <div>
-    <PageHeader title="Team calendar" subtitle="Who is away this month, so cover can be arranged." />
+    <PageHeader title="Team calendar" subtitle="Who is away, or has blocked their diary, this month — so cover can be arranged." />
     <TeamCalendar />
   </div>
 );

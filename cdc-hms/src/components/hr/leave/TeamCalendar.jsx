@@ -102,7 +102,7 @@ const TeamCalendar = () => {
               </div>
 
               {data.rows.length === 0 ? (
-                <p className="text-sm text-gray-500 py-6">Nobody is booked away this month{cadre ? ' in this cadre' : ''}.</p>
+                <p className="text-sm text-gray-500 py-6">Nobody is away or blocked this month{cadre ? ' in this cadre' : ''}.</p>
               ) : data.rows.map((r) => (
                 <div key={r.userId} className="grid items-center border-t border-gray-100" style={{ gridTemplateColumns: '150px 1fr' }}>
                   <div className="py-1.5 pr-2 text-sm text-gray-800 truncate">
@@ -123,10 +123,23 @@ const TeamCalendar = () => {
                     {r.segments.map((seg, i) => {
                       const a = idx(seg.from); const b = idx(seg.to);
                       const left = a * slot; const width = (b - a + 1) * slot;
-                      const cls = seg.state === 'approved' ? 'bg-green-100 text-green-800 border-green-300' : 'bg-amber-100 text-amber-800 border-amber-300';
+                      // 12 Oct 2026: a doctor's diary blocks show too — a whole
+                      // blocked day as a red bar, a part day as a half-height
+                      // marker in the top (morning) or bottom (afternoon) half.
+                      if (seg.state === 'blocked-part') {
+                        const pos = seg.part === 'pm' ? 'top-1/2 bottom-0.5' : seg.part === 'am' ? 'top-0.5 bottom-1/2' : 'top-1.5 bottom-1.5';
+                        return (
+                          <div key={i} className={`absolute ${pos} rounded-sm bg-red-200 border border-red-300`}
+                            style={{ left: `${left}%`, width: `${width}%` }} title={`${seg.label} · ${shortDay(seg.from)} · diary`} />
+                        );
+                      }
+                      const cls = seg.state === 'approved' ? 'bg-green-100 text-green-800 border-green-300'
+                        : seg.state === 'blocked' ? 'bg-red-50 text-red-700 border-red-200'
+                          : 'bg-amber-100 text-amber-800 border-amber-300';
+                      const stateText = seg.state === 'blocked' ? "doctor's diary" : seg.state;
                       return (
                         <div key={i} className={`absolute top-0.5 bottom-0.5 rounded border px-1 text-[10px] leading-5 overflow-hidden whitespace-nowrap ${cls}`}
-                          style={{ left: `${left}%`, width: `${width}%` }} title={`${seg.label} · ${shortDay(seg.from)}–${shortDay(seg.to)} · ${seg.state}`}>
+                          style={{ left: `${left}%`, width: `${width}%` }} title={`${seg.label} · ${shortDay(seg.from)}–${shortDay(seg.to)} · ${stateText}`}>
                           {seg.label}
                         </div>
                       );
@@ -153,6 +166,8 @@ const TeamCalendar = () => {
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500 mt-3">
             <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-green-100 border border-green-300" /> Approved</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-amber-100 border border-amber-300" /> Pending</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-red-50 border border-red-200" /> Doctor's diary blocked</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-1.5 rounded-sm bg-red-200 border border-red-300" /> Part day blocked (top half morning)</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-gray-100" /> Holiday (H)</span>
             <span>Weekend hatched.</span>
             {!data.manage && <span>Some leave shows as “Away” — the type is private.</span>}

@@ -27,6 +27,7 @@ const leaveService = {
   createHoliday:  (body)             => api.post('/leave/holidays', body),
   updateHoliday:  (id, body)         => api.patch(`/leave/holidays/${id}`, body),
   setObserveSunday: (on)             => api.put('/leave/holidays/observe-sunday', { on }),
+  setDoctorLeaveMode: (mode)         => api.put('/leave/doctor-leave-mode', { mode }),
 
   // --- the leave register (HR Tier 2, leave.manage) — server-made .csv ---
   downloadRegister: async (year) => {

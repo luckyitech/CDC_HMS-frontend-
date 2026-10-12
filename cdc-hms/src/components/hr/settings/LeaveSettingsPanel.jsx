@@ -163,6 +163,14 @@ const LeaveSettingsPanel = ({ tab, subTabs }) => {
   useEffect(() => { if (canLeaveTabs) loadYears(); else setThisYear(new Date().getFullYear()); }, [canLeaveTabs, loadYears]);
   useEffect(() => { if (canPolicy && tab === 'policy') loadView(); }, [canPolicy, tab, loadView]);
 
+  const saveDoctorMode = async (mode) => {
+    try {
+      const res = await leaveService.setDoctorLeaveMode(mode);
+      setView((v) => ({ ...v, doctorLeaveMode: res?.data?.doctorLeaveMode || mode }));
+      notify('success', mode === 'record' ? 'Doctors now record their own leave.' : 'Doctors now apply for leave.');
+    } catch (e) { notify('error', e?.message || 'Could not save the setting'); }
+  };
+
   const dirty = form && JSON.stringify(form) !== saved;
   const edit = view?.editability || {};
   const locked = !edit.canEdit;
@@ -364,6 +372,22 @@ const LeaveSettingsPanel = ({ tab, subTabs }) => {
                   </Field>
                 </div>
                 <SwitchRow label="Block a doctor's appointment slots when their leave is approved" checked={form.blockDoctorSlots} disabled={locked} onChange={(v) => setF('blockDoctorSlots', v)} />
+              </div>
+            </Section>
+
+            {/* 12 Oct 2026 — clinic-wide, not part of the year's policy: saves at once. */}
+            <Section title="How doctors take leave">
+              <div className="flex flex-col gap-2 text-sm">
+                {[
+                  ['apply', 'They apply, and someone approves it', 'Through My leave, like everyone else.'],
+                  ['record', 'They record their own leave', 'In Block time on their schedule: pick whole days, tick “This is leave”. Approved at once, taken from their balance, diary blocked; HR is told.'],
+                ].map(([mode, label, hint]) => (
+                  <label key={mode} className="flex items-start gap-2">
+                    <input type="radio" name="doctorLeaveMode" className="mt-1 h-4 w-4" checked={(view.doctorLeaveMode || 'apply') === mode}
+                      onChange={() => saveDoctorMode(mode)} />
+                    <span><span className="font-semibold text-gray-800">{label}</span> <span className="text-gray-500">— {hint}</span></span>
+                  </label>
+                ))}
               </div>
             </Section>
 
