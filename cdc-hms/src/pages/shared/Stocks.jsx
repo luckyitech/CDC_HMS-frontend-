@@ -7,6 +7,7 @@ import StockDispenseTab from "../../components/stock/StockDispenseTab";
 import StockReturnTab from "../../components/stock/StockReturnTab";
 import StockMoveTab from "../../components/stock/StockMoveTab";
 import StockMovementsTab from "../../components/stock/StockMovementsTab";
+import StockDeliveriesTab from "../../components/stock/StockDeliveriesTab";
 import StockRoomBalanceTab from "../../components/stock/StockRoomBalanceTab";
 import StockStocktakeTab from "../../components/stock/StockStocktakeTab";
 import StockAnalyticsTab from "../../components/stock/StockAnalyticsTab";
@@ -22,6 +23,20 @@ import SwitcherTabs from "../../components/shared/SwitcherTabs";
 // it to admins and to staff/doctors granted canManageStock; the API enforces the
 // same server-side. Quantities only — no money anywhere.
 
+// Movements has two views (12 Oct 2026): the ledger, and Deliveries — each
+// supplier invoice / receipt with its items and its scan, for auditing.
+const MovementsPanel = () => {
+  const [view, setView] = useState("ledger");
+  return (
+    <div>
+      <SwitcherTabs size="sm" className="mb-4" ariaLabel="Movements views" idPrefix="stock-mv"
+        tabs={[{ id: "ledger", label: "Movements" }, { id: "deliveries", label: "Deliveries" }]}
+        active={view} onChange={setView} />
+      {view === "ledger" ? <StockMovementsTab /> : <StockDeliveriesTab />}
+    </div>
+  );
+};
+
 const TABS = [
   { id: "items", label: "Items", el: <StockItemsTab /> },
   { id: "receive", label: "Receive", el: <StockReceiveTab /> },
@@ -31,7 +46,7 @@ const TABS = [
   { id: "transfer", label: "Transfer", el: <StockMoveTab mode="transfer" /> },
   { id: "rooms", label: "Room Balance", el: <StockRoomBalanceTab /> },
   { id: "stocktake", label: "Stocktake", el: <StockStocktakeTab /> },
-  { id: "movements", label: "Movements", el: <StockMovementsTab /> },
+  { id: "movements", label: "Movements", el: <MovementsPanel /> },
   { id: "analytics", label: "Analytics", el: <StockAnalyticsTab /> },
 ];
 
