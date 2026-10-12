@@ -189,7 +189,7 @@ const NeuropathyExam = ({ fixedPatient = null, resumeStudyId = null, embedded = 
   // DOCTOR chooses which to continue. Continue on an In-progress list or a
   // remarks draft names the study (resumeStudyId) and opens it directly;
   // otherwise, with more than one Draft, the exam shows a chooser first.
-  // A resumed exam opens on the first step still to do — "Select spots"
+  // A resumed exam with readings opens on Review & complete — "Select spots"
   // never shows readings, so it looked as if nothing had been saved.
   const [resumed, setResumed] = useState(false);
   const [choices, setChoices] = useState(null);          // Drafts to choose from (>1)
@@ -226,10 +226,9 @@ const NeuropathyExam = ({ fixedPatient = null, resumeStudyId = null, embedded = 
           });
           setReadings(rd);
           setResumed(true);
-          if (n > 0) {
-            const todo = CAPTURE_MODS.find((m) => FEET.some((f) => PROTOCOL_SITES.some((x) => rd[m][f][x] === undefined)));
-            setStep(STEP_IDS.indexOf(todo || 'review'));
-          }
+          // Open on Review & complete: every recorded reading is in view at
+          // once, ready to complete; Back reaches any step still to do.
+          if (n > 0) setStep(STEP_IDS.indexOf('review'));
           notify('success', `Resumed study #${s.id} (started ${s.studyDate || 'earlier'}) — ${n} reading${n === 1 ? '' : 's'} already recorded.`);
         }
         setStudy(s);
