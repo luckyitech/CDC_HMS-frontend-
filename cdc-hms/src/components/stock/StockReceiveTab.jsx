@@ -12,8 +12,8 @@ import ReceiptDocuments from "./ReceiptDocuments";
 // supplier → receiving location → save → print the STK- shelf label.
 // Scanning a retail box's GTIN in the item search selects the matching item.
 //
-// 12 Oct 2026 (Emu): every line names the supplier's INVOICE / RECEIPT number
-// (required); lines received on one document share it, and the document is
+// 12 Oct 2026 (Emu): a line may name the supplier's INVOICE / RECEIPT number
+// (optional); lines received on one document share it, and the document is
 // scanned once (now, or later from Movements → Deliveries — until then it is
 // flagged "No scan yet"). The delivery block stays filled between lines;
 // "New delivery" clears it.
@@ -86,7 +86,6 @@ const StockReceiveTab = () => {
   };
 
   const submit = async () => {
-    if (!form.receiptNo.trim()) return notify("error", "Enter the invoice / receipt number for this delivery");
     if (!form.stockItemId) return notify("error", "Choose an item");
     if (!form.locationId) return notify("error", "Choose a receiving location");
     if (!form.quantity || Number(form.quantity) < 1) return notify("error", "Enter a quantity");
@@ -100,14 +99,14 @@ const StockReceiveTab = () => {
         batchNo: form.batchNo || undefined,
         expiryDate: form.expiryDate || undefined,
         supplierId: form.supplierId ? Number(form.supplierId) : undefined,
-        receiptNo: form.receiptNo.trim(),
+        receiptNo: form.receiptNo.trim() || undefined,
         receiptKind: form.receiptKind,
       });
       if (res.success) {
         const { batch, item, receipt: r } = res.data;
         notify("success", `Received ${form.quantity} × ${item.name} — label ${batch.labelCode}`);
         setReceived((prev) => [{ ...batch, itemName: item.name, receiptNo: r?.number }, ...prev]);
-        setReceipt((prev) => ({ ...(prev || {}), id: r.id, number: r.number, kind: r.kind, documents: prev?.documents || [], itemCount: (prev?.itemCount || 0) + 1 }));
+        if (r) setReceipt((prev) => ({ ...(prev || {}), id: r.id, number: r.number, kind: r.kind, documents: prev?.documents || [], itemCount: (prev?.itemCount || 0) + 1 }));
         printStockBatchLabel({
           labelCode: batch.labelCode,
           itemName: item.name,
@@ -151,7 +150,7 @@ const StockReceiveTab = () => {
               </select>
             </Field>
           </div>
-          <Field label={`${KIND_LABEL[form.receiptKind]} number`} hint="required — several items can share one number">
+          <Field label={`${KIND_LABEL[form.receiptKind]} number`} hint="optional — several items can share one number; enter it to attach a scan">
             <input className={inputCls} value={form.receiptNo} onChange={(e) => set("receiptNo", e.target.value)} placeholder="e.g. INV-20431" />
           </Field>
           {receipt?.itemCount > 0 && (
