@@ -117,13 +117,13 @@ const PartialSlotView = ({ slot, date, doctorName, doctorId, onBooked, onClose, 
 };
 
 // ── Blocked slot view (doctor only) ──────────────────────────────────────────
-const BlockedSlotView = ({ slot, date, onUnblocked, onClose }) => {
+const BlockedSlotView = ({ slot, date, doctorId, onUnblocked, onClose }) => {
   const [unblocking, setUnblocking] = useState(false);
 
   const handleUnblock = async () => {
     setUnblocking(true);
     try {
-      await doctorBlockService.unblock(date, slot.time);
+      await doctorBlockService.unblock(date, slot.time, doctorId);
       toast.success(`Slot ${slot.time} is now available for booking`);
       onUnblocked();
       onClose();
@@ -187,7 +187,7 @@ const FreeSlotChoiceView = ({ slot, date, doctorName, doctorId, onBooked, onBloc
   const handleBlock = async () => {
     setBlocking(true);
     try {
-      await doctorBlockService.block(date, slot.time, blockReason.trim() || undefined);
+      await doctorBlockService.block(date, slot.time, blockReason.trim() || undefined, doctorId);
       toast.success(`Slot ${slot.time} has been blocked`);
       onBlocked();
       onClose();
@@ -404,8 +404,9 @@ const NewBookingForm = ({ slot, doctorId, doctorName, date, onBooked, onClose, o
 };
 
 // ── Main modal ────────────────────────────────────────────────────────────────
-// canManageBlocks = true for doctor's My Schedule (can block/unblock)
-// canManageBlocks = false for staff (free slots go straight to booking form)
+// canManageBlocks = true for the doctor's My Schedule, and for staff holding
+// calendar.block on Book Appointment (12 Oct 2026) — can block/unblock;
+// false otherwise (free slots go straight to the booking form).
 const BookingModal = ({ slot, doctorId, doctorName, date, onBooked, onClose, canManageBlocks = false }) => {
   if (!slot) return null;
 
@@ -433,6 +434,7 @@ const BookingModal = ({ slot, doctorId, doctorName, date, onBooked, onClose, can
             <BlockedSlotView
               slot={slot}
               date={date}
+              doctorId={doctorId}
               onUnblocked={onBooked}
               onClose={onClose}
             />

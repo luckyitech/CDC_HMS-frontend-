@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { useUserContext } from '../../contexts/UserContext';
 import useSlots from '../../hooks/useSlots';
 import DoctorSelector from '../../components/appointments/DoctorSelector';
 import SlotGrid from '../../components/appointments/SlotGrid';
 import BookingModal from '../../components/appointments/BookingModal';
 import PageHeader from '../../components/shared/PageHeader';
+import WeekBlockPlanner from '../../components/appointments/WeekBlockPlanner';
+import { hasPermission, PERMISSIONS } from '../../utils/permissions';
 
 const toDateString = (date) => {
   const y = date.getFullYear();
@@ -20,7 +22,11 @@ const formatDisplayDate = (dateStr) =>
   });
 
 const BookAppointment = () => {
-  const { getDoctors } = useUserContext();
+  const { getDoctors, currentUser } = useUserContext();
+  // 12 Oct 2026: staff granted calendar.block manage the chosen doctor's
+  // diary here — block / unblock slots, days or recurring periods.
+  const canBlock = hasPermission(currentUser, PERMISSIONS.CALENDAR_BLOCK);
+  const [showBlockModal, setShowBlockModal] = useState(false);
   const [doctorId, setDoctorId] = useState('');
   const [date, setDate]         = useState(toDateString(new Date()));
   const [activeSlot, setActiveSlot] = useState(null);
@@ -78,6 +84,15 @@ const BookAppointment = () => {
         {doctorId && date && (
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <p className="text-sm font-semibold text-gray-700">{formatDisplayDate(date)}</p>
+            {canBlock && (
+              <button
+                type="button"
+                onClick={() => setShowBlockModal(true)}
+                className="sm:order-last inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50"
+              >
+                <Lock className="w-3.5 h-3.5" /> Block time
+              </button>
+            )}
             {slots.length > 0 && (
               <div className="flex items-center gap-3 text-xs">
                 <span className="flex items-center gap-1.5">
@@ -98,6 +113,7 @@ const BookAppointment = () => {
           loading={loading}
           error={error}
           onSlotClick={setActiveSlot}
+          canManageBlocks={canBlock}
         />
 
         {/* Legend */}
@@ -107,6 +123,7 @@ const BookAppointment = () => {
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-100 border border-blue-300 inline-block" /> Scheduled</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300 inline-block" /> Checked In</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-300 inline-block" /> Completed</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-100 border border-red-300 inline-block" /> Blocked</span>
           </div>
         )}
       </div>
@@ -119,7 +136,17 @@ const BookAppointment = () => {
         date={date}
         onBooked={refreshSlots}
         onClose={() => setActiveSlot(null)}
+        canManageBlocks={canBlock}
       />
+
+      {showBlockModal && doctorId && (
+        <WeekBlockPlanner
+          doctorId={doctorId}
+          doctorName={doctorName}
+          onClose={() => setShowBlockModal(false)}
+          onDone={refreshSlots}
+        />
+      )}
     </div>
   );
 };

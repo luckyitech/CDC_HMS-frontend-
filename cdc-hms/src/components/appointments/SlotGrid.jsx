@@ -10,7 +10,8 @@ const STATUS_LABELS = {
   full:         'Full (2/2)',
 };
 
-// canManageBlocks = true on doctor's MySchedule — allows clicking blocked slots to unblock
+// canManageBlocks = true on the doctor's My Schedule, and on Book Appointment for
+// staff holding calendar.block — allows clicking blocked slots to unblock
 const SlotGrid = ({ slots, loading, error, onSlotClick, canManageBlocks = false }) => {
   if (loading) {
     return (

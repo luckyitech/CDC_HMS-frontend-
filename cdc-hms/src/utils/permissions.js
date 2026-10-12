@@ -39,6 +39,7 @@ export const PERMISSIONS = {
   QUEUE_WRITE:        'queue.write',
   APPOINTMENTS_VIEW:  'appointments.view',
   APPOINTMENTS_WRITE: 'appointments.write',
+  CALENDAR_BLOCK:     'calendar.block',   // block/unblock ANY doctor's diary (12 Oct 2026)
   DOCUMENTS_WRITE:    'documents.write',
 
   INPATIENT_ACCESS: 'inpatient.access',

@@ -4,7 +4,7 @@ import { useUserContext } from '../../contexts/UserContext';
 import useSlots from '../../hooks/useSlots';
 import SlotGrid from '../../components/appointments/SlotGrid';
 import BookingModal from '../../components/appointments/BookingModal';
-import BlockAvailabilityModal from '../../components/appointments/BlockAvailabilityModal';
+import WeekBlockPlanner from '../../components/appointments/WeekBlockPlanner';
 import PageHeader from '../../components/shared/PageHeader';
 
 const toDateString = (date) => {
@@ -52,7 +52,7 @@ const MySchedule = () => {
             className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors"
           >
             <Lock className="w-4 h-4" />
-            Block Availability
+            Block time
           </button>
         )}
       />
@@ -139,7 +139,8 @@ const MySchedule = () => {
 
       {/* Block availability modal */}
       {showBlockModal && (
-        <BlockAvailabilityModal
+        <WeekBlockPlanner
+          doctorId={doctorId}
           onClose={() => setShowBlockModal(false)}
           onDone={refreshSlots}
         />
