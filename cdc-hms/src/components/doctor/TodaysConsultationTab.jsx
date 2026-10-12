@@ -62,6 +62,7 @@ import { useDraftContext } from "../../contexts/DraftContext";
 import { draftKey } from "../../constants/draftForms";
 import { DraftStatus, DraftRestoreBanner, DraftDot } from "../shared/DraftStatus";
 import DraftChecklistModal from "../shared/DraftChecklistModal";
+import BillOnFile from "../shared/BillOnFile";
 
 // ---------------------------------------------------------------------------
 // Modules of Today's Consultation (10 Oct 2026, plan M1–M9)
@@ -268,6 +269,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   const [billingContext, setBillingContext]         = useState(null);
   const [billingQueueItem, setBillingQueueItem]     = useState(null);
   const [selectedCharges, setSelectedCharges]       = useState([]);
+  const [billOnFileCount, setBillOnFileCount]       = useState(0);
   const [selectedProcedures, setSelectedProcedures] = useState([]);
   const [billingSubmitting, setBillingSubmitting]   = useState(false);
   // When set, the patient goes back to the nurse for their injection instead of
@@ -569,7 +571,8 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
   // Nothing ticked means nothing to bill. 'No Charge' and 'Free Review' are
   // themselves options, so an empty selection is an omission rather than a
   // deliberate zero — applies to the injection route too.
-  const hasBillingSelection = selectedCharges.length > 0 || selectedProcedures.length > 0;
+  // Lines already on the bill (nurse, an earlier doctor) count too (12 Oct 2026).
+  const hasBillingSelection = selectedCharges.length > 0 || selectedProcedures.length > 0 || billOnFileCount > 0;
 
   const handleBillingSubmit = async () => {
     const queueItem = billingQueueItem;
@@ -973,6 +976,16 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
             </div>
 
             <div className="overflow-y-auto flex-1 px-6 py-4 space-y-6">
+              {/* What earlier stages put on the bill, and who (12 Oct 2026) —
+                  the nurse's HbA1c shows here; ticking it again is harmless. */}
+              {billingQueueItem?.id && (
+                <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Already on the bill</h3>
+                  <BillOnFile queueId={billingQueueItem.id} canRemove pending={[...selectedCharges, ...selectedProcedures]}
+                    onChanged={(b) => setBillOnFileCount((b?.lines || []).length)} />
+                </div>
+              )}
+
               {/* Charges */}
               <div>
                 <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3 pb-1 border-b">Charges</h3>

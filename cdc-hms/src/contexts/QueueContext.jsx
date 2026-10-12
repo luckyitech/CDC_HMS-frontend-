@@ -269,20 +269,17 @@ export const QueueProvider = ({ children }) => {
   };
 
   // Doctor completes consultation — sends charges checklist and moves to Pending Billing.
-  // Merges with any charges already on the queue entry so that internal referral chains
-  // (Doctor A → Doctor B) accumulate all charges rather than the last doctor overwriting.
+  // 12 Oct 2026: only the NEW lines are sent; the server ADDS them to the visit's
+  // bill with who added them (utils/visitCharges). Merging here from local state
+  // could re-add a line another stage had just taken off, or miss one it had
+  // just added.
   const sendToBilling = async (queueId, selectedCharges, selectedProcedures, doctorNotes = null) => {
     setLoading(true);
     try {
-      // Pull existing charges from local state (set by any prior referring doctor)
-      const currentItem = queue.find(q => q.id === queueId);
-      const mergedCharges    = [...new Set([...(currentItem?.selectedCharges    || []), ...selectedCharges])];
-      const mergedProcedures = [...new Set([...(currentItem?.selectedProcedures || []), ...selectedProcedures])];
-
       const payload = {
         status:            'Pending Billing',
-        selectedCharges:    mergedCharges,
-        selectedProcedures: mergedProcedures,
+        selectedCharges:    selectedCharges || [],
+        selectedProcedures: selectedProcedures || [],
       };
       if (doctorNotes) payload.doctorNotes = doctorNotes;
 
@@ -314,11 +311,8 @@ export const QueueProvider = ({ children }) => {
   const addChargesToVisit = async (queueId, selectedCharges = [], selectedProcedures = []) => {
     setLoading(true);
     try {
-      const currentItem = queue.find(q => q.id === queueId);
-      const payload = {
-        selectedCharges:    [...new Set([...(currentItem?.selectedCharges    || []), ...selectedCharges])],
-        selectedProcedures: [...new Set([...(currentItem?.selectedProcedures || []), ...selectedProcedures])],
-      };
+      // Only the new lines — the server adds them (see sendToBilling).
+      const payload = { selectedCharges, selectedProcedures };
       const response = await queueService.update(queueId, payload);
       if (response.success) {
         setQueue(prev =>

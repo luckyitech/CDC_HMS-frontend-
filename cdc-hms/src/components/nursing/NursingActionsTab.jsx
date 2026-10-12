@@ -271,15 +271,17 @@ const NursingActionsTab = ({ patient, onRefresh = () => {}, onDone = () => {} })
           procedureOptions={NURSE_PROCEDURE_OPTIONS}
           existingCharges={triageQueueItem.selectedCharges || []}
           existingProcedures={triageQueueItem.selectedProcedures || []}
+          queueId={triageQueueItem.id}
           onSubmit={async ({ charges, procedures }) => {
             if (billingMode === "sendToDoctor") {
               // One atomic update: nurse's charges merged onto whatever is already
               // on the visit, doctor assigned, status → Awaiting Doctor. The
               // doctor's Complete Consultation and reception's checkout both merge
               // onto selectedCharges too, so the bill keeps building.
+              // Only the new lines: the server adds them to the bill (12 Oct 2026).
               const result = await updateQueueStatus(triageQueueItem.id, "Awaiting Doctor", pendingDoctor.doctorId, {
-                selectedCharges: [...new Set([...(triageQueueItem.selectedCharges || []), ...charges])],
-                selectedProcedures: [...new Set([...(triageQueueItem.selectedProcedures || []), ...procedures])],
+                selectedCharges: charges,
+                selectedProcedures: procedures,
               });
               if (result?.success === false) { toast.error(result.message || "Could not send to doctor"); return; }
               toast.success(`${patient?.name} sent to ${pendingDoctor.doctorName}`);
