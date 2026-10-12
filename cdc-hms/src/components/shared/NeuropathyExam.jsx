@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, User, X, Loader2, Usb, Zap, Thermometer, Snowflake, Footprints, CheckCircle2, Check, Plug, PlugZap, ChevronDown } from 'lucide-react';
+import { Search, User, X, Loader2, Usb, Zap, Thermometer, Snowflake, Footprints, CheckCircle2, Check, Plug, PlugZap, ChevronDown, CloudOff, Play } from 'lucide-react';
 import patientService from '../../services/patientService';
 import neuropathyService from '../../services/neuropathyService';
 import prescriptionService from '../../services/prescriptionService';
 import SummaryDock from './SummaryDock';
 import ConsultationSummaryContainer from '../doctor/ConsultationSummaryContainer';
 import { notify } from '../../utils/notify';
+import { useUserContext } from '../../contexts/UserContext';
+import { canAccessAdmin } from '../../utils/permissions';
+import Modal from './Modal';
 import { connectVibrotherm, isWebSerialSupported } from '../../utils/vibrothermSerial';
 import NeuropathyFootMap from './NeuropathyFootMap';
 import NeuropathyActions from './NeuropathyActions';
@@ -114,10 +117,11 @@ const PatientPicker = ({ onPick }) => {
 /**
  * Props:
  *   fixedPatient — { uhid, name, age?, gender? } to skip the picker (patient file)
+ *   resumeStudyId — Continue THIS Draft study (In-progress list / a remarks draft)
  *   onCompleted  — (study) => void — called with the graded, locked study
  *   onCancelled  — () => void
  */
-const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: overviewOpenProp, onCompleted, onCancelled }) => {
+const NeuropathyExam = ({ fixedPatient = null, resumeStudyId = null, embedded = false, overviewOpen: overviewOpenProp, onCompleted, onCancelled }) => {
   const [patient, setPatient] = useState(fixedPatient);
   const [meds, setMeds] = useState([]);
   const [overviewOpenState, setOverviewOpen] = useState(false);
@@ -130,7 +134,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   const [modality, setModality] = useState('MONO');    // current capture modality (driven by the step)
   const [active, setActive] = useState(null);          // { foot, site } | null
   const [readings, setReadings] = useState(emptyReadings);
-  const [saving, setSaving] = useState(false);
 
   const [remarks, setRemarks] = useState('');
   const [completing, setCompleting] = useState(false);
@@ -181,12 +184,37 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   // the server hands back the open study with its readings instead of
   // starting a new one, so nothing recorded is lost and the exam can be
   // completed from any portal.
+  // 12 Oct 2026 — WHICH Draft. A patient can hold several (an empty one
+  // opened on a later visit, old duplicates); every Draft is kept and the
+  // DOCTOR chooses which to continue. Continue on an In-progress list or a
+  // remarks draft names the study (resumeStudyId) and opens it directly;
+  // otherwise, with more than one Draft, the exam shows a chooser first.
+  // A resumed exam opens on the first step still to do — "Select spots"
+  // never shows readings, so it looked as if nothing had been saved.
   const [resumed, setResumed] = useState(false);
+  const [choices, setChoices] = useState(null);          // Drafts to choose from (>1)
+  const [chosenId, setChosenId] = useState(resumeStudyId);
   useEffect(() => {
-    if (!patient || study || creating) return;
+    if (!patient || study || creating || choices) return;
     setCreating(true);
-    neuropathyService.create(patient.uhid)
+    const start = async () => {
+      if (!chosenId) {
+        const list = await neuropathyService.getByPatient(patient.uhid, { status: 'Draft' })
+          .then((r) => r.data?.data || r.data || []).catch(() => []);
+        if (Array.isArray(list) && list.length > 1) { setChoices(list); return null; }
+      }
+      try {
+        return await neuropathyService.create(patient.uhid, chosenId ? { studyId: chosenId } : {});
+      } catch (err) {
+        if (!chosenId || err.response?.status !== 409) throw err;
+        notify('error', err.response.data?.message || 'That study is no longer in progress.');
+        setChosenId(null);          // the effect runs again → chooser / resume / new
+        return null;
+      }
+    };
+    start()
       .then((res) => {
+        if (!res) return;
         const s = res.data.data || res.data;
         if (s?.resumed && Array.isArray(s.readings)) {
           const rd = emptyReadings();
@@ -198,6 +226,10 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
           });
           setReadings(rd);
           setResumed(true);
+          if (n > 0) {
+            const todo = CAPTURE_MODS.find((m) => FEET.some((f) => PROTOCOL_SITES.some((x) => rd[m][f][x] === undefined)));
+            setStep(STEP_IDS.indexOf(todo || 'review'));
+          }
           notify('success', `Resumed study #${s.id} (started ${s.studyDate || 'earlier'}) — ${n} reading${n === 1 ? '' : 's'} already recorded.`);
         }
         setStudy(s);
@@ -207,7 +239,8 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
         if (!fixedPatient) setPatient(null);
       })
       .finally(() => setCreating(false));
-  }, [patient, study, creating, fixedPatient]);
+  }, [patient, study, creating, choices, chosenId, fixedPatient]);
+  const chooseDraft = (id) => { setChosenId(id); setChoices(null); };
 
   useEffect(() => {
     if (!patient?.uhid) return undefined;
@@ -254,18 +287,62 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
   };
   const disconnectProbe = async () => { await linkRef.current?.disconnect?.(); linkRef.current = null; setLive(null); };
 
-  // ---- persisting a reading ----
-  const persist = useCallback(async (foot, site, mod, value, omitted = false) => {
-    if (!study) return;
-    setSaving(true);
+  // ---- persisting a reading — autosaved the moment it is entered ----
+  // Every reading goes to the server as soon as it is filed (REC, typed or a
+  // monofilament tap) — never per wizard step. 12 Oct 2026: nothing can be
+  // dropped any more. A reading taken before the study is ready, or while the
+  // connection is down, waits in a queue and is retried every few seconds;
+  // the status line says "All readings saved" only when the server has them,
+  // and Complete (or leaving the page) is held while any are unsaved.
+  const pendingRef = useRef(new Map());     // `${foot}|${site}|${mod}` → reading
+  const flushingRef = useRef(false);
+  const [unsaved, setUnsaved] = useState(0);
+  const [saveError, setSaveError] = useState(null);   // null | message
+  const [savedAt, setSavedAt] = useState(null);
+  const flush = useCallback(async () => {
+    if (!study || flushingRef.current || !pendingRef.current.size) return;
+    flushingRef.current = true;
+    const batch = [...pendingRef.current.entries()];
     try {
-      await neuropathyService.saveReadings(study.id, [{ foot, site, modality: mod, value, omitted }]);
+      await neuropathyService.saveReadings(study.id, batch.map(([, r]) => r));
+      batch.forEach(([k, r]) => { if (pendingRef.current.get(k) === r) pendingRef.current.delete(k); });
+      setSaveError(null);
+      setSavedAt(new Date());
     } catch (err) {
-      notify('error', err.response?.data?.message || 'Reading not saved — check the connection and try again.');
+      const status = err.response?.status;
+      const msg = err.response?.data?.message || 'Connection problem — readings kept on this screen and retrying.';
+      if (status && status < 500 && status !== 408 && status !== 429) {
+        // The server refused these readings (study locked, value invalid) —
+        // retrying cannot help; say so plainly and stop.
+        batch.forEach(([k, r]) => { if (pendingRef.current.get(k) === r) pendingRef.current.delete(k); });
+        notify('error', `Reading not saved: ${msg}`);
+      } else {
+        setSaveError((prev) => { if (!prev) notify('error', 'Reading not saved yet — retrying automatically. Keep this screen open.'); return msg; });
+      }
     } finally {
-      setSaving(false);
+      flushingRef.current = false;
+      setUnsaved(pendingRef.current.size);
     }
   }, [study]);
+  // Save anything queued as soon as the study is ready; retry while unsaved.
+  useEffect(() => { flush(); }, [flush]);
+  useEffect(() => {
+    if (!unsaved) return undefined;
+    const id = setInterval(() => { flush(); }, saveError ? 5000 : 800);
+    return () => clearInterval(id);
+  }, [unsaved, saveError, flush]);
+  useEffect(() => {
+    if (!unsaved) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [unsaved]);
+
+  const persist = (foot, site, mod, value, omitted = false) => {
+    pendingRef.current.set(`${foot}|${site}|${mod}`, { foot, site, modality: mod, value, omitted });
+    setUnsaved(pendingRef.current.size);
+    flush();
+  };
 
   const record = (foot, site, mod, value) => {
     setReadings((prev) => ({ ...prev, [mod]: { ...prev[mod], [foot]: { ...prev[mod][foot], [site]: value } } }));
@@ -361,19 +438,51 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
 
   const complete = async () => {
     if (!study || !anyReading) { notify('error', 'Record at least one reading before completing.'); return; }
+    if (pendingRef.current.size) {
+      await flush();
+      if (pendingRef.current.size) { notify('error', 'Some readings are not saved yet — wait for “All readings saved”, then complete.'); return; }
+    }
     setCompleting(true);
     try {
       const res = await neuropathyService.complete(study.id, { remarks: remarks || undefined });
       await disconnectProbe();
       notify('success', 'Study graded and saved to the patient’s record.');
       remarksDraft.markSaved();
-      onCompleted?.(res.data.data || res.data);
+      const done = res.data.data || res.data;
+      // Other Drafts for this patient stay until the doctor decides (12 Oct
+      // 2026): offer to withdraw them now that this study is saved.
+      const others = canWithdraw
+        ? await neuropathyService.getByPatient(patient.uhid, { status: 'Draft' })
+          .then((r) => r.data?.data || r.data || []).catch(() => [])
+        : [];
+      if (Array.isArray(others) && others.length) setLeftover({ done, list: others });
+      else onCompleted?.(done);
     } catch (err) {
       notify('error', err.response?.data?.message || 'Could not complete the study.');
     } finally {
       setCompleting(false);
     }
   };
+
+  // ---- after completing: the patient's other in-progress studies ----
+  const { currentUser } = useUserContext();
+  const canWithdraw = currentUser?.role === 'doctor' || canAccessAdmin(currentUser);
+  const [leftover, setLeftover] = useState(null);     // { done, list } | null
+  const [withdrawing, setWithdrawing] = useState(null);
+  const withdrawDrafts = async (ids) => {
+    setWithdrawing(ids.length > 1 ? 'all' : ids[0]);
+    let failed = 0;
+    for (const id of ids) {
+      try { await neuropathyService.cancel(id, `Superseded — study #${leftover.done.id} completed`); }
+      catch { failed += 1; }
+    }
+    setWithdrawing(null);
+    if (failed) notify('error', `${failed} stud${failed === 1 ? 'y' : 'ies'} could not be withdrawn.`);
+    const left = leftover.list.filter((d) => !ids.includes(d.id));
+    if (left.length && failed !== ids.length) setLeftover({ ...leftover, list: left });
+    if (!left.length) { const d = leftover.done; setLeftover(null); onCompleted?.(d); }
+  };
+  const closeLeftover = () => { const d = leftover.done; setLeftover(null); onCompleted?.(d); };
 
   const discard = async () => {
     if (study) {
@@ -388,6 +497,32 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
 
   // ---------------------------------------------------------------- render
   if (!patient) return <PatientPicker onPick={setPatient} />;
+  if (choices) {
+    return (
+      <div className="ui-surface p-5">
+        <p className="text-xs font-semibold tracking-wider uppercase text-amber-700">In progress</p>
+        <h3 className="text-base font-semibold text-gray-800">{patient.name} has {choices.length} neuropathy studies that were never completed</h3>
+        <p className="text-sm text-gray-500 mt-1 mb-3">Choose the one to continue. Nothing is withdrawn — once this study is complete you can decide what to do with the others.</p>
+        <ul className="border border-gray-200 rounded-lg divide-y">
+          {choices.map((d) => (
+            <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-sm">
+              <span className="font-semibold text-gray-800">Study #{d.id}</span>
+              <span className="text-xs text-gray-500">
+                started {d.createdAt ? new Date(d.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : d.studyDate}
+                {d.performedByName ? ` · ${d.performedByName}` : ''}
+              </span>
+              <span className={`text-xs font-semibold ${d.readingsCount ? 'text-green-700' : 'text-gray-400'}`}>
+                {d.readingsCount || 0} reading{d.readingsCount === 1 ? '' : 's'} recorded
+              </span>
+              <button type="button" onClick={() => chooseDraft(d.id)} className="ml-auto inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-blue-700">
+                <Play className="w-3 h-3" /> Continue
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   const connected = device.status === 'connected';
   void nowTick;
@@ -451,6 +586,33 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
 
   return (
     <div className="space-y-4">
+      <Modal isOpen={!!leftover} onClose={closeLeftover} title="Other studies still in progress" size="lg">
+        {leftover && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">Study #{leftover.done.id} is complete and saved. {patient.name} still has {leftover.list.length === 1 ? 'one other study' : `${leftover.list.length} other studies`} in progress. Withdraw the ones not needed, or keep them to continue later.</p>
+            <ul className="border border-gray-200 rounded-lg divide-y">
+              {leftover.list.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+                  <span className="font-semibold text-gray-800">Study #{d.id}</span>
+                  <span className="text-xs text-gray-500">started {d.createdAt ? new Date(d.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : d.studyDate}</span>
+                  <span className={`text-xs font-semibold ${d.readingsCount ? 'text-amber-700' : 'text-gray-400'}`}>{d.readingsCount || 0} reading{d.readingsCount === 1 ? '' : 's'}</span>
+                  <button type="button" disabled={!!withdrawing} onClick={() => withdrawDrafts([d.id])} className="ml-auto text-xs font-semibold text-gray-500 hover:text-red-600 disabled:opacity-50">
+                    {withdrawing === d.id ? 'Withdrawing…' : 'Withdraw'}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" onClick={closeLeftover} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50">Keep them</button>
+              {leftover.list.length > 1 && (
+                <button type="button" disabled={!!withdrawing} onClick={() => withdrawDrafts(leftover.list.map((d) => d.id))} className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                  {withdrawing === 'all' ? 'Withdrawing…' : `Withdraw all ${leftover.list.length}`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
       <SummaryDock
         overviewOpen={overviewOpen}
         xlTop={embedded ? undefined : "xl:top-[9.5rem] xl:max-h-[calc(100dvh-11rem)]"}
@@ -512,6 +674,18 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
         )}
 
         <div className="mt-3">
+          {study && (
+            <div className="flex justify-end mb-1.5 text-xs">
+              {unsaved > 0 ? (
+                <span className={`inline-flex items-center gap-1 font-semibold ${saveError ? 'text-red-600' : 'text-gray-500'}`}>
+                  {saveError ? <CloudOff className="w-3.5 h-3.5" /> : <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {saveError ? `${unsaved} reading${unsaved === 1 ? '' : 's'} not saved yet — retrying` : 'Saving…'}
+                </span>
+              ) : savedAt ? (
+                <span className="inline-flex items-center gap-1 text-green-700"><Check className="w-3.5 h-3.5" /> All readings saved · {savedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+              ) : null}
+            </div>
+          )}
           {/* ---- step rail ---- */}
           <div className="flex flex-wrap gap-1.5 mb-4">
             {STEP_IDS.map((id, i) => {
@@ -649,7 +823,6 @@ const NeuropathyExam = ({ fixedPatient = null, embedded = false, overviewOpen: o
                 </div>
               </div>
               <StudyFooter />
-              {saving && <p className="text-center text-xs text-gray-400 mt-2 inline-flex items-center gap-1 justify-center w-full"><Loader2 className="w-3 h-3 animate-spin" /> saving…</p>}
               <p className="text-[11px] text-gray-400 mt-2 flex items-start gap-1 justify-center">
                 <Plug className="w-3 h-3 mt-0.5 flex-shrink-0" />
                 The portal commands the probe with the same signals as the vendor app and records what it reads — no firmware change, and the ≥49 °C cut-off stays in hardware.

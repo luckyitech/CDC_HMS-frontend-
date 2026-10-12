@@ -350,6 +350,9 @@ const PatientFile = () => {
   // tab here — even once the queue row is gone — so it can be resumed and
   // completed. Without this the Draft was unreachable from every screen.
   const [hasDraftStudy, setHasDraftStudy] = useState(false);
+  // Which Draft the PNS tab continues (12 Oct 2026) — from Continue on an
+  // In-progress list or a "neuropathy-remarks" draft (contextKey study-<id>).
+  const [pnsStudyId, setPnsStudyId] = useState(location.state?.studyId || null);
   useEffect(() => {
     if (portal !== 'radiology' || !uhid) { setHasDraftStudy(false); return undefined; }
     let live = true;
@@ -418,6 +421,7 @@ const PatientFile = () => {
   // useState's initial value alone is only honoured on a cold mount.
   useEffect(() => {
     if (location.state?.activeTab) selectTab(location.state.activeTab);
+    if (location.state?.studyId) setPnsStudyId(location.state.studyId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]);
   // Guard the active tab: if it isn't currently visible (e.g. Nursing after the
@@ -488,11 +492,13 @@ const PatientFile = () => {
     if (entry.formKey === "recognition-note") setOverviewOpen(true);
     else if (entry.formKey === "glucose-target") selectTab("medical-documents");
     else if (entry.formKey === "neuropathy-remarks") {
+      const studyId = ctxKey.startsWith("study-") ? Number(ctxKey.slice(6)) || null : null;
+      setPnsStudyId(studyId);
       // The exam lives in the Radiology portal's PNS Studio tab. From any
       // other portal, go there (10 Oct 2026 — this used to land on Documents,
       // where the draft could not be continued).
       if (tabs.some((t) => t.id === "pns")) selectTab("pns");
-      else if (canOpenPortal(currentUser, PERMISSIONS.PORTAL_RADIOLOGY)) { navigate(`/radiology/patient-profile/${uhid}`, { state: { activeTab: "pns" } }); return; }
+      else if (canOpenPortal(currentUser, PERMISSIONS.PORTAL_RADIOLOGY)) { navigate(`/radiology/patient-profile/${uhid}`, { state: { activeTab: "pns", studyId } }); return; }
       else { toast.error("Continue this neuropathy exam from the Radiology portal (PNS Studio)."); selectTab("medical-documents"); }
     }
     else if (tabs.some((t) => t.id === "consultation")) selectTab("consultation");
@@ -668,7 +674,7 @@ const PatientFile = () => {
           <TodaysConsultationTab patient={patient} onRefresh={loadPatient} overviewOpen={overviewOpen} />
         )}
         {currentTab === "pns" && (
-          <NeuropathyExam embedded fixedPatient={patient} overviewOpen={overviewOpen} onCompleted={loadPatient} />
+          <NeuropathyExam key={pnsStudyId || "pns"} embedded fixedPatient={patient} resumeStudyId={pnsStudyId} overviewOpen={overviewOpen} onCompleted={loadPatient} />
         )}
         {currentTab === "nursing" && (
           <NursingActionsTab

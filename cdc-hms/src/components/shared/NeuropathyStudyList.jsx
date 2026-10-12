@@ -64,7 +64,7 @@ const NeuropathyStudyList = ({ patient = null, refreshKey = 0, onResume = null }
   const continueStudy = (s) => {
     if (onResume) { onResume(s); return; }
     if (canOpenPortal(currentUser, PERMISSIONS.PORTAL_RADIOLOGY)) {
-      navigate(`/radiology/patient-profile/${s.uhid}`, { state: { activeTab: 'pns' } });
+      navigate(`/radiology/patient-profile/${s.uhid}`, { state: { activeTab: 'pns', studyId: s.id } });
     } else {
       notify('error', 'Continue this exam from the Radiology portal (PNS Studio).');
     }

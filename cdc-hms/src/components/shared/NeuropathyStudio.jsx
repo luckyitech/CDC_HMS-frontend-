@@ -38,7 +38,7 @@ const NeuropathyStudio = () => {
     setResume(null);
   };
   const onResume = (study) => {
-    setResume({ uhid: study.uhid, name: study.patientName || study.uhid });
+    setResume({ uhid: study.uhid, name: study.patientName || study.uhid, studyId: study.id });
     setExamKey((k) => k + 1);
     setTab('exam');
   };
@@ -47,7 +47,7 @@ const NeuropathyStudio = () => {
     <div>
       <SwitcherTabs className="mb-4" tabs={TABS} active={tab} onChange={setTab} />
 
-      {tab === 'exam' && <NeuropathyExam key={examKey} fixedPatient={resume} onCompleted={onCompleted} onCancelled={() => { setResume(null); setExamKey((k) => k + 1); }} />}
+      {tab === 'exam' && <NeuropathyExam key={examKey} fixedPatient={resume} resumeStudyId={resume?.studyId} onCompleted={onCompleted} onCancelled={() => { setResume(null); setExamKey((k) => k + 1); }} />}
       {tab === 'list' && <NeuropathyStudyList refreshKey={refreshKey} onResume={onResume} />}
       {tab === 'analytics' && showAnalytics && <NeuropathyAnalytics />}
 
