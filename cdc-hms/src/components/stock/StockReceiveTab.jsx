@@ -8,6 +8,8 @@ import { Field, inputCls } from "./stockUi";
 import { printStockBatchLabel } from "../../utils/print";
 import ReceiptDocuments from "./ReceiptDocuments";
 import StockHelp from "./StockHelp";
+import SwitcherTabs from "../shared/SwitcherTabs";
+import StockInvoiceReceive from "./StockInvoiceReceive";
 
 // Receive Stock (intake): choose/scan item → batch no, expiry, quantity,
 // supplier → receiving location → save → print the STK- shelf label.
@@ -27,6 +29,11 @@ import StockHelp from "./StockHelp";
 //     the SAME delivery (supplier + document kept) or a NEW delivery.
 //   - "Received today" is read back from the server (intake movements), so a
 //     saved line is visible after a reload and from any computer.
+//
+// 13 Oct 2026 (Emu, evening): two modes — "From an invoice" (photograph the
+// invoice, the HMS reads and matches the lines, staff confirm each, save all,
+// then print labels per item: StockInvoiceReceive) and "One item at a time"
+// (this form, unchanged).
 
 const EMPTY = {
   stockItemId: "", batchNo: "", expiryDate: "", supplierId: "",
@@ -46,9 +53,11 @@ const defaultLabels = (item, quantity) => {
 };
 const todayIso = () => new Date().toLocaleDateString("en-CA");   // YYYY-MM-DD, local
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
+const MODES = [{ id: "invoice", label: "From an invoice" }, { id: "manual", label: "One item at a time" }];
 
 const StockReceiveTab = () => {
   const { items, locations, suppliers } = useStockContext();
+  const [mode, setMode] = useState("invoice");
   const [form, setForm] = useState({ ...EMPTY });
   const [itemSearch, setItemSearch] = useState("");
   const [saving, setSaving] = useState(false);
@@ -180,15 +189,78 @@ const StockReceiveTab = () => {
     }
   };
 
+  const receivedToday = (
+    <div>
+      <h4 className="font-bold text-gray-800 mb-3">Received today</h4>
+      {received.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          Nothing received yet today. Each saved item appears here straight away — reprint a label from here if one is damaged.
+        </p>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 text-sm">
+          {received.map((m) => (
+            <div key={m.id} className="px-4 py-2 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                  <span className="truncate">{m.item?.name}</span>
+                  {m.batch?.receiveMethod === "invoice" && <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1">Invoice</span>}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {new Date(m.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                  {` · ${m.quantity} ${m.item?.unit || "unit"}(s)`}
+                  {m.batch?.labelCode && <> · <span className="font-mono">{m.batch.labelCode}</span></>}
+                  {m.batch?.batchNo && ` · batch ${m.batch.batchNo}`}
+                  {m.toLocation?.name && ` · ${m.toLocation.name}`}
+                  {m.performedByUser && ` · ${m.performedByUser.firstName}`}
+                </p>
+              </div>
+              <button
+                className="text-primary hover:text-blue-800 shrink-0"
+                title="Reprint one label"
+                onClick={() => printStockBatchLabel({
+                  labelCode: m.batch?.labelCode, itemName: m.item?.name,
+                  batchNo: m.batch?.batchNo, expiryDate: m.batch?.expiryDate,
+                })}
+              >
+                <Printer className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const modeBar = (
+    <div className="flex items-center gap-3 mb-4">
+      <PackagePlus className="w-5 h-5 text-primary" />
+      <SwitcherTabs tabs={MODES} active={mode} onChange={setMode} size="sm" ariaLabel="How to receive" />
+      <StockHelp tab="receive" />
+    </div>
+  );
+
+  if (mode === "invoice") {
+    return (
+      <div>
+        {modeBar}
+        {/* "Received today" sits beside the upload step; the review and the
+            label printing take the full width. */}
+        <StockInvoiceReceive onSaved={loadToday} aside={receivedToday} />
+      </div>
+    );
+  }
+
   return (
+    <div>
+    {modeBar}
     <div className="grid lg:grid-cols-2 gap-6">
       <div className="ui-surface p-5">
         <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <PackagePlus className="w-5 h-5 text-primary" /> Receive a delivery
+          Receive a delivery
           {(form.receiptNo || form.supplierId) && (
             <button type="button" onClick={newDelivery} className="ml-auto text-xs font-semibold text-primary hover:underline">New delivery</button>
           )}
-          <StockHelp tab="receive" />
         </h4>
 
         {lastSaved && (
@@ -344,45 +416,8 @@ const StockReceiveTab = () => {
         </Button>
       </div>
 
-      <div>
-        <h4 className="font-bold text-gray-800 mb-3">Received today</h4>
-        {received.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            Nothing received yet today. Each saved item appears here straight away — reprint a label from here if one is damaged.
-          </p>
-        ) : (
-          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 text-sm">
-            {received.map((m) => (
-              <div key={m.id} className="px-4 py-2 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-                    <span className="truncate">{m.item?.name}</span>
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(m.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
-                    {` · ${m.quantity} ${m.item?.unit || "unit"}(s)`}
-                    {m.batch?.labelCode && <> · <span className="font-mono">{m.batch.labelCode}</span></>}
-                    {m.batch?.batchNo && ` · batch ${m.batch.batchNo}`}
-                    {m.toLocation?.name && ` · ${m.toLocation.name}`}
-                    {m.performedByUser && ` · ${m.performedByUser.firstName}`}
-                  </p>
-                </div>
-                <button
-                  className="text-primary hover:text-blue-800 shrink-0"
-                  title="Reprint one label"
-                  onClick={() => printStockBatchLabel({
-                    labelCode: m.batch?.labelCode, itemName: m.item?.name,
-                    batchNo: m.batch?.batchNo, expiryDate: m.batch?.expiryDate,
-                  })}
-                >
-                  <Printer className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {receivedToday}
+    </div>
     </div>
   );
 };

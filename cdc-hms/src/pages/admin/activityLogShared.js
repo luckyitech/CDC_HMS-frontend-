@@ -81,6 +81,7 @@ export const ACTION_STYLE = {
   stock_test_taken:          { color: 'bg-cyan-100 text-cyan-700',       icon: FlaskConical },
   stock_test_settled:        { color: 'bg-cyan-100 text-cyan-700',       icon: CheckCircle },
   stock_levels_rebuilt:      { color: 'bg-amber-100 text-amber-800',     icon: RefreshCcw },
+  stock_invoice_read:        { color: 'bg-emerald-100 text-emerald-700', icon: ScanLine },
 };
 
 export const formatDateTime = (iso) => {

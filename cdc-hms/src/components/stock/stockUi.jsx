@@ -56,6 +56,15 @@ export const Recipient = ({ m, showUhid = false }) => {
   return <span className="text-gray-300">—</span>;
 };
 
+// How a delivery (or one of its lines) was entered (13 Oct 2026): read from
+// the invoice, typed by hand, or both. One badge for Deliveries and the Audit.
+const METHOD_TONE = { invoice: "success", manual: "neutral", mixed: "info" };
+const METHOD_LABEL = { invoice: "From invoice", manual: "Manual", mixed: "Invoice + manual" };
+export const ReceiveMethodBadge = ({ method }) => (method && METHOD_LABEL[method] ? (
+  <StatusBadge shape="tag" size="xs" bordered={false} tone={METHOD_TONE[method]}>{METHOD_LABEL[method]}</StatusBadge>
+) : null);
+export const receiveMethodText = (method) => METHOD_LABEL[method] || "";
+
 // Per-tab Stocks permissions (13 Oct 2026): can(PERMISSIONS.X) for the signed-in
 // user. Hiding a control is UX — every route is gated server-side.
 export const useStockCan = () => {

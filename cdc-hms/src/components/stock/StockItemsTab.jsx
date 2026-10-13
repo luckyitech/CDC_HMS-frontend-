@@ -1,6 +1,6 @@
 import { useState, Fragment } from "react";
 import { notify } from "../../utils/notify";
-import { Plus, Pencil, Snowflake, AlertTriangle, ScanLine, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Snowflake, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
@@ -8,29 +8,17 @@ import Modal from "../shared/Modal";
 import StockHelp from "./StockHelp";
 import SwitcherTabs from "../shared/SwitcherTabs";
 import { Field, inputCls, StatusPill, useStockCan } from "./stockUi";
+import StockItemFields, { EMPTY_ITEM, Toggle } from "./StockItemFields";
 import { PERMISSIONS } from "../../utils/permissions";
 
 // Items, Locations and Suppliers share one tab: three sub-lists over the same
 // cached reference data, one add/edit modal pattern. Retire = status update,
 // never delete (server enforces the same).
 
-const CATEGORIES = ["medication", "consumable", "fluid", "dressing", "sharps", "diagnostic", "other"];
-const UNITS = ["piece", "vial", "bottle", "box", "pack", "ampoule", "sachet", "strip"];
 const LOCATION_KINDS = ["store", "doctor_room", "procedure_room", "triage", "fridge", "office"];
 
-const EMPTY_ITEM = {
-  name: "", category: "consumable", unit: "piece", packSize: 1, gtin: "",
-  requiresColdChain: false, isHighAlert: false, reorderLevel: 0, reorderQuantity: "",
-};
 const EMPTY_LOCATION = { name: "", kind: "store", isColdChain: false, isDispensing: true };
 const EMPTY_SUPPLIER = { name: "", contactPhone: "", contactEmail: "" };
-
-const Toggle = ({ label, checked, onChange }) => (
-  <label className="flex items-center gap-2 text-sm text-gray-700 mb-2 cursor-pointer">
-    <input type="checkbox" checked={!!checked} onChange={(e) => onChange(e.target.checked)} className="w-4 h-4" />
-    {label}
-  </label>
-);
 
 // The strips / cartridges the charge-sheet tests take, matched BY NAME
 // (backend utils/testStock TEST_ITEMS — keep in step).
@@ -242,62 +230,13 @@ const StockItemsTab = () => {
 
       {editing && (
         <Modal isOpen onClose={() => setEditing(null)} title={`${editing.id ? "Edit" : "Add"} ${editing.kind}`} size="lg">
-          {editing.kind === "item" && editing.id && TEST_ITEM_NAMES.includes(editing.form.name) ? (
-            // Tests (HbA1c / RBS / Ketones) find this item by name — fixed.
-            <Field label="Name">
-              <p className="text-sm text-gray-800">{editing.form.name}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Used by its test on the charge sheet, which finds it by this name — so the name stays fixed.</p>
-            </Field>
+          {editing.kind === "item" ? (
+            <StockItemFields form={editing.form} set={set} isNew={!editing.id} nameLocked={Boolean(editing.id) && TEST_ITEM_NAMES.includes(editing.form.name)} />
           ) : (
             <Field label="Name">
               <input className={inputCls} value={editing.form.name} onChange={(e) => set("name", e.target.value)} />
             </Field>
           )}
-
-          {editing.kind === "item" && (<>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Category">
-                <select className={inputCls} value={editing.form.category} onChange={(e) => set("category", e.target.value)}>
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </Field>
-              <Field label="Counting unit">
-                <select className={inputCls} value={editing.form.unit} onChange={(e) => set("unit", e.target.value)}>
-                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </Field>
-              <Field label="Pack size" hint="units per supplier pack">
-                <input type="number" min="1" className={inputCls} value={editing.form.packSize} onChange={(e) => set("packSize", e.target.value)} />
-              </Field>
-              <Field label="GTIN (manufacturer barcode)" hint="optional — click here and scan the box, or type it. Used at intake to find the item by scanning the box.">
-                <div className="relative">
-                  <ScanLine className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
-                  <input
-                    className={`${inputCls} pl-8`}
-                    // Scan-first flow: a new item auto-focuses here so you can
-                    // scan the retail box straight away to identify the product.
-                    autoFocus={!editing.id}
-                    value={editing.form.gtin || ""}
-                    // A USB scanner types the code as keystrokes; strip any
-                    // whitespace/newline it may append. GTINs never contain spaces.
-                    onChange={(e) => set("gtin", e.target.value.replace(/\s/g, ""))}
-                    // The scanner usually sends Enter after the code — swallow it
-                    // so it can't do anything unexpected (Save is a button).
-                    onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
-                    placeholder="Scan or type the box barcode"
-                  />
-                </div>
-              </Field>
-              <Field label="Reorder level" hint="0 = no reorder alert">
-                <input type="number" min="0" className={inputCls} value={editing.form.reorderLevel} onChange={(e) => set("reorderLevel", e.target.value)} />
-              </Field>
-              <Field label="Reorder quantity" hint="suggested order size">
-                <input type="number" min="0" className={inputCls} value={editing.form.reorderQuantity ?? ""} onChange={(e) => set("reorderQuantity", e.target.value)} />
-              </Field>
-            </div>
-            <Toggle label="Requires cold chain (fridge locations only)" checked={editing.form.requiresColdChain} onChange={(v) => set("requiresColdChain", v)} />
-            <Toggle label="High-alert medication (warning banner on dispense)" checked={editing.form.isHighAlert} onChange={(v) => set("isHighAlert", v)} />
-          </>)}
 
           {editing.kind === "location" && (<>
             <Field label="Kind">

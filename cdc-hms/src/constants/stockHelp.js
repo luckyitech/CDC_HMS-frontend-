@@ -56,8 +56,15 @@ export const STOCK_HELP = {
 
   receive: {
     title: "Receive",
-    about: "Records a delivery coming in, prints a shelf label for it, and keeps the supplier's invoice or receipt with a scan for auditing.",
+    about: "Records a delivery coming in, prints shelf labels for it, and keeps the supplier's invoice or receipt with a scan for auditing. Two ways: From an invoice (photograph it and confirm what was read) or One item at a time.",
     parts: [
+      ["From an invoice", "Photograph or scan the invoice, receipt or delivery note (JPG, PNG or PDF). The HMS reads every line and fills in the item, batch, expiry and quantity. Nothing is saved until you tick \"Confirmed correct\" on every line and press Save."],
+      ["Remembered / Suggested", "Remembered: this supplier has used that wording before, so the item is certain. Suggested: the closest name in the catalogue — check it. \"change\" picks another item; the two next-closest are offered underneath."],
+      ["No confident match", "Search the catalogue for the item under another name. If the HMS really does not have it, \"Add as a new item\" opens the Items form filled in from the invoice — set its reorder level and it is remembered for next time."],
+      ["Unclear on the scan", "An amber box is a value the reader was not sure of — check it against the box in your hand. A red expiry box is a medication with no expiry read; type it in."],
+      ["Already received?", "Shown when that invoice number from that supplier is already on file, so one delivery is never entered twice."],
+      ["Confirmed correct", "Tick each line once you have checked it. A line with a problem cannot be ticked until it is fixed; changing anything on a ticked line clears its tick. Save opens when every line is ticked, and all lines save together — if one fails, nothing is saved."],
+      ["Printing after an invoice", "Labels are not printed automatically. After saving, each item has a label count (one per pack, or one per unit) and its own Print button; change the number first. Leaving with unprinted items asks you to confirm."],
       ["Supplier, document and number", "The supplier's invoice, receipt or delivery note. The number is optional; lines on one document share it. Once a number is typed you can scan the document."],
       ["Item", "Type the name or scan the box barcode (GTIN)."],
       ["Batch / lot no. and expiry", "As printed on the box. Expiry is required for medicines."],
@@ -75,6 +82,9 @@ export const STOCK_HELP = {
       ["Too much, faulty or the wrong item was delivered", "Send it back with Returns → To a supplier."],
       ["Labels print sideways, small or across two labels", "In the printer settings the paper must be 60 × 40 mm (Die-Cut Labels). In Chrome's print window: margins None, headers and footers off."],
       ["A label is damaged", "Reprint it from Received today or from Movements → Deliveries."],
+      ["\"Not set up\" on From an invoice", "The server has no invoice-reader key (ANTHROPIC_API_KEY in the server's .env). Ask the administrator; use One item at a time meanwhile."],
+      ["The reader matched the wrong item", "Press \"change\" on the line and pick the right one before ticking it. The correction is remembered for that supplier's wording, and is listed in Movements → Deliveries as a correction."],
+      ["HEIC photo cannot be read", "iPhone photos in HEIC are not readable — set the camera to Most compatible, or take the photo from the Take a photo button, which gives a JPEG."],
     ],
   },
 
@@ -153,6 +163,7 @@ export const STOCK_HELP = {
       ["Transfer", "Moved between locations."],
       ["Return in / Return to supplier", "Back from a patient; sent back to a supplier."],
       ["Delivery corrected", "A received line's quantity was corrected in Deliveries."],
+      ["From invoice / Manual", "How a delivery was entered: read from a photographed invoice and confirmed, or typed one item at a time. Filter Deliveries by it; an invoice line also lists what staff corrected before confirming (what the reader got wrong)."],
       ["Adjustment", "A stocktake difference."],
       ["Expiry / Damage write-off", "Taken off the books as expired or damaged."],
       ["Deliveries", "Each invoice or receipt with its lines and its scan. \"Not scanned\" means the document still needs scanning."],
@@ -179,6 +190,7 @@ export const STOCK_HELP = {
       ["Reports → Walk-ins / Disposal register / FEFO overrides / Variances", "Supplies given to walk-ins; every write-off; every time an earlier-expiring batch was bypassed; every stocktake difference."],
       ["Export", "Each report exports to CSV; \"Export all to Excel\" puts every report in one workbook."],
       ["Audit — when it was last done", "For every location, when it was last counted and by whom; the last delivery received; and when each room was last restocked. Amber means never, or overdue — use it to set stocktake and restock schedules."],
+      ["Audit — how deliveries were received", "Each delivery session says whether it was read From invoice, entered Manually, or both; By person counts how many of someone's deliveries came from an invoice; every event and the CSV carry \"How received\"."],
       ["Audit — receiving, stocktakes and room balancing", "One line per delivery received, stocktake (with how long it took), room restocked or par change in the range, and who did it."],
       ["Audit — by person / every stock event", "How often each person did each function, and every timestamped stock event — filter by person or function, export to CSV. The same events show in the Activity Log and each person's Staff File → Activity."],
     ],

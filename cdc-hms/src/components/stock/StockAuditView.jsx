@@ -6,7 +6,7 @@ import Button from "../shared/Button";
 import { notify } from "../../utils/notify";
 import { downloadCsv } from "../../utils/exportCsv";
 import stockService from "../../services/stockService";
-import { inputCls } from "./stockUi";
+import { inputCls, ReceiveMethodBadge, receiveMethodText } from "./stockUi";
 
 // Stocks → Analytics → Audit (13 Oct 2026, Emu): when receiving, stocktakes
 // and room balancing took place and by whom — so management can track the
@@ -100,9 +100,9 @@ const LastLine = ({ name, at, staff, staleAfter }) => {
   );
 };
 
-const EVENT_HEADERS = ["When", "Function", "Action", "By", "Role", "Where", "Detail", "Patient", "UHID"];
+const EVENT_HEADERS = ["When", "Function", "Action", "By", "Role", "Where", "Detail", "How received", "Patient", "UHID"];
 const eventRows = (events) => events.map((e) => [
-  new Date(e.at).toISOString(), FN_LABEL[e.fn] || e.fn, e.label, e.staff, e.role || "", e.location || "", e.detail || "", e.patient || "", e.uhid || "",
+  new Date(e.at).toISOString(), FN_LABEL[e.fn] || e.fn, e.label, e.staff, e.role || "", e.location || "", e.detail || "", receiveMethodText(e.method), e.patient || "", e.uhid || "",
 ]);
 
 const StockAuditView = () => {
@@ -211,7 +211,7 @@ const StockAuditView = () => {
                     {data.sessions.map((s, i) => (
                       <tr key={i} className="border-t border-gray-100 align-top">
                         <td className="px-3 py-2 whitespace-nowrap">{fmtDateTime(s.at)}</td>
-                        <td className="px-3 py-2"><Badge fn={s.fn}>{s.kind}</Badge></td>
+                        <td className="px-3 py-2"><Badge fn={s.fn}>{s.kind}</Badge>{s.method && <span className="block mt-1"><ReceiveMethodBadge method={s.method} /></span>}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{s.staff}</td>
                         <td className="px-3 py-2">{s.location || "—"}</td>
                         <td className="px-3 py-2 text-gray-600">{s.summary}</td>
@@ -236,6 +236,7 @@ const StockAuditView = () => {
                       <th className={th}>Person</th>
                       <th className={`${th} text-right`}>Days active</th>
                       <th className={`${th} text-right`}>Deliveries</th>
+                      <th className={`${th} text-right`}>of which from invoice</th>
                       <th className={`${th} text-right`}>Stocktakes</th>
                       <th className={`${th} text-right`}>Restocks</th>
                       <th className={`${th} text-right`}>Par changes</th>
@@ -252,6 +253,7 @@ const StockAuditView = () => {
                         <td className="px-3 py-2 whitespace-nowrap">{p.staff}{p.role && <span className="text-xs text-gray-400"> · {p.role}</span>}</td>
                         <td className={num}>{p.activeDays}</td>
                         <td className={num}>{p.receiving}</td>
+                        <td className={num}>{p.receivingFromInvoice ?? 0}</td>
                         <td className={num}>{p.stocktakes}</td>
                         <td className={num}>{p.restocks}</td>
                         <td className={num}>{p.parChanges}</td>

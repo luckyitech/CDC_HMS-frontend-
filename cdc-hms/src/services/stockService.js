@@ -59,6 +59,23 @@ export const stockService = {
     return api.post(`/stock/receipts/${id}/documents`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   receiptDocumentFile: (id, docId) => api.get(`/stock/receipts/${id}/documents/${docId}`, { responseType: 'blob' }),
+
+  // ---------- Receiving from an invoice (13 Oct 2026) ----------
+  // Is the reader set up on the server (ANTHROPIC_API_KEY)?
+  getInvoiceReaderStatus: () => api.get('/stock/receipts/reader'),
+  // Read a photo / PDF: every line matched to the catalogue; nothing saved.
+  readInvoice: (file, supplierId) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (supplierId) form.append('supplierId', supplierId);
+    return api.post('/stock/receipts/read', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+  pendingInvoiceFile: (token) => api.get(`/stock/receipts/pending/${token}`, { responseType: 'blob' }),
+  discardInvoiceRead: (token) => api.delete(`/stock/receipts/pending/${token}`),
+  // Save every confirmed line in one go (+ the scan, + the supplier's wording remembered).
+  receiveInvoice: (data) => api.post('/stock/receipts/receive-batch', data),
+  // An item the catalogue lacks, added while receiving (open to receiving staff).
+  createItemWhileReceiving: (data) => api.post('/stock/receipts/new-item', data),
   removeReceiptDocument: (id, docId) => api.delete(`/stock/receipts/${id}/documents/${docId}`),
 
   // ---------- Reads ----------

@@ -3,7 +3,8 @@ import { Search, FileWarning, ArrowLeft, Pencil } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
-import { inputCls, unitPlural, useStockCan } from "./stockUi";
+import { inputCls, unitPlural, useStockCan, ReceiveMethodBadge } from "./stockUi";
+import SelectMenu from "../shared/SelectMenu";
 import { PERMISSIONS } from "../../utils/permissions";
 import { ReceivedLineEditModal, EditedBadge } from "./ReceivedLineEdit";
 import ReceiptDocuments from "./ReceiptDocuments";
@@ -17,8 +18,14 @@ import ReceiptDocuments from "./ReceiptDocuments";
 // 13 Oct 2026 (Emu): a holder of "Can edit deliveries" selects a received line
 // to correct it (item, quantity, batch no., expiry — reason required). An
 // edited line shows "Edited", which opens what changed, who and why.
+//
+// 13 Oct 2026 (Emu, evening): every delivery and line says how it was entered
+// — read From invoice or entered Manually (filter "How received"). An invoice
+// line also shows what staff corrected before confirming it.
 
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
+const CORRECTION_WORDS = { item: "item", batchNo: "batch no.", expiryDate: "expiry", quantity: "quantity" };
+const METHOD_OPTIONS = [{ value: "", label: "How received: all" }, { value: "invoice", label: "From invoice" }, { value: "manual", label: "Manual" }];
 const fmtDay = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
 
 const DeliveryDetail = ({ id, onBack, onChanged }) => {
@@ -39,6 +46,7 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h3 className="text-lg font-bold text-gray-800">{KIND_LABEL[data.kind] || "Document"} {data.number}</h3>
         <span className="text-sm text-gray-500">{data.supplierName || "No supplier"} · {fmtDay(data.receivedAt)} · {data.itemCount} line{data.itemCount === 1 ? "" : "s"}, {data.unitCount} unit{data.unitCount === 1 ? "" : "s"}</span>
+        <ReceiveMethodBadge method={data.method} />
       </div>
       <div className="grid lg:grid-cols-2 gap-5 items-start">
         <div className="ui-surface overflow-x-auto">
@@ -50,7 +58,18 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
             <tbody className="divide-y divide-gray-100">
               {data.items.map((it) => (
                 <tr key={it.batchId} className={`align-top ${canEdit ? "ui-hover cursor-pointer" : ""}`} onClick={canEdit ? () => setEditing(it) : undefined}>
-                  <td className="px-4 py-2"><span className="font-medium">{it.itemName}</span><span className="block text-xs font-mono text-gray-400">{it.labelCode}</span><EditedBadge edits={it.edits} /></td>
+                  <td className="px-4 py-2">
+                    <span className="font-medium">{it.itemName}</span>
+                    <span className="block text-xs font-mono text-gray-400">{it.labelCode}</span>
+                    {data.method === "mixed" && <ReceiveMethodBadge method={it.receiveMethod} />}
+                    {it.receiveMethod === "invoice" && (
+                      <span className="block text-xs text-gray-500">
+                        {it.sourceText && <>read as <span className="font-mono">{it.sourceText}</span></>}
+                        {it.sourceCorrections?.length > 0 && <span className="text-amber-700">{it.sourceText ? " · " : ""}{it.sourceCorrections.map((f) => CORRECTION_WORDS[f] || f).join(", ")} corrected</span>}
+                      </span>
+                    )}
+                    <EditedBadge edits={it.edits} />
+                  </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">{it.qtyReceived} {it.unit ? (it.qtyReceived === 1 ? it.unit : unitPlural(it.unit)) : ""}</td>
                   <td className="px-3 py-2 text-xs text-gray-600">{it.batchNo || "—"}<span className="block">{it.expiryDate ? `exp ${it.expiryDate}` : ""}</span></td>
                   <td className="px-3 py-2 text-xs text-gray-600">{it.location || "—"}<span className="block">{it.receivedByName || ""} · {fmtDay(it.receivedAt)}</span></td>
@@ -91,6 +110,7 @@ const StockDeliveriesTab = () => {
   const [q, setQ] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [missing, setMissing] = useState(false);
+  const [method, setMethod] = useState("");
   const [rows, setRows] = useState(null);
   const [open, setOpen] = useState(null);
 
@@ -99,8 +119,9 @@ const StockDeliveriesTab = () => {
     if (q.trim()) params.q = q.trim();
     if (supplierId) params.supplierId = supplierId;
     if (missing) params.missing = "1";
+    if (method) params.method = method;
     stockService.getReceipts(params).then((res) => setRows(res.data || [])).catch(() => setRows([]));
-  }, [q, supplierId, missing]);
+  }, [q, supplierId, missing, method]);
   useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [load]);
 
   if (open) return <DeliveryDetail id={open} onBack={() => setOpen(null)} onChanged={load} />;
@@ -117,6 +138,7 @@ const StockDeliveriesTab = () => {
           <option value="">All suppliers</option>
           {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
+        <SelectMenu value={method} onChange={(e) => setMethod(e.target.value)} options={METHOD_OPTIONS} aria-label="How received" />
         <label className="inline-flex items-center gap-2 text-sm text-gray-700">
           <input type="checkbox" checked={missing} onChange={(e) => setMissing(e.target.checked)} className="w-4 h-4" />
           Not scanned yet
@@ -128,7 +150,7 @@ const StockDeliveriesTab = () => {
         <div className="ui-surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="ui-thead">
-              <tr><th className="text-left px-4 py-2">Number</th><th className="text-left px-3 py-2">Supplier</th><th className="text-left px-3 py-2">Received</th><th className="text-right px-3 py-2">Lines</th><th className="text-left px-3 py-2">Scan</th></tr>
+              <tr><th className="text-left px-4 py-2">Number</th><th className="text-left px-3 py-2">Supplier</th><th className="text-left px-3 py-2">Received</th><th className="text-right px-3 py-2">Lines</th><th className="text-left px-3 py-2">How</th><th className="text-left px-3 py-2">Scan</th></tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {rows.map((r) => (
@@ -137,6 +159,7 @@ const StockDeliveriesTab = () => {
                   <td className="px-3 py-2">{r.supplierName || "—"}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{fmtDay(r.receivedAt)}<span className="block text-xs text-gray-400">{r.createdByName || ""}</span></td>
                   <td className="px-3 py-2 text-right">{r.itemCount}</td>
+                  <td className="px-3 py-2"><ReceiveMethodBadge method={r.method} /></td>
                   <td className="px-3 py-2">
                     {r.documentCount > 0
                       ? <span className="text-xs font-semibold text-green-700">{r.documentCount} page{r.documentCount === 1 ? "" : "s"}</span>
