@@ -73,10 +73,18 @@ export const encode = (text) => {
 /**
  * Render a Code128 barcode as an SVG string.
  *
+ * Screen mode (default) sizes in px. Print mode — pass `moduleMm` — sizes the
+ * SVG in millimetres so each bar is a whole number of printer dots: on a
+ * thermal printer a bar that lands on a fraction of a dot prints uneven and
+ * can fail to scan. In print mode `barHeightMm` and `textMm` replace `height`.
+ *
  * @param {string} text - the payload (e.g. "CDC042")
  * @param {Object} [opts]
- * @param {number} [opts.height=48]      bar height in px
+ * @param {number} [opts.height=48]      bar height in px (screen mode)
  * @param {number} [opts.moduleWidth=2]  px per module (2+ for reliable scans)
+ * @param {number} [opts.moduleMm]       mm per module — switches to print mode
+ * @param {number} [opts.barHeightMm=15] bar height in mm (print mode)
+ * @param {number} [opts.textMm=3]       height of the text under the bars, mm
  * @param {number} [opts.quiet=10]       quiet zone in modules each side (spec min)
  * @param {string} [opts.color='#000']   bar colour — keep black for scanners
  * @param {boolean}[opts.showText=false] print the payload under the bars
@@ -84,15 +92,21 @@ export const encode = (text) => {
  */
 export const code128Svg = (text, opts = {}) => {
   const {
-    height = 48,
-    moduleWidth = 2,
+    moduleMm,
+    barHeightMm = 15,
+    textMm = 3,
     quiet = 10,
     color = '#000',
     showText = false,
   } = opts;
 
+  // Drawing units: px on screen; one module per unit in print mode.
+  const moduleWidth = moduleMm ? 1 : (opts.moduleWidth ?? 2);
+  const height = moduleMm ? barHeightMm / moduleMm : (opts.height ?? 48);
+  const fontSize = moduleMm ? (textMm * 0.8) / moduleMm : 12;
+  const textZone = showText ? (moduleMm ? textMm / moduleMm : 16) : 0;
+
   const { widths, totalModules } = encode(text);
-  const textZone = showText ? 16 : 0;
   const w = (totalModules + quiet * 2) * moduleWidth;
   const h = height + textZone;
 
@@ -109,12 +123,16 @@ export const code128Svg = (text, opts = {}) => {
   }
 
   const label = showText
-    ? `<text x="${w / 2}" y="${height + 12}" text-anchor="middle" font-family="monospace" font-size="12" letter-spacing="2" fill="${color}">${text}</text>`
+    ? `<text x="${w / 2}" y="${height + fontSize}" text-anchor="middle" font-family="monospace" font-size="${fontSize}" letter-spacing="${fontSize / 6}" fill="${color}">${text}</text>`
     : '';
 
+  const size = moduleMm
+    ? `width="${+(w * moduleMm).toFixed(3)}mm" height="${+(h * moduleMm).toFixed(3)}mm"`
+    : `width="${w}" height="${h}"`;
+
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" ` +
-    `viewBox="0 0 ${w} ${h}" role="img" aria-label="Barcode ${text}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" ${size} ` +
+    `viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges" role="img" aria-label="Barcode ${text}">` +
     `<rect width="${w}" height="${h}" fill="#fff"/>${bars}${label}</svg>`
   );
 };

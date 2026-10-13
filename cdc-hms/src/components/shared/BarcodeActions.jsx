@@ -6,15 +6,15 @@ import Button from "./Button";
 import { code128Svg } from "../../utils/code128";
 import { formatDOB } from "../../utils/dateUtils";
 import barcodeService from "../../services/barcodeService";
-import { printHtml, LABEL_W_MM, LABEL_H_MM } from "../../utils/print";
+import { printHtml, printThermalLabel, LABEL_W_MM, LABEL_H_MM } from "../../utils/print";
 import logo from "../../assets/cdc_web_logo1.svg";
 
 // Barcode generation for a patient: preview modal + two print paths.
 //   Print card  — wallet-size identity card (CR80) the patient carries/presents.
 //   Print label — file-folder sticker for the thermal printer.
 // Used from both the staff and doctor patient profiles.
-// printHtml and the thermal label dimensions live in utils/print — shared
-// with the stock module's batch shelf labels (same printer, same stock).
+// The thermal label (size + layout) lives in utils/print — shared with the
+// stock module's batch shelf labels (same printer, same stock).
 //
 // CR80 wallet card
 const CARD_W_MM = 85.6;
@@ -86,16 +86,11 @@ const BarcodeActions = ({ patient }) => {
 
   const handlePrintLabel = () => {
     logPrint("print_label");
-    const svg = code128Svg(patient.uhid, { height: 32, moduleWidth: 2, showText: true });
-    printHtml(`Label ${patient.uhid}`, LABEL_W_MM, LABEL_H_MM, `
-      <div style="width:${LABEL_W_MM}mm; height:${LABEL_H_MM}mm; padding:1.5mm 2mm;
-                  display:flex; flex-direction:column; justify-content:space-between;">
-        <div style="font-size:8.5pt; font-weight:bold; white-space:nowrap; overflow:hidden;">
-          ${patient.name}
-        </div>
-        ${dob ? `<div style="font-size:6.5pt; color:#333;">DOB: ${dob}</div>` : ""}
-        <div style="text-align:center;">${svg}</div>
-      </div>`);
+    printThermalLabel({
+      title: patient.name,
+      detail: dob ? `DOB: ${dob}` : "",
+      code: patient.uhid,
+    });
   };
 
   if (!patient?.uhid) return null;

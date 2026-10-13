@@ -1,5 +1,5 @@
 import toast from "react-hot-toast";
-import { code128Svg } from "./code128";
+import { code128Svg, encode } from "./code128";
 import { printElement } from "../hooks/usePrint";
 
 // Shared print path: prints the given body on a page sized to the physical
@@ -11,16 +11,51 @@ import { printElement } from "../hooks/usePrint";
 // Safari ignores print() fired from a timer in a pop-up, and closing the pop-up
 // right after print() killed the job before iOS rendered it.
 //
-// Thermal label size — confirm against the clinic's printer and adjust in one
-// place. Common desktop thermal labels are 50×30mm. Batch labels deliberately
-// print on the SAME printer and stock as patient labels (decision, 28 Jul).
-export const LABEL_W_MM = 50;
-export const LABEL_H_MM = 30;
+// Thermal label size — the clinic's Xprinter thermal barcode printer runs
+// 60×40mm label stock (Emu, 13 Oct 2026; was 50×30mm). Batch labels
+// deliberately print on the SAME printer and stock as patient labels
+// (decision, 28 Jul). Change the size here only.
+export const LABEL_W_MM = 60;
+export const LABEL_H_MM = 40;
+// Inner margin of every thermal label. Keeps text and bars clear of the
+// die-cut edge, which drifts by up to ~1mm as the roll feeds.
+const LABEL_PAD_MM = 2.5;
+
+// One dot of a 203 dpi thermal head (the Xprinter label range). Bars are sized
+// in whole dots: 3 dots (0.375mm) per module when the code fits the label,
+// else 2 dots (0.25mm, the smallest width a hand scanner reads reliably).
+const THERMAL_DOT_MM = 25.4 / 203;
+
+// Barcode for a thermal label, as wide as the label allows in whole dots.
+export const labelBarcodeSvg = (text, { barHeightMm = 15 } = {}) => {
+  const usableMm = LABEL_W_MM - LABEL_PAD_MM * 2;
+  const modules = encode(text).totalModules + 20; // + the two 10-module quiet zones
+  const dots = [3, 2].find((d) => modules * d * THERMAL_DOT_MM <= usableMm) ?? 2;
+  return code128Svg(text, { moduleMm: dots * THERMAL_DOT_MM, barHeightMm, showText: true });
+};
+
+// Shared thermal-label layout: a bold title (up to two lines), one detail
+// line, the barcode at the foot. Patient file labels and stock batch labels
+// both use it, so they look and print the same.
+export const printThermalLabel = ({ title, detail, code }) => {
+  printHtml(`Label ${code}`, LABEL_W_MM, LABEL_H_MM, `
+    <div style="width:100%; height:100%; padding:${LABEL_PAD_MM}mm;
+                display:flex; flex-direction:column; justify-content:space-between;">
+      <div>
+        <div style="font-size:11pt; font-weight:bold; line-height:1.15;
+                    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+          ${title || ""}
+        </div>
+        ${detail ? `<div style="font-size:8pt; margin-top:0.8mm;">${detail}</div>` : ""}
+      </div>
+      <div style="text-align:center; line-height:0;">${labelBarcodeSvg(code)}</div>
+    </div>`);
+};
 
 // Must be called synchronously inside the tap/click handler (iOS gesture rule).
 export const printHtml = (_title, pageW, pageH, bodyHtml) => {
   printElement(`
-<div style="width:${pageW}mm; height:${pageH}mm; box-sizing:border-box; overflow:hidden;
+<div style="width:${pageW}mm; height:calc(${pageH}mm - 0.5mm); box-sizing:border-box; overflow:hidden; break-after:avoid;
             font-family: Arial, Helvetica, sans-serif; color:#000; background:#fff;
             display:flex; align-items:center; justify-content:center;">
   <style>
@@ -38,19 +73,12 @@ export const printStockBatchLabel = ({ labelCode, itemName, batchNo, expiryDate 
     toast.error("This batch has no label code yet");
     return;
   }
-  const svg = code128Svg(labelCode, { height: 30, moduleWidth: 2, showText: true });
   const expiry = expiryDate
     ? new Date(expiryDate).toLocaleDateString("en-GB", { month: "2-digit", year: "numeric" })
     : null;
-  printHtml(`Label ${labelCode}`, LABEL_W_MM, LABEL_H_MM, `
-    <div style="width:${LABEL_W_MM}mm; height:${LABEL_H_MM}mm; padding:1.5mm 2mm;
-                display:flex; flex-direction:column; justify-content:space-between;">
-      <div style="font-size:8pt; font-weight:bold; white-space:nowrap; overflow:hidden;">
-        ${itemName || ""}
-      </div>
-      <div style="font-size:6.5pt; color:#333;">
-        ${batchNo ? `Batch: ${batchNo}` : ""}${batchNo && expiry ? " &middot; " : ""}${expiry ? `Exp: ${expiry}` : ""}
-      </div>
-      <div style="text-align:center;">${svg}</div>
-    </div>`);
+  printThermalLabel({
+    title: itemName,
+    detail: [batchNo && `Batch: ${batchNo}`, expiry && `Exp: ${expiry}`].filter(Boolean).join(" &middot; "),
+    code: labelCode,
+  });
 };
