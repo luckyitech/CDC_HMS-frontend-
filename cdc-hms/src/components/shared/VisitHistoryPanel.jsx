@@ -1885,7 +1885,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       {/* Actions artifact viewer. Prescriptions use the shared PrescriptionPrint
           (same format as the consultation); admissions use the note viewer. */}
       {viewArtifact?.type === 'prescription' ? (
-        <PrescriptionPrint prescription={viewArtifact.data} onClose={() => setViewArtifact(null)} />
+        <PrescriptionPrint prescription={{ patientUhid: patient?.uhid, patientAge: patient?.age, patientGender: patient?.gender, ...viewArtifact.data }} onClose={() => setViewArtifact(null)} />
       ) : (
         <ArtifactModal artifact={viewArtifact} patient={patient} onClose={() => setViewArtifact(null)} />
       )}
@@ -1897,7 +1897,7 @@ const VisitHistoryPanel = ({ patient, excludeToday = false, singleDate = null, d
       {viewLabReq && (
         <LabRequestPrint
           request={labRequestForPrint(viewLabReq)}
-          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender, phone: patient?.phone }}
+          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender, age: patient?.age, phone: patient?.phone }}
           onClose={() => setViewLabReq(null)}
         />
       )}

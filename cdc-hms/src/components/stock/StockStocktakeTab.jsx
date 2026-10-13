@@ -6,6 +6,7 @@ import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import { Field, inputCls } from "./stockUi";
+import StockHelp from "./StockHelp";
 
 // Stocktake — per location, so counts happen room by room without freezing
 // the clinic. The screen lists what the system expects per batch; enter what
@@ -94,6 +95,7 @@ const StockStocktakeTab = () => {
             <ClipboardCheck className="w-4 h-4" /> Start count
           </Button>
         </div>
+        <div className="mb-4 ml-auto"><StockHelp tab="stocktake" /></div>
       </div>
 
       {rows && (

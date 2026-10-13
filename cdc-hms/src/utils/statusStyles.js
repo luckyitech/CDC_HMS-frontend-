@@ -161,6 +161,9 @@ export const STOCK_MOVEMENT_TONES = {
   expiry_writeoff: 'danger',
   damage_writeoff: 'danger',
   return:          'success',
+  supplier_return: 'amber',
+  receipt_correction: 'purple',
+  use_cancelled:   'neutral',
   reversal:        'neutral',
 };
 
@@ -172,7 +175,10 @@ export const STOCK_MOVEMENT_LABELS = {
   adjustment:      'Adjustment',
   expiry_writeoff: 'Expiry write-off',
   damage_writeoff: 'Damage write-off',
-  return:          'Return',
+  return:          'Return in',
+  supplier_return: 'Return to supplier',
+  receipt_correction: 'Delivery corrected',
+  use_cancelled:   'Use cancelled',
   reversal:        'Reversal',
 };
 

@@ -1,4 +1,4 @@
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Inbox, Trash2, SlidersHorizontal, MessageCircle, Link2, CheckCircle, AlertTriangle, Paperclip, Mail, MailX, Send, KeyRound, FileUp, FileDown } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Inbox, Trash2, SlidersHorizontal, MessageCircle, Link2, CheckCircle, AlertTriangle, Paperclip, Mail, MailX, Send, KeyRound, FileUp, FileDown, Package, PackagePlus, PackageMinus, ArrowLeftRight, Undo2, ClipboardCheck, Ban, Boxes, Truck } from 'lucide-react';
 
 // Shared by ActivityLog and its drilldown modal, so an event tagged "Triaged"
 // looks identical whether it's a row in the main table or in the popup
@@ -56,6 +56,31 @@ export const ACTION_STYLE = {
   mail_sent_elsewhere:    { color: 'bg-sky-100 text-sky-700',         icon: Send },
   mail_linked_to_patient: { color: 'bg-violet-100 text-violet-700',   icon: Link2 },
   mail_patient_email_removed: { color: 'bg-red-100 text-red-700',     icon: Trash2 },
+  // Stocks (13 Oct 2026) — every function in the Stocks tabs.
+  stock_received:            { color: 'bg-emerald-100 text-emerald-700', icon: PackagePlus },
+  stock_delivery_recorded:   { color: 'bg-emerald-100 text-emerald-700', icon: FileText },
+  stock_delivery_scan:       { color: 'bg-emerald-100 text-emerald-700', icon: Paperclip },
+  stock_delivery_scan_removed: { color: 'bg-gray-100 text-gray-700',     icon: Trash2 },
+  stock_delivery_corrected:  { color: 'bg-orange-100 text-orange-700',   icon: Pencil },
+  stock_dispensed:           { color: 'bg-blue-100 text-blue-700',       icon: PackageMinus },
+  stock_used:                { color: 'bg-blue-100 text-blue-700',       icon: PackageMinus },
+  stock_use_cancelled:       { color: 'bg-gray-100 text-gray-700',       icon: Undo2 },
+  stock_transferred:         { color: 'bg-sky-100 text-sky-700',         icon: ArrowLeftRight },
+  stock_restocked:           { color: 'bg-sky-100 text-sky-700',         icon: Truck },
+  stock_returned:            { color: 'bg-violet-100 text-violet-700',   icon: Undo2 },
+  stock_supplier_return:     { color: 'bg-violet-100 text-violet-700',   icon: Undo2 },
+  stock_stocktake:           { color: 'bg-teal-100 text-teal-700',       icon: ClipboardCheck },
+  stock_count_adjusted:      { color: 'bg-teal-100 text-teal-700',       icon: ClipboardCheck },
+  stock_adjusted:            { color: 'bg-amber-100 text-amber-800',     icon: SlidersHorizontal },
+  stock_written_off:         { color: 'bg-red-100 text-red-700',         icon: Ban },
+  stock_pars_changed:        { color: 'bg-indigo-100 text-indigo-700',   icon: SlidersHorizontal },
+  stock_room_doctor:         { color: 'bg-indigo-100 text-indigo-700',   icon: Stethoscope },
+  stock_catalog_added:       { color: 'bg-slate-100 text-slate-700',     icon: Boxes },
+  stock_catalog_edited:      { color: 'bg-slate-100 text-slate-700',     icon: Pencil },
+  stock_catalog_retired:     { color: 'bg-gray-100 text-gray-700',       icon: Package },
+  stock_test_taken:          { color: 'bg-cyan-100 text-cyan-700',       icon: FlaskConical },
+  stock_test_settled:        { color: 'bg-cyan-100 text-cyan-700',       icon: CheckCircle },
+  stock_levels_rebuilt:      { color: 'bg-amber-100 text-amber-800',     icon: RefreshCcw },
 };
 
 export const formatDateTime = (iso) => {

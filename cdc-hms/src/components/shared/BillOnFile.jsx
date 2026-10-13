@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Plus, Minus, AlertTriangle } from "lucide-react";
 import { notify } from "../../utils/notify";
 import queueService from "../../services/queueService";
 
@@ -9,7 +9,12 @@ import queueService from "../../services/queueService";
 // step. Lines can be taken off (canRemove) — kept in the bill's history with
 // who and when.
 //
-// Props: queueId, canRemove, refreshKey, onChanged(bill)
+// Tests (HbA1c, RBS, Ketones — 13 Oct 2026) count attempts: "HbA1c × 2", with
+// + for a repeat (an error reading, a faulty or confirmatory test) and − which
+// asks whether that attempt was done (not done → its supplies go back to stock).
+// Each attempt takes its supplies from stock; one that could not shows a note.
+//
+// Props: queueId, canRemove, refreshKey, onChanged(bill), stage
 
 const STAGE = { triage: "triage", consultation: "consultation", injection: "injection", radiology: "radiology", billing: "billing", other: "" };
 const ROLE = { nurse: "Nurse", doctor: "Dr.", staff: "", admin: "", lab: "" };
@@ -34,7 +39,7 @@ export const useVisitBill = (queueId, refreshKey = 0) => {
   return [bill, load, setBill];
 };
 
-const BillOnFile = ({ queueId, canRemove = false, refreshKey = 0, onChanged, pending = [] }) => {
+const BillOnFile = ({ queueId, canRemove = false, refreshKey = 0, onChanged, pending = [], stage }) => {
   const [bill, , setBill] = useVisitBill(queueId, refreshKey);
   // Tell the host what is on the bill whenever it loads or changes.
   useEffect(() => { if (bill) onChanged?.(bill); }, [bill]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -42,14 +47,30 @@ const BillOnFile = ({ queueId, canRemove = false, refreshKey = 0, onChanged, pen
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const remove = async () => {
+  const remove = async (done) => {
     setBusy(true);
     try {
-      const res = await queueService.removeCharge(queueId, { kind: confirm.kind, name: confirm.name, reason: reason.trim() || undefined });
+      const res = await queueService.removeCharge(queueId, {
+        kind: confirm.kind, name: confirm.name, reason: reason.trim() || undefined,
+        done: confirm.test ? done : undefined,
+      });
       setBill(res.data);
-      notify("success", `${confirm.name} taken off the bill`);
+      notify("success", confirm.test
+        ? `One ${confirm.name} taken off${done === false ? " — its supplies are back in stock" : ""}`
+        : `${confirm.name} taken off the bill`);
       setConfirm(null); setReason("");
     } catch (err) { notify("error", err?.message || "Could not take it off the bill"); }
+    finally { setBusy(false); }
+  };
+  const repeat = async (line) => {
+    setBusy(true);
+    try {
+      const res = await queueService.addTestAttempt(queueId, line.name, stage);
+      setBill(res.data);
+      const last = (res.data.lines || []).find((l) => l.name === line.name)?.attempts?.slice(-1)[0];
+      notify(last?.stockStatus === "not_taken" ? "error" : "success",
+        last?.stockStatus === "not_taken" ? `${line.name} repeat added — not taken from stock: ${last.stockNote}` : `${line.name} repeat added`);
+    } catch (err) { notify("error", err?.message || "Could not add the repeat"); }
     finally { setBusy(false); }
   };
 
@@ -63,18 +84,61 @@ const BillOnFile = ({ queueId, canRemove = false, refreshKey = 0, onChanged, pen
       {lines.map((l) => (
         <div key={`${l.kind}-${l.name}`} className="flex items-start gap-2 rounded-lg bg-white border border-gray-200 px-2.5 py-1.5">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-800">{l.name}{l.kind === "procedure" && <span className="ml-1.5 text-[10px] uppercase tracking-wide text-gray-400">procedure</span>}</p>
-            <p className="text-[11px] text-gray-500">{whoAdded(l)}</p>
+            <p className="text-sm font-medium text-gray-800">
+              {l.name}
+              {l.quantity > 1 && <span className="ml-1 font-bold text-primary">× {l.quantity}</span>}
+              {l.kind === "procedure" && <span className="ml-1.5 text-[10px] uppercase tracking-wide text-gray-400">procedure</span>}
+            </p>
+            {l.test && l.attempts?.length > 1
+              ? l.attempts.map((a, i) => (
+                  <p key={a.id} className="text-[11px] text-gray-500">{i + 1}. {whoAdded({ ...l, ...a })}</p>
+                ))
+              : <p className="text-[11px] text-gray-500">{whoAdded(l)}</p>}
+            {l.test && l.attempts?.some((a) => a.stockStatus === "not_taken") && (
+              <p className="text-[11px] text-amber-700 inline-flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" /> Not taken from stock — {l.attempts.find((a) => a.stockStatus === "not_taken").stockNote}
+              </p>
+            )}
             {confirm?.name === l.name && confirm?.kind === l.kind && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" aria-label="Reason for removing"
-                  className="flex-1 min-w-[8rem] px-2 py-1 border border-gray-300 rounded-md text-xs" />
-                <button type="button" onClick={remove} disabled={busy} className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">Take off the bill</button>
-                <button type="button" onClick={() => { setConfirm(null); setReason(""); }} className="text-xs font-semibold text-gray-500 hover:underline">Keep</button>
-              </div>
+              confirm.test ? (
+                <div className="mt-1.5 space-y-1.5">
+                  <p className="text-xs font-semibold text-gray-700">Was this {l.name} done?</p>
+                  <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" aria-label="Reason for removing"
+                    className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs" />
+                  <div className="flex flex-wrap gap-3">
+                    <button type="button" onClick={() => remove(false)} disabled={busy} className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">
+                      Not done — put the supplies back
+                    </button>
+                    <button type="button" onClick={() => remove(true)} disabled={busy} className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">
+                      Done — only take it off the bill
+                    </button>
+                    <button type="button" onClick={() => { setConfirm(null); setReason(""); }} className="text-xs font-semibold text-gray-500 hover:underline">Keep</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (optional)" aria-label="Reason for removing"
+                    className="flex-1 min-w-[8rem] px-2 py-1 border border-gray-300 rounded-md text-xs" />
+                  <button type="button" onClick={() => remove()} disabled={busy} className="text-xs font-semibold text-red-600 hover:underline disabled:opacity-50">Take off the bill</button>
+                  <button type="button" onClick={() => { setConfirm(null); setReason(""); }} className="text-xs font-semibold text-gray-500 hover:underline">Keep</button>
+                </div>
+              )
             )}
           </div>
-          {canRemove && !confirm && (
+          {canRemove && !confirm && l.test && (
+            <div className="flex items-center gap-1 shrink-0">
+              <button type="button" aria-label={`One ${l.name} fewer`} title="One fewer" onClick={() => setConfirm(l)} disabled={busy}
+                className="w-6 h-6 rounded-md border border-gray-300 text-gray-600 hover:border-red-400 hover:text-red-600 flex items-center justify-center">
+                <Minus className="w-3.5 h-3.5" />
+              </button>
+              <span className="w-5 text-center text-sm font-semibold">{l.quantity || 1}</span>
+              <button type="button" aria-label={`Repeat ${l.name}`} title="Repeat — another attempt" onClick={() => repeat(l)} disabled={busy}
+                className="w-6 h-6 rounded-md border border-gray-300 text-gray-600 hover:border-primary hover:text-primary flex items-center justify-center">
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          {canRemove && !confirm && !l.test && (
             <button type="button" aria-label={`Take ${l.name} off the bill`} onClick={() => setConfirm(l)} className="text-gray-400 hover:text-red-600 p-0.5">
               <X className="w-4 h-4" />
             </button>

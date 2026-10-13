@@ -448,12 +448,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
     !path.startsWith(`/${userRole.toLowerCase()}/`));
 
   // Stocks (to become Pharmacy) lives in the portal list, not the sidebar. Shown
-  // to users granted stock access, pointing at the CURRENT portal's stock page so
-  // a non-admin stock user isn't sent to an admin-only route. Only portals that
-  // actually have a stock route qualify. Hiding the link is UX; the API is guarded
+  // to holders of the Stocks portal (canManageStock, resolved by the server),
+  // pointing at the CURRENT portal's stock page — every portal has one since
+  // 13 Oct 2026, so it appears wherever you are (it used to show only from the
+  // Admin, Doctor and Staff portals). Hiding the link is UX; the API is guarded
   // server-side regardless.
   const hasStockAccess = !!currentUser?.canManageStock;
-  const stockModule = (hasStockAccess && ['admin', 'doctor', 'staff'].includes(userRole.toLowerCase()))
+  const stockModule = hasStockAccess
     ? [{ label: 'Stocks', path: `/${userRole.toLowerCase()}/stock`, icon: Package }]
     : [];
 

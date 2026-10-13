@@ -977,11 +977,12 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
 
             <div className="overflow-y-auto flex-1 px-6 py-4 space-y-6">
               {/* What earlier stages put on the bill, and who (12 Oct 2026) —
-                  the nurse's HbA1c shows here; ticking it again is harmless. */}
+                  the nurse's HbA1c shows here; ticking it again is harmless.
+                  A repeat or confirmatory test is "+" on its line (13 Oct 2026). */}
               {billingQueueItem?.id && (
                 <div className="p-3 rounded-lg bg-gray-50 border border-gray-200">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Already on the bill</h3>
-                  <BillOnFile queueId={billingQueueItem.id} canRemove pending={[...selectedCharges, ...selectedProcedures]}
+                  <BillOnFile queueId={billingQueueItem.id} canRemove stage="consultation" pending={[...selectedCharges, ...selectedProcedures]}
                     onChanged={(b) => setBillOnFileCount((b?.lines || []).length)} />
                 </div>
               )}

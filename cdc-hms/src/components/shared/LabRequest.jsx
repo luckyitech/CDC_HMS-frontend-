@@ -643,7 +643,7 @@ const LabRequest = ({ patient, onDirtyChange = () => {}, draftContextKey = "", d
       {printReq && (
         <LabRequestPrint
           request={printReq}
-          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender, phone: patient?.phone }}
+          patient={{ name: patient?.name, uhid: patient?.uhid, gender: patient?.gender, age: patient?.age, phone: patient?.phone }}
           onClose={() => setPrintReq(null)}
           onBackToEdit={() => {
             const g = groups.find((x) => x.reqNo === printReq.requisitionNumber);

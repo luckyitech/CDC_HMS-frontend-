@@ -31,4 +31,5 @@ export const PORTAL_LABELS = {
   'portal.inpatient': 'Inpatient workspace',
   'portal.radiology': 'Radiology Suite',
   'portal.hr':        'HR Suite',
+  'portal.stocks':    'Stocks',
 };

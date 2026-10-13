@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Search, FileWarning, ArrowLeft } from "lucide-react";
+import { Search, FileWarning, ArrowLeft, Pencil } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
-import { inputCls } from "./stockUi";
+import { inputCls, unitPlural, useStockCan } from "./stockUi";
+import { PERMISSIONS } from "../../utils/permissions";
+import { ReceivedLineEditModal, EditedBadge } from "./ReceivedLineEdit";
 import ReceiptDocuments from "./ReceiptDocuments";
 
 // Movements → Deliveries (12 Oct 2026, Emu). Every supplier invoice / receipt /
@@ -11,12 +13,18 @@ import ReceiptDocuments from "./ReceiptDocuments";
 // whether it has been scanned. Open one to see the items RECORDED as received
 // beside the SCANNED document — the audit check that what was entered is what
 // was delivered. A missing scan can be added here.
+//
+// 13 Oct 2026 (Emu): a holder of "Can edit deliveries" selects a received line
+// to correct it (item, quantity, batch no., expiry — reason required). An
+// edited line shows "Edited", which opens what changed, who and why.
 
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
 const fmtDay = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
 
 const DeliveryDetail = ({ id, onBack, onChanged }) => {
+  const canEdit = useStockCan()(PERMISSIONS.STOCK_DELIVERIES_EDIT);
   const [data, setData] = useState(null);
+  const [editing, setEditing] = useState(null);   // the line being corrected
   const load = useCallback(() => {
     stockService.getReceipt(id).then((res) => setData(res.data)).catch(() => setData(false));
   }, [id]);
@@ -37,18 +45,26 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
           <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Recorded as received</p>
           <table className="w-full text-sm mt-2">
             <thead className="ui-thead">
-              <tr><th className="text-left px-4 py-2">Item</th><th className="text-right px-3 py-2">Qty</th><th className="text-left px-3 py-2">Batch / expiry</th><th className="text-left px-3 py-2">Into · by</th></tr>
+              <tr><th className="text-left px-4 py-2">Item</th><th className="text-right px-3 py-2">Qty</th><th className="text-left px-3 py-2">Batch / expiry</th><th className="text-left px-3 py-2">Into · by</th>{canEdit && <th className="px-3 py-2" />}</tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {data.items.map((it) => (
-                <tr key={it.batchId}>
-                  <td className="px-4 py-2"><span className="font-medium">{it.itemName}</span><span className="block text-xs font-mono text-gray-400">{it.labelCode}</span></td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">{it.qtyReceived} {it.unit ? `${it.unit}s` : ""}</td>
+                <tr key={it.batchId} className={`align-top ${canEdit ? "ui-hover cursor-pointer" : ""}`} onClick={canEdit ? () => setEditing(it) : undefined}>
+                  <td className="px-4 py-2"><span className="font-medium">{it.itemName}</span><span className="block text-xs font-mono text-gray-400">{it.labelCode}</span><EditedBadge edits={it.edits} /></td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">{it.qtyReceived} {it.unit ? (it.qtyReceived === 1 ? it.unit : unitPlural(it.unit)) : ""}</td>
                   <td className="px-3 py-2 text-xs text-gray-600">{it.batchNo || "—"}<span className="block">{it.expiryDate ? `exp ${it.expiryDate}` : ""}</span></td>
                   <td className="px-3 py-2 text-xs text-gray-600">{it.location || "—"}<span className="block">{it.receivedByName || ""} · {fmtDay(it.receivedAt)}</span></td>
+                  {canEdit && (
+                    <td className="px-3 py-2 text-right">
+                      <button type="button" title="Correct this line" className="text-primary hover:text-blue-800"
+                        onClick={(e) => { e.stopPropagation(); setEditing(it); }}>
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
-              {data.items.length === 0 && <tr><td colSpan={4} className="px-4 py-4 text-sm text-gray-500">No items received on it yet.</td></tr>}
+              {data.items.length === 0 && <tr><td colSpan={canEdit ? 5 : 4} className="px-4 py-4 text-sm text-gray-500">No items received on it yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -62,6 +78,10 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
           />
         </div>
       </div>
+      {canEdit && <p className="text-xs text-gray-500">Select a line to correct it.</p>}
+      {editing && (
+        <ReceivedLineEditModal line={editing} onClose={() => setEditing(null)} onSaved={() => { load(); onChanged?.(); }} />
+      )}
     </div>
   );
 };

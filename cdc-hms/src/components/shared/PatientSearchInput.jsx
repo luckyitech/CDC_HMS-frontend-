@@ -16,6 +16,9 @@ import patientService from '../../services/patientService';
  *                         at least { uhid, name }; age/gender/yearOfBirth/phone
  *                         and riskLevel are shown when present.
  *  - autoFocus          — focus the search box on mount
+ *  - onEnter(term)      — optional: Enter pressed (a USB scanner types the card's
+ *                         UHID then Enter). Resolve to true if it chose a
+ *                         patient, and the box clears (13 Oct 2026, Stocks Dispense).
  */
 /** "54 yrs · Female" for list results; "b. 1971 · 0722 418 903" for a searchFn's. */
 const detailLine = (p) => [
@@ -30,6 +33,7 @@ const PatientSearchInput = ({
   onClear,
   searchFn = null,
   autoFocus = false,
+  onEnter = null,
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -130,6 +134,12 @@ const PatientSearchInput = ({
             autoFocus={autoFocus}
             onChange={handleChange}
             onFocus={() => query && results.length > 0 && setOpen(true)}
+            onKeyDown={async (e) => {
+              if (e.key !== 'Enter' || !onEnter || !query.trim()) return;
+              e.preventDefault();
+              clearTimeout(debounceRef.current);
+              if (await onEnter(query.trim())) { setQuery(''); setResults([]); setOpen(false); }
+            }}
             placeholder={placeholder}
             className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
           />

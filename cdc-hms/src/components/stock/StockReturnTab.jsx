@@ -4,9 +4,16 @@ import { Undo2, AlertTriangle, PackageCheck } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
+import SwitcherTabs from "../shared/SwitcherTabs";
+import StockSupplierReturn from "./StockSupplierReturn";
+import StockHelp from "./StockHelp";
 import { BatchScanBox, PatientAttach, Field, inputCls } from "./stockUi";
 
-// Returns — a patient brings stock back. Attach the patient (required — recall
+// Returns — two directions (13 Oct 2026): From a patient (below) and To a
+// supplier (StockSupplierReturn). Movements shows them as "Return in" and
+// "Return to supplier".
+//
+// From a patient — a patient brings stock back. Attach the patient (required — recall
 // traceability), scan the item, give a reason. "Safe to re-dispense" (e.g. a
 // collection error, the item is unused) sends it back into stock; otherwise it
 // is quarantined in the Faulty Box, a non-dispensing location the ledger will
@@ -18,7 +25,7 @@ const REASON_PRESETS = [
   "Collection error",
 ];
 
-const StockReturnTab = () => {
+const PatientReturn = () => {
   const { locations } = useStockContext();
   const [patient, setPatient] = useState(null);
   const [scan, setScan] = useState(null);        // { batch, item, levels }
@@ -165,6 +172,21 @@ const StockReturnTab = () => {
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+const StockReturnTab = () => {
+  const [mode, setMode] = useState("patient");
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-4">
+        <SwitcherTabs size="sm" ariaLabel="Return direction" idPrefix="stock-return"
+          tabs={[{ id: "patient", label: "From a patient" }, { id: "supplier", label: "To a supplier" }]}
+          active={mode} onChange={setMode} />
+        <StockHelp tab="returns" />
+      </div>
+      {mode === "patient" ? <PatientReturn /> : <StockSupplierReturn />}
     </div>
   );
 };

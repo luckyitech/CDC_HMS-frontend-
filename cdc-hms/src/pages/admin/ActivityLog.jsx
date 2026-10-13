@@ -64,6 +64,18 @@ const ACTION_TYPES = [
   { value: 'mail_auth_failed',      label: 'Mailbox Login Refused' },
   { value: 'mail_wiped',            label: 'Mailbox Removed (Staff Archived)' },
   { value: 'mail_trash_emptied',    label: 'Emptied Mail Trash' },
+  // Stocks (13 Oct 2026). The groups filter several types at once (backend ACTION_GROUPS).
+  { value: 'stock_all',             label: 'Stocks — All Events' },
+  { value: 'stock_receiving',       label: 'Stocks — Receiving (deliveries, scans, corrections)' },
+  { value: 'stock_stocktake',       label: 'Stocks — Stocktakes' },
+  { value: 'stock_rooms',           label: 'Stocks — Room balancing (restocks, pars, doctors)' },
+  { value: 'stock_dispensed',       label: 'Dispensed Stock' },
+  { value: 'stock_used',            label: 'Used Stock on Patient' },
+  { value: 'stock_transferred',     label: 'Transferred Stock' },
+  { value: 'stock_returned',        label: 'Took Back Stock from Patient' },
+  { value: 'stock_supplier_return', label: 'Returned Stock to Supplier' },
+  { value: 'stock_written_off',     label: 'Wrote Off Stock' },
+  { value: 'stock_catalog_edited',  label: 'Edited Stock Catalogue' },
 ];
 
 // `type` is the underlying event type (matches ACTION_STYLE / ACTION_TYPES and

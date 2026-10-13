@@ -5,6 +5,7 @@ import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import { Field, inputCls, BatchScanBox, FefoOverrideModal, PatientAttach } from "./stockUi";
+import StockHelp from "./StockHelp";
 
 // One component for both stock-out flows — they differ only in whether the
 // stock has a destination:
@@ -87,6 +88,7 @@ const StockMoveTab = ({ mode }) => {
 
   return (
     <div className="max-w-2xl">
+      {isTransfer && <div className="flex mb-2"><StockHelp tab="transfer" /></div>}
       <BatchScanBox onResolved={onScan} />
 
       {resolved && (

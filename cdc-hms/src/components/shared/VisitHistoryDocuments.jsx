@@ -18,7 +18,7 @@ import { referralLetter, admissionLetter } from "../../utils/letters";
 const fmtDay = (d) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
 
-const whoOf = (patient) => ({ name: patient?.name, uhid: patient?.uhid, phone: patient?.phone, gender: patient?.gender });
+const whoOf = (patient) => ({ name: patient?.name, uhid: patient?.uhid, phone: patient?.phone, gender: patient?.gender, age: patient?.age });
 
 const Shell = ({ loading, problem, empty, emptyText, children }) => {
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>;

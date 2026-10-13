@@ -1,35 +1,39 @@
 import { useState, useEffect, useCallback } from "react";
 import SelectMenu from '../shared/SelectMenu';
-import { notify } from "../../utils/notify";
-import { Undo2 } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
-import Button from "../shared/Button";
-import Modal from "../shared/Modal";
 import Pagination from "../shared/Pagination";
-import { Field, inputCls, MOVEMENT_LABELS, MovementBadge, ByLine } from "./stockUi";
+import { Pencil } from "lucide-react";
+import { inputCls, MOVEMENT_LABELS, MovementBadge, ByLine, Recipient, useStockCan } from "./stockUi";
+import { PERMISSIONS } from "../../utils/permissions";
+import { ReceivedLineEditModal } from "./ReceivedLineEdit";
 
-// Movement history — the ledger, filterable. Rows are immutable; the only
-// correction is a reversal (reason required), offered per row.
+// Movement history — the ledger, filterable, read-only. Rows are immutable and
+// nobody reverses one (Emu, 13 Oct 2026): a mistake is corrected through the
+// tabs — dispense, return, transfer (and stocktake / write-off). Older
+// 'reversal' rows still show. A received line (intake row) can be corrected
+// here by a holder of "Can edit deliveries" — the way to reach lines that came
+// in without an invoice number (the rest are also on Deliveries).
 
 const EMPTY_FILTERS = { itemId: "", locationId: "", type: "", uhid: "", from: "", to: "" };
 
 const StockMovementsTab = () => {
   const { items, locations } = useStockContext();
+  const canEdit = useStockCan()(PERMISSIONS.STOCK_DELIVERIES_EDIT);
+  const [editing, setEditing] = useState(null);
   const [filters, setFilters] = useState({ ...EMPTY_FILTERS });
   const [data, setData] = useState({ movements: [], total: 0, pages: 1 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [reversing, setReversing] = useState(null);   // movement row
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = { page, limit: 25 };
       Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+      // "Dispense — walk-ins" is a type option, not a type (13 Oct 2026).
+      if (filters.type === "walkin") { params.type = "dispense"; params.walkIn = "1"; }
       const res = await stockService.getMovements(params);
       if (res.success) setData(res.data);
     } catch (err) {
@@ -46,25 +50,6 @@ const StockMovementsTab = () => {
     setPage(1);
   };
 
-  const doReverse = async () => {
-    setBusy(true);
-    try {
-      const res = await stockService.reverseMovement(reversing.id, reason.trim());
-      if (res.success) {
-        notify("success", "Movement reversed");
-        setReversing(null);
-        setReason("");
-        load();
-      } else {
-        notify("error", res.message || "Reverse failed");
-      }
-    } catch (err) {
-      notify("error", err?.message || "Reverse failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <div>
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
@@ -79,6 +64,7 @@ const StockMovementsTab = () => {
         <SelectMenu className={inputCls} value={filters.type} onChange={(e) => setFilter("type", e.target.value)}>
           <option value="">All types</option>
           {Object.entries(MOVEMENT_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          <option value="walkin">Dispense — walk-ins only</option>
         </SelectMenu>
         <input
           className={inputCls}
@@ -104,9 +90,9 @@ const StockMovementsTab = () => {
                   <th className="px-3 py-2">Batch</th>
                   <th className="px-3 py-2">Qty</th>
                   <th className="px-3 py-2">From → To</th>
-                  <th className="px-3 py-2">Patient</th>
+                  <th className="px-3 py-2">Patient / walk-in</th>
                   <th className="px-3 py-2">Reason</th>
-                  <th className="px-3 py-2" />
+                  {canEdit && <th className="px-3 py-2" />}
                 </tr>
               </thead>
               <tbody>
@@ -123,35 +109,35 @@ const StockMovementsTab = () => {
                       <td className="px-3 py-2 font-mono text-xs">{m.batch?.labelCode || m.stockBatchId}</td>
                       <td className="px-3 py-2 font-bold">{m.quantity}</td>
                       <td className="px-3 py-2 text-xs">
-                        {m.fromLocation?.name || "—"} → {m.toLocation?.name || "—"}
+                        {m.type === "supplier_return"
+                          ? <>{m.fromLocation?.name || "—"} → {m.batch?.supplier?.name || "supplier"}</>
+                          : m.type === "return"
+                            ? <>patient → {m.toLocation?.name || "—"}</>
+                            : <>{m.fromLocation?.name || "—"} → {m.toLocation?.name || "—"}</>}
                       </td>
                       <td className="px-3 py-2 text-xs">
-                        {m.Patient ? (
-                          <span>
-                            {m.Patient.firstName} {m.Patient.lastName}
-                            <span className="block text-gray-400 font-mono">{m.Patient.uhid}</span>
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
+                        <Recipient m={m} showUhid />
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-600">{m.reason || ""}</td>
-                      <td className="px-3 py-2 text-right">
-                        {m.type !== "reversal" && (
-                          <button
-                            onClick={() => setReversing(m)}
-                            className="text-gray-400 hover:text-red-600"
-                            title="Reverse this movement (reason required)"
-                          >
-                            <Undo2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </td>
+                      {canEdit && (
+                        <td className="px-3 py-2 text-right">
+                          {m.type === "intake" && m.batch && (
+                            <button type="button" title="Correct this received line" className="text-primary hover:text-blue-800"
+                              onClick={() => setEditing({
+                                batchId: m.batch.id, stockItemId: m.item?.id, itemName: m.item?.name, unit: m.item?.unit,
+                                labelCode: m.batch.labelCode, qtyReceived: m.batch.qtyReceived,
+                                batchNo: m.batch.batchNo, expiryDate: m.batch.expiryDate,
+                              })}>
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
                 {data.movements.length === 0 && (
-                  <tr><td colSpan="9" className="px-3 py-8 text-center text-gray-500">No movements match these filters.</td></tr>
+                  <tr><td colSpan={canEdit ? 9 : 8} className="px-3 py-8 text-center text-gray-500">No movements match these filters.</td></tr>
                 )}
               </tbody>
             </table>
@@ -160,24 +146,8 @@ const StockMovementsTab = () => {
         </>
       )}
 
-      {reversing && (
-        <Modal isOpen onClose={() => setReversing(null)} title="Reverse movement">
-          <p className="text-sm text-gray-600 mb-4">
-            The ledger is append-only — this posts a mirrored reversal entry restoring
-            the quantities, attributed to you. The original row stays visible.
-          </p>
-          <Field label="Reason (required)">
-            <input className={inputCls} value={reason} onChange={(e) => setReason(e.target.value)}
-                   placeholder="e.g. wrong quantity entered" />
-          </Field>
-          <div className="flex gap-3 mt-4">
-            <Button variant="danger" className="flex-1" disabled={busy || !reason.trim()} onClick={doReverse}>
-              Reverse
-            </Button>
-            <Button variant="outline" className="flex-1" onClick={() => setReversing(null)}>Cancel</Button>
-          </div>
-        </Modal>
-      )}
+      {editing && <ReceivedLineEditModal line={editing} onClose={() => setEditing(null)} onSaved={load} />}
+
     </div>
   );
 };

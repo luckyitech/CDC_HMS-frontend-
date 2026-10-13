@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ScanLine, Loader2, AlertTriangle } from "lucide-react";
 import barcodeService from "../../services/barcodeService";
+import { useUserContext } from "../../contexts/UserContext";
+import { hasPermission } from "../../utils/permissions";
 import { notify } from "../../utils/notify";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
@@ -24,6 +26,45 @@ export const Field = ({ label, children, hint }) => (
     {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
   </div>
 );
+
+// Who a movement went to (13 Oct 2026): a registered patient, or a walk-in
+// (not registered — name and phone on the movement). One rule for every table
+// and CSV.
+export const recipientText = (m) => {
+  if (m?.Patient) return `${m.Patient.firstName} ${m.Patient.lastName}`;
+  if (m?.recipientName) return `Walk-in: ${m.recipientName}${m.recipientPhone ? ` · ${m.recipientPhone}` : ""}`;
+  return "";
+};
+export const Recipient = ({ m, showUhid = false }) => {
+  if (m?.Patient) {
+    return (
+      <span>
+        {m.Patient.firstName} {m.Patient.lastName}
+        {showUhid && <span className="block text-gray-400 font-mono">{m.Patient.uhid}</span>}
+      </span>
+    );
+  }
+  if (m?.recipientName) {
+    return (
+      <span>
+        <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-100 rounded px-1 mr-1">Walk-in</span>
+        {m.recipientName}
+        {m.recipientPhone && <span className="block text-gray-400">{m.recipientPhone}</span>}
+      </span>
+    );
+  }
+  return <span className="text-gray-300">—</span>;
+};
+
+// Per-tab Stocks permissions (13 Oct 2026): can(PERMISSIONS.X) for the signed-in
+// user. Hiding a control is UX — every route is gated server-side.
+export const useStockCan = () => {
+  const { currentUser } = useUserContext();
+  return (permission) => hasPermission(currentUser, permission);
+};
+
+// "pen" → "pens", "box" → "boxes" — one rule for every stock screen.
+export const unitPlural = (unit = "unit") => `${unit}${/(x|s|ch|sh)$/.test(unit) ? "es" : "s"}`;
 
 // Input styling — same as ClinicalCatalog's inputCls (border-2, focus:primary).
 export const inputCls =

@@ -44,8 +44,24 @@ export const PERMISSIONS = {
 
   INPATIENT_ACCESS: 'inpatient.access',
   INPATIENT_WRITE:  'inpatient.write',
-  STOCK_ACCESS:     'stock.access',
-  STOCK_WRITE:      'stock.write',
+  // Stocks — one capability per tab (13 Oct 2026); Items, Room Balance and
+  // Analytics carry a second, acting capability; Movements one for editing
+  // deliveries. Nobody reverses a movement. Mirrors the backend; stock.access / stock.write are retired.
+  // The Stocks page's door (portal.*, like the others) — tabs are below.
+  PORTAL_STOCKS:      'portal.stocks',
+  STOCK_DISPENSE_TAB: 'stock.tab.dispense',
+  STOCK_ITEMS:        'stock.items',
+  STOCK_ITEMS_EDIT:   'stock.items.edit',
+  STOCK_RECEIVE:      'stock.receive',
+  STOCK_RETURNS:      'stock.returns',
+  STOCK_TRANSFER:     'stock.transfer',
+  STOCK_ROOMS:        'stock.rooms',
+  STOCK_ROOMS_EDIT:   'stock.rooms.edit',
+  STOCK_STOCKTAKE:    'stock.stocktake',
+  STOCK_MOVEMENTS:    'stock.movements',
+  STOCK_DELIVERIES_EDIT: 'stock.deliveries.edit',
+  STOCK_ANALYTICS:    'stock.analytics',
+  STOCK_WRITEOFF:     'stock.writeoff',
   LAB_VIEW:         'lab.view',
   LAB_WRITE:        'lab.write',
   LABINBOX_VIEW:    'labinbox.view',

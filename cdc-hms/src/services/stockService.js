@@ -12,7 +12,6 @@ import api from './api';
  * - POST /transfer    FEFO-gated like dispense
  * - POST /adjustment  count corrections, reason required
  * - POST /writeoff    kind 'expiry'|'damage', reason required
- * - POST /movements/:id/reverse   the only correction path — ledger rows are immutable
  * - GET  /movements | /levels | /batches | /dashboard
  * - POST /levels/rebuild          admin only
  *
@@ -40,10 +39,17 @@ export const stockService = {
   transfer: (data) => api.post('/stock/transfer', data),
   adjustment: (data) => api.post('/stock/adjustment', data),
   writeoff: (data) => api.post('/stock/writeoff', data),
-  reverseMovement: (id, reason) => api.post(`/stock/movements/${id}/reverse`, { reason }),
 
   // ---------- Supplier invoices / receipts + scans (12 Oct 2026) ----------
   getReceipts: (params = {}) => api.get('/stock/receipts', { params }),
+  // Correcting a received line (13 Oct 2026) and its history.
+  editReceivedLine: (batchId, data) => api.put(`/stock/batches/${batchId}/received`, data),
+  getLineEdits: (batchId) => api.get(`/stock/batches/${batchId}/edits`),
+  supplierReturn: (data) => api.post('/stock/supplier-return', data),
+  // Tests that use stock (13 Oct 2026).
+  getTestsNotTaken: () => api.get('/stock/tests/not-taken'),
+  retryTestStock: (id) => api.post(`/stock/tests/not-taken/${id}/retry`),
+  resolveTestStock: (id, note) => api.post(`/stock/tests/not-taken/${id}/resolve`, { note }),
   lookupReceipt: (number, supplierId) => api.get('/stock/receipts/lookup', { params: { number, supplierId: supplierId || undefined } }),
   getReceipt: (id) => api.get(`/stock/receipts/${id}`),
   ensureReceipt: (data) => api.post('/stock/receipts', data),
@@ -63,7 +69,7 @@ export const stockService = {
 
   // ---------- Room balancing ----------
   getParLevels: (params = {}) => api.get('/stock/par-levels', { params }),
-  setParLevels: (locationId, entries) => api.put('/stock/par-levels', { locationId, entries }),
+  setParLevels: (locationId, entries, assignedDoctorId) => api.put('/stock/par-levels', { locationId, entries, assignedDoctorId }),
   copyParLevels: (fromLocationId, toLocationId) => api.post('/stock/par-levels/copy', { fromLocationId, toLocationId }),
   getRoomBalance: () => api.get('/stock/room-balance'),
   getRestockPlan: (sourceLocationId) => api.get('/stock/restock-plan', { params: { sourceLocationId } }),
@@ -76,8 +82,9 @@ export const stockService = {
   // lines: [{ stockBatchId, locationId, quantity }]
   // queueId ties the dispense to the visit, so a retried discharge cannot send
   // the same supplies out twice. Pass it whenever dispensing from a visit.
-  checkoutDispense: (uhid, lines, queueId = null) =>
-    api.post('/stock/checkout-dispense', { uhid, lines, queueId }),
+  // walkIn: { name, phone } — a walk-in (not registered) instead of a uhid (13 Oct 2026).
+  checkoutDispense: (uhid, lines, queueId = null, walkIn = null) =>
+    api.post('/stock/checkout-dispense', walkIn ? { lines, walkIn } : { uhid, lines, queueId }),
 
   // ---------- Returns (patient-linked) ----------
   // data: { stockBatchId, quantity, uhid, reason, reDispensable, toLocationId? }
@@ -97,11 +104,14 @@ export const stockService = {
   getConsumptionReport: (months = 6) => api.get('/stock/reports/consumption', { params: { months } }),
   getRecallReport: (query) => api.get(`/stock/reports/recall/${encodeURIComponent(query)}`),
   getDisposalReport: (params = {}) => api.get('/stock/reports/disposal', { params }),
+  getWalkInsReport: (params = {}) => api.get('/stock/reports/walk-ins', { params }),
   getFefoOverridesReport: (params = {}) => api.get('/stock/reports/fefo-overrides', { params }),
   // Stocktake variances + manual count corrections — the reconciliation record.
   getVariancesReport: (params = {}) => api.get('/stock/reports/variances', { params }),
   // The master inventory sheet — every item, availability, locations, last order + stocktake.
   getInventoryReport: (params = {}) => api.get('/stock/reports/inventory', { params }),
+  getAuditReport: (params = {}) => api.get('/stock/reports/audit', { params }),
+  getExpiryReport: (params = {}) => api.get('/stock/reports/expiry', { params }),
 
   // ---------- Admin maintenance ----------
   rebuildLevels: () => api.post('/stock/levels/rebuild'),

@@ -1,12 +1,13 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { notify } from "../../utils/notify";
-import { PackagePlus, Printer } from "lucide-react";
+import { PackagePlus, Printer, CheckCircle2, Loader2 } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import { Field, inputCls } from "./stockUi";
 import { printStockBatchLabel } from "../../utils/print";
 import ReceiptDocuments from "./ReceiptDocuments";
+import StockHelp from "./StockHelp";
 
 // Receive Stock (intake): choose/scan item → batch no, expiry, quantity,
 // supplier → receiving location → save → print the STK- shelf label.
@@ -17,11 +18,33 @@ import ReceiptDocuments from "./ReceiptDocuments";
 // scanned once (now, or later from Movements → Deliveries — until then it is
 // flagged "No scan yet"). The delivery block stays filled between lines;
 // "New delivery" clears it.
+//
+// 13 Oct 2026 (Emu): one press saves, prints and resets.
+//   - Labels: one per unit; for an item that comes in packs/boxes (pack size
+//     > 1) one per pack. Pre-filled, staff can change it. All copies go in ONE
+//     print job.
+//   - After a save a "Saved" card confirms what went in and asks: next item on
+//     the SAME delivery (supplier + document kept) or a NEW delivery.
+//   - "Received today" is read back from the server (intake movements), so a
+//     saved line is visible after a reload and from any computer.
 
 const EMPTY = {
   stockItemId: "", batchNo: "", expiryDate: "", supplierId: "",
   locationId: "", packs: "", quantity: "", receiptNo: "", receiptKind: "invoice",
 };
+// The item line — what a save clears. Supplier, document and location stay
+// for the next item of the same delivery.
+const LINE_RESET = { stockItemId: "", batchNo: "", expiryDate: "", packs: "", quantity: "" };
+const MAX_LABELS = 300;   // a typo guard, not a policy
+
+// Default label count: one per pack for packed items, else one per unit.
+const defaultLabels = (item, quantity) => {
+  const q = Number(quantity);
+  if (!q || q < 1) return "";
+  const size = Number(item?.packSize) || 1;
+  return String(size > 1 ? Math.ceil(q / size) : q);
+};
+const todayIso = () => new Date().toLocaleDateString("en-CA");   // YYYY-MM-DD, local
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
 
 const StockReceiveTab = () => {
@@ -29,7 +52,18 @@ const StockReceiveTab = () => {
   const [form, setForm] = useState({ ...EMPTY });
   const [itemSearch, setItemSearch] = useState("");
   const [saving, setSaving] = useState(false);
-  const [received, setReceived] = useState([]);   // this session's intakes, for reprint
+  const [labels, setLabels] = useState("");          // stickers to print
+  const [labelsEdited, setLabelsEdited] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);   // the "Saved" card
+  const [received, setReceived] = useState([]);       // today's intakes (server)
+  const searchRef = useRef(null);
+
+  const loadToday = useCallback(() => {
+    stockService.getMovements({ type: "intake", from: todayIso(), limit: 50 })
+      .then((res) => { if (res?.success) setReceived(res.data?.movements || []); })
+      .catch(() => {});
+  }, []);
+  useEffect(() => { loadToday(); }, [loadToday]);
 
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -58,10 +92,15 @@ const StockReceiveTab = () => {
     return null;
   };
 
+  const focusSearch = () => setTimeout(() => searchRef.current?.focus(), 0);
+
   const newDelivery = () => {
-    setForm((prev) => ({ ...prev, supplierId: "", receiptNo: "", receiptKind: "invoice" }));
+    setForm({ ...EMPTY });
     setReceipt(null);
+    setLastSaved(null);
+    focusSearch();
   };
+  const sameDelivery = () => { setLastSaved(null); focusSearch(); };
 
   const selectedItem = useMemo(
     () => items.find((i) => i.id === Number(form.stockItemId)) || null,
@@ -77,6 +116,11 @@ const StockReceiveTab = () => {
       .slice(0, 8);
   }, [items, itemSearch]);
 
+  // Labels follow the quantity until staff type their own number.
+  useEffect(() => {
+    if (!labelsEdited) setLabels(defaultLabels(selectedItem, form.quantity));
+  }, [selectedItem, form.quantity, labelsEdited]);
+
   // Packs × pack-size helper: typing packs fills quantity.
   const onPacks = (packs) => {
     set("packs", packs);
@@ -89,6 +133,8 @@ const StockReceiveTab = () => {
     if (!form.stockItemId) return notify("error", "Choose an item");
     if (!form.locationId) return notify("error", "Choose a receiving location");
     if (!form.quantity || Number(form.quantity) < 1) return notify("error", "Enter a quantity");
+    const copies = labels === "" ? 0 : Math.floor(Number(labels));
+    if (!(copies >= 0) || copies > MAX_LABELS) return notify("error", `Labels must be 0–${MAX_LABELS}`);
 
     setSaving(true);
     try {
@@ -104,17 +150,26 @@ const StockReceiveTab = () => {
       });
       if (res.success) {
         const { batch, item, receipt: r } = res.data;
-        notify("success", `Received ${form.quantity} × ${item.name} — label ${batch.labelCode}`);
-        setReceived((prev) => [{ ...batch, itemName: item.name, receiptNo: r?.number }, ...prev]);
         if (r) setReceipt((prev) => ({ ...(prev || {}), id: r.id, number: r.number, kind: r.kind, documents: prev?.documents || [], itemCount: (prev?.itemCount || 0) + 1 }));
-        printStockBatchLabel({
-          labelCode: batch.labelCode,
-          itemName: item.name,
-          batchNo: batch.batchNo,
-          expiryDate: batch.expiryDate,
+        if (copies > 0) {
+          printStockBatchLabel({
+            labelCode: batch.labelCode,
+            itemName: item.name,
+            batchNo: batch.batchNo,
+            expiryDate: batch.expiryDate,
+            copies,
+          });
+        }
+        setLastSaved({
+          itemName: item.name, unit: item.unit, quantity: Number(form.quantity),
+          labelCode: batch.labelCode, batchNo: batch.batchNo, expiryDate: batch.expiryDate, copies,
         });
-        // Keep item + location for multi-line deliveries; clear the batch line.
-        setForm((prev) => ({ ...prev, batchNo: "", expiryDate: "", packs: "", quantity: "" }));
+        // Reset the item line; the delivery (supplier, document, location) waits
+        // for the Same / New delivery choice on the Saved card.
+        setForm((prev) => ({ ...prev, ...LINE_RESET }));
+        setItemSearch("");
+        setLabelsEdited(false);
+        loadToday();
       } else {
         notify("error", res.message || "Intake failed");
       }
@@ -133,7 +188,41 @@ const StockReceiveTab = () => {
           {(form.receiptNo || form.supplierId) && (
             <button type="button" onClick={newDelivery} className="ml-auto text-xs font-semibold text-primary hover:underline">New delivery</button>
           )}
+          <StockHelp tab="receive" />
         </h4>
+
+        {lastSaved && (
+          <div className="rounded-lg border-2 border-green-300 bg-green-50 p-3 mb-4" role="status">
+            <p className="flex items-center gap-2 font-semibold text-green-800">
+              <CheckCircle2 className="w-5 h-5" /> Saved — {lastSaved.quantity} {lastSaved.unit}{lastSaved.quantity === 1 ? "" : "s"} of {lastSaved.itemName}
+            </p>
+            <p className="text-xs text-green-800 mt-1">
+              <span className="font-mono">{lastSaved.labelCode}</span>
+              {lastSaved.batchNo && ` · batch ${lastSaved.batchNo}`}
+              {` · ${lastSaved.copies ? `${lastSaved.copies} label${lastSaved.copies === 1 ? "" : "s"} sent to the printer` : "no labels printed"}`}
+            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <span className="text-sm text-gray-700 mr-1">Next item:</span>
+              {(form.supplierId || form.receiptNo.trim()) ? (
+                <>
+                  <Button className="!px-4 !py-2 text-sm" onClick={sameDelivery}>
+                    Same delivery{form.receiptNo.trim() ? ` (${form.receiptNo.trim()})` : ""}
+                  </Button>
+                  <Button variant="outline" className="!px-4 !py-2 text-sm" onClick={newDelivery}>New delivery</Button>
+                </>
+              ) : (
+                <Button className="!px-4 !py-2 text-sm" onClick={sameDelivery}>Receive next item</Button>
+              )}
+              <button
+                type="button"
+                className="ml-auto text-xs font-semibold text-primary hover:underline"
+                onClick={() => printStockBatchLabel({ ...lastSaved, copies: 1 })}
+              >
+                Reprint one label
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* The supplier's document — kept between lines of one delivery. */}
         <div className="rounded-lg border border-gray-200 p-3 mb-4 space-y-3">
@@ -177,13 +266,14 @@ const StockReceiveTab = () => {
                   counted in {selectedItem.unit}s · pack of {selectedItem.packSize}
                 </p>
               </div>
-              <button className="text-xs text-primary font-semibold" onClick={() => { set("stockItemId", ""); setItemSearch(""); }}>
+              <button className="text-xs text-primary font-semibold" onClick={() => { set("stockItemId", ""); setItemSearch(""); focusSearch(); }}>
                 change
               </button>
             </div>
           ) : (
             <div className="relative">
               <input
+                ref={searchRef}
                 className={inputCls}
                 value={itemSearch}
                 onChange={(e) => setItemSearch(e.target.value)}
@@ -195,7 +285,7 @@ const StockReceiveTab = () => {
                     <button
                       key={i.id}
                       className="w-full text-left px-3 py-2 text-sm ui-hover"
-                      onClick={() => { set("stockItemId", String(i.id)); setItemSearch(""); }}
+                      onClick={() => { set("stockItemId", String(i.id)); setItemSearch(""); setLastSaved(null); }}
                     >
                       {i.name} <span className="text-xs text-gray-400">({i.category})</span>
                     </button>
@@ -227,6 +317,17 @@ const StockReceiveTab = () => {
                 .map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           </Field>
+          <Field
+            label="Labels to print"
+            hint={labelsEdited
+              ? <button type="button" className="text-primary hover:underline" onClick={() => setLabelsEdited(false)}>reset to suggested</button>
+              : (Number(selectedItem?.packSize) > 1 ? `one per pack of ${selectedItem.packSize}` : "one per unit")}
+          >
+            <input
+              type="number" min="0" max={MAX_LABELS} className={inputCls} value={labels}
+              onChange={(e) => { setLabels(e.target.value); setLabelsEdited(true); }}
+            />
+          </Field>
         </div>
         {selectedItem?.requiresColdChain && (
           <p className="text-xs text-blue-700 mb-3">
@@ -235,36 +336,44 @@ const StockReceiveTab = () => {
         )}
 
         <Button className="w-full" disabled={saving} onClick={submit}>
-          Save &amp; print shelf label
+          {saving
+            ? <><Loader2 className="w-4 h-4 mr-2 animate-spin inline" /> Saving…</>
+            : Number(labels) > 0
+              ? `Save & print ${Number(labels)} label${Number(labels) === 1 ? "" : "s"}`
+              : "Save (no labels)"}
         </Button>
       </div>
 
       <div>
-        <h4 className="font-bold text-gray-800 mb-3">Received this session</h4>
+        <h4 className="font-bold text-gray-800 mb-3">Received today</h4>
         {received.length === 0 ? (
           <p className="text-sm text-gray-500">
-            Each saved line prints its shelf label automatically — reprint from here if needed.
+            Nothing received yet today. Each saved item appears here straight away — reprint a label from here if one is damaged.
           </p>
         ) : (
           <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 text-sm">
-            {received.map((b) => (
-              <div key={b.id} className="px-4 py-2 flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{b.itemName}</p>
+            {received.map((m) => (
+              <div key={m.id} className="px-4 py-2 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                    <span className="truncate">{m.item?.name}</span>
+                  </p>
                   <p className="text-xs text-gray-500">
-                    <span className="font-mono">{b.labelCode}</span>
-                    {b.batchNo && ` · batch ${b.batchNo}`}
-                    {b.expiryDate && ` · exp ${b.expiryDate}`}
-                    {` · ${b.qtyReceived} unit(s)`}
-                    {b.receiptNo && ` · doc ${b.receiptNo}`}
+                    {new Date(m.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    {` · ${m.quantity} ${m.item?.unit || "unit"}(s)`}
+                    {m.batch?.labelCode && <> · <span className="font-mono">{m.batch.labelCode}</span></>}
+                    {m.batch?.batchNo && ` · batch ${m.batch.batchNo}`}
+                    {m.toLocation?.name && ` · ${m.toLocation.name}`}
+                    {m.performedByUser && ` · ${m.performedByUser.firstName}`}
                   </p>
                 </div>
                 <button
-                  className="text-primary hover:text-blue-800"
-                  title="Reprint label"
+                  className="text-primary hover:text-blue-800 shrink-0"
+                  title="Reprint one label"
                   onClick={() => printStockBatchLabel({
-                    labelCode: b.labelCode, itemName: b.itemName,
-                    batchNo: b.batchNo, expiryDate: b.expiryDate,
+                    labelCode: m.batch?.labelCode, itemName: m.item?.name,
+                    batchNo: m.batch?.batchNo, expiryDate: m.batch?.expiryDate,
                   })}
                 >
                   <Printer className="w-4 h-4" />

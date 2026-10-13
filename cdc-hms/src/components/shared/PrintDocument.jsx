@@ -59,10 +59,19 @@ export const PrintDocHeader = ({ icon, label, number, date, dateLabel = "Date" }
   </div>
 );
 
+/** "54/F" for the patient line — age and sex as ONE short item, no longer
+ *  than the "Sex: Female" it replaces, so the line never wraps onto a second
+ *  row (13 Oct 2026, Emu). null when neither is known. */
+export const ageSex = (age, gender) => {
+  const a = age != null && age !== "" ? String(age) : null;
+  const g = gender ? String(gender).trim().charAt(0).toUpperCase() : null;
+  return [a, g].filter(Boolean).join("/") || null;
+};
+
 /** Patient identity on ONE line — no section heading, no wasted rows.
  *  items: [{ label, value }] — empty values are skipped. */
 export const PrintPatientLine = ({ items }) => (
-  <p className="mb-4 text-sm flex flex-wrap gap-x-5 gap-y-1">
+  <p className="mb-4 text-sm flex flex-wrap gap-x-4 gap-y-1">
     {items.filter((i) => i.value != null && i.value !== "").map((i) => (
       <span key={i.label}>
         <span className="text-gray-600">{i.label}:</span>{" "}

@@ -4,8 +4,18 @@ import { Plus, Minus, X, Package, AlertTriangle, ShoppingCart } from "lucide-rea
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
-import { BatchScanBox, PatientAttach } from "./stockUi";
+import StockHelp from "./StockHelp";
+import SwitcherTabs from "../shared/SwitcherTabs";
+import PatientSearchInput from "../shared/PatientSearchInput";
+import barcodeService from "../../services/barcodeService";
+import { BatchScanBox, Field, inputCls } from "./stockUi";
 
+// 13 Oct 2026 (Emu): the patient is found with the clinic's normal search —
+// card scan, name, UHID, phone, email or ID number — and supplies can go to a
+// WALK-IN (not registered: name and phone both required). A walk-in dispense
+// has no patient file; it shows as "Walk-in" in Movements and in Reports →
+// Walk-ins, and counts in consumption like any dispense.
+//
 // Dispense — a scan-to-cart flow. The patient is attached first (mandatory),
 // then each scanned shelf label adds a line to the list; scanning the same
 // batch again bumps its quantity. Quantities and per-batch locations are
@@ -14,7 +24,10 @@ import { BatchScanBox, PatientAttach } from "./stockUi";
 // transaction (checkout-dispense): all-or-nothing, expired batches blocked,
 // stock never goes negative. FEFO is advisory per line (staff holds the box).
 const StockDispenseTab = ({ onLockChange }) => {
-  const [patient, setPatient] = useState(null);
+  // Who it goes to: { kind: "patient", uhid, name, … } or { kind: "walkin", name, phone }.
+  const [recipient, setRecipient] = useState(null);
+  const [mode, setMode] = useState("patient");
+  const [walkIn, setWalkIn] = useState({ name: "", phone: "" });
   const [lines, setLines] = useState([]);   // see shape in addScan
   const [saving, setSaving] = useState(false);
   // A scanned high-alert item waits here for an explicit confirm before it
@@ -25,14 +38,33 @@ const StockDispenseTab = ({ onLockChange }) => {
   // parent locks the other tabs — the staff must complete or cancel first, so a
   // half-scanned trolley is never abandoned by wandering off to another tab.
   useEffect(() => {
-    onLockChange?.(!!patient);
+    onLockChange?.(!!recipient);
     return () => onLockChange?.(false);
-  }, [patient, onLockChange]);
+  }, [recipient, onLockChange]);
 
   // Clear everything and release the tab lock.
   const cancel = () => {
     setLines([]);
-    setPatient(null);
+    setRecipient(null);
+    setWalkIn({ name: "", phone: "" });
+  };
+
+  // A scanned card (or a typed UHID + Enter) picks the patient straight away.
+  const onSearchEnter = async (term) => {
+    if (!/^CDC\d+$/i.test(term)) return false;
+    try {
+      const res = await barcodeService.resolveScan(term.toUpperCase());
+      if (res.success && res.data?.type === "patient") {
+        setRecipient({ kind: "patient", uhid: res.data.uhid, name: res.data.name });
+        return true;
+      }
+    } catch { /* fall back to the search results */ }
+    return false;
+  };
+  const chooseWalkIn = () => {
+    if (walkIn.name.trim().length < 2) return notify("error", "Enter the walk-in's name");
+    if (walkIn.phone.replace(/\D/g, "").length < 7) return notify("error", "Enter the walk-in's phone number");
+    setRecipient({ kind: "walkin", name: walkIn.name.trim(), phone: walkIn.phone.trim() });
   };
 
   const availableAt = (line) =>
@@ -130,7 +162,7 @@ const StockDispenseTab = ({ onLockChange }) => {
   const removeLine = (idx) => setLines((prev) => prev.filter((_, i) => i !== idx));
 
   const submit = async () => {
-    if (!patient) return notify("error", "Attach the patient this is dispensed to");
+    if (!recipient) return notify("error", "Choose who this is dispensed to — a patient or a walk-in");
     if (lines.length === 0) return notify("error", "Scan at least one item");
     for (const l of lines) {
       if (!l.locationId) return notify("error", `Choose where "${l.name}" comes from`);
@@ -151,13 +183,14 @@ const StockDispenseTab = ({ onLockChange }) => {
     setSaving(true);
     try {
       const res = await stockService.checkoutDispense(
-        patient.uhid,
+        recipient.kind === "patient" ? recipient.uhid : null,
         lines.map((l) => ({ stockBatchId: l.stockBatchId, locationId: Number(l.locationId), quantity: Number(l.quantity) })),
+        null,
+        recipient.kind === "walkin" ? { name: recipient.name, phone: recipient.phone } : null,
       );
       if (res.success) {
-        notify("success", `Dispensed ${totalItems} item(s) to ${patient.name}`);
-        setLines([]);
-        setPatient(null);
+        notify("success", `Dispensed ${totalItems} item(s) to ${recipient.kind === "walkin" ? `walk-in ${recipient.name}` : recipient.name}`);
+        cancel();
       } else {
         notify("error", res.message || "Dispense failed");
       }
@@ -170,30 +203,71 @@ const StockDispenseTab = ({ onLockChange }) => {
 
   return (
     <div className="grid lg:grid-cols-3 gap-6">
-      {/* Left — patient scan only */}
+      {/* Left — who it goes to: a registered patient, or a walk-in */}
       <div className="lg:col-span-1">
-        <PatientAttach
-          value={patient}
-          onChange={setPatient}
-          label="Patient (required)"
-          hint="scan the patient card or type a UHID — attach before dispensing"
-        />
+        {recipient ? (
+          <Field label={recipient.kind === "walkin" ? "Walk-in (not registered)" : "Patient"}>
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              <span className="text-sm">
+                <b>{recipient.name}</b>{" "}
+                <span className="font-mono text-xs text-gray-500">
+                  {recipient.kind === "walkin" ? (recipient.phone || "no phone") : recipient.uhid}
+                </span>
+              </span>
+              <button type="button" className="text-xs text-primary font-semibold" onClick={() => setRecipient(null)}
+                disabled={lines.length > 0} title={lines.length > 0 ? "Cancel the cart to change who it goes to" : undefined}>
+                change
+              </button>
+            </div>
+          </Field>
+        ) : (
+          <>
+            <SwitcherTabs size="sm" className="mb-3" ariaLabel="Dispense to" idPrefix="dispense-to"
+              tabs={[{ id: "patient", label: "Registered patient" }, { id: "walkin", label: "Walk-in" }]}
+              active={mode} onChange={setMode} />
+            {mode === "patient" ? (
+              <Field label="Patient" hint="scan the card, or search by name, UHID, phone, email or ID number">
+                <PatientSearchInput
+                  autoFocus
+                  placeholder="Scan a card, or search by name, UHID, phone…"
+                  onSelect={(p) => setRecipient({ kind: "patient", uhid: p.uhid, name: p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim() })}
+                  onEnter={onSearchEnter}
+                />
+              </Field>
+            ) : (
+              <>
+                <Field label="Name (required)">
+                  <input className={inputCls} value={walkIn.name} autoFocus
+                    onChange={(e) => setWalkIn((w) => ({ ...w, name: e.target.value }))}
+                    onKeyDown={(e) => e.key === "Enter" && chooseWalkIn()} placeholder="Who is collecting the supplies" />
+                </Field>
+                <Field label="Phone (required)" hint="lets the clinic reach them if a batch is ever recalled">
+                  <input className={inputCls} value={walkIn.phone} inputMode="tel"
+                    onChange={(e) => setWalkIn((w) => ({ ...w, phone: e.target.value }))}
+                    onKeyDown={(e) => e.key === "Enter" && chooseWalkIn()} placeholder="e.g. 0722 000 000" />
+                </Field>
+                <Button className="w-full mb-4" onClick={chooseWalkIn}>Dispense to this walk-in</Button>
+              </>
+            )}
+          </>
+        )}
 
         <p className="text-sm text-gray-500">
-          {patient
-            ? "Now scan each shelf label the patient is taking in the cart on the right. Complete the dispense or cancel it before leaving this tab."
-            : "Attach the patient first. Then scan each shelf label into the cart on the right — every scan lists the item, and the same batch again adds one more."}
+          {recipient
+            ? "Now scan each shelf label being taken into the cart on the right. Complete the dispense or cancel it before leaving this tab."
+            : "Choose who it goes to first — a registered patient, or a walk-in who is not registered at the clinic. Then scan each shelf label into the cart on the right."}
         </p>
       </div>
 
       {/* Right — the cart: scan box on top, then the dispensing list */}
       <div className="ui-surface lg:col-span-2 p-5">
         {/* Scan straight into the cart */}
-        <BatchScanBox onResolved={onScan} disabled={!patient} />
+        <BatchScanBox onResolved={onScan} disabled={!recipient} />
 
         <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
           <ShoppingCart className="w-5 h-5 text-primary" />
           Dispensing list{totalItems > 0 ? ` (${totalItems})` : ""}
+          <StockHelp tab="dispense" />
         </h4>
 
         {lines.length === 0 ? (
@@ -260,18 +334,18 @@ const StockDispenseTab = ({ onLockChange }) => {
         )}
 
         <div className="flex gap-2 mt-4">
-          {(patient || lines.length > 0) && (
+          {(recipient || lines.length > 0) && (
             <Button variant="outline" className="flex-shrink-0" onClick={cancel} disabled={saving}>
               Cancel
             </Button>
           )}
-          <Button className="flex-1" disabled={saving || lines.length === 0 || !patient} onClick={submit}>
+          <Button className="flex-1" disabled={saving || lines.length === 0 || !recipient} onClick={submit}>
             <Package className="w-4 h-4" />
-            {patient ? `Confirm & dispense to ${patient.name}` : "Attach a patient to dispense"}
+            {recipient ? `Confirm & dispense to ${recipient.name}` : "Choose a patient or walk-in to dispense"}
           </Button>
         </div>
         <p className="text-xs text-gray-400 mt-2">
-          Nothing leaves stock until you confirm. Everything is dispensed at once, recorded against the patient. Cancel clears the cart and unlocks the tabs.
+          Nothing leaves stock until you confirm. Everything is dispensed at once, recorded against the patient (or the walk-in). Cancel clears the cart and unlocks the tabs.
         </p>
       </div>
 
@@ -283,7 +357,7 @@ const StockDispenseTab = ({ onLockChange }) => {
             <AlertTriangle className="w-5 h-5 flex-shrink-0" />
             <div>
               <b>{pendingHighAlert.item.name}</b> is flagged high-alert. Confirm you are dispensing it
-              {patient ? <> to <b>{patient.name}</b></> : null}.
+              {recipient ? <> to <b>{recipient.name}</b></> : null}.
             </div>
           </div>
           <div className="flex gap-3">

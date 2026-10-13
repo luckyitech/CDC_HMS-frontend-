@@ -6,7 +6,10 @@ import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
-import { Field, inputCls } from "./stockUi";
+import StockHelp from "./StockHelp";
+import { Field, inputCls, useStockCan } from "./stockUi";
+import { PERMISSIONS } from "../../utils/permissions";
+import { useUserContext } from "../../contexts/UserContext";
 
 // Room Balance: the red/amber/green grid (rooms × items vs par levels), the
 // per-room par editor with copy-from-room, and the FEFO restock picklist.
@@ -20,7 +23,9 @@ const CELL_CLS = {
 };
 
 const StockRoomBalanceTab = () => {
-  const { items: allItems, locations } = useStockContext();
+  const { items: allItems, locations, loadReferenceData } = useStockContext();
+  const { doctors = [] } = useUserContext();
+  const canEdit = useStockCan()(PERMISSIONS.STOCK_ROOMS_EDIT);
   const [grid, setGrid] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -29,6 +34,7 @@ const StockRoomBalanceTab = () => {
   const [editingRoom, setEditingRoom] = useState(null);   // locationId being edited
   const [parRows, setParRows] = useState([]);             // [{stockItemId, name, minQty, maxQty}]
   const [copyFrom, setCopyFrom] = useState("");
+  const [roomDoctor, setRoomDoctor] = useState("");       // doctor who works in the room being edited
   const [saving, setSaving] = useState(false);
 
   // Restock picklist state
@@ -74,6 +80,7 @@ const StockRoomBalanceTab = () => {
       maxQty: byItem[i.id]?.maxQty ?? 0,
     })));
     setEditingRoom(locationId);
+    setRoomDoctor(String(locations.find((l) => l.id === locationId)?.assignedDoctorId || ""));
     setCopyFrom("");
   };
 
@@ -83,11 +90,14 @@ const StockRoomBalanceTab = () => {
       const entries = parRows.map(({ stockItemId, minQty, maxQty }) => ({
         stockItemId, minQty: Number(minQty) || 0, maxQty: Number(maxQty) || 0,
       }));
-      const res = await stockService.setParLevels(editingRoom, entries);
+      const isDoctorRoom = locations.find((l) => l.id === editingRoom)?.kind === "doctor_room";
+      const res = await stockService.setParLevels(editingRoom, entries,
+        isDoctorRoom ? (roomDoctor ? Number(roomDoctor) : null) : undefined);
       if (res.success) {
         notify("success", "Par levels saved");
         setEditingRoom(null);
         load();
+        if (isDoctorRoom) loadReferenceData();   // locations carry the room's doctor
       } else {
         notify("error", res.message || "Save failed");
       }
@@ -153,6 +163,7 @@ const StockRoomBalanceTab = () => {
         // Lines are FEFO by construction; if stock moved since the plan was
         // built the server re-checks and this reason keeps the audit honest.
         fefoOverrideReason: "Restock picklist line",
+        restock: true,   // marks it as room balancing in the audit
       });
       if (res.success) {
         setDoneLines((prev) => ({ ...prev, [idx]: "ok" }));
@@ -180,6 +191,7 @@ const StockRoomBalanceTab = () => {
 
   return (
     <div>
+      <div className="flex mb-2"><StockHelp tab="rooms" /></div>
       {/* Set pars for ANY editable room — the grid only shows rooms that already
           have pars, so this is the way to start a second/third room. */}
       {editableRooms.length > 0 && (
@@ -215,12 +227,15 @@ const StockRoomBalanceTab = () => {
                 {grid.rooms.map((r) => (
                   <th key={r.id} className="px-3 py-2 text-center">
                     {r.name}
-                    <button
-                      className="block mx-auto text-primary normal-case font-semibold mt-0.5"
-                      onClick={() => openParEditor(r.id)}
-                    >
-                      edit pars
-                    </button>
+                    {r.doctor && <span className="block normal-case font-normal text-gray-500">{r.doctor}</span>}
+                    {canEdit && (
+                      <button
+                        className="block mx-auto text-primary normal-case font-semibold mt-0.5"
+                        onClick={() => openParEditor(r.id)}
+                      >
+                        edit pars
+                      </button>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -256,19 +271,19 @@ const StockRoomBalanceTab = () => {
         </div>
       ) : (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 mb-6">
-          No par levels yet. Set a room's targets to start the grid:
-          <span className="inline-flex gap-2 ml-2">
+          No par levels yet.{canEdit ? " Set a room's targets to start the grid:" : " Someone allowed to set par levels needs to set them first."}
+          {canEdit && <span className="inline-flex gap-2 ml-2">
             {editableRooms.map((r) => (
               <button key={r.id} className="font-semibold underline" onClick={() => openParEditor(r.id)}>
                 {r.name}
               </button>
             ))}
-          </span>
+          </span>}
         </div>
       )}
 
-      {/* Restock */}
-      <div className="ui-surface p-5">
+      {/* Restock — moves stock, so it needs "set par levels and restock rooms" */}
+      {canEdit && <div className="ui-surface p-5">
         <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
           <Truck className="w-5 h-5 text-primary" /> Restock picklist
         </h4>
@@ -335,12 +350,22 @@ const StockRoomBalanceTab = () => {
             Store shortfalls: {plan.shortfalls.map((s) => `${s.itemName} → ${s.toLocationName} (short ${s.short})`).join("; ")}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Par editor modal */}
       {editingRoom && (
         <Modal isOpen onClose={() => setEditingRoom(null)}
                title={`Par levels — ${locations.find((l) => l.id === editingRoom)?.name || "room"}`} size="lg">
+          {/* A doctor's HbA1c / RBS / Ketones take their strip from their room (13 Oct 2026). */}
+          {locations.find((l) => l.id === editingRoom)?.kind === "doctor_room" && (
+            <Field label="Doctor in this room">
+              <select className={inputCls} value={roomDoctor} onChange={(e) => setRoomDoctor(e.target.value)}>
+                <option value="">— no one —</option>
+                {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Tests this doctor enters (HbA1c, RBS, Ketones) take their strip from this room.</p>
+            </Field>
+          )}
           <div className="flex items-end gap-2 mb-4">
             <div className="flex-1">
               <Field label="Copy from another room">

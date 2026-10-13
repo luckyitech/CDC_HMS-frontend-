@@ -288,6 +288,7 @@ function App() {
                   <Route path="test-history" element={<TestHistory />} />
                   <Route path="generate-reports" element={<GenerateReports />} />
                   <Route path="critical-alerts" element={<CriticalAlerts />} />
+                  <Route path="stock" element={<Stocks />} />
                   <Route path="inbox" element={<Inbox />} />
                   <Route path="lab-inbox" element={<Navigate to="../inbox?tab=lab" replace />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
@@ -343,6 +344,8 @@ function App() {
                 >
                   <Route index element={<Navigate to="/hr/dashboard" replace />} />
                   <Route path="dashboard" element={<HrDashboard />} />
+                  {/* Stocks opens inside whichever portal you are in (13 Oct 2026) */}
+                  <Route path="stock" element={<Stocks />} />
                   <Route path="register" element={<TimeRegister />} />
                   <Route path="staff" element={<StaffDirectory />} />
                   <Route path="staff/:employeeId" element={<StaffFile />} />
@@ -388,6 +391,7 @@ function App() {
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="unassigned" element={<Navigate to="/radiology/suite" replace />} />
                   <Route path="neuropathy" element={<NeuropathyStudioPage />} />
+                  <Route path="stock" element={<Stocks />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -398,6 +402,7 @@ function App() {
                 >
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="queue" element={<QueueManagement />} />
+                  <Route path="stock" element={<Stocks />} />
                   <Route path="triage" element={<Triage />} />
                   <Route path="inbox" element={<Inbox />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
@@ -411,6 +416,7 @@ function App() {
                 >
                   <Route path="dashboard" element={<WardBoard />} />
                   <Route path="board" element={<WardBoard />} />
+                  <Route path="stock" element={<Stocks />} />
                   <Route path="admission/:id" element={<AdmissionDetail />} />
                 </Route>
 

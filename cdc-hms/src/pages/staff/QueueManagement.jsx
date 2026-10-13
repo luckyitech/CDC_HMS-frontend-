@@ -613,6 +613,8 @@ const QueueManagement = () => {
                           className="w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
                         />
                         <span className="text-sm font-medium leading-tight">{item}
+                          {/* Tests count attempts (13 Oct 2026): charge every one. */}
+                          {lineFor('charge', item)?.quantity > 1 && <b className="ml-1 text-primary">× {lineFor('charge', item).quantity}</b>}
                           <span className="block text-[11px] font-normal text-gray-500 no-underline">{whoAdded(lineFor('charge', item))}</span>
                         </span>
                       </label>

@@ -5,34 +5,22 @@ import { notify } from "../../utils/notify";
 import { Download, Search, DatabaseZap, FileSpreadsheet } from "lucide-react";
 import { useUserContext } from "../../contexts/UserContext";
 import stockService from "../../services/stockService";
-import { downloadWorkbook } from "../../utils/exportCsv";
+import { downloadCsv, downloadWorkbook } from "../../utils/exportCsv";
+import ExpiryReport, { EXPIRY_HEADERS, expiryRows, DEFAULT_EXPIRY_RANGE } from "./ExpiryReport";
 import Spinner from "../shared/Spinner";
 import Button from "../shared/Button";
-import { inputCls, MovementBadge, ByLine } from "./stockUi";
+import { inputCls, MovementBadge, ByLine, Recipient, recipientText } from "./stockUi";
 
 // Reports — straight views over the ledger. Every table exports to CSV.
 // No money anywhere.
 
-// Client-side CSV download (no dependency).
-const downloadCsv = (filename, headers, rows) => {
-  const esc = (v) => {
-    const s = String(v ?? "");
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = [headers, ...rows].map((r) => r.map(esc).join(",")).join("\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
 const SUB_TABS = [
   { id: "inventory", label: "Inventory overview" },
   { id: "reorder", label: "Reorder" },
+  { id: "expiry", label: "Expiry" },
   { id: "consumption", label: "Consumption" },
   { id: "recall", label: "Batch recall" },
+  { id: "walkins", label: "Walk-ins" },
   { id: "disposal", label: "Disposal register" },
   { id: "fefo", label: "FEFO overrides" },
   { id: "variances", label: "Variances" },
@@ -54,10 +42,10 @@ const movementRows = (rows = []) => rows.map((m) => [
   m.performedByUser ? `${m.performedByUser.firstName} ${m.performedByUser.lastName}` : "",
   m.type, m.item?.name || "", m.batch?.labelCode || "", m.quantity,
   m.fromLocation?.name || m.toLocation?.name || "",
-  m.Patient ? `${m.Patient.firstName} ${m.Patient.lastName}` : "",
+  recipientText(m),
   m.reason || "",
 ]);
-const MOVEMENT_HEADERS = ["Date", "By", "Type", "Item", "Batch", "Qty", "Location", "Patient", "Reason"];
+const MOVEMENT_HEADERS = ["Date", "By", "Type", "Item", "Batch", "Qty", "Location", "Patient / walk-in", "Reason"];
 
 const INVENTORY_HEADERS = [
   "Item", "Category", "Availability", "Unit", "Locations", "Reorder level",
@@ -86,7 +74,7 @@ const MovementTable = ({ rows }) => (
         <th className="px-3 py-2">Batch</th>
         <th className="px-3 py-2">Qty</th>
         <th className="px-3 py-2">Location</th>
-        <th className="px-3 py-2">Patient</th>
+        <th className="px-3 py-2">Patient / walk-in</th>
         <th className="px-3 py-2">Reason</th>
       </tr>
     </thead>
@@ -100,9 +88,7 @@ const MovementTable = ({ rows }) => (
             <td className="px-3 py-2 font-mono text-xs">{m.batch?.labelCode}</td>
             <td className="px-3 py-2 font-bold">{m.quantity}</td>
             <td className="px-3 py-2 text-xs">{m.fromLocation?.name || m.toLocation?.name || "—"}</td>
-            <td className="px-3 py-2 text-xs">
-              {m.Patient ? `${m.Patient.firstName} ${m.Patient.lastName}` : <span className="text-gray-300">—</span>}
-            </td>
+            <td className="px-3 py-2 text-xs"><Recipient m={m} /></td>
             <td className="px-3 py-2 text-xs text-gray-600">{m.reason}</td>
           </tr>
         );
@@ -116,11 +102,11 @@ const MovementTable = ({ rows }) => (
 
 const movementCsv = (name, rows) => downloadCsv(
   name,
-  ["Date", "By", "Type", "Item", "Batch", "Qty", "From", "Reason"],
+  ["Date", "By", "Type", "Item", "Batch", "Qty", "From", "Patient / walk-in", "Reason"],
   rows.map((m) => [
     new Date(m.createdAt).toISOString(),
     m.performedByUser ? `${m.performedByUser.firstName} ${m.performedByUser.lastName}` : "",
-    m.type, m.item?.name, m.batch?.labelCode, m.quantity, m.fromLocation?.name || "", m.reason || "",
+    m.type, m.item?.name, m.batch?.labelCode, m.quantity, m.fromLocation?.name || "", recipientText(m), m.reason || "",
   ])
 );
 
@@ -152,7 +138,7 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
 
   // Only the movement-based reports narrow by date; snapshots (inventory,
   // reorder) are always "as of now".
-  const rangeApplies = ["disposal", "fefo", "variances"].includes(sub);
+  const rangeApplies = ["walkins", "disposal", "fefo", "variances"].includes(sub);
 
   // Inventory overview, sorted the way the user picked.
   const sortedInventory = useMemo(() => {
@@ -168,13 +154,16 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
   const exportAll = async () => {
     setLoading(true);
     try {
-      const [inv, reorder, cons, disp, fefo, varr] = await Promise.all([
+      const [expFrom, expTo] = DEFAULT_EXPIRY_RANGE();
+      const [inv, reorder, cons, disp, fefo, varr, exp, walk] = await Promise.all([
         stockService.getInventoryReport(),
         stockService.getReorderReport(),
         stockService.getConsumptionReport(months),
         stockService.getDisposalReport(dateRange),
         stockService.getFefoOverridesReport(dateRange),
         stockService.getVariancesReport(dateRange),
+        stockService.getExpiryReport({ from: expFrom, to: expTo }),
+        stockService.getWalkInsReport(dateRange),
       ]);
       const sheets = [];
       if (inv.success) sheets.push({ name: "Inventory", headers: INVENTORY_HEADERS, rows: inventoryRows(inv.data) });
@@ -185,16 +174,19 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
       });
       if (cons.success) sheets.push({
         name: "Consumption",
-        headers: ["Item", ...cons.data.months, "Written off"],
+        headers: ["Item", ...cons.data.months, "of which walk-ins", "Written off"],
         rows: cons.data.items.map((e) => [
           e.item.name,
           ...cons.data.months.map((k) => e.months[k]?.consumed || 0),
+          e.walkIn || 0,
           cons.data.months.reduce((s, k) => s + (e.months[k]?.writtenOff || 0), 0),
         ]),
       });
       if (disp.success) sheets.push({ name: "Disposal", headers: MOVEMENT_HEADERS, rows: movementRows(disp.data) });
       if (fefo.success) sheets.push({ name: "FEFO overrides", headers: MOVEMENT_HEADERS, rows: movementRows(fefo.data) });
       if (varr.success) sheets.push({ name: "Variances", headers: MOVEMENT_HEADERS, rows: movementRows(varr.data) });
+      if (exp.success) sheets.push({ name: "Expiry", headers: EXPIRY_HEADERS, rows: expiryRows(exp.data.batches) });
+      if (walk.success) sheets.push({ name: "Walk-ins", headers: MOVEMENT_HEADERS, rows: movementRows(walk.data) });
 
       downloadWorkbook(`stock-reports-${new Date().toISOString().slice(0, 10)}.xls`, sheets);
     } catch (err) {
@@ -205,7 +197,8 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
   };
 
   const load = useCallback(async () => {
-    if (sub === "recall") { setData(null); return; }
+    // Recall runs on demand; Expiry loads itself (its own range picker).
+    if (sub === "recall" || sub === "expiry") { setData(null); return; }
     setLoading(true);
     try {
       const res =
@@ -213,6 +206,7 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
         : sub === "reorder" ? await stockService.getReorderReport()
         : sub === "consumption" ? await stockService.getConsumptionReport(months)
         : sub === "disposal" ? await stockService.getDisposalReport(dateRange)
+        : sub === "walkins" ? await stockService.getWalkInsReport(dateRange)
         : sub === "variances" ? await stockService.getVariancesReport(dateRange)
         : await stockService.getFefoOverridesReport(dateRange);
       if (res.success) setData(res.data);
@@ -280,6 +274,8 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
       </div>
 
       {loading && <div className="flex justify-center py-12"><Spinner /></div>}
+
+      {sub === "expiry" && <ExpiryReport />}
 
       {/* Inventory overview — everything in one place */}
       {!loading && sub === "inventory" && Array.isArray(data) && (
@@ -398,10 +394,11 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
             </SelectMenu>
             <Button variant="outline" className="!px-3 !py-1.5 text-xs"
               onClick={() => downloadCsv("consumption-report.csv",
-                ["Item", ...data.months, "Written off"],
+                ["Item", ...data.months, "of which walk-ins", "Written off"],
                 data.items.map((e) => [
                   e.item.name,
                   ...data.months.map((k) => e.months[k]?.consumed || 0),
+                  e.walkIn || 0,
                   data.months.reduce((s, k) => s + (e.months[k]?.writtenOff || 0), 0),
                 ]))}>
               <Download className="w-4 h-4" /> Export CSV
@@ -413,6 +410,7 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
                 <tr className="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
                   <th className="px-3 py-2">Item</th>
                   {data.months.map((k) => <th key={k} className="px-3 py-2 text-center">{k}</th>)}
+                  <th className="px-3 py-2 text-center" title="Of the units dispensed in these months, how many went to walk-ins">of which walk-ins</th>
                   <th className="px-3 py-2 text-center">Written off</th>
                 </tr>
               </thead>
@@ -423,13 +421,14 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
                     {data.months.map((k) => (
                       <td key={k} className="px-3 py-2 text-center">{e.months[k]?.consumed || 0}</td>
                     ))}
+                    <td className="px-3 py-2 text-center text-amber-700">{e.walkIn || 0}</td>
                     <td className="px-3 py-2 text-center text-red-600">
                       {data.months.reduce((s, k) => s + (e.months[k]?.writtenOff || 0), 0)}
                     </td>
                   </tr>
                 ))}
                 {data.items.length === 0 && (
-                  <tr><td colSpan={data.months.length + 2} className="px-3 py-8 text-center text-gray-500">No consumption recorded yet.</td></tr>
+                  <tr><td colSpan={data.months.length + 3} className="px-3 py-8 text-center text-gray-500">No consumption recorded yet.</td></tr>
                 )}
               </tbody>
             </table>
@@ -471,11 +470,12 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
 
               {r.recipients?.length > 0 && (
                 <div className="mb-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-                  <p className="text-xs font-semibold text-blue-900 mb-1">Dispensed to {r.recipients.length} patient(s):</p>
+                  <p className="text-xs font-semibold text-blue-900 mb-1">Dispensed to {r.recipients.length} recipient(s):</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-blue-900">
                     {r.recipients.map((p) => (
-                      <span key={p.uhid}>
-                        {p.name} <span className="font-mono text-blue-700">({p.uhid})</span> — {p.quantity}
+                      <span key={p.uhid || `${p.name}|${p.phone}`}>
+                        {p.name}{" "}
+                        <span className="font-mono text-blue-700">({p.walkIn ? `walk-in${p.phone ? ` · ${p.phone}` : ""}` : p.uhid})</span> — {p.quantity}
                       </span>
                     ))}
                   </div>
@@ -493,12 +493,12 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
       )}
 
       {/* Disposal / FEFO / Variances — all movement-row reports */}
-      {!loading && (sub === "disposal" || sub === "fefo" || sub === "variances") && Array.isArray(data) && (
+      {!loading && (sub === "walkins" || sub === "disposal" || sub === "fefo" || sub === "variances") && Array.isArray(data) && (
         <>
           <div className="flex justify-end mb-2">
             <Button variant="outline" className="!px-3 !py-1.5 text-xs"
               onClick={() => movementCsv(
-                sub === "disposal" ? "disposal-register.csv" : sub === "variances" ? "variances-report.csv" : "fefo-overrides.csv",
+                sub === "walkins" ? "walk-in-dispensing.csv" : sub === "disposal" ? "disposal-register.csv" : sub === "variances" ? "variances-report.csv" : "fefo-overrides.csv",
                 data,
               )}>
               <Download className="w-4 h-4" /> Export CSV
@@ -506,7 +506,9 @@ const StockReportsTab = ({ initialSub = "inventory" }) => {
           </div>
           <MovementTable rows={data} />
           <p className="text-xs text-gray-500 mt-2">
-            {sub === "disposal"
+            {sub === "walkins"
+              ? "Supplies dispensed to walk-ins — people not registered at the clinic — with who received them."
+              : sub === "disposal"
               ? "Every write-off with its reason — the register an inspector asks for."
               : sub === "variances"
                 ? "Every stocktake variance and manual count correction — the reason shows expected vs counted. Each row is the reconciliation: the ledger was moved to the counted figure."

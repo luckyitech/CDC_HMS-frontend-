@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import {
   Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound,
   LayoutGrid, Users, Package, Stethoscope, Briefcase,
-  Clock, CalendarDays, GraduationCap, UserRound, Mail,
+  Clock, CalendarDays, GraduationCap, UserRound, Mail, Boxes,
 } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import api from '../../../services/api';
@@ -24,6 +24,7 @@ const GROUP_ICONS = {
   'patient-admin': Users,
   clinical: Stethoscope,
   modules: Package,
+  stocks: Boxes,
   administration: ShieldCheck,
   // HR Suite groups (HR Tier 3 Phase 0).
   'hr-self': UserRound,

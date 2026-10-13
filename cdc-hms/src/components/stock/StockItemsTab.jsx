@@ -5,8 +5,10 @@ import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import Modal from "../shared/Modal";
+import StockHelp from "./StockHelp";
 import SwitcherTabs from "../shared/SwitcherTabs";
-import { Field, inputCls, StatusPill } from "./stockUi";
+import { Field, inputCls, StatusPill, useStockCan } from "./stockUi";
+import { PERMISSIONS } from "../../utils/permissions";
 
 // Items, Locations and Suppliers share one tab: three sub-lists over the same
 // cached reference data, one add/edit modal pattern. Retire = status update,
@@ -30,8 +32,13 @@ const Toggle = ({ label, checked, onChange }) => (
   </label>
 );
 
+// The strips / cartridges the charge-sheet tests take, matched BY NAME
+// (backend utils/testStock TEST_ITEMS — keep in step).
+const TEST_ITEM_NAMES = ["HbA1c test cartridge", "Blood glucose test strip", "Ketone test strip"];
+
 const StockItemsTab = () => {
   const { items, locations, suppliers, saveReference } = useStockContext();
+  const canEdit = useStockCan()(PERMISSIONS.STOCK_ITEMS_EDIT);
   const [view, setView] = useState("items");           // items | locations | suppliers
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(null);        // { kind, id, form }
@@ -103,16 +110,19 @@ const StockItemsTab = () => {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <SwitcherTabs active={view} onChange={setView} tabs={subTabs} />
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <input
             className={`${inputCls} w-56`}
             placeholder="Search…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Button onClick={() => open(view === "items" ? "item" : view === "locations" ? "location" : "supplier")}>
-            <Plus className="w-4 h-4" /> Add
-          </Button>
+          {canEdit && (
+            <Button onClick={() => open(view === "items" ? "item" : view === "locations" ? "location" : "supplier")}>
+              <Plus className="w-4 h-4" /> Add
+            </Button>
+          )}
+          <StockHelp tab="items" />
         </div>
       </div>
 
@@ -172,9 +182,9 @@ const StockItemsTab = () => {
                 </td>
                 <td className="px-3 py-2"><StatusPill value={i.status} /></td>
                 <td className="px-3 py-2 text-right">
-                  <button onClick={() => open("item", i)} className="text-primary hover:text-blue-800" title="Edit">
+                  {canEdit && <button onClick={() => open("item", i)} className="text-primary hover:text-blue-800" title="Edit">
                     <Pencil className="w-4 h-4" />
-                  </button>
+                  </button>}
                 </td>
               </tr>
               {expandedItem === i.id && (
@@ -207,9 +217,9 @@ const StockItemsTab = () => {
                 <td className="px-3 py-2">{l.isDispensing ? "Yes" : "—"}</td>
                 <td className="px-3 py-2"><StatusPill value={l.status} /></td>
                 <td className="px-3 py-2 text-right">
-                  <button onClick={() => open("location", l)} className="text-primary hover:text-blue-800" title="Edit">
+                  {canEdit && <button onClick={() => open("location", l)} className="text-primary hover:text-blue-800" title="Edit">
                     <Pencil className="w-4 h-4" />
-                  </button>
+                  </button>}
                 </td>
               </tr>
             ))}
@@ -220,9 +230,9 @@ const StockItemsTab = () => {
                 <td className="px-3 py-2">{s.contactEmail || "—"}</td>
                 <td className="px-3 py-2"><StatusPill value={s.status} /></td>
                 <td className="px-3 py-2 text-right">
-                  <button onClick={() => open("supplier", s)} className="text-primary hover:text-blue-800" title="Edit">
+                  {canEdit && <button onClick={() => open("supplier", s)} className="text-primary hover:text-blue-800" title="Edit">
                     <Pencil className="w-4 h-4" />
-                  </button>
+                  </button>}
                 </td>
               </tr>
             ))}
@@ -232,9 +242,17 @@ const StockItemsTab = () => {
 
       {editing && (
         <Modal isOpen onClose={() => setEditing(null)} title={`${editing.id ? "Edit" : "Add"} ${editing.kind}`} size="lg">
-          <Field label="Name">
-            <input className={inputCls} value={editing.form.name} onChange={(e) => set("name", e.target.value)} />
-          </Field>
+          {editing.kind === "item" && editing.id && TEST_ITEM_NAMES.includes(editing.form.name) ? (
+            // Tests (HbA1c / RBS / Ketones) find this item by name — fixed.
+            <Field label="Name">
+              <p className="text-sm text-gray-800">{editing.form.name}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Used by its test on the charge sheet, which finds it by this name — so the name stays fixed.</p>
+            </Field>
+          ) : (
+            <Field label="Name">
+              <input className={inputCls} value={editing.form.name} onChange={(e) => set("name", e.target.value)} />
+            </Field>
+          )}
 
           {editing.kind === "item" && (<>
             <div className="grid grid-cols-2 gap-4">
@@ -306,7 +324,7 @@ const StockItemsTab = () => {
             <Button className="flex-1" disabled={saving || !editing.form.name.trim()} onClick={() => save()}>
               {editing.id ? "Save changes" : "Add"}
             </Button>
-            {editing.id && editing.status === "active" && (
+            {editing.id && editing.status === "active" && !(editing.kind === "item" && TEST_ITEM_NAMES.includes(editing.form.name)) && (
               <Button variant="danger" disabled={saving} onClick={() => save("retired")}>
                 Retire
               </Button>

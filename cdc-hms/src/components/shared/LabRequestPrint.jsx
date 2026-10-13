@@ -10,15 +10,15 @@ import SendViaWhatsAppModal from "./SendViaWhatsAppModal";
 import PrintLetterhead from "./PrintLetterhead";
 import {
   PrintPreviewModal, PrintDocHeader, PrintPatientLine, PrintSection, PrintTable,
-  PrintSignatures, PrintSignature,
+  PrintSignatures, PrintSignature, ageSex,
 } from "./PrintDocument";
 
 const fmtDay = (d) =>
   d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
 
 /**
- * Laid out like the prescription (shared PrintDocument parts). Age is left
- * off on purpose — it cost a line and the lab does not need it.
+ * Laid out like the prescription (shared PrintDocument parts). Age and sex
+ * share one short item ("54/F") so the patient line stays one line.
  *
  * Props:
  *   request: {
@@ -27,7 +27,7 @@ const fmtDay = (d) =>
  *     onBehalfOfDoctor,   // "Dr. …" when a nurse raised it (else null)
  *     tests: [{ testType, sampleType }]
  *   }
- *   patient  — { name, uhid, gender, phone }
+ *   patient  — { name, uhid, gender, age, phone }
  * Toolbar like the prescription (27 Sep evening): Print · Email · Send via WhatsApp.
  *   onClose
  *   onBackToEdit  (optional) — reopen the request in the form for editing
@@ -86,7 +86,7 @@ const LabRequestPrint = ({ request, patient, onClose, onBackToEdit }) => {
         <PrintPatientLine items={[
           { label: "Patient", value: patient?.name },
           { label: "UHID", value: patient?.uhid },
-          { label: "Sex", value: patient?.gender },
+          { label: "Age/Sex", value: ageSex(patient?.age, patient?.gender) },
           { label: "Priority", value: urgent ? request.priority.toUpperCase() : "Routine" },
         ]} />
 

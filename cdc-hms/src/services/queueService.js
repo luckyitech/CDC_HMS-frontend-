@@ -59,7 +59,10 @@ export const queueService = {
   // replaces); DELETE takes one line off, kept in the history.
   getCharges: (id) => api.get(`/queue/${id}/charges`),
   addCharges: (id, { charges = [], procedures = [], stage } = {}) => api.post(`/queue/${id}/charges`, { charges, procedures, stage }),
-  removeCharge: (id, { kind, name, reason }) => api.delete(`/queue/${id}/charges`, { data: { kind, name, reason } }),
+  // done: tests only — false puts the attempt's supplies back in stock (13 Oct 2026).
+  removeCharge: (id, { kind, name, reason, done }) => api.delete(`/queue/${id}/charges`, { data: { kind, name, reason, done } }),
+  // One more attempt of a test (a repeat): "HbA1c × 2".
+  addTestAttempt: (id, name, stage) => api.post(`/queue/${id}/charges/attempt`, { name, stage }),
 
   /**
    * Save & Print the referral NOTE without finalising the referral or moving to

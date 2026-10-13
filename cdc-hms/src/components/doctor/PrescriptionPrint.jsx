@@ -3,7 +3,7 @@ import { MessageCircle } from "lucide-react";
 import PrintLetterhead from "../shared/PrintLetterhead";
 import {
   PrintPreviewModal, PrintDocHeader, PrintPatientLine, PrintSection, PrintTable,
-  PrintNotice, PrintSignatures, PrintSignature,
+  PrintNotice, PrintSignatures, PrintSignature, ageSex,
 } from "../shared/PrintDocument";
 import usePrint from "../../hooks/usePrint";
 import usePdfFromPrint from "../../hooks/usePdfFromPrint";
@@ -56,7 +56,11 @@ const PrescriptionPrint = ({ prescription, onClose }) => {
 
           {/* Prescriber details deliberately live only in the signature block. */}
           <PrintDocHeader icon="℞" label="Prescription No." number={prescription.prescriptionNumber} date={prescription.date} />
-          <PrintPatientLine items={[{ label: "Patient", value: prescription.patientName }]} />
+          <PrintPatientLine items={[
+            { label: "Patient", value: prescription.patientName },
+            { label: "UHID", value: patient.uhid },
+            { label: "Age/Sex", value: ageSex(prescription.patientAge, prescription.patientGender) },
+          ]} />
 
           <PrintSection title="Medications Prescribed">
             <PrintTable columns={columns} rows={prescription.medications} />
