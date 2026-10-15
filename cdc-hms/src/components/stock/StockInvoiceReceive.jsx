@@ -271,7 +271,12 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
     if (!name) return;
     setAddingSupplier(true);
     try {
-      const res = await stockService.createSupplierWhileReceiving({ name });
+      // Everything the invoice showed about the supplier goes in with it.
+      const d = read.supplier.details || {};
+      const res = await stockService.createSupplierWhileReceiving({
+        name, contactPhone: d.contactPhone || null, contactEmail: d.contactEmail || null,
+        address: d.address || null, taxPin: d.taxPin || null, notes: d.notes || null,
+      });
       if (res.success) { await fetchSuppliers(); setH("supplierId", String(res.data.id)); notify("success", `${res.data.name} added to suppliers`); }
       else notify("error", res.message || "Could not add the supplier");
     } catch (err) { notify("error", err?.message || "Could not add the supplier"); } finally { setAddingSupplier(false); }
@@ -470,6 +475,9 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
                   <button type="button" className="font-semibold text-primary hover:underline" disabled={addingSupplier} onClick={addSupplier}>
                     {addingSupplier ? "Adding…" : "Add as a new supplier"}
                   </button>
+                  {[read.supplier.details?.contactPhone, read.supplier.details?.contactEmail, read.supplier.details?.address, read.supplier.details?.taxPin && `PIN ${read.supplier.details.taxPin}`].filter(Boolean).length > 0 && (
+                    <span className="block text-gray-600 mt-0.5">With: {[read.supplier.details?.contactPhone, read.supplier.details?.contactEmail, read.supplier.details?.address, read.supplier.details?.taxPin && `PIN ${read.supplier.details.taxPin}`].filter(Boolean).join(" · ")}</span>
+                  )}
                 </p>
               )}
               {!read?.supplier?.readAs && !header.supplierId && <p className="text-xs text-gray-500 mt-1">No supplier name was read — choose one, or leave it blank.</p>}

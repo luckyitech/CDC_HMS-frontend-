@@ -18,7 +18,7 @@ import { PERMISSIONS } from "../../utils/permissions";
 const LOCATION_KINDS = ["store", "doctor_room", "procedure_room", "triage", "fridge", "office"];
 
 const EMPTY_LOCATION = { name: "", kind: "store", isColdChain: false, isDispensing: true };
-const EMPTY_SUPPLIER = { name: "", contactPhone: "", contactEmail: "" };
+const EMPTY_SUPPLIER = { name: "", contactPhone: "", contactEmail: "", address: "", taxPin: "", notes: "" };
 
 // The strips / cartridges the charge-sheet tests take, matched BY NAME
 // (backend utils/testStock TEST_ITEMS — keep in step).
@@ -134,6 +134,7 @@ const StockItemsTab = () => {
               {view === "suppliers" && (<>
                 <th className="px-3 py-2">Phone</th>
                 <th className="px-3 py-2">Email</th>
+                <th className="px-3 py-2">Address · PIN</th>
               </>)}
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2" />
@@ -216,6 +217,7 @@ const StockItemsTab = () => {
                 <td className="px-3 py-2 font-medium">{s.name}</td>
                 <td className="px-3 py-2">{s.contactPhone || "—"}</td>
                 <td className="px-3 py-2">{s.contactEmail || "—"}</td>
+                <td className="px-3 py-2 text-xs text-gray-600">{s.address || "—"}{s.taxPin && <span className="block">PIN {s.taxPin}</span>}{s.notes && <span className="block text-gray-400">{s.notes}</span>}</td>
                 <td className="px-3 py-2"><StatusPill value={s.status} /></td>
                 <td className="px-3 py-2 text-right">
                   {canEdit && <button onClick={() => open("supplier", s)} className="text-primary hover:text-blue-800" title="Edit">
@@ -256,7 +258,16 @@ const StockItemsTab = () => {
               <Field label="Contact email">
                 <input className={inputCls} value={editing.form.contactEmail || ""} onChange={(e) => set("contactEmail", e.target.value)} />
               </Field>
+              <Field label="Address">
+                <input className={inputCls} value={editing.form.address || ""} onChange={(e) => set("address", e.target.value)} />
+              </Field>
+              <Field label="Tax / KRA PIN">
+                <input className={inputCls} value={editing.form.taxPin || ""} onChange={(e) => set("taxPin", e.target.value)} />
+              </Field>
             </div>
+            <Field label="Notes" hint="website, contact person, paybill — anything else from the invoice">
+              <input className={inputCls} value={editing.form.notes || ""} onChange={(e) => set("notes", e.target.value)} />
+            </Field>
           </>)}
 
           <div className="flex gap-3 mt-4">
