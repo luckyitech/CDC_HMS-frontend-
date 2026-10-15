@@ -58,8 +58,8 @@ export const Recipient = ({ m, showUhid = false }) => {
 
 // How a delivery (or one of its lines) was entered (13 Oct 2026): read from
 // the invoice, typed by hand, or both. One badge for Deliveries and the Audit.
-const METHOD_TONE = { invoice: "success", manual: "neutral", mixed: "info" };
-const METHOD_LABEL = { invoice: "From invoice", manual: "Manual", mixed: "Invoice + manual" };
+const METHOD_TONE = { invoice: "success", manual: "neutral", mixed: "info", opening: "warning" };
+const METHOD_LABEL = { invoice: "From invoice", manual: "Manual", mixed: "Invoice + manual", opening: "Opening stock" };
 export const ReceiveMethodBadge = ({ method }) => (method && METHOD_LABEL[method] ? (
   <StatusBadge shape="tag" size="xs" bordered={false} tone={METHOD_TONE[method]}>{METHOD_LABEL[method]}</StatusBadge>
 ) : null);

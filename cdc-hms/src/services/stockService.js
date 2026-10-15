@@ -72,6 +72,7 @@ export const stockService = {
   pendingInvoiceFile: (token) => api.get(`/stock/receipts/pending/${token}`, { responseType: 'blob' }),
   discardInvoiceRead: (token) => api.delete(`/stock/receipts/pending/${token}`),
   // Save every confirmed line in one go (+ the scan, + the supplier's wording remembered).
+  // method 'opening' (Stocktake → Add counted stock): no supplier / invoice, nothing learned.
   receiveInvoice: (data) => api.post('/stock/receipts/receive-batch', data),
   // An item the catalogue lacks, added while receiving (open to receiving staff).
   createItemWhileReceiving: (data) => api.post('/stock/receipts/new-item', data),

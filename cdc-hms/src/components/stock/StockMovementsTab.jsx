@@ -5,7 +5,7 @@ import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
 import Pagination from "../shared/Pagination";
 import { Pencil } from "lucide-react";
-import { inputCls, MOVEMENT_LABELS, MovementBadge, ByLine, Recipient, useStockCan } from "./stockUi";
+import { inputCls, MOVEMENT_LABELS, MovementBadge, ByLine, Recipient, useStockCan, ReceiveMethodBadge } from "./stockUi";
 import { PERMISSIONS } from "../../utils/permissions";
 import { ReceivedLineEditModal } from "./ReceivedLineEdit";
 
@@ -104,6 +104,8 @@ const StockMovementsTab = () => {
                       </td>
                       <td className="px-3 py-2">
                         <MovementBadge type={m.type} />
+                        {/* An intake typed in at Stocktake → Add counted stock, not a delivery. */}
+                        {m.type === "intake" && m.batch?.receiveMethod === "opening" && <span className="block mt-1"><ReceiveMethodBadge method="opening" /></span>}
                       </td>
                       <td className="px-3 py-2 font-medium">{m.item?.name}</td>
                       <td className="px-3 py-2 font-mono text-xs">{m.batch?.labelCode || m.stockBatchId}</td>

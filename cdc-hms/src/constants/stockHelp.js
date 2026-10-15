@@ -141,14 +141,17 @@ export const STOCK_HELP = {
 
   stocktake: {
     title: "Stocktake",
-    about: "Counts one location at a time and brings the system into line with what is actually on the shelf.",
+    about: "Count a location brings the system into line with what is actually on the shelf; Add counted stock types in stock the system does not hold yet — the opening count, or what a physical count turns up.",
     parts: [
       ["Location to count", "Choose a location and start: the list shows what the system expects, batch by batch."],
       ["Counted", "Enter what you actually count for each batch."],
       ["Note", "Recorded on every difference — e.g. monthly count, or who counted with you."],
       ["Submit", "Every difference is recorded as an adjustment, and appears in Reports → Variances."],
+      ["Add counted stock", "One row per batch: item (type the name or scan the box; an item not on the list can be added there), batch, expiry, location and quantity. Enter saves the row at once as Opening stock — no supplier, no invoice. The location stays for the next row."],
+      ["Labels", "Printed per row as it is saved (the tick), or later with Print all unprinted. Every saved row is a batch with an STK code, so a label can also be printed from Movements (the pencil on the intake line)."],
     ],
     fixes: [
+      ["A row was saved with the wrong quantity", "Correct the line in Movements (the pencil on the intake line, reason recorded), or count that location — the difference becomes an adjustment."],
       ["A count was entered wrongly", "Count that location again and submit — the new count sets it right, and both are on record."],
       ["Stock arrived while counting", "Lines delivered after the count started are not written down; count them next time."],
       ["Big or repeated differences", "Check Reports → Variances and Movements for that item to find where it went."],

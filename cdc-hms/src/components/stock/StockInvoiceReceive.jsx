@@ -6,7 +6,7 @@ import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import ConfirmActionModal from "../shared/ConfirmActionModal";
 import { Field, inputCls, unitPlural } from "./stockUi";
-import StockItemFields, { EMPTY_ITEM } from "./StockItemFields";
+import { ItemPicker, NewItemPanel } from "./StockItemPick";
 import { printStockBatchLabel } from "../../utils/print";
 
 // Receive → From an invoice (13 Oct 2026, Emu). Three steps:
@@ -26,6 +26,7 @@ import { printStockBatchLabel } from "../../utils/print";
 // A line's corrections (item, batch no., expiry, quantity changed before the
 // tick) are saved with it, so Deliveries and the Audit show what the reader
 // got wrong.
+
 
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
 const MAX_LABELS = 300;
@@ -69,71 +70,6 @@ const corrections = (line) => {
   if (line.expiryDate !== line.original.expiryDate) out.push("expiryDate");
   if (String(Number(line.quantity) || "") !== String(Number(line.original.quantity) || "")) out.push("quantity");
   return out;
-};
-
-// ---------------------------------------------------------------------
-// Pick an item from the catalogue (inline search).
-// ---------------------------------------------------------------------
-const ItemPicker = ({ items, onPick, onCancel, autoFocus = true }) => {
-  const [q, setQ] = useState("");
-  const matches = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return [];
-    return items.filter((i) => i.name.toLowerCase().includes(s) || (i.gtin && i.gtin === q.trim())).slice(0, 8);
-  }, [items, q]);
-  return (
-    <div className="relative">
-      <input autoFocus={autoFocus} className={inputCls} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the catalogue by name, or scan the box…"
-        onKeyDown={(e) => { if (e.key === "Escape") onCancel?.(); }} />
-      {matches.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
-          {matches.map((i) => (
-            <button key={i.id} type="button" className="w-full text-left px-3 py-2 text-sm ui-hover" onClick={() => onPick(i)}>
-              {i.name} <span className="text-xs text-gray-400">({i.category})</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------
-// "Add as a new item" — the Items form, pre-filled from the invoice line.
-// ---------------------------------------------------------------------
-const guessName = (text) => String(text || "").toLowerCase().replace(/\b\d+'?s\b/g, "").replace(/\s+/g, " ").trim()
-  .replace(/(^|\s)\S/g, (c) => c.toUpperCase());
-const NewItemPanel = ({ line, onAdded, onCancel }) => {
-  const { fetchItems } = useStockContext();
-  const [form, setForm] = useState({
-    ...EMPTY_ITEM,
-    name: guessName(line.sourceText),
-    unit: line.unit && line.unit.length <= 20 ? line.unit.toLowerCase() : EMPTY_ITEM.unit,
-    packSize: line.packSize || 1,
-  });
-  const [saving, setSaving] = useState(false);
-  const set = (f, v) => setForm((p) => ({ ...p, [f]: v }));
-  const save = async () => {
-    if (!form.name.trim()) return notify("error", "Give the item a name");
-    setSaving(true);
-    try {
-      const res = await stockService.createItemWhileReceiving({ ...form, packSize: Number(form.packSize) || 1, reorderLevel: Number(form.reorderLevel) || 0, reorderQuantity: form.reorderQuantity === "" ? null : Number(form.reorderQuantity) });
-      if (res.success) { await fetchItems(); onAdded(res.data); } else notify("error", res.message || "Could not add the item");
-    } catch (err) { notify("error", err?.message || "Could not add the item"); } finally { setSaving(false); }
-  };
-  return (
-    <div className="bg-white border border-blue-200 rounded-lg p-4 mt-2">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3">
-        <p className="font-semibold text-sm">New item — filled in from the invoice, check and complete</p>
-        <p className="text-xs text-gray-500">Saved to Items and remembered for this supplier's "{line.sourceText}".</p>
-      </div>
-      <StockItemFields form={form} set={set} isNew={false} />
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" className="!px-4 !py-2 text-sm" onClick={onCancel} disabled={saving}>Cancel</Button>
-        <Button className="!px-4 !py-2 text-sm" onClick={save} disabled={saving}>{saving ? "Adding…" : "Add item & use on this line"}</Button>
-      </div>
-    </div>
-  );
 };
 
 // ---------------------------------------------------------------------
@@ -181,7 +117,10 @@ const ItemCell = ({ line, items, byId, onChange }) => {
           ))}
         </div>
       )}
-      {mode === "new" && <NewItemPanel line={line} onAdded={(i) => choose(i)} onCancel={() => setMode(null)} />}
+      {mode === "new" && (
+        <NewItemPanel seed={line} onAdded={(i) => choose(i)} onCancel={() => setMode(null)}
+          title="New item — filled in from the invoice, check and complete" note={`Saved to Items and remembered for this supplier's "${line.sourceText}".`} />
+      )}
     </div>
   );
 };
@@ -214,6 +153,7 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
   useEffect(() => () => { if (scanUrl) URL.revokeObjectURL(scanUrl); }, [scanUrl]);
 
   const setH = (f, v) => setHeader((p) => ({ ...p, [f]: v }));
+
 
   // ---- 1. Upload → read ----
   const startRead = async (chosen) => {
@@ -314,6 +254,7 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
         uploadToken: read?.uploadToken, fileName: file?.name,
         supplierId: header.supplierId ? Number(header.supplierId) : null,
         receiptNo: header.receiptNo.trim() || undefined, receiptKind: header.receiptKind,
+        method: "invoice",
         lines: stockLines.map((l) => ({
           stockItemId: Number(l.stockItemId), quantity: Number(l.quantity),
           batchNo: l.batchNo.trim() || undefined, expiryDate: l.expiryDate || undefined,

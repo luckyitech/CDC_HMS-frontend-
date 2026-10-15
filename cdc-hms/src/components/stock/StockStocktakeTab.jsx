@@ -7,6 +7,13 @@ import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import { Field, inputCls } from "./stockUi";
 import StockHelp from "./StockHelp";
+import SwitcherTabs from "../shared/SwitcherTabs";
+import StockCountEntry from "./StockCountEntry";
+
+// Two jobs under Stocktake (15 Oct 2026, Emu): reconcile what the HMS already
+// holds in a room (Count a location), and type in stock it does not hold yet —
+// the opening count, or what a physical count turns up (Add counted stock).
+const MODES = [{ id: "count", label: "Count a location" }, { id: "add", label: "Add counted stock" }];
 
 // Stocktake — per location, so counts happen room by room without freezing
 // the clinic. The screen lists what the system expects per batch; enter what
@@ -14,6 +21,7 @@ import StockHelp from "./StockHelp";
 // in ONE confirmed submission.
 const StockStocktakeTab = () => {
   const { locations } = useStockContext();
+  const [mode, setMode] = useState("count");
   const [locationId, setLocationId] = useState("");
   const [rows, setRows] = useState(null);    // [{ level fields…, counted }]
   const [note, setNote] = useState("");
@@ -78,8 +86,18 @@ const StockStocktakeTab = () => {
     }
   };
 
+  const modeBar = (
+    <div className="flex items-center justify-between gap-3 mb-4">
+      <SwitcherTabs tabs={MODES} active={mode} onChange={setMode} size="sm" ariaLabel="What to do" />
+      <StockHelp tab="stocktake" />
+    </div>
+  );
+
+  if (mode === "add") return <div>{modeBar}<StockCountEntry /></div>;
+
   return (
     <div>
+      {modeBar}
       <div className="flex items-end gap-3 mb-5">
         <div className="flex-1 max-w-xs">
           <Field label="Location to count">
@@ -95,15 +113,14 @@ const StockStocktakeTab = () => {
             <ClipboardCheck className="w-4 h-4" /> Start count
           </Button>
         </div>
-        <div className="mb-4 ml-auto"><StockHelp tab="stocktake" /></div>
       </div>
 
       {rows && (
         rows.length === 0 ? (
           <p className="text-sm text-gray-500">
             The system holds no counted stock at this location, so there is nothing to reconcile.
-            A stocktake corrects the counts of batches already here — to add stock the system
-            doesn’t yet know about, use the <b>Receive</b> tab.
+            Counting a location corrects the batches already here — to add stock the HMS
+            doesn’t yet hold, use <button type="button" className="font-semibold text-primary hover:underline" onClick={() => setMode("add")}>Add counted stock</button>.
           </p>
         ) : (
           <div className="ui-surface p-5">
