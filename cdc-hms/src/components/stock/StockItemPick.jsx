@@ -1,4 +1,6 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
+import { POPOVER_Z } from "../../constants/layers";
 import { notify } from "../../utils/notify";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
@@ -9,7 +11,9 @@ import StockItemFields, { EMPTY_ITEM } from "./StockItemFields";
 // Picking an item from the catalogue — ONE search box and ONE "add it as a
 // new item" form, shared by Receive → From an invoice and Stocktake → Add
 // counted stock (15 Oct 2026). Search by name or by scanning the box barcode;
-// ↑ ↓ Enter pick from the list; Escape cancels.
+// ↑ ↓ Enter pick from the list; Escape cancels. The list is portalled to
+// <body> on POPOVER_Z (like SelectMenu) so a table's scroll box cannot clip it
+// — it did, in the count table (Emu, 15 Oct).
 
 /**
  * items, onPick(item), onCancel?, autoFocus?, placeholder?, onAddNew?(typedText)
@@ -20,6 +24,19 @@ export const ItemPicker = ({ items, onPick, onCancel, autoFocus = true, placehol
   const [hi, setHi] = useState(0);
   const own = useRef(null);
   const ref = inputRef || own;
+  const [pos, setPos] = useState(null);
+  const open = Boolean(q.trim());
+  useLayoutEffect(() => {
+    if (!open) { setPos(null); return undefined; }
+    const place = () => {
+      const r = ref.current?.getBoundingClientRect();
+      if (r) setPos({ top: r.bottom + 4, left: r.left, width: r.width, maxHeight: Math.max(120, Math.min(256, window.innerHeight - r.bottom - 12)) });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open, ref]);
   const matches = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return [];
@@ -42,8 +59,10 @@ export const ItemPicker = ({ items, onPick, onCancel, autoFocus = true, placehol
   return (
     <div className="relative">
       <input ref={ref} autoFocus={autoFocus} className={inputCls} value={q} onChange={(e) => { setQ(e.target.value); setHi(0); }} placeholder={placeholder} onKeyDown={onKey} />
-      {q.trim() && (matches.length > 0 || onAddNew) && (
-        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+      {open && pos && (matches.length > 0 || onAddNew) && createPortal(
+        <div className="fixed bg-white border border-gray-200 rounded-lg shadow-lg overflow-y-auto" role="listbox"
+          style={{ zIndex: POPOVER_Z, top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight }}
+          onMouseDown={(e) => e.preventDefault() /* keep the input's focus */}>
           {matches.map((i, idx) => (
             <button key={i.id} type="button" className={`w-full text-left px-3 py-2 text-sm ${idx === hi ? "bg-blue-50 font-semibold" : "ui-hover"}`} onMouseEnter={() => setHi(idx)} onClick={() => pick(i)}>
               {i.name} <span className="text-xs text-gray-400">({i.category})</span>
@@ -54,7 +73,8 @@ export const ItemPicker = ({ items, onPick, onCancel, autoFocus = true, placehol
               + Add "{q.trim()}" as a new item
             </button>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
