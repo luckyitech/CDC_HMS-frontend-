@@ -58,7 +58,9 @@ export const STOCK_HELP = {
     title: "Receive",
     about: "Records a delivery coming in, prints shelf labels for it, and keeps the supplier's invoice or receipt with a scan for auditing. Two ways: From an invoice (photograph it and confirm what was read) or One item at a time.",
     parts: [
-      ["From an invoice", "Photograph or scan the invoice, receipt or delivery note (JPG, PNG or PDF). The HMS reads every line and fills in the item, batch, expiry and quantity. Nothing is saved until you tick \"Confirmed correct\" on every line and press Save."],
+      ["From an invoice", "Photograph or scan the invoice, receipt or delivery note (JPG, PNG or PDF). The HMS reads the supplier and every line, and fills in the item, batch, expiry and quantity. Nothing is saved until you tick \"Confirmed correct\" on every line and press Save."],
+      ["Supplier", "Read from the invoice and matched to your suppliers. A supplier not on the list yet is added with one press (\"Add as a new supplier\") and matched automatically from then on."],
+      ["Put away in", "Each line names where it goes — store, fridge or a room — so nothing needs a transfer afterwards. It starts at where that item was last received (else the store); \"Put all lines into\" sets every line at once. Cold-chain items only offer fridges."],
       ["Remembered / Suggested", "Remembered: this supplier has used that wording before, so the item is certain. Suggested: the closest name in the catalogue — check it. \"change\" picks another item; the two next-closest are offered underneath."],
       ["No confident match", "Search the catalogue for the item under another name. If the HMS really does not have it, \"Add as a new item\" opens the Items form filled in from the invoice — set its reorder level and it is remembered for next time."],
       ["Unclear on the scan", "An amber box is a value the reader was not sure of — check it against the box in your hand. A red expiry box is a medication with no expiry read; type it in."],

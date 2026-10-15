@@ -64,10 +64,9 @@ export const stockService = {
   // Is the reader set up on the server (ANTHROPIC_API_KEY)?
   getInvoiceReaderStatus: () => api.get('/stock/receipts/reader'),
   // Read a photo / PDF: every line matched to the catalogue; nothing saved.
-  readInvoice: (file, supplierId) => {
+  readInvoice: (file) => {
     const form = new FormData();
     form.append('file', file);
-    if (supplierId) form.append('supplierId', supplierId);
     return api.post('/stock/receipts/read', form, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
   pendingInvoiceFile: (token) => api.get(`/stock/receipts/pending/${token}`, { responseType: 'blob' }),
@@ -76,6 +75,8 @@ export const stockService = {
   receiveInvoice: (data) => api.post('/stock/receipts/receive-batch', data),
   // An item the catalogue lacks, added while receiving (open to receiving staff).
   createItemWhileReceiving: (data) => api.post('/stock/receipts/new-item', data),
+  // A supplier read from the invoice that is not on the list yet (15 Oct 2026).
+  createSupplierWhileReceiving: (data) => api.post('/stock/receipts/new-supplier', data),
   removeReceiptDocument: (id, docId) => api.delete(`/stock/receipts/${id}/documents/${docId}`),
 
   // ---------- Reads ----------

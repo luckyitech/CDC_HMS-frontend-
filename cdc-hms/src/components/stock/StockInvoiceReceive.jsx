@@ -11,7 +11,10 @@ import { printStockBatchLabel } from "../../utils/print";
 
 // Receive → From an invoice (13 Oct 2026, Emu). Three steps:
 //   1. Upload   — photograph or choose the supplier's invoice / receipt / delivery note.
-//   2. Review   — the HMS has read the lines and matched each to the catalogue
+//   2. Review   — the HMS has read the lines and matched each to the catalogue.
+//                 15 Oct (Emu): every line names where it is put away (store,
+//                 fridge, a room) so nothing needs a transfer afterwards; the
+//                 supplier is read from the invoice and, if new, added from here.
 //                 (Remembered: this supplier's wording seen before; Suggested:
 //                 the closest name; or unmatched). Staff correct anything,
 //                 pick or add an item where needed, and tick "Confirmed
@@ -48,7 +51,8 @@ const toLine = (l) => ({
   quantity: l.quantity ? String(l.quantity) : "",
   packs: l.packs, packSize: l.packSize, unit: l.unit,
   uncertain: l.uncertain || [],
-  locationId: "",                    // a per-line override (cold chain)
+  suggestedLocationId: l.suggestedLocationId || null,
+  locationId: l.suggestedLocationId ? String(l.suggestedLocationId) : "",   // where it is put away
   confirmed: false,
   original: { stockItemId: l.stockItemId || null, batchNo: l.batchNo || "", expiryDate: l.expiryDate || "", quantity: l.quantity ? String(l.quantity) : "" },
 });
@@ -186,13 +190,15 @@ const ItemCell = ({ line, items, byId, onChange }) => {
 // The component
 // ---------------------------------------------------------------------
 const StockInvoiceReceive = ({ onSaved, aside = null }) => {
-  const { items, locations, suppliers } = useStockContext();
+  const { items, locations, suppliers, fetchSuppliers } = useStockContext();
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
   const fridges = useMemo(() => locations.filter((l) => l.isColdChain), [locations]);
 
   const [stage, setStage] = useState("upload");          // upload | reading | review | saved
   const [ready, setReady] = useState(null);               // reader configured?
-  const [header, setHeader] = useState({ supplierId: "", locationId: "", receiptKind: "invoice", receiptNo: "" });
+  const [header, setHeader] = useState({ supplierId: "", receiptKind: "invoice", receiptNo: "" });
+  const [putAll, setPutAll] = useState("");               // "put all into…" quick choice
+  const [addingSupplier, setAddingSupplier] = useState(false);
   const [file, setFile] = useState(null);
   const [read, setRead] = useState(null);                 // the reply of /read
   const [lines, setLines] = useState([]);
@@ -212,15 +218,14 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
   // ---- 1. Upload → read ----
   const startRead = async (chosen) => {
     if (!chosen) return;
-    if (!header.locationId) { notify("error", "Choose the receiving location first"); return; }
     setFile(chosen);
     setStage("reading");
     try {
-      const res = await stockService.readInvoice(chosen, header.supplierId || undefined);
+      const res = await stockService.readInvoice(chosen);
       if (!res.success) { notify("error", res.message || "Could not read the invoice"); setStage("upload"); return; }
       const d = res.data;
       setRead(d);
-      setLines(d.lines.map((l) => withFridge(toLine(l))));
+      setLines(d.lines.map((l) => withPlace(toLine(l), d.defaultLocationId)));
       setHeader((p) => ({ ...p, supplierId: d.supplier.id ? String(d.supplier.id) : p.supplierId, receiptKind: d.documentKind || "invoice", receiptNo: d.documentNumber || "" }));
       stockService.pendingInvoiceFile(d.uploadToken).then((blob) => setScanUrl(URL.createObjectURL(blob))).catch(() => {});
       setStage("review");
@@ -233,7 +238,8 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
   const reset = () => {
     setRead(null); setLines([]); setFile(null); setSaved(null);
     if (scanUrl) { URL.revokeObjectURL(scanUrl); setScanUrl(null); }
-    setHeader((p) => ({ ...p, supplierId: "", receiptKind: "invoice", receiptNo: "" }));
+    setHeader({ supplierId: "", receiptKind: "invoice", receiptNo: "" });
+    setPutAll("");
     setStage("upload");
   };
   const cancelReview = async () => {
@@ -242,13 +248,34 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
   };
 
   // ---- 2. Review ----
-  // A cold-chain item goes to the first fridge unless the line already names one.
-  const withFridge = useCallback((l) => {
+  // Where a line is put away: what the server suggested (where that item was
+  // last received), else the first store; a cold-chain item goes to a fridge.
+  const withPlace = useCallback((l, fallback = read?.defaultLocationId) => {
     const item = byId.get(Number(l.stockItemId));
-    if (!item?.requiresColdChain || l.locationId || !fridges.length) return l;
-    return { ...l, locationId: String(fridges[0].id) };
-  }, [byId, fridges]);
-  const update = (id, patch) => setLines((ls) => ls.map((l) => (l.id === id ? withFridge({ ...l, ...patch, confirmed: "confirmed" in patch ? patch.confirmed : false }) : l)));
+    const current = locations.find((x) => x.id === Number(l.locationId));
+    if (item?.requiresColdChain) {
+      if (current?.isColdChain) return l;
+      return { ...l, locationId: fridges.length ? String(fridges[0].id) : "" };
+    }
+    if (current) return l;
+    return { ...l, locationId: fallback ? String(fallback) : "" };
+  }, [byId, locations, fridges, read?.defaultLocationId]);
+  const update = (id, patch) => setLines((ls) => ls.map((l) => (l.id === id ? withPlace({ ...l, ...patch, confirmed: "confirmed" in patch ? patch.confirmed : false }) : l)));
+  const putAllInto = (locationId) => {
+    setPutAll(locationId);
+    if (!locationId) return;
+    setLines((ls) => ls.map((l) => (l.isStock ? withPlace({ ...l, locationId, confirmed: false }) : l)));
+  };
+  const addSupplier = async () => {
+    const name = read?.supplier?.readAs;
+    if (!name) return;
+    setAddingSupplier(true);
+    try {
+      const res = await stockService.createSupplierWhileReceiving({ name });
+      if (res.success) { await fetchSuppliers(); setH("supplierId", String(res.data.id)); notify("success", `${res.data.name} added to suppliers`); }
+      else notify("error", res.message || "Could not add the supplier");
+    } catch (err) { notify("error", err?.message || "Could not add the supplier"); } finally { setAddingSupplier(false); }
+  };
   const remove = (id) => setLines((ls) => ls.filter((l) => l.id !== id));
   const addLine = () => setLines((ls) => [...ls, blankLine(Math.max(0, ...ls.map((l) => l.id)) + 1)]);
 
@@ -258,10 +285,9 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
     if (!item) return "choose the item first";
     if (!(Number(line.quantity) >= 1)) return "enter the quantity first";
     if (item.category === "medication" && !line.expiryDate) return "enter the expiry first";
-    if (item.requiresColdChain) {
-      const loc = locations.find((l) => l.id === Number(line.locationId || header.locationId));
-      if (!loc?.isColdChain) return fridges.length ? "choose a fridge first" : "no fridge location exists";
-    }
+    const loc = locations.find((l) => l.id === Number(line.locationId));
+    if (!loc) return "choose where it goes first";
+    if (item.requiresColdChain && !loc.isColdChain) return fridges.length ? "choose a fridge first" : "no fridge location exists";
     return null;
   };
   const stockLines = lines.filter((l) => l.isStock);
@@ -283,11 +309,10 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
         uploadToken: read?.uploadToken, fileName: file?.name,
         supplierId: header.supplierId ? Number(header.supplierId) : null,
         receiptNo: header.receiptNo.trim() || undefined, receiptKind: header.receiptKind,
-        locationId: Number(header.locationId),
         lines: stockLines.map((l) => ({
           stockItemId: Number(l.stockItemId), quantity: Number(l.quantity),
           batchNo: l.batchNo.trim() || undefined, expiryDate: l.expiryDate || undefined,
-          locationId: l.locationId ? Number(l.locationId) : undefined,
+          locationId: Number(l.locationId),
           sourceText: l.sourceText.trim() || undefined, corrections: corrections(l),
         })),
       });
@@ -326,20 +351,7 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
             <strong>Not set up.</strong> Reading invoices needs the server's invoice-reader key (ANTHROPIC_API_KEY). Ask the administrator — meanwhile use "One item at a time".
           </div>
         )}
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Receiving location">
-            <select className={inputCls} value={header.locationId} onChange={(e) => setH("locationId", e.target.value)}>
-              <option value="">— choose —</option>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Supplier" hint="optional — read from the invoice if left blank">
-            <select className={inputCls} value={header.supplierId} onChange={(e) => setH("supplierId", e.target.value)}>
-              <option value="">— read it for me —</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </Field>
-        </div>
+        <p className="text-sm text-gray-600">The supplier is read from the invoice, and each line is put away in its own place — store, fridge or a room — so nothing needs a transfer afterwards.</p>
         {stage === "reading" ? (
           <div className="rounded-lg border-2 border-dashed border-blue-300 bg-blue-50/40 p-10 flex flex-col items-center gap-3 text-center" role="status">
             <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -446,12 +458,21 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
         </div>
 
         <div className="space-y-4 min-w-0">
-          <div className="ui-surface p-4 grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Field label="Supplier" hint={read?.supplier?.readAs && !header.supplierId ? `Read as "${read.supplier.readAs}" — not in your suppliers` : read?.supplier?.readAs && read.supplier.matched ? `Matched "${read.supplier.readAs}"` : undefined}>
+          <div className="ui-surface p-4 grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <Field label="Supplier" hint={read?.supplier?.readAs && read.supplier.matched && header.supplierId ? `Matched "${read.supplier.readAs}"` : undefined}>
               <select className={inputCls} value={header.supplierId} onChange={(e) => setH("supplierId", e.target.value)}>
                 <option value="">— none —</option>
                 {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              {read?.supplier?.readAs && !header.supplierId && (
+                <p className="text-xs text-amber-800 mt-1">
+                  Read as "{read.supplier.readAs}" — not in your suppliers yet.{" "}
+                  <button type="button" className="font-semibold text-primary hover:underline" disabled={addingSupplier} onClick={addSupplier}>
+                    {addingSupplier ? "Adding…" : "Add as a new supplier"}
+                  </button>
+                </p>
+              )}
+              {!read?.supplier?.readAs && !header.supplierId && <p className="text-xs text-gray-500 mt-1">No supplier name was read — choose one, or leave it blank.</p>}
             </Field>
             <Field label="Document">
               <select className={inputCls} value={header.receiptKind} onChange={(e) => setH("receiptKind", e.target.value)}>
@@ -460,11 +481,6 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
             </Field>
             <Field label={`${KIND_LABEL[header.receiptKind]} number`} hint={!header.receiptNo.trim() ? "none read — type it so the scan is kept" : undefined}>
               <input className={inputCls} value={header.receiptNo} onChange={(e) => setH("receiptNo", e.target.value)} />
-            </Field>
-            <Field label="Receiving location">
-              <select className={inputCls} value={header.locationId} onChange={(e) => setH("locationId", e.target.value)}>
-                {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
             </Field>
           </div>
 
@@ -475,8 +491,17 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
             </div>
           )}
 
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <label htmlFor="put-all" className="text-gray-700">Put all lines into</label>
+            <select id="put-all" className={`${inputCls} !w-auto`} value={putAll} onChange={(e) => putAllInto(e.target.value)}>
+              <option value="">— choose —</option>
+              {locations.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+            </select>
+            <span className="text-xs text-gray-500">then change any line that goes elsewhere. Cold-chain items stay in a fridge.</span>
+          </div>
+
           <div className="ui-surface overflow-x-auto">
-            <table className="w-full text-sm min-w-[56rem]">
+            <table className="w-full text-sm min-w-[64rem]">
               <thead className="ui-thead">
                 <tr>
                   <th className="text-left px-3 py-2 w-28">Confirmed correct</th>
@@ -484,6 +509,7 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
                   <th className="text-left px-3 py-2 w-32">Batch / lot</th>
                   <th className="text-left px-3 py-2 w-40">Expiry</th>
                   <th className="text-left px-3 py-2 w-36">Quantity</th>
+                  <th className="text-left px-3 py-2 w-44">Put away in</th>
                   <th className="px-2 py-2 w-8"><span className="sr-only">Remove</span></th>
                 </tr>
               </thead>
@@ -493,7 +519,7 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
                     return (
                       <tr key={l.id} className="text-gray-400">
                         <td className="px-3 py-2 text-xs">Left out</td>
-                        <td className="px-3 py-2" colSpan={4}><span className="text-[11px] font-mono">{l.sourceText}</span><span className="block text-xs">Not a stock item — left out · <button type="button" className="text-primary font-semibold hover:underline" onClick={() => update(l.id, { isStock: true })}>add it back</button></span></td>
+                        <td className="px-3 py-2" colSpan={5}><span className="text-[11px] font-mono">{l.sourceText}</span><span className="block text-xs">Not a stock item — left out · <button type="button" className="text-primary font-semibold hover:underline" onClick={() => update(l.id, { isStock: true })}>add it back</button></span></td>
                         <td className="px-2 py-2"><button type="button" aria-label="Remove line" className="text-gray-400 hover:text-gray-600" onClick={() => remove(l.id)}><X className="w-4 h-4" /></button></td>
                       </tr>
                     );
@@ -501,7 +527,6 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
                   const p = problem(l);
                   const item = byId.get(Number(l.stockItemId));
                   const unsure = (f) => l.uncertain.includes(f);
-                  const lineLoc = locations.find((x) => x.id === Number(l.locationId));
                   return (
                     <tr key={l.id} className={`align-top ${l.confirmed ? "bg-green-50/60" : p ? "bg-amber-50/60" : ""}`}>
                       <td className="px-3 py-2">
@@ -513,15 +538,6 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
                       </td>
                       <td className="px-3 py-2 min-w-[18rem]">
                         <ItemCell line={l} items={items} byId={byId} onChange={(patch) => update(l.id, patch)} />
-                        {item?.requiresColdChain && (
-                          <div className="text-[11px] text-blue-800 mt-1 flex items-center gap-1">→
-                            <select className="border border-blue-200 rounded px-1 py-0.5 text-[11px] bg-white" value={l.locationId} onChange={(e) => update(l.id, { locationId: e.target.value })}>
-                              <option value="">choose a fridge…</option>
-                              {fridges.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                            </select>
-                            {lineLoc && <span className="sr-only">{lineLoc.name}</span>}
-                          </div>
-                        )}
                       </td>
                       <td className="px-3 py-2">
                         <input className={`${inputCls} ${unsure("batchNo") ? "!border-amber-500" : ""}`} value={l.batchNo} onChange={(e) => update(l.id, { batchNo: e.target.value })} />
@@ -540,11 +556,19 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
                         </div>
                         {unsure("quantity") && <div className="text-[11px] text-amber-800 mt-1">Unclear on the scan — check</div>}
                       </td>
+                      <td className="px-3 py-2">
+                        <select aria-label="Put away in" className={`${inputCls} ${!l.locationId ? "!border-amber-500" : ""}`} value={l.locationId} onChange={(e) => update(l.id, { locationId: e.target.value })}>
+                          <option value="">— choose —</option>
+                          {(item?.requiresColdChain ? fridges : locations).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                        </select>
+                        {item?.requiresColdChain && <div className="text-[11px] text-blue-800 mt-1">❄ fridges only</div>}
+                        {l.suggestedLocationId && String(l.suggestedLocationId) === l.locationId && <div className="text-[11px] text-gray-500 mt-1">last received here</div>}
+                      </td>
                       <td className="px-2 py-2"><button type="button" aria-label="Remove line" className="text-gray-400 hover:text-gray-600" onClick={() => remove(l.id)}><X className="w-4 h-4" /></button></td>
                     </tr>
                   );
                 })}
-                {lines.length === 0 && <tr><td colSpan={6} className="px-3 py-4 text-sm text-gray-500">Nothing was read from this file. Add the lines by hand below, or cancel and try a clearer photo.</td></tr>}
+                {lines.length === 0 && <tr><td colSpan={7} className="px-3 py-4 text-sm text-gray-500">Nothing was read from this file. Add the lines by hand below, or cancel and try a clearer photo.</td></tr>}
               </tbody>
             </table>
             <div className="px-3 py-2 border-t border-gray-100">
