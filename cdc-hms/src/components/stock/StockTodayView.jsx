@@ -153,8 +153,9 @@ const StockTodayView = ({ onReport }) => {
       },
       {
         // 13 Oct 2026: a test (HbA1c, RBS, Ketones) whose supplies could not be
-        // taken — none set up, or none at its location. Receive or move the stock,
-        // then Take now; or Settle if it was handled another way.
+        // taken — none in its room, and (since 15 Oct) none in the store either.
+        // Receive or move the stock, then Take now / Take all now; or Settle if
+        // it was handled another way.
         id: "tests", tone: "amber", title: "Tests not taken from stock", hint: "take now or settle",
         rows: testsNotTaken.map((t) => ({
           key: `t${t.id}`, name: `${t.name}${t.patient ? ` — ${t.patient.name}` : ""}`,
@@ -170,11 +171,27 @@ const StockTodayView = ({ onReport }) => {
             </span>
           ),
         })),
-        footer: <span className="text-xs text-gray-500">Each test takes 1 strip from the triage room, or from the room matched to the doctor in Room Balance → edit pars.</span>,
+        footer: (
+          <span className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={retryAllTests}
+              className="text-xs font-semibold text-primary border border-blue-300 rounded-lg px-3 py-1.5 ui-hover">Take all now</button>
+            <span className="text-xs text-gray-500">Each test takes 1 strip from the triage room or the room matched to the doctor (Room Balance → edit pars) — or from the store when the room has none.</span>
+          </span>
+        ),
       },
     ].filter((g) => g.rows.length > 0);
   }, [dash, inventory, onReport, canWriteOff, testsNotTaken]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function retryAllTests() {
+    try {
+      const res = await stockService.retryAllTestStock();
+      if (res.success) {
+        const d = res.data || {};
+        notify(d.remaining ? "error" : "success", `${d.taken || 0} of ${d.tried || 0} taken from stock${d.remaining ? ` — ${d.remaining} still waiting (nothing in the room or the store)` : ""}`);
+        load();
+      } else notify("error", res.message || "Could not take the supplies");
+    } catch (err) { notify("error", err?.message || "Could not take the supplies"); }
+  }
   async function retryTest(t) {
     try {
       const res = await stockService.retryTestStock(t.id);

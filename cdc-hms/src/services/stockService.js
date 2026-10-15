@@ -49,6 +49,7 @@ export const stockService = {
   // Tests that use stock (13 Oct 2026).
   getTestsNotTaken: () => api.get('/stock/tests/not-taken'),
   retryTestStock: (id) => api.post(`/stock/tests/not-taken/${id}/retry`),
+  retryAllTestStock: () => api.post('/stock/tests/not-taken/retry-all'),
   resolveTestStock: (id, note) => api.post(`/stock/tests/not-taken/${id}/resolve`, { note }),
   lookupReceipt: (number, supplierId) => api.get('/stock/receipts/lookup', { params: { number, supplierId: supplierId || undefined } }),
   getReceipt: (id) => api.get(`/stock/receipts/${id}`),
