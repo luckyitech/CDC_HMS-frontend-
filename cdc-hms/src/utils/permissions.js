@@ -34,6 +34,10 @@ export const PERMISSIONS = {
   USERS_WRITE:     'users.write',
   CONFIG_WRITE:    'config.write',
   MONITORING_VIEW: 'monitoring.view',
+  // Merging, deleting and restoring patient records (Admin → Duplicate Patients).
+  PATIENTS_MERGE:  'patients.merge',
+  // Ward set-up and archiving scans (Admin → Ward Config, Radiology Queue).
+  ADMIN_SETUP:     'admin.setup',
 
   PATIENTS_WRITE:     'patients.write',
   QUEUE_WRITE:        'queue.write',
@@ -186,6 +190,11 @@ export const STAFF_TYPE_LABELS = {
  * than by a missing value.
  */
 export const isClinical = (user) => user?.staffType !== STAFF_TYPES.NON_CLINICAL;
+
+// The staff type a NEW account starts with (the wizard's starting value).
+// Mirrors the backend's defaultStaffType: front desk starts non-clinical,
+// doctors, nurses and the lab clinical (permissions audit, 16 Oct 2026).
+export const defaultStaffType = (role) => (role === 'staff' ? STAFF_TYPES.NON_CLINICAL : STAFF_TYPES.CLINICAL);
 
 // Portals each role reaches without anything being granted. Mirrors the
 // backend's ROLE_DEFAULT_PORTALS and is only used by the fallback below.

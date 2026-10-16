@@ -19,7 +19,7 @@ import staffService from '../../../services/staffService';
 import hrSelfService from '../../../services/hrSelfService';
 import permissionPresetService from '../../../services/permissionPresetService';
 import {
-  PERMISSIONS, STAFF_TYPES, STAFF_TYPE_LABELS, canGrantPermissions, canGrantHrPermissions, canUseCapability, canRunAppraisals,
+  PERMISSIONS, STAFF_TYPES, STAFF_TYPE_LABELS, defaultStaffType, canGrantPermissions, canGrantHrPermissions, canUseCapability, canRunAppraisals,
 } from '../../../utils/permissions';
 
 // =====================================================================
@@ -134,7 +134,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
       .catch(() => { if (!cancelled) toast.error('Failed to load permission presets'); });
     // A cadre change also clears anything a previous preset filled in.
     setPresetId(NO_PRESET);
-    setStaffType(STAFF_TYPES.CLINICAL);
+    setStaffType(defaultStaffType(d.role));
     setGranted([]);
     setDenied([]);
     setAdminAccess(false);
@@ -143,7 +143,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
   }, [d.role]);
 
   const applyPreset = (p) => {
-    setStaffType(p ? p.staffType : STAFF_TYPES.CLINICAL);
+    setStaffType(p ? p.staffType : defaultStaffType(d.role));
     setGranted(p ? [...p.permissions] : []);
     setDenied(p ? [...p.deniedPermissions] : []);
     setAdminAccess(false);
@@ -181,7 +181,7 @@ const StaffWizard = ({ currentUser, backPath = '/admin/dashboard', onCreated }) 
   // "applied unchanged" test exactly (staff type + both lists as sets).
   const grantedNoAdmin = granted.filter((c) => c !== PERMISSIONS.ADMIN_ACCESS);
   const diverged = !preset
-    ? (staffType !== STAFF_TYPES.CLINICAL || granted.length > 0 || denied.length > 0 || adminAccess)
+    ? (staffType !== defaultStaffType(d.role) || granted.length > 0 || denied.length > 0 || adminAccess)
     : (staffType !== preset.staffType
       || !sameSet(grantedNoAdmin, preset.permissions)
       || !sameSet(denied, preset.deniedPermissions)

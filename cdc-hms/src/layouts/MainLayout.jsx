@@ -320,9 +320,12 @@ const MainLayout = ({ userRole = "Staff" }) => {
   // path from homeRole without this check produced /nurse/inpatient-board and
   // /inpatient/inpatient-board — links straight to NotFound.
   const PORTALS_WITH_INPATIENT_BOARD = ['staff', 'doctor', 'lab'];
+  // One question governs everything inpatient (permissions audit, 16 Oct 2026):
+  // may this person open the Inpatient workspace? Doctors and nurses by role,
+  // anyone else by grant, nobody once it is withdrawn — the same answer the
+  // portal switcher and the admissions API give.
   const canSeeInpatientTab =
-    PORTALS_WITH_INPATIENT_BOARD.includes(homeRole) &&
-    (currentUser?.role === 'doctor' || passesAdminGate(currentUser, PERMISSIONS.INPATIENT_ACCESS));
+    PORTALS_WITH_INPATIENT_BOARD.includes(homeRole) && canOpenPortal(currentUser, PERMISSIONS.PORTAL_INPATIENT);
 
   // Hide any nav entry or tab this person cannot use. A real admin holds every
   // capability implicitly, so hasPermission keeps the full menu for them.
@@ -361,7 +364,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // Doctor appointments: schedule + the visit report share the Appointments page.
       show: homeRole === 'doctor',
       tabs: [
-        { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar },
+        { label: 'Appointments', path: '/doctor/appointments', Icon: Calendar, withdrawnBy: PERMISSIONS.APPOINTMENTS_VIEW },
         { label: 'My Schedule', path: '/doctor/my-schedule', Icon: CalendarCheck },
         { label: 'Patient Visits', path: '/doctor/patient-visits', Icon: TrendingUp },
         { label: 'Attendance', path: '/doctor/attendance', Icon: CalendarDays },
@@ -371,8 +374,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // Staff appointments: booking + the visit report share the Appointments page.
       show: homeRole === 'staff',
       tabs: [
-        { label: 'Appointments', path: '/staff/appointments', Icon: Calendar },
-        { label: 'Book Appointment', path: '/staff/book-appointment', Icon: CalendarCheck },
+        { label: 'Appointments', path: '/staff/appointments', Icon: Calendar, withdrawnBy: PERMISSIONS.APPOINTMENTS_VIEW },
+        { label: 'Book Appointment', path: '/staff/book-appointment', Icon: CalendarCheck, withdrawnBy: PERMISSIONS.APPOINTMENTS_WRITE },
         { label: 'Patient Visits', path: '/staff/patient-visits', Icon: TrendingUp },
         { label: 'Attendance', path: '/staff/attendance', Icon: CalendarDays },
       ],
@@ -381,9 +384,9 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // Staff front desk: the queue, patient search and registration share one page.
       show: homeRole === 'staff',
       tabs: [
-        { label: 'Queue Management', path: '/staff/queue', Icon: ClipboardList },
+        { label: 'Queue Management', path: '/staff/queue', Icon: ClipboardList, withdrawnBy: PERMISSIONS.QUEUE_WRITE },
         { label: 'Patient Search', path: '/staff/patients', Icon: Search },
-        { label: 'Register Patient', path: '/staff/create-patient', Icon: UserPlus },
+        { label: 'Register Patient', path: '/staff/create-patient', Icon: UserPlus, withdrawnBy: PERMISSIONS.PATIENTS_WRITE },
       ],
     },
     {
@@ -391,7 +394,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       tabs: [
         { label: 'Onboard', path: '/admin/onboard', Icon: UserPlus, permission: PERMISSIONS.STAFF_ONBOARD },
         { label: 'Manage Users', path: '/admin/manage-users', Icon: UserCog, permission: PERMISSIONS.USERS_VIEW },
-        { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy, permission: PERMISSIONS.USERS_WRITE },
+        { label: 'Duplicate Patients', path: '/admin/duplicate-patients', Icon: Copy, permission: PERMISSIONS.PATIENTS_MERGE },
       ],
     },
     {
@@ -591,10 +594,11 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // Front-desk group entry — Patient Search + Register Patient ride along as
       // tabs on this page (see switcherGroups). Keeps the sidebar decongested.
       // Triage lives as the second tab inside Queue Management now, not a nav item.
-      { name: "Queue Management", path: "/staff/queue", icon: ClipboardList },
+      { name: "Queue Management", path: "/staff/queue", icon: ClipboardList, withdrawnBy: PERMISSIONS.QUEUE_WRITE },
       // Appointments group entry — Book Appointment + Patient Visits are its tabs.
-      { name: "Appointments", path: "/staff/appointments", icon: Calendar },
-      { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble },
+      { name: "Appointments", path: "/staff/appointments", icon: Calendar, withdrawnBy: PERMISSIONS.APPOINTMENTS_VIEW },
+      // Admissions follow the Inpatient workspace grant (see canSeeInpatientTab).
+      { name: "Admissions", path: "/staff/inpatient-admissions", icon: BedDouble, show: canOpenPortal(currentUser, PERMISSIONS.PORTAL_INPATIENT) },
       // Everything reaching the clinic from outside: patient WhatsApp messages,
       // external lab reports (email + WhatsApp) and reminders. The badge is the
       // sum still needing attention. Held by role; hidden only if withdrawn.
@@ -622,7 +626,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       //   path: "/doctor/physical-exam",
       //   icon: Stethoscope,
       // },
-      { name: "Appointments", path: "/doctor/appointments", icon: Calendar },
+      { name: "Appointments", path: "/doctor/appointments", icon: Calendar, withdrawnBy: PERMISSIONS.APPOINTMENTS_VIEW },
       // { name: "Prescriptions", path: "/doctor/prescriptions", icon: Pill },
       // { name: "Reports", path: "/doctor/reports", icon: FileText },
       // { name: "Medical Documents", path: "/doctor/medical-documents", icon: FileStack },
@@ -670,7 +674,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
     nurse: [
       { name: "Ward Board", path: "/nurse/dashboard", icon: BedDouble },
       // Triage is the second tab inside Queue Management now, not a nav item.
-      { name: "Queue Management", path: "/nurse/queue", icon: ClipboardList },
+      { name: "Queue Management", path: "/nurse/queue", icon: ClipboardList, withdrawnBy: PERMISSIONS.QUEUE_WRITE },
       { name: "Inbox", path: "/nurse/inbox", icon: Inbox, badge: inboxCount, dot: mailDot, show: inboxInNav },
     ],
     // HR Suite (B21) — one portal, two views. Dashboard and the register are
@@ -720,7 +724,8 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Users", path: "/admin/manage-users", icon: Users, permission: PERMISSIONS.USERS_VIEW },
       { name: "Inbox", path: "/admin/inbox", icon: Inbox, badge: inboxCount, dot: mailDot, show: inboxInNav },
       { name: "Medical Documents", path: "/admin/medical-documents", icon: FileStack },
-      { name: "Radiology Queue", path: "/admin/unassigned-ultrasound", icon: Waves },
+      // The scan inbox reads /ultrasound, which admits admin.access (not a narrower slice).
+      { name: "Radiology Queue", path: "/admin/unassigned-ultrasound", icon: Waves, permission: PERMISSIONS.ADMIN_ACCESS },
       { name: "Clinical Catalog", path: "/admin/catalog", icon: Pill, permission: PERMISSIONS.CONFIG_WRITE },
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble, permission: PERMISSIONS.CONFIG_WRITE },
       {

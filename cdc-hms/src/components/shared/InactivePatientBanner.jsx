@@ -1,6 +1,7 @@
 import { AlertCircle, ArrowRight, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUserContext } from '../../contexts/UserContext';
+import { passesAdminGate, PERMISSIONS } from '../../utils/permissions';
 
 /**
  * Shown on a deactivated (merged) patient profile.
@@ -41,7 +42,8 @@ const InactivePatientBanner = ({ patient, profileBase, onReactivate, reactivatin
           View Active Profile
         </button>
 
-        {currentUser?.role === 'admin' && onReactivate && (
+        {/* Reactivating follows patients.merge, as the API does (not the admin role). */}
+        {passesAdminGate(currentUser, PERMISSIONS.PATIENTS_MERGE) && onReactivate && (
           <button
             onClick={onReactivate}
             disabled={reactivating}

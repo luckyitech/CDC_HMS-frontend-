@@ -143,27 +143,35 @@ const DiagnosticsTab = ({ patient, initialSub = "documents", onEmailDocument = n
   const [sub, setSub] = useState(initialSub);
   const { currentUser } = useUserContext();
   const { modules } = useClinicModules();
-  const showHistology = !!modules.histology && !!currentUser
+  // Scans, neuropathy studies and sugar charts are the clinical record: their
+  // APIs admit clinical.view (and the clinical roles). A non-clinical account
+  // — reception — was offered the three tabs and got three blank panels
+  // (permissions audit, 16 Oct 2026). Documents stay open: reception files them.
+  const readsClinical = !!currentUser
     && (["doctor", "nurse", "admin"].includes(currentUser.role) || hasPermission(currentUser, PERMISSIONS.CLINICAL_VIEW));
+  const showHistology = !!modules.histology && readsClinical;
+  const current = sub !== "documents" && !readsClinical ? "documents" : sub;
   return (
     <div>
       <SwitcherTabs
         className="mb-4"
-        active={sub}
+        active={current}
         onChange={setSub}
         tabs={[
           { id: "documents", label: "Medical Documents" },
-          { id: "ultrasound", label: "Radiology" },
-          { id: "neuropathy", label: "Neuropathy" },
-          { id: "charts", label: "Sugars" },
+          ...(readsClinical ? [
+            { id: "ultrasound", label: "Radiology" },
+            { id: "neuropathy", label: "Neuropathy" },
+            { id: "charts", label: "Sugars" },
+          ] : []),
           ...(showHistology ? [{ id: "histology", label: "Histology / cytology" }] : []),
         ]}
       />
-      {sub === "documents" && <MedicalDocumentsTab patient={patient} onEmailDocument={onEmailDocument} />}
-      {sub === "ultrasound" && <UltrasoundTab patient={patient} />}
-      {sub === "neuropathy" && <NeuropathyStudyList patient={patient} />}
-      {sub === "charts" && <GlucoseManagementCentre patient={patient} />}
-      {sub === "histology" && showHistology && (
+      {current === "documents" && <MedicalDocumentsTab patient={patient} onEmailDocument={onEmailDocument} />}
+      {current === "ultrasound" && <UltrasoundTab patient={patient} />}
+      {current === "neuropathy" && <NeuropathyStudyList patient={patient} />}
+      {current === "charts" && <GlucoseManagementCentre patient={patient} />}
+      {current === "histology" && showHistology && (
         <HistologyRequestList
           uhid={patient?.uhid}
           canWrite={canRecordHistology(currentUser) && !patient?.mergedIntoUhid}

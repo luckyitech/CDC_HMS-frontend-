@@ -26,6 +26,8 @@ import { HrProvider } from './contexts/HrContext';
 // Layouts & shared (always needed — keep eager)
 import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
+import PageGate from "./components/shared/PageGate";
+import { PERMISSIONS } from "./utils/permissions";
 import Spinner from "./components/shared/Spinner";
 
 // Auth pages (small, visited immediately — keep eager)
@@ -214,19 +216,19 @@ function App() {
                   element={<ProtectedRoute requiredRole="staff" requiredPortal="portal.staff"><MainLayout userRole="Staff" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<StaffDashboard />} />
-                  <Route path="inpatient-board" element={<WardBoard />} />
+                  <Route path="inpatient-board" element={<PageGate portal={PERMISSIONS.PORTAL_INPATIENT}><WardBoard /></PageGate>} />
                   <Route path="patients" element={<PatientSearch />} />
-                  <Route path="queue" element={<QueueManagement />} />
-                  <Route path="triage" element={<Triage />} />
-                  <Route path="create-patient" element={<StaffCreatePatient />} />
+                  <Route path="queue" element={<PageGate withdrawnBy={PERMISSIONS.QUEUE_WRITE}><QueueManagement /></PageGate>} />
+                  <Route path="triage" element={<PageGate withdrawnBy={PERMISSIONS.QUEUE_WRITE}><Triage /></PageGate>} />
+                  <Route path="create-patient" element={<PageGate withdrawnBy={PERMISSIONS.PATIENTS_WRITE}><StaffCreatePatient /></PageGate>} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
-                  <Route path="appointments" element={<StaffAppointmentsList />} />
-                  <Route path="book-appointment" element={<StaffBookAppointment />} />
+                  <Route path="appointments" element={<PageGate withdrawnBy={PERMISSIONS.APPOINTMENTS_VIEW}><StaffAppointmentsList /></PageGate>} />
+                  <Route path="book-appointment" element={<PageGate withdrawnBy={PERMISSIONS.APPOINTMENTS_WRITE}><StaffBookAppointment /></PageGate>} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
                   <Route path="patient-visits" element={<PatientVisitsReport />} />
                   <Route path="attendance" element={<AttendanceRegister />} />
                   <Route path="stock" element={<Stocks />} />
-                  <Route path="inpatient-admissions" element={<InpatientAdmissions />} />
+                  <Route path="inpatient-admissions" element={<PageGate portal={PERMISSIONS.PORTAL_INPATIENT}><InpatientAdmissions /></PageGate>} />
                   <Route path="inbox" element={<Inbox />} />
                   <Route path="lab-inbox" element={<Navigate to="../inbox?tab=lab" replace />} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
@@ -238,7 +240,7 @@ function App() {
                   element={<ProtectedRoute requiredRole="doctor" requiredPortal="portal.doctor"><MainLayout userRole="Doctor" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<DoctorDashboard />} />
-                  <Route path="inpatient-board" element={<WardBoard />} />
+                  <Route path="inpatient-board" element={<PageGate portal={PERMISSIONS.PORTAL_INPATIENT}><WardBoard /></PageGate>} />
                   <Route path="patients" element={<MyPatients />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   {/* The consultation opens the shared patient file; Today's
@@ -252,7 +254,7 @@ function App() {
                   <Route path="physical-exam" element={<PhysicalExamination />} />
                   <Route path="glycemic-charts" element={<GlycemicCharts />} />
                   <Route path="ultrasound-studio" element={<UltrasoundStudio />} />
-                  <Route path="appointments" element={<DoctorAppointmentsList />} />
+                  <Route path="appointments" element={<PageGate withdrawnBy={PERMISSIONS.APPOINTMENTS_VIEW}><DoctorAppointmentsList /></PageGate>} />
                   <Route path="my-schedule" element={<MySchedule />} />
                   <Route path="calculator-facts" element={<CalculatorFacts />} />
                   <Route path="stock" element={<Stocks />} />
@@ -282,7 +284,7 @@ function App() {
                   element={<ProtectedRoute requiredRole="lab" requiredPortal="portal.lab"><MainLayout userRole="Lab" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<LabDashboard />} />
-                  <Route path="inpatient-board" element={<WardBoard />} />
+                  <Route path="inpatient-board" element={<PageGate portal={PERMISSIONS.PORTAL_INPATIENT}><WardBoard /></PageGate>} />
                   <Route path="pending-tests" element={<PendingTests />} />
                   <Route path="enter-results" element={<EnterResults />} />
                   <Route path="test-history" element={<TestHistory />} />
@@ -303,14 +305,14 @@ function App() {
                   <Route path="inbox" element={<Inbox />} />
                   {/* Onboarding wizard (staff + patient). Create Users now
                       redirects here unless opened with ?legacy=1. */}
-                  <Route path="onboard" element={<Onboarding />} />
-                  <Route path="create-users" element={<CreateUsers />} />
+                  <Route path="onboard" element={<PageGate permission={PERMISSIONS.STAFF_ONBOARD}><Onboarding /></PageGate>} />
+                  <Route path="create-users" element={<PageGate permission={PERMISSIONS.STAFF_ONBOARD}><CreateUsers /></PageGate>} />
                   {/* Old per-role URLs redirect into the combined page */}
                   <Route path="create-doctor" element={<Navigate to="/admin/create-users?role=doctor" replace />} />
                   <Route path="create-staff" element={<Navigate to="/admin/create-users?role=staff" replace />} />
                   <Route path="create-lab" element={<Navigate to="/admin/create-users?role=lab" replace />} />
                   <Route path="create-patient" element={<Navigate to="/admin/create-users?role=patient" replace />} />
-                  <Route path="manage-users" element={<ManageUsers />} />
+                  <Route path="manage-users" element={<PageGate permission={PERMISSIONS.USERS_VIEW}><ManageUsers /></PageGate>} />
                   {/* Resolves on employeeId (EMP014), mirroring the patient
                       routes which resolve on uhid — the database PK stays out
                       of the URL. */}
@@ -319,20 +321,20 @@ function App() {
                   <Route path="staff-profile/:employeeId" element={<StaffFile />} />
                   <Route path="patient-profile/:uhid" element={<PatientFile />} />
                   <Route path="medical-documents" element={<MedicalDocuments />} />
-                  <Route path="patient-visits" element={<PatientVisitsReport />} />
-                  <Route path="attendance" element={<AttendanceRegister />} />
-                  <Route path="catalog" element={<ClinicalCatalog />} />
+                  <Route path="patient-visits" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><PatientVisitsReport /></PageGate>} />
+                  <Route path="attendance" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><AttendanceRegister /></PageGate>} />
+                  <Route path="catalog" element={<PageGate permission={PERMISSIONS.CONFIG_WRITE}><ClinicalCatalog /></PageGate>} />
                   <Route path="stock" element={<Stocks />} />
-                  <Route path="duplicate-patients" element={<DuplicatePatients />} />
-                  <Route path="unassigned-ultrasound" element={<UnassignedUltrasound />} />
-                  <Route path="activity-log" element={<ActivityLog />} />
-                  <Route path="analytics" element={<AnalyticsOverview />} />
-                  <Route path="analytics/doctors" element={<DoctorAnalytics />} />
-                  <Route path="analytics/staff" element={<StaffAnalytics />} />
-                  <Route path="analytics/consultations" element={<ConsultationAnalytics />} />
+                  <Route path="duplicate-patients" element={<PageGate permission={PERMISSIONS.PATIENTS_MERGE}><DuplicatePatients /></PageGate>} />
+                  <Route path="unassigned-ultrasound" element={<PageGate permission={PERMISSIONS.ADMIN_ACCESS}><UnassignedUltrasound /></PageGate>} />
+                  <Route path="activity-log" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><ActivityLog /></PageGate>} />
+                  <Route path="analytics" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><AnalyticsOverview /></PageGate>} />
+                  <Route path="analytics/doctors" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><DoctorAnalytics /></PageGate>} />
+                  <Route path="analytics/staff" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><StaffAnalytics /></PageGate>} />
+                  <Route path="analytics/consultations" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><ConsultationAnalytics /></PageGate>} />
                   <Route path="reports" element={<Reports />} />
-                  <Route path="settings" element={<SystemSettings />} />
-                  <Route path="ward-config" element={<WardConfig />} />
+                  <Route path="settings" element={<PageGate permission={PERMISSIONS.CONFIG_WRITE}><SystemSettings /></PageGate>} />
+                  <Route path="ward-config" element={<PageGate permission={PERMISSIONS.CONFIG_WRITE}><WardConfig /></PageGate>} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>
 
@@ -401,7 +403,7 @@ function App() {
                   element={<ProtectedRoute requiredRole="nurse" requiredPortal="portal.inpatient"><MainLayout userRole="Nurse" /></ProtectedRoute>}
                 >
                   <Route path="dashboard" element={<WardBoard />} />
-                  <Route path="queue" element={<QueueManagement />} />
+                  <Route path="queue" element={<PageGate withdrawnBy={PERMISSIONS.QUEUE_WRITE}><QueueManagement /></PageGate>} />
                   <Route path="stock" element={<Stocks />} />
                   <Route path="triage" element={<Triage />} />
                   <Route path="inbox" element={<Inbox />} />
