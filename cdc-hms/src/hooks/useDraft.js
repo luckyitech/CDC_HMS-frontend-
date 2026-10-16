@@ -99,6 +99,13 @@ export default function useDraft({
   const timer = useRef(null);
   const retry = useRef(null);
   const inFlight = useRef(null);
+  // The registry's drop, for removeNow: a cleared draft leaves the reminders AT
+  // ONCE. Waiting for the registry effect was not enough — a form that turns
+  // itself off in the same moment (the remote-request strip once the request
+  // is written) skipped it, and the leave-the-file guard kept asking about a
+  // draft that no longer existed (Emu, 16 Oct 2026).
+  const dropRef = useRef(null);
+  dropRef.current = ctx?.drop;
 
   const clearTimers = () => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
@@ -146,8 +153,9 @@ export default function useDraft({
     clearLocal(lk);
     lastSent.current = r.current.baselineSer;
     setHasDraft(false);
+    dropRef.current?.(key);
     try { await draftService.remove(uhid, formKey, contextKey); } catch { /* the sweep tidies anything left */ }
-  }, [uhid, formKey, contextKey, lk]);
+  }, [uhid, formKey, contextKey, lk, key]);
 
   // ── Load (and restore) when enabled ────────────────────────────────────────
   useEffect(() => {

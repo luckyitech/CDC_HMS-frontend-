@@ -5,6 +5,7 @@ import PatientEmailPanel from '../mail/PatientEmailPanel';
 import { useUserContext } from '../../contexts/UserContext';
 import { canUseMail } from '../../utils/permissions';
 import { notify } from '../../utils/notify';
+import { useStepAside } from './Modal';
 
 const PORTALS = { doctor: 'doctor', nurse: 'doctor', staff: 'staff', admin: 'admin', lab: 'lab' };
 
@@ -35,6 +36,9 @@ const EmailReportButton = ({ printRef, uhid, title, fileStem, addressPatient = t
   const getPdf = usePdfFromPrint(printRef);
   const [busy, setBusy] = useState(false);
   const [reports, setReports] = useState(null);
+  // The printout's preview is a dialog, above the email panel: it steps aside
+  // while the panel is open and comes back when it closes (16 Oct 2026).
+  const stepAside = useStepAside();
 
   if (!uhid || !canUseMail(currentUser)) return null;
 
@@ -44,6 +48,7 @@ const EmailReportButton = ({ printRef, uhid, title, fileStem, addressPatient = t
     try {
       const file = await getPdf(reportFileName(fileStem || title, uhid));
       setReports([{ file, title }]);
+      stepAside(true);
     } catch (err) {
       notify('error', err?.message || 'Could not make the PDF.');
     } finally {
@@ -66,7 +71,7 @@ const EmailReportButton = ({ printRef, uhid, title, fileStem, addressPatient = t
           portal={PORTALS[currentUser?.role] || 'doctor'}
           reports={reports}
           addressPatient={addressPatient}
-          onClose={() => setReports(null)}
+          onClose={() => { setReports(null); stepAside(false); }}
         />
       )}
     </>

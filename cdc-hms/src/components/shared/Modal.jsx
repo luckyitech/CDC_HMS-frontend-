@@ -1,3 +1,4 @@
+import { createContext, useContext, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MODAL_Z } from '../../constants/layers';
 
@@ -8,17 +9,34 @@ import { MODAL_Z } from '../../constants/layers';
 // their panel inside it; plain dialogs use <Modal>, which is built on it.
 // onClose (optional) closes on a click on the backdrop itself, never on a click
 // that started inside the panel. align="top" for tall forms that scroll.
-export const ModalOverlay = ({ children, onClose, align = 'center', className = '', ...rest }) => createPortal(
-  <div
-    {...rest}
-    className={`fixed inset-0 bg-black/50 flex justify-center p-4 ${align === 'top' ? 'items-start overflow-y-auto' : 'items-center'} ${className}`}
-    style={{ zIndex: MODAL_Z }}
-    onClick={onClose ? (e) => { if (e.target === e.currentTarget) onClose(); } : undefined}
-  >
-    {children}
-  </div>,
-  document.body,
-);
+//
+// Stepping aside (16 Oct 2026): a side panel opened from INSIDE a dialog — the
+// printout's "Email" opens the email panel (PANEL_Z) — would sit behind it,
+// because dialogs are above panels. The panel's opener calls
+// useStepAside()(true): the dialog hides (still mounted, nothing lost) and
+// comes back when the opener calls it with false. Outside a dialog it is a no-op.
+const StepAsideContext = createContext(null);
+const noStepAside = () => {};
+export const useStepAside = () => useContext(StepAsideContext) || noStepAside;
+
+export const ModalOverlay = ({ children, onClose, align = 'center', className = '', ...rest }) => {
+  const [aside, setAside] = useState(false);
+  const stepAside = useMemo(() => (on) => setAside(Boolean(on)), []);
+  return createPortal(
+    <StepAsideContext.Provider value={stepAside}>
+      <div
+        {...rest}
+        className={`fixed inset-0 bg-black/50 flex justify-center p-4 ${align === 'top' ? 'items-start overflow-y-auto' : 'items-center'} ${className} ${aside ? '!hidden' : ''}`}
+        style={{ zIndex: MODAL_Z }}
+        aria-hidden={aside || undefined}
+        onClick={onClose ? (e) => { if (e.target === e.currentTarget) onClose(); } : undefined}
+      >
+        {children}
+      </div>
+    </StepAsideContext.Provider>,
+    document.body,
+  );
+};
 
 const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   if (!isOpen) return null;
