@@ -47,6 +47,16 @@ export const hoursColon = (minutes) => {
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
 };
 
+/** "40 s ago", "12 min ago", "3 h ago", or the day and time for older. */
+export const agoLabel = (iso, now = Date.now()) => {
+  if (!iso) return 'never';
+  const s = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+  if (s < 60) return `${s} s ago`;
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 6 * 3600) return `${Math.round(s / 3600)} h ago`;
+  return `${dayLabel(new Date(iso).toLocaleDateString('en-CA', { timeZone: CLINIC_TZ }))} ${hhmmOf(iso)}`;
+};
+
 export const initials = (name = '') => name.split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join('') || '?';
 
 const STAR_CLASS = { green: 'text-green-700', gold: 'text-[#D4A017]', red: 'text-red-700', pending: 'text-gray-300' };
@@ -95,7 +105,7 @@ export const VerificationPill = ({ session }) => {
   return <Pill tone="ok">Verified</Pill>;
 };
 
-export const METHOD_LABEL = { nfc: 'NFC', code: 'code', manual: 'manual' };
+export const METHOD_LABEL = { nfc: 'NFC', code: 'code', manual: 'manual', fingerprint: 'Fingerprint', card: 'Card' };
 
 export const roleLabel = (role) => ({ doctor: 'Doctor', nurse: 'Nurse', staff: 'Staff', lab: 'Lab technician', admin: 'Administrator' }[role] || role || '');
 

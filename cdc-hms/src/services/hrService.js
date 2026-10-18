@@ -36,6 +36,16 @@ const hrService = {
   createTag:      (body)          => api.post('/hr/tags', body),
   updateTag:      (id, body)      => api.patch(`/hr/tags/${id}`, body),
   testTag:        (id, url)       => api.post(`/hr/tags/${id}/test`, { url }),
+
+  // --- fingerprint scanner (17 Oct 2026) ---
+  scannerStatus:  ()              => api.get('/hr/scanners/status'),
+  scanners:       ()              => api.get('/hr/scanners'),
+  createScanner:  (body)          => api.post('/hr/scanners', body),
+  updateScanner:  (id, body)      => api.patch(`/hr/scanners/${id}`, body),
+  replaceScannerKey: (id)         => api.post(`/hr/scanners/${id}/key`),
+  scannerUsers:   (id)            => api.get(`/hr/scanners/${id}/users`),
+  setScannerLink: (id, userId, body) => api.patch(`/hr/scanners/${id}/users/${userId}`, body),
+  confirmScannerMatches: (id)     => api.post(`/hr/scanners/${id}/users/confirm-matches`),
   // --- profile change requests (B27 phase 4, hr.profile.approve) ---
   changeRequests: (status = 'pending') => api.get('/hr/change-requests', { params: { status } }),
   changeRequestCount: ()          => api.get('/hr/change-requests/count'),

@@ -5,6 +5,7 @@ import PageHeader from '../../components/shared/PageHeader';
 import ProfileTabBar from '../../components/shared/ProfileTabBar';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import AttendanceSettings from '../../components/hr/settings/AttendanceSettings';
+import ScannerSettings from '../../components/hr/settings/ScannerSettings';
 import LeaveSettingsPanel from '../../components/hr/settings/LeaveSettingsPanel';
 import StaffListsPanel from '../../components/hr/settings/StaffListsPanel';
 import AlertChannels from '../../components/hr/leave/AlertChannels';
@@ -99,7 +100,7 @@ const HrSettings = () => {
         <>
           <div className="print:hidden mb-4">{subTabs}</div>
           <div role="tabpanel" id={PANEL_ID} aria-labelledby={`hr-settings-sub-${section.id}`}>
-            {group.id === 'attendance' && <AttendanceSettings tab={section.id} />}
+            {group.id === 'attendance' && (section.id === 'scanner' ? <ScannerSettings /> : <AttendanceSettings tab={section.id} />)}
             {group.id === 'lists' && <StaffListsPanel tab={section.id} />}
             {group.id === 'alerts' && section.id === 'alerts' && <AlertChannels canEdit />}
             {group.id === 'alerts' && section.id === 'credentials' && <CredentialsReminders canEdit />}

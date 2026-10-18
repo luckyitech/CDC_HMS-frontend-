@@ -255,7 +255,7 @@ const MyAttendance = () => {
                     <td className="py-1.5 text-gray-800">{dayLabel(r.clinicDate)}</td>
                     <td className="py-1.5">{r.checkInHHMM}</td>
                     <td className="py-1.5">{r.checkOutHHMM || '—'}{r.amendedAt && <small className="text-gray-400 ml-1">amended</small>}</td>
-                    <td className="py-1.5 text-right">{hoursColon(r.minutesWorked)}</td>
+                    <td className="py-1.5 text-right">{hoursColon(r.minutesWorked)}{r.inCount > 1 && <small className="block text-gray-500">In {r.inCount} · Out {r.outCount}</small>}</td>
                     <td className="py-1.5 pl-3"><StarPair session={r} /></td>
                   </tr>
                 ))}

@@ -1,5 +1,5 @@
 import {
-  Clock, CalendarCog, Network, Bell, SlidersHorizontal, CalendarClock, Nfc, History,
+  Clock, CalendarCog, Network, Bell, SlidersHorizontal, CalendarClock, Nfc, History, Fingerprint,
   CalendarDays, Users, Building2, Briefcase, Wand2, GraduationCap,
 } from 'lucide-react';
 import {
@@ -47,6 +47,8 @@ export const SETTINGS_GROUPS = [
       { id: 'rules', label: 'Check-in rules', Icon: SlidersHorizontal, gate: (c) => c.attendance && (c.view || c.config) },
       { id: 'hours', label: 'Working hours', Icon: CalendarClock, gate: (c) => c.attendance && (c.view || c.hours) },
       { id: 'tags', label: 'Entrance tags', Icon: Nfc, gate: (c) => c.attendance && (c.tags || c.config) },
+      // 17 Oct 2026: the scanner card is hr.settings, linking scanner IDs is hr.tags.
+      { id: 'scanner', label: 'Fingerprint scanner', Icon: Fingerprint, gate: (c) => c.attendance && (c.tags || c.config) },
       { id: 'changes', label: 'Recent changes', Icon: History, gate: (c) => c.attendance && (c.view || c.config) },
     ],
   },
