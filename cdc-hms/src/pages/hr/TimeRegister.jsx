@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import SelectMenu from '../../components/shared/SelectMenu';
 import SwitcherTabs from '../../components/shared/SwitcherTabs';
 import { useSearchParams } from 'react-router-dom';
@@ -13,7 +13,7 @@ import Spinner from '../../components/shared/Spinner';
 import { notify } from '../../utils/notify';
 import AmendDrawer from '../../components/hr/AmendDrawer';
 import ScannerStatusPill from '../../components/hr/ScannerStatusPill';
-import { dayLabel, hoursColon, hhmmOf, todayIso, StarPair, VerificationPill, METHOD_LABEL, roleLabel } from '../../components/hr/hrFormat';
+import { dayLabel, hoursColon, todayIso, StarPair, VerificationPill, METHOD_LABEL, roleLabel } from '../../components/hr/hrFormat';
 
 /**
  * TimeRegister — /hr/register (HR Suite, B21).
@@ -67,8 +67,6 @@ const TimeRegister = () => {
   const [loading, setLoading] = useState(false);
   const [people, setPeople] = useState([]);
   const [drawer, setDrawer] = useState(null);     // { session } | { manual: true } | null
-  // Every punch of a day, fetched when its "Ins & outs" is opened (17 Oct 2026).
-  const [trails, setTrails] = useState({});        // { [sessionId]: punches[] | 'loading' }
   const focusId = params.get('focus');
 
   const rangeValid = from && to && from <= to;
@@ -125,20 +123,7 @@ const TimeRegister = () => {
     } catch (e) { notify('error', e?.message || 'Download failed'); }
   };
 
-  const toggleTrail = async (id) => {
-    if (trails[id]) { setTrails(({ [id]: _, ...rest }) => rest); return; }
-    setTrails((t) => ({ ...t, [id]: 'loading' }));
-    try {
-      const res = await hrService.getSession(id);
-      setTrails((t) => ({ ...t, [id]: res?.data?.punches || [] }));
-    } catch (e) {
-      setTrails(({ [id]: _, ...rest }) => rest);
-      notify('error', e?.message || 'Could not load the punches');
-    }
-  };
-
   const onSaved = () => {
-    setTrails({});
     setDrawer(null);
     invalidate();
     load();
@@ -199,7 +184,6 @@ const TimeRegister = () => {
                   <th className="text-left px-3 py-2 font-semibold">In</th>
                   <th className="text-left px-3 py-2 font-semibold">Out</th>
                   <th className="text-right px-3 py-2 font-semibold">Hours</th>
-                  <th className="text-left px-3 py-2 font-semibold">Ins &amp; outs</th>
                   <th className="text-left px-3 py-2 font-semibold">Door · method</th>
                   <th className="text-left px-3 py-2 font-semibold">Verification</th>
                   <th className="text-left px-3 py-2 font-semibold">Stars</th>
@@ -211,24 +195,13 @@ const TimeRegister = () => {
                   const focused = focusId && String(r.id) === focusId;
                   const late = r.checkInPunctuality === 'late' ? `${r.lateMinutes} min late` : null;
                   const early = r.checkOutPunctuality === 'early' ? `${r.earlyOutMinutes} min early` : null;
-                  const trail = trails[r.id];
-                  const cols = 8 + (isHr ? 1 : 0) + (canWrite ? 1 : 0);
                   return (
-                    <Fragment key={r.id}>
-                    <tr className={`border-b border-gray-100 ${focused || drawer?.session?.id === r.id ? 'bg-blue-50' : ''} ${r.status === 'voided' ? 'opacity-50' : ''}`}>
+                    <tr key={r.id} className={`border-b border-gray-100 ${focused || drawer?.session?.id === r.id ? 'bg-blue-50' : ''} ${r.status === 'voided' ? 'opacity-50' : ''}`}>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-800">{dayLabel(r.clinicDate)}</td>
                       {isHr && <td className="px-3 py-2 text-gray-800">{r.person?.role === 'doctor' ? 'Dr ' : ''}{r.person?.name}<br /><small className="text-gray-500 font-normal">{r.person?.position || roleLabel(r.person?.role)}</small></td>}
                       <td className="px-3 py-2 whitespace-nowrap">{r.checkInHHMM}{late && <small className="block text-amber-700">{late}</small>}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{r.checkOutHHMM || '—'}{early && <small className="block text-red-700">{early}</small>}{r.amendedAt && <small className="block text-gray-400">amended</small>}</td>
                       <td className="px-3 py-2 text-right">{r.status === 'refused' ? '—' : hoursColon(r.minutesWorked)}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {r.inCount == null ? <span className="text-gray-400">—</span> : (
-                          <button type="button" onClick={() => toggleTrail(r.id)} aria-expanded={!!trail} className="text-left font-semibold text-gray-800 hover:text-primary">
-                            In {r.inCount} · Out {r.outCount}
-                            {r.awayMinutes > 0 && <small className="block font-normal text-gray-500">away {hoursColon(r.awayMinutes)}</small>}
-                          </button>
-                        )}
-                      </td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-700">{r.door || ({ manual: 'HR', fingerprint: 'Scanner', card: 'Scanner' }[r.checkInMethod] || '—')} · {METHOD_LABEL[r.checkInMethod] || r.checkInMethod}</td>
                       <td className="px-3 py-2"><VerificationPill session={r} /></td>
                       <td className="px-3 py-2"><StarPair session={r} /></td>
@@ -240,29 +213,6 @@ const TimeRegister = () => {
                         </td>
                       )}
                     </tr>
-                    {trail && (
-                      <tr className="bg-gray-50 border-b border-gray-100">
-                        <td colSpan={cols} className="px-3 py-2">
-                          {trail === 'loading' ? <span className="text-xs text-gray-500">Loading…</span> : (
-                            <div className="flex flex-wrap items-center gap-1.5 text-xs" aria-label="Every punch this day">
-                              {trail.map((p, i) => {
-                                const prev = trail.slice(0, i).reverse().find((x) => x.direction);
-                                const gap = p.direction === 'in' && prev?.direction === 'out' ? Math.round((new Date(p.at) - new Date(prev.at)) / 60000) : null;
-                                return (
-                                  <Fragment key={p.id}>
-                                    {gap != null && <span className="italic text-gray-500">{hoursColon(gap)} away</span>}
-                                    <span className={`rounded-md px-1.5 py-0.5 font-semibold ${!p.direction ? 'text-gray-400 line-through' : p.direction === 'in' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-700'}`} title={p.direction ? `${METHOD_LABEL[p.source] || p.source}` : 'Counted once — within 2 minutes of the punch before'}>
-                                      {hhmmOf(p.at)} {p.direction || 'repeat'} · {METHOD_LABEL[p.source] || p.source}
-                                    </span>
-                                  </Fragment>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    )}
-                    </Fragment>
                   );
                 })}
               </tbody>
