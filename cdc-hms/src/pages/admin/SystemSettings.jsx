@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Check, Inbox, MessageCircle, Layers, Mail, Puzzle } from 'lucide-react';
+import { KeyRound, Check, Inbox, MessageCircle, Layers, Mail, Puzzle, ShieldCheck } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -11,12 +11,14 @@ import WhatsAppSettingsTab from '../../components/admin/settings/WhatsAppSetting
 import PermissionPresetsTab from '../../components/admin/settings/PermissionPresetsTab';
 import EmailSettingsTab from '../../components/admin/settings/EmailSettingsTab';
 import SpecialistModulesTab from '../../components/admin/settings/SpecialistModulesTab';
+import TwoFactorSettingsTab from '../../components/admin/settings/TwoFactorSettingsTab';
 import { useUserContext } from '../../contexts/UserContext';
 
 // The settings page is tabbed — one tab per settings area. Add an entry here
 // (and a component) to grow it; the password policy stays the first tab.
 const SETTINGS_TABS = [
   { id: 'password', label: 'Password policy', Icon: KeyRound },
+  { id: 'security', label: 'Security',        Icon: ShieldCheck },
   { id: 'labInbox', label: 'Lab Inbox',       Icon: Inbox },
   { id: 'whatsapp', label: 'WhatsApp',        Icon: MessageCircle },
   { id: 'email',    label: 'Email',           Icon: Mail },
@@ -104,6 +106,7 @@ const SystemSettings = () => {
 
       <SwitcherTabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} className="mb-4" />
 
+      {tab === 'security' && <TwoFactorSettingsTab />}
       {tab === 'labInbox' && <LabInboxSettingsTab />}
       {tab === 'whatsapp' && <WhatsAppSettingsTab />}
       {tab === 'email'    && <EmailSettingsTab />}

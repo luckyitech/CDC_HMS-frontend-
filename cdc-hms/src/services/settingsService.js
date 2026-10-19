@@ -20,6 +20,24 @@ export const settingsService = {
    */
   setPasswordRotation: (changes) => api.put('/settings/password-rotation', changes),
 
+  // ---- Two-factor sign-in (emailed one-time code on every password login) ----
+
+  /**
+   * @returns {Promise} - { success, data: { enabled, ttlMinutes, maxAttempts,
+   *                        ttlBounds, attemptBounds, affectedRoles,
+   *                        accountsInScope, unreachableAccounts, emailDomains } }
+   *
+   * `unreachableAccounts` is the pre-flight: in-scope accounts that could not
+   * receive a code, named, so the switch is never flipped blind.
+   */
+  getTwoFactor: () => api.get('/settings/two-factor'),
+
+  /**
+   * @param {{ enabled?: boolean, ttlMinutes?: number, maxAttempts?: number }} changes
+   * @returns {Promise} - same shape as getTwoFactor
+   */
+  setTwoFactor: (changes) => api.put('/settings/two-factor', changes),
+
   // ---- Lab Inbox: the clinic mailbox the labs email reports to ----
 
   /**

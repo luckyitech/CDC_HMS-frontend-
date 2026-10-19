@@ -58,6 +58,19 @@ api.interceptors.response.use(
     // kept and only the bare fallback is replaced below.
     const permissionMessage = error.response?.data?.message;
 
+    // A two-factor sign-in asking for its code is NOT an expired session.
+    //
+    // 401 is the right status for it — the password was accepted and a further
+    // credential is required — but the teardown below is wrong for it: it would
+    // clear sessionStorage and, anywhere outside the login page, throw the
+    // browser back to "/" at the exact moment the user is meant to be typing
+    // the code. The HR tap page at /hr/tap signs in like any other screen, so
+    // this is not hypothetical. Hand it straight to the caller instead.
+    const authCode = error.response?.data?.code;
+    if (status === 401 && authCode === 'OTP_REQUIRED') {
+      return Promise.reject({ message, status, data: error.response?.data });
+    }
+
     // Handle 401 Unauthorized - token expired or invalid
     if (status === 401) {
       // Clear stored auth data

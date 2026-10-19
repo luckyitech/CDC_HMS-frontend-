@@ -159,14 +159,72 @@ export const UserProvider = ({ children }) => {
       if (response.success) {
         setCurrentUser(response.data.user);
         return { success: true, user: response.data.user };
-      } else {
-        return { success: false, message: response.message || 'Login failed' };
       }
+
+      // Two-factor: the password was accepted and a code has been emailed.
+      // Passed straight through so the login screen can show its code step.
+      // No session exists yet — nothing is stored and currentUser stays null
+      // until verifyOtp below succeeds.
+      if (response.otpRequired) {
+        return {
+          success: false,
+          otpRequired: true,
+          challengeId: response.challengeId,
+          maskedEmail: response.maskedEmail,
+          expiresMinutes: response.expiresMinutes,
+          message: response.message,
+        };
+      }
+
+      return { success: false, message: response.message || 'Login failed' };
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: error.message || 'Login failed. Please try again.' };
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Finish a two-factor sign-in. Mirrors login()'s contract — { success, user }
+  // or { success: false, message } — so the login screen handles both steps the
+  // same way, and sets currentUser only once the code has been accepted.
+  const verifyOtp = async (challengeId, code) => {
+    if (!challengeId || !code) {
+      return { success: false, message: 'Enter the 6-digit code from your email.' };
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await authService.verifyOtp(challengeId, code);
+
+      if (response.success) {
+        setCurrentUser(response.data.user);
+        return { success: true, user: response.data.user };
+      }
+      return { success: false, message: response.message || 'That code could not be checked.' };
+    } catch (error) {
+      // The backend answers a wrong or stale code with 400 and a `code` the
+      // screen branches on: OTP_BAD_CODE is worth retrying in place,
+      // OTP_EXPIRED / OTP_NOT_FOUND / OTP_ATTEMPTS_EXHAUSTED mean start again.
+      return {
+        success: false,
+        message: error?.message || 'That code could not be checked. Please try again.',
+        code: error?.data?.code,
+        attemptsLeft: error?.data?.attemptsLeft,
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Ask for a fresh code. Returns { success, message }. */
+  const resendOtp = async (challengeId) => {
+    try {
+      const response = await authService.resendOtp(challengeId);
+      return { success: !!response.success, message: response.data?.message || 'We have emailed you a new code.' };
+    } catch (error) {
+      return { success: false, message: error?.message || 'Could not send a new code.', code: error?.data?.code };
     }
   };
 
@@ -253,6 +311,8 @@ export const UserProvider = ({ children }) => {
 
     // Authentication Functions
     login,
+    verifyOtp,
+    resendOtp,
     logout,
     isAuthenticated,
     hasRole,

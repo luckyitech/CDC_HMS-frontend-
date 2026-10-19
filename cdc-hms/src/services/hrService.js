@@ -1,4 +1,5 @@
 import api from './api';
+import { asOtpChallenge } from './otpChallenge';
 import { saveTextFile } from '../utils/exportCsv';
 
 /**
@@ -12,8 +13,18 @@ const hrService = {
   // { geo: 'off' | 'log' } — with Off the tap page never asks for the location.
   checkinConfig:  ()              => api.get('/hr/attendance/checkin-config'),
   deviceSession:  (deviceToken)   => api.post('/auth/device-session', { deviceToken }),
-  loginRemember:  (email, password, rememberDevice) =>
-    api.post('/auth/login', { email, password, rememberDevice: !!rememberDevice, context: 'hr-tap' }),
+  // Returns the normal { success, data } on a password-only sign-in, or an
+  // { otpRequired, challengeId, … } challenge when two-factor is on. The tap
+  // page shows the same code step as the main login screen.
+  loginRemember:  async (email, password, rememberDevice) => {
+    try {
+      return await api.post('/auth/login', { email, password, rememberDevice: !!rememberDevice, context: 'hr-tap' });
+    } catch (err) {
+      const challenge = asOtpChallenge(err);
+      if (challenge) return challenge;
+      throw err;
+    }
+  },
 
   // --- own record ---
   mine:           (params)        => api.get('/hr/attendance/me', { params }),

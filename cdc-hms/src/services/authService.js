@@ -1,4 +1,5 @@
 import api from './api';
+import { asOtpChallenge } from './otpChallenge';
 
 /**
  * Authentication Service
@@ -14,9 +15,40 @@ export const authService = {
    * @returns {Promise} - { success: true, data: { token, user } }
    */
   login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
+    try {
+      const response = await api.post('/auth/login', { email, password });
 
-    // If login successful, store token and user in sessionStorage
+      // If login successful, store token and user in sessionStorage
+      if (response.success && response.data.token) {
+        sessionStorage.setItem('token', response.data.token);
+        sessionStorage.setItem('currentUser', JSON.stringify(response.data.user));
+      }
+
+      return response;
+    } catch (err) {
+      // Two-factor is on: the password was right and a code is now in the
+      // user's inbox. Returned as a value rather than re-thrown, because it is
+      // a step in a successful sign-in, not a failure — callers branch on
+      // `otpRequired` exactly as they already branch on `mustChangePassword`.
+      const challenge = asOtpChallenge(err);
+      if (challenge) return challenge;
+      throw err;
+    }
+  },
+
+  /**
+   * Finish a two-factor sign-in.
+   *
+   * The challenge id is the whole identity of this sign-in — no email or
+   * password is re-sent. Stores the session on success, exactly as login does,
+   * so every screen downstream sees an ordinary logged-in user.
+   *
+   * @param {string} challengeId - from the login response
+   * @param {string} code        - the 6 digits from the email
+   */
+  verifyOtp: async (challengeId, code) => {
+    const response = await api.post('/auth/verify-otp', { challengeId, code });
+
     if (response.success && response.data.token) {
       sessionStorage.setItem('token', response.data.token);
       sessionStorage.setItem('currentUser', JSON.stringify(response.data.user));
@@ -24,6 +56,9 @@ export const authService = {
 
     return response;
   },
+
+  /** Ask for a fresh code for a sign-in already in progress. */
+  resendOtp: async (challengeId) => api.post('/auth/resend-otp', { challengeId }),
 
   /**
    * Logout user

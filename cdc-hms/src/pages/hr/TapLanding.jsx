@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUserContext } from '../../contexts/UserContext';
 import hrService from '../../services/hrService';
+import authService from '../../services/authService';
+import OtpStep from '../../components/auth/OtpStep';
 import StarCalendar, { StarTally } from '../../components/hr/StarCalendar';
 import { playStarFlight, cheerDelayFor } from '../../components/hr/StarFlight';
 import logo from '../../assets/cdc_web_logo1.svg';
@@ -21,6 +23,10 @@ import '../../components/hr/hr.css';
  *   1. sessionStorage token (already signed in on this tab)      → tap
  *   2. localStorage 'hr.deviceToken' → POST /auth/device-session → tap
  *   3. the one-time login card with "remember this phone" ticked → tap
+ *      (when two-factor sign-in is on, step 3 also asks for the emailed code —
+ *      the same OtpStep the main login screen uses. A remembered phone, step 2,
+ *      never does: the device token IS a second factor, and it is only ever
+ *      minted after a code has been accepted.)
  *
  * The tag URL is single-use (the counter advances on every read). Reloading
  * the page would replay the used counter and be refused, so the last result
@@ -81,7 +87,7 @@ const TapLanding = () => {
   const cmac = (params.get('cmac') || '').toUpperCase();
   const hasTag = /^[0-9A-F]{14}$/.test(uid) && /^[0-9A-F]{6}$/.test(ctr) && /^[0-9A-F]{16}$/.test(cmac);
 
-  // phase: 'boot' | 'login' | 'posting' | 'result' | 'no-tag'
+  // phase: 'boot' | 'login' | 'otp' | 'posting' | 'result' | 'no-tag'
   const [phase, setPhase] = useState(hasTag ? 'boot' : 'no-tag');
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
@@ -90,6 +96,8 @@ const TapLanding = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
+  // The live two-factor challenge, when sign-in needs a code.
+  const [challenge, setChallenge] = useState(null);
 
   const screenRef = useRef(null);
   const markRef = useRef(null);
@@ -194,6 +202,21 @@ const TapLanding = () => {
     };
   }, [phase, result]);
 
+  // Shared by the password-only path and the two-factor path, so a session
+  // opened with a code remembers the phone on exactly the same terms as one
+  // opened without. `deviceToken` is only ever present when the server agreed
+  // to remember it — the request asked at the PASSWORD step and the server
+  // carried that intent through the challenge.
+  const startSession = async (data) => {
+    if (remember && data.deviceToken) {
+      try { localStorage.setItem(DEVICE_KEY, data.deviceToken); } catch { /* private mode */ }
+    }
+    adoptSession(data);
+    setPassword('');
+    setChallenge(null);
+    await firstTap();
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email || !password) { setError('Email and password are required.'); return; }
@@ -201,16 +224,53 @@ const TapLanding = () => {
     setError('');
     try {
       const res = await hrService.loginRemember(email.trim(), password, remember);
+
+      // Two-factor is on: the password was accepted, a code is in their inbox.
+      // The tag's tap still completes afterwards — firstTap() runs from
+      // startSession once the code is verified, exactly as it would have here.
+      if (res?.otpRequired) {
+        setChallenge({
+          challengeId: res.challengeId,
+          maskedEmail: res.maskedEmail,
+          expiresMinutes: res.expiresMinutes,
+        });
+        setPhase('otp');
+        return;
+      }
+
       if (!res?.success) { setError(res?.message || 'Sign-in failed.'); return; }
-      if (remember && res.data.deviceToken) { try { localStorage.setItem(DEVICE_KEY, res.data.deviceToken); } catch { /* private mode */ } }
-      adoptSession(res.data);
-      setPassword('');
-      await firstTap();
+      await startSession(res.data);
     } catch (err) {
       setError(err?.message || 'Sign-in failed.');
     } finally {
       setBusy(false);
     }
+  };
+
+  // authService.verifyOtp rather than the context's, because this page needs
+  // the deviceToken out of the response and the context's wrapper only returns
+  // the user.
+  const handleVerify = async (code) => {
+    try {
+      const res = await authService.verifyOtp(challenge.challengeId, code);
+      if (!res?.success) return { success: false, message: res?.message || 'That code could not be checked.' };
+      await startSession(res.data);
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        message: err?.message || 'That code could not be checked.',
+        code: err?.data?.code,
+        attemptsLeft: err?.data?.attemptsLeft,
+      };
+    }
+  };
+
+  const restartLogin = () => {
+    setChallenge(null);
+    setPassword('');
+    setError('');
+    setPhase('login');
   };
 
   const confirmCheckout = () => postTap({ confirmToken: result.confirmToken, confirm: true });
@@ -269,6 +329,23 @@ const TapLanding = () => {
             <button type="submit" disabled={busy} className="mt-2 w-full rounded-xl bg-primary py-3 font-semibold text-white disabled:opacity-60">{busy ? 'Signing in…' : 'Sign in and check in'}</button>
             <p className="text-[11px] text-gray-400 text-center">The tap that opened this page still counts — it completes after sign-in.</p>
           </form>
+        )}
+
+        {phase === 'otp' && challenge && (
+          <div className="w-full text-left">
+            <h1 className="text-2xl font-bold leading-tight mb-3">Check your email</h1>
+            <OtpStep
+              challengeId={challenge.challengeId}
+              maskedEmail={challenge.maskedEmail}
+              expiresMinutes={challenge.expiresMinutes}
+              onVerify={handleVerify}
+              onResend={() => authService.resendOtp(challenge.challengeId)
+                .then((r) => ({ success: !!r?.success, message: r?.data?.message }))
+                .catch((e) => ({ success: false, message: e?.message, code: e?.data?.code }))}
+              onRestart={restartLogin}
+            />
+            <p className="text-[11px] text-gray-400 text-center mt-3">The tap that opened this page still counts — it completes after sign-in.</p>
+          </div>
         )}
 
         {phase === 'result' && result && (
