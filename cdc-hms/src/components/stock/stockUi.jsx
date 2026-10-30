@@ -75,6 +75,17 @@ export const useStockCan = () => {
 // "pen" → "pens", "box" → "boxes" — one rule for every stock screen.
 export const unitPlural = (unit = "unit") => `${unit}${/(x|s|ch|sh)$/.test(unit) ? "es" : "s"}`;
 
+// Shelf labels for a quantity: one per pack for an item that comes in packs/
+// boxes, else one per unit (Emu, 13 Oct 2026). Used by Receive, From an
+// invoice and the Deliveries reprint. MAX_LABELS is a typo guard, not a policy.
+export const MAX_LABELS = 300;
+export const suggestedLabels = (packSize, quantity) => {
+  const q = Number(quantity);
+  if (!q || q < 1) return "";
+  const size = Number(packSize) || 1;
+  return String(size > 1 ? Math.ceil(q / size) : q);
+};
+
 // Input styling — same as ClinicalCatalog's inputCls (border-2, focus:primary).
 export const inputCls =
   "w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary";

@@ -172,6 +172,7 @@ export const STOCK_HELP = {
       ["Adjustment", "A stocktake difference."],
       ["Expiry / Damage write-off", "Taken off the books as expired or damaged."],
       ["Deliveries", "Each invoice or receipt with its lines and its scan. \"Not scanned\" means the document still needs scanning."],
+      ["Labels (in a delivery)", "Print shelf labels again for a delivery — when none were printed at receiving, or too few. Each line suggests one label per pack (one per unit for unpacked items); change the number, then press the printer on the line, or Print all labels for the whole delivery in one go."],
       ["Editing a delivery line", "With \"Can edit deliveries\", select a line to correct the item, quantity, batch number or expiry, with a reason. The line then shows \"Edited\"; click it to see what changed, who and why."],
     ],
     fixes: [

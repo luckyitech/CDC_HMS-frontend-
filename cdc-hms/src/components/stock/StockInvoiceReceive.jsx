@@ -5,7 +5,7 @@ import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
 import ConfirmActionModal from "../shared/ConfirmActionModal";
-import { Field, inputCls, unitPlural } from "./stockUi";
+import { Field, inputCls, unitPlural, suggestedLabels, MAX_LABELS } from "./stockUi";
 import { ItemPicker, NewItemPanel } from "./StockItemPick";
 import { printStockBatchLabel } from "../../utils/print";
 
@@ -29,14 +29,7 @@ import { printStockBatchLabel } from "../../utils/print";
 
 
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
-const MAX_LABELS = 300;
 const FIELD_WORDS = { description: "wording", batchNo: "batch no.", expiryDate: "expiry", quantity: "quantity" };
-const defaultLabels = (packSize, quantity) => {
-  const q = Number(quantity);
-  if (!q || q < 1) return "";
-  const size = Number(packSize) || 1;
-  return String(size > 1 ? Math.ceil(q / size) : q);
-};
 
 // One read line as the review table holds it. `original` is what the reader
 // said — the corrections are whatever differs at save time.
@@ -265,7 +258,7 @@ const StockInvoiceReceive = ({ onSaved, aside = null }) => {
       if (!res.success) { notify("error", res.message || "Could not save the delivery"); return; }
       setSaved({
         ...res.data,
-        items: res.data.items.map((it) => ({ ...it, labels: defaultLabels(it.packSize, it.quantity), printed: 0 })),
+        items: res.data.items.map((it) => ({ ...it, labels: suggestedLabels(it.packSize, it.quantity), printed: 0 })),
       });
       setStage("saved");
       onSaved?.();

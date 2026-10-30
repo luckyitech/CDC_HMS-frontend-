@@ -4,7 +4,7 @@ import { PackagePlus, Printer, CheckCircle2, Loader2 } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Button from "../shared/Button";
-import { Field, inputCls } from "./stockUi";
+import { Field, inputCls, suggestedLabels, MAX_LABELS } from "./stockUi";
 import { printStockBatchLabel } from "../../utils/print";
 import ReceiptDocuments from "./ReceiptDocuments";
 import StockHelp from "./StockHelp";
@@ -42,15 +42,7 @@ const EMPTY = {
 // The item line — what a save clears. Supplier, document and location stay
 // for the next item of the same delivery.
 const LINE_RESET = { stockItemId: "", batchNo: "", expiryDate: "", packs: "", quantity: "" };
-const MAX_LABELS = 300;   // a typo guard, not a policy
 
-// Default label count: one per pack for packed items, else one per unit.
-const defaultLabels = (item, quantity) => {
-  const q = Number(quantity);
-  if (!q || q < 1) return "";
-  const size = Number(item?.packSize) || 1;
-  return String(size > 1 ? Math.ceil(q / size) : q);
-};
 const todayIso = () => new Date().toLocaleDateString("en-CA");   // YYYY-MM-DD, local
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
 const MODES = [{ id: "invoice", label: "From an invoice" }, { id: "manual", label: "One item at a time" }];
@@ -127,7 +119,7 @@ const StockReceiveTab = () => {
 
   // Labels follow the quantity until staff type their own number.
   useEffect(() => {
-    if (!labelsEdited) setLabels(defaultLabels(selectedItem, form.quantity));
+    if (!labelsEdited) setLabels(suggestedLabels(selectedItem?.packSize, form.quantity));
   }, [selectedItem, form.quantity, labelsEdited]);
 
   // Packs × pack-size helper: typing packs fills quantity.

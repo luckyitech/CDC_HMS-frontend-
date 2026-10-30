@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Search, FileWarning, ArrowLeft, Pencil } from "lucide-react";
+import { Search, FileWarning, ArrowLeft, Pencil, Printer, CheckCircle2 } from "lucide-react";
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
-import { inputCls, unitPlural, useStockCan, ReceiveMethodBadge } from "./stockUi";
+import { inputCls, unitPlural, useStockCan, ReceiveMethodBadge, suggestedLabels, MAX_LABELS } from "./stockUi";
+import Button from "../shared/Button";
+import { notify } from "../../utils/notify";
+import { printStockBatchLabel, printStockBatchLabels } from "../../utils/print";
 import SelectMenu from "../shared/SelectMenu";
 import { PERMISSIONS } from "../../utils/permissions";
 import { ReceivedLineEditModal, EditedBadge } from "./ReceivedLineEdit";
@@ -22,6 +25,13 @@ import ReceiptDocuments from "./ReceiptDocuments";
 // 13 Oct 2026 (Emu, evening): every delivery and line says how it was entered
 // — read From invoice or entered Manually (filter "How received"). An invoice
 // line also shows what staff corrected before confirming it.
+//
+// 30 Oct 2026 (Emu): shelf labels can be printed again from here — for when
+// they were not printed at receiving, or too few were. Each line has a label
+// count (suggested: one per pack, else one per unit — edit before printing)
+// and its own Print; "Print all" sends every line in ONE print job. Open to
+// anyone who can open Deliveries; no edit permission needed. "printed" counts
+// are for this visit only (label printing is browser-side, not logged).
 
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
 const CORRECTION_WORDS = { item: "item", batchNo: "batch no.", expiryDate: "expiry", quantity: "quantity" };
@@ -32,12 +42,37 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
   const canEdit = useStockCan()(PERMISSIONS.STOCK_DELIVERIES_EDIT);
   const [data, setData] = useState(null);
   const [editing, setEditing] = useState(null);   // the line being corrected
+  const [labels, setLabels] = useState({});       // batchId → count typed (string)
+  const [printed, setPrinted] = useState({});     // batchId → printed this visit
   const load = useCallback(() => {
     stockService.getReceipt(id).then((res) => setData(res.data)).catch(() => setData(false));
   }, [id]);
   useEffect(() => { load(); }, [load]);
+  const countFor = (it) => labels[it.batchId] ?? suggestedLabels(it.packSize, it.qtyReceived);
+  const copiesOf = (it) => {
+    const raw = countFor(it);
+    return raw === "" ? 0 : Math.floor(Number(raw));
+  };
+  const markPrinted = (lines) => setPrinted((p) => {
+    const next = { ...p };
+    lines.forEach((it) => { next[it.batchId] = (next[it.batchId] || 0) + copiesOf(it); });
+    return next;
+  });
+  const badCount = (it) => { const c = copiesOf(it); return !(c >= 0) || c > MAX_LABELS; };
+  const printLine = (it) => {
+    const copies = copiesOf(it);
+    if (!(copies >= 1) || copies > MAX_LABELS) return notify("error", `Labels must be 1–${MAX_LABELS}`);
+    printStockBatchLabel({ ...it, copies });
+    markPrinted([it]);
+  };
   if (data === null) return <Spinner />;
   if (data === false) return <p className="text-sm text-gray-500">Could not load this delivery.</p>;
+  const printable = data.items.filter((it) => it.labelCode && copiesOf(it) >= 1);
+  const totalLabels = printable.reduce((n, it) => n + copiesOf(it), 0);
+  const printAll = () => {
+    if (data.items.some(badCount)) return notify("error", `Labels must be 0–${MAX_LABELS} on every line`);
+    if (printStockBatchLabels(printable.map((it) => ({ ...it, copies: copiesOf(it) })))) markPrinted(printable);
+  };
   return (
     <div className="space-y-4">
       <button type="button" onClick={onBack} className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
@@ -47,13 +82,18 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
         <h3 className="text-lg font-bold text-gray-800">{KIND_LABEL[data.kind] || "Document"} {data.number}</h3>
         <span className="text-sm text-gray-500">{data.supplierName || "No supplier"} · {fmtDay(data.receivedAt)} · {data.itemCount} line{data.itemCount === 1 ? "" : "s"}, {data.unitCount} unit{data.unitCount === 1 ? "" : "s"}</span>
         <ReceiveMethodBadge method={data.method} />
+        {data.items.length > 0 && (
+          <Button variant="outline" className="!px-4 !py-2 text-sm ml-auto" disabled={!totalLabels} onClick={printAll}>
+            <Printer className="w-4 h-4" /> Print all labels{totalLabels ? ` (${totalLabels})` : ""}
+          </Button>
+        )}
       </div>
       <div className="grid lg:grid-cols-2 gap-5 items-start">
         <div className="ui-surface overflow-x-auto">
           <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Recorded as received</p>
           <table className="w-full text-sm mt-2">
             <thead className="ui-thead">
-              <tr><th className="text-left px-4 py-2">Item</th><th className="text-right px-3 py-2">Qty</th><th className="text-left px-3 py-2">Batch / expiry</th><th className="text-left px-3 py-2">Into · by</th>{canEdit && <th className="px-3 py-2" />}</tr>
+              <tr><th className="text-left px-4 py-2">Item</th><th className="text-right px-3 py-2">Qty</th><th className="text-left px-3 py-2">Batch / expiry</th><th className="text-left px-3 py-2">Into · by</th><th className="text-left px-3 py-2">Labels</th>{canEdit && <th className="px-3 py-2" />}</tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {data.items.map((it) => (
@@ -73,6 +113,20 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
                   <td className="px-3 py-2 text-right whitespace-nowrap">{it.qtyReceived} {it.unit ? (it.qtyReceived === 1 ? it.unit : unitPlural(it.unit)) : ""}</td>
                   <td className="px-3 py-2 text-xs text-gray-600">{it.batchNo || "—"}<span className="block">{it.expiryDate ? `exp ${it.expiryDate}` : ""}</span></td>
                   <td className="px-3 py-2 text-xs text-gray-600">{it.location || "—"}<span className="block">{it.receivedByName || ""} · {fmtDay(it.receivedAt)}</span></td>
+                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5">
+                      <input type="number" min="0" max={MAX_LABELS} aria-label={`Labels for ${it.itemName}`}
+                        className={`${inputCls} !w-16 !px-2 !py-1`} value={countFor(it)}
+                        onChange={(e) => setLabels((l) => ({ ...l, [it.batchId]: e.target.value }))} />
+                      <button type="button" title="Print these labels" disabled={!it.labelCode}
+                        className="text-primary hover:text-blue-800 disabled:text-gray-300" onClick={() => printLine(it)}>
+                        <Printer className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {printed[it.batchId] > 0 && (
+                      <span className="inline-flex items-center gap-1 text-xs text-green-700 mt-1"><CheckCircle2 className="w-3 h-3" /> {printed[it.batchId]} printed</span>
+                    )}
+                  </td>
                   {canEdit && (
                     <td className="px-3 py-2 text-right">
                       <button type="button" title="Correct this line" className="text-primary hover:text-blue-800"
@@ -83,7 +137,7 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
                   )}
                 </tr>
               ))}
-              {data.items.length === 0 && <tr><td colSpan={canEdit ? 5 : 4} className="px-4 py-4 text-sm text-gray-500">No items received on it yet.</td></tr>}
+              {data.items.length === 0 && <tr><td colSpan={canEdit ? 6 : 5} className="px-4 py-4 text-sm text-gray-500">No items received on it yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -97,7 +151,9 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
           />
         </div>
       </div>
-      {canEdit && <p className="text-xs text-gray-500">Select a line to correct it.</p>}
+      <p className="text-xs text-gray-500">
+        {canEdit ? "Select a line to correct it. " : ""}Labels start at one per pack (one per unit for unpacked items) of what was received — lower the number if some has already been used.
+      </p>
       {editing && (
         <ReceivedLineEditModal line={editing} onClose={() => setEditing(null)} onSaved={() => { load(); onChanged?.(); }} />
       )}

@@ -37,8 +37,7 @@ export const labelBarcodeSvg = (text, { barHeightMm = 15 } = {}) => {
 // Shared thermal-label layout: a bold title (up to two lines), one detail
 // line, the barcode at the foot. Patient file labels and stock batch labels
 // both use it, so they look and print the same.
-export const printThermalLabel = ({ title, detail, code, copies = 1 }) => {
-  printHtml(`Label ${code}`, LABEL_W_MM, LABEL_H_MM, `
+const thermalLabelBody = ({ title, detail, code }) => `
     <div style="width:100%; height:100%; padding:${LABEL_PAD_MM}mm;
                 display:flex; flex-direction:column; justify-content:space-between;">
       <div>
@@ -49,7 +48,10 @@ export const printThermalLabel = ({ title, detail, code, copies = 1 }) => {
         ${detail ? `<div style="font-size:8pt; margin-top:0.8mm;">${detail}</div>` : ""}
       </div>
       <div style="text-align:center; line-height:0;">${labelBarcodeSvg(code)}</div>
-    </div>`, { copies });
+    </div>`;
+
+export const printThermalLabel = ({ title, detail, code, copies = 1 }) => {
+  printHtml(`Label ${code}`, LABEL_W_MM, LABEL_H_MM, thermalLabelBody({ title, detail, code }), { copies });
 };
 
 // Must be called synchronously inside the tap/click handler (iOS gesture rule).
@@ -57,7 +59,13 @@ export const printThermalLabel = ({ title, detail, code, copies = 1 }) => {
 // thermal printer feeds one label per page.
 export const printHtml = (_title, pageW, pageH, bodyHtml, { copies = 1 } = {}) => {
   const n = Math.max(1, Math.floor(Number(copies) || 1));
-  const page = (last) => `
+  printPages(pageW, pageH, Array.from({ length: n }, () => bodyHtml));
+};
+
+// Several (possibly different) pages in ONE print job — one dialog, one page
+// per thermal label. printHtml is the same-page-N-times case of this.
+const printPages = (pageW, pageH, bodies) => {
+  const page = (bodyHtml, last) => `
 <div style="width:${pageW}mm; height:calc(${pageH}mm - 0.5mm); box-sizing:border-box; overflow:hidden; break-after:${last ? "avoid" : "page"};
             font-family: Arial, Helvetica, sans-serif; color:#000; background:#fff;
             display:flex; align-items:center; justify-content:center;">
@@ -68,24 +76,42 @@ export const printHtml = (_title, pageW, pageH, bodyHtml, { copies = 1 } = {}) =
   .print-portal * { margin: 0; padding: 0; box-sizing: border-box; }
   .print-portal svg { max-width: 100%; height: auto; }
 </style>
-${Array.from({ length: n }, (_, i) => page(i === n - 1)).join("")}`, { pageSize: `${pageW}mm ${pageH}mm`, pageMargin: "0" });
+${bodies.map((b, i) => page(b, i === bodies.length - 1)).join("")}`, { pageSize: `${pageW}mm ${pageH}mm`, pageMargin: "0" });
 };
 
 // Stock batch shelf label: item name, batch no, expiry, STK- barcode.
 // Printed at intake (one per unit / pack — `copies`) and reprintable from the
 // Items screen.
-export const printStockBatchLabel = ({ labelCode, itemName, batchNo, expiryDate, copies = 1 }) => {
-  if (!labelCode) {
-    toast.error("This batch has no label code yet");
-    return;
-  }
+const stockLabel = ({ labelCode, itemName, batchNo, expiryDate }) => {
   const expiry = expiryDate
     ? new Date(expiryDate).toLocaleDateString("en-GB", { month: "2-digit", year: "numeric" })
     : null;
-  printThermalLabel({
+  return {
     title: itemName,
     detail: [batchNo && `Batch: ${batchNo}`, expiry && `Exp: ${expiry}`].filter(Boolean).join(" &middot; "),
     code: labelCode,
-    copies,
-  });
+  };
+};
+
+export const printStockBatchLabel = ({ copies = 1, ...batch }) => {
+  if (!batch.labelCode) {
+    toast.error("This batch has no label code yet");
+    return;
+  }
+  printThermalLabel({ ...stockLabel(batch), copies });
+};
+
+// Labels for several batches in ONE print job (Movements → Deliveries →
+// "Print all", 30 Oct 2026): each batch's label `copies` times, in order.
+// Lines with no label code or 0 copies are skipped. Returns how many printed.
+export const printStockBatchLabels = (batches) => {
+  const pages = batches
+    .filter((b) => b.labelCode && Math.floor(Number(b.copies)) > 0)
+    .flatMap((b) => Array.from({ length: Math.floor(Number(b.copies)) }, () => thermalLabelBody(stockLabel(b))));
+  if (!pages.length) {
+    toast.error("No labels to print");
+    return 0;
+  }
+  printPages(LABEL_W_MM, LABEL_H_MM, pages);
+  return pages.length;
 };
