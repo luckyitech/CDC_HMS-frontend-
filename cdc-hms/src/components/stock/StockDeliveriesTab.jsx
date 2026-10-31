@@ -3,10 +3,11 @@ import { Search, FileWarning, ArrowLeft, Pencil, Printer, CheckCircle2 } from "l
 import { useStockContext } from "../../contexts/StockContext";
 import stockService from "../../services/stockService";
 import Spinner from "../shared/Spinner";
-import { inputCls, unitPlural, useStockCan, ReceiveMethodBadge, suggestedLabels, MAX_LABELS } from "./stockUi";
+import { inputCls, unitPlural, useStockCan, ReceiveMethodBadge, MAX_LABELS } from "./stockUi";
 import Button from "../shared/Button";
 import { notify } from "../../utils/notify";
-import { printStockBatchLabel, printStockBatchLabels } from "../../utils/print";
+import { printStockBatchLabels } from "../../utils/print";
+import ConfirmActionModal from "../shared/ConfirmActionModal";
 import SelectMenu from "../shared/SelectMenu";
 import { PERMISSIONS } from "../../utils/permissions";
 import { ReceivedLineEditModal, EditedBadge } from "./ReceivedLineEdit";
@@ -28,14 +29,20 @@ import ReceiptDocuments from "./ReceiptDocuments";
 //
 // 30 Oct 2026 (Emu): shelf labels can be printed again from here — for when
 // they were not printed at receiving, or too few were. Each line has a label
-// count (suggested: one per pack, else one per unit — edit before printing)
-// and its own Print; "Print all" sends every line in ONE print job. Open to
-// anyone who can open Deliveries; no edit permission needed. "printed" counts
-// are for this visit only (label printing is browser-side, not logged).
+// count and its own Print; "Print all" sends every line that has a count in
+// ONE print job. Open to anyone who can open Deliveries; no edit permission
+// needed. "printed" counts are for this visit only (not logged).
+//
+// 31 Oct 2026 (Emu): the counts start EMPTY — nothing prints until staff type
+// a number. The first version pre-filled the receiving rule (one per pack,
+// else one per unit); with most items at pack size 1 a delivery of 500 strips
+// asked for 500 labels and Print all sent dozens-to-hundreds to the printer.
+// Any job over LABEL_CONFIRM_OVER labels asks first. Receiving is unchanged.
 
 const KIND_LABEL = { invoice: "Invoice", receipt: "Receipt", delivery_note: "Delivery note" };
 const CORRECTION_WORDS = { item: "item", batchNo: "batch no.", expiryDate: "expiry", quantity: "quantity" };
 const METHOD_OPTIONS = [{ value: "", label: "How received: all" }, { value: "invoice", label: "From invoice" }, { value: "manual", label: "Manual" }];
+const LABEL_CONFIRM_OVER = 20;
 const fmtDay = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
 
 const DeliveryDetail = ({ id, onBack, onChanged }) => {
@@ -44,11 +51,12 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
   const [editing, setEditing] = useState(null);   // the line being corrected
   const [labels, setLabels] = useState({});       // batchId → count typed (string)
   const [printed, setPrinted] = useState({});     // batchId → printed this visit
+  const [confirmJob, setConfirmJob] = useState(null); // { lines, total } awaiting "yes"
   const load = useCallback(() => {
     stockService.getReceipt(id).then((res) => setData(res.data)).catch(() => setData(false));
   }, [id]);
   useEffect(() => { load(); }, [load]);
-  const countFor = (it) => labels[it.batchId] ?? suggestedLabels(it.packSize, it.qtyReceived);
+  const countFor = (it) => labels[it.batchId] ?? "";
   const copiesOf = (it) => {
     const raw = countFor(it);
     return raw === "" ? 0 : Math.floor(Number(raw));
@@ -59,11 +67,20 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
     return next;
   });
   const badCount = (it) => { const c = copiesOf(it); return !(c >= 0) || c > MAX_LABELS; };
+  // Prints now (inside the click — iOS rule), or asks first for a big job;
+  // the confirm button's own click then prints.
+  const doPrint = (lines) => {
+    if (printStockBatchLabels(lines.map((it) => ({ ...it, copies: copiesOf(it) })))) markPrinted(lines);
+  };
+  const requestPrint = (lines) => {
+    const total = lines.reduce((n, it) => n + copiesOf(it), 0);
+    if (total > LABEL_CONFIRM_OVER) setConfirmJob({ lines, total });
+    else doPrint(lines);
+  };
   const printLine = (it) => {
     const copies = copiesOf(it);
-    if (!(copies >= 1) || copies > MAX_LABELS) return notify("error", `Labels must be 1–${MAX_LABELS}`);
-    printStockBatchLabel({ ...it, copies });
-    markPrinted([it]);
+    if (!(copies >= 1) || copies > MAX_LABELS) return notify("error", `Type how many labels (1–${MAX_LABELS})`);
+    requestPrint([it]);
   };
   if (data === null) return <Spinner />;
   if (data === false) return <p className="text-sm text-gray-500">Could not load this delivery.</p>;
@@ -71,7 +88,7 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
   const totalLabels = printable.reduce((n, it) => n + copiesOf(it), 0);
   const printAll = () => {
     if (data.items.some(badCount)) return notify("error", `Labels must be 0–${MAX_LABELS} on every line`);
-    if (printStockBatchLabels(printable.map((it) => ({ ...it, copies: copiesOf(it) })))) markPrinted(printable);
+    requestPrint(printable);
   };
   return (
     <div className="space-y-4">
@@ -115,7 +132,7 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
                   <td className="px-3 py-2 text-xs text-gray-600">{it.location || "—"}<span className="block">{it.receivedByName || ""} · {fmtDay(it.receivedAt)}</span></td>
                   <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
-                      <input type="number" min="0" max={MAX_LABELS} aria-label={`Labels for ${it.itemName}`}
+                      <input type="number" min="0" max={MAX_LABELS} placeholder="0" aria-label={`Labels for ${it.itemName}`}
                         className={`${inputCls} !w-16 !px-2 !py-1`} value={countFor(it)}
                         onChange={(e) => setLabels((l) => ({ ...l, [it.batchId]: e.target.value }))} />
                       <button type="button" title="Print these labels" disabled={!it.labelCode}
@@ -152,8 +169,16 @@ const DeliveryDetail = ({ id, onBack, onChanged }) => {
         </div>
       </div>
       <p className="text-xs text-gray-500">
-        {canEdit ? "Select a line to correct it. " : ""}Labels start at one per pack (one per unit for unpacked items) of what was received — lower the number if some has already been used.
+        {canEdit ? "Select a line to correct it. " : ""}To print labels, type how many each line needs, then press its printer — or Print all labels for every line with a number.
       </p>
+      <ConfirmActionModal
+        isOpen={!!confirmJob}
+        onClose={() => setConfirmJob(null)}
+        onConfirm={() => { const job = confirmJob; setConfirmJob(null); doPrint(job.lines); }}
+        title={`Print ${confirmJob?.total} labels?`}
+        message={`That is ${confirmJob?.total} labels on the label printer. Check the numbers if you expected fewer.`}
+        confirmLabel={`Print ${confirmJob?.total}`}
+      />
       {editing && (
         <ReceivedLineEditModal line={editing} onClose={() => setEditing(null)} onSaved={() => { load(); onChanged?.(); }} />
       )}
