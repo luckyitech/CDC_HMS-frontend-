@@ -30,8 +30,6 @@ const EVENTS = [
   { key: 'expiry_self',           label: 'Your licence or certificate is expiring',  group: 'Credentials' },
   { key: 'expiry_hr',             label: 'Someone\'s licence or certificate is expiring', group: 'Credentials', hint: 'to HR' },
   // HR Tier 3 Phase 4 (RO-10)
-  { key: 'roster_published',      label: 'Your shifts for a week are published',     group: 'Roster' },
-  { key: 'roster_changed',        label: 'One of your published shifts changes',     group: 'Roster' },
   // HR Tier 3 Phase 5
   { key: 'appraisal_self',        label: 'Your appraisal opens',                     group: 'Appraisals' },
   { key: 'appraisal_review',      label: 'An appraisal waits for your review',       group: 'Appraisals' },
