@@ -86,7 +86,7 @@ const HrDashboard = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-base font-bold text-gray-800">Today at the clinic</h3>
-              <p className="text-xs text-gray-500">{t ? `${dayLabel(t.clinicDate, true)}${t.holiday ? ` · ${t.holiday} (public holiday — nobody is expected in unless rostered)` : ''} · ${hhmmOf(t.now)} · updates every minute` : 'Loading…'}</p>
+              <p className="text-xs text-gray-500">{t ? `${dayLabel(t.clinicDate, true)}${t.holiday ? ` · ${t.holiday} (public holiday — the clinic is closed)` : ''} · ${hhmmOf(t.now)} · updates every minute` : 'Loading…'}</p>
             </div>
             <Link to="/hr/register?preset=today" className="text-sm font-semibold text-primary hover:underline">Open register</Link>
           </div>

@@ -160,8 +160,9 @@ const HolidayList = ({ year, canEdit }) => {
           </form>
         )}
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-900 space-y-1.5">
-          <p><b>Never counted as leave.</b> A holiday inside someone's leave costs them nothing, and nobody is expected in on one — the star calendar shows "H". Someone HR has rostered for that exact date (Working hours → a dated override) is still expected.</p>
-          <p><b>Add when gazetted:</b> Idd-ul-Fitr (it follows the moon) and any day the President declares.</p>
+          <p><b>Filled in automatically.</b> Every year's public holidays — the fixed days, Good Friday and Easter Monday, and Idd-ul-Fitr and Idd-ul-Adha — are added on their own, this year and next. The clinic is closed on them: nobody is expected in, and the star calendar shows "H".</p>
+          <p><b>Idd days are expected dates</b> (they follow the moon). If the government declares a different day, retire the expected one and add the declared day here; it won't be put back. Add any other day the President declares the same way.</p>
+          <p><b>Never counted as leave.</b> A holiday inside someone's leave costs them nothing.</p>
           <p><b>Sunday rule:</b> a holiday that falls on a Sunday is also observed on the next day that isn't already a holiday (Christmas on a Sunday → Tuesday, because Boxing Day is the Monday). With the switch on, these days are added for you and marked "Automatic".</p>
           <p>Changing a holiday doesn't change leave already requested — each request keeps the count it was made with.</p>
         </div>

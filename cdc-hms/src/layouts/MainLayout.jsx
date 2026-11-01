@@ -6,7 +6,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
 import { canOpenHrSettings } from "../components/hr/settings/settingsTabs";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canUseSelfService, canApproveLeave, canViewAllLeave, canApproveProfileChanges, canVerifyCpd, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canEditRoster, canEditShiftTypes, canRunAppraisals, canReadAppraisals, isHrStaff, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canUseSelfService, canApproveLeave, canViewAllLeave, canApproveProfileChanges, canVerifyCpd, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canRunAppraisals, canReadAppraisals, isHrStaff, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import "./sidebar.css";
 import ProfileMenu from "../components/shared/ProfileMenu";
@@ -63,7 +63,6 @@ import {
   ClipboardCheck,
   BarChart3,
   ListChecks,
-  CalendarRange,
   Award,
   BookOpen,
 } from "lucide-react";
@@ -702,7 +701,7 @@ const MainLayout = ({ userRole = "Staff" }) => {
       // HR Tier 3 Phase 3: onboarding checklists (hr.onboarding) and templates (hr.onboarding.templates).
       { name: "Onboarding", path: "/hr/onboarding", icon: ListChecks, show: canRunOnboarding(currentUser) || canEditOnboardingTemplates(currentUser) },
       // HR Tier 3 Phase 4: the shift roster (hr.roster) and shift types (hr.roster.shifts).
-      { name: "Roster", path: "/hr/roster", icon: CalendarRange, show: canEditRoster(currentUser) || canEditShiftTypes(currentUser) },
+      // Roster removed from the menu 1 Nov 2026: everyone works the clinic's hours.
       // HR Tier 3 Phase 5: appraisals — everyone (own + reviewing); runners and readers also see the cycle.
       { name: "Appraisals", path: "/hr/appraisals", icon: Award, badge: appraisalWaiting, show: canUseSelfService(currentUser) || canRunAppraisals(currentUser) || canReadAppraisals(currentUser) },
       // HR Suite → Manual (5 Oct 2026): the HR Suite Manual and the shared HR checklist — HR staff only (isHrStaff).

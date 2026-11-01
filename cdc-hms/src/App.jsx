@@ -128,7 +128,6 @@ const LeaveSettingsRedirect = lazy(() => import("./pages/hr/HrSettings").then((m
 const ListsRedirect         = lazy(() => import("./pages/hr/HrSettings").then((m) => ({ default: m.ListsRedirect })));
 const HrReports          = lazy(() => import("./pages/hr/HrReports"));
 const OnboardingChecklists = lazy(() => import("./pages/hr/OnboardingChecklists"));
-const Roster = lazy(() => import("./pages/hr/Roster"));
 const Appraisals = lazy(() => import("./pages/hr/Appraisals"));
 const HrManual = lazy(() => import("./pages/hr/HrManual"));
 const AppraisalForm = lazy(() => import("./pages/hr/AppraisalForm"));
@@ -361,7 +360,6 @@ function App() {
                   {/* HR Tier 3 Phase 3 — onboarding checklists + templates */}
                   <Route path="onboarding" element={<OnboardingChecklists />} />
                   {/* HR Tier 3 Phase 4 — the shift roster + shift types */}
-                  <Route path="roster" element={<Roster />} />
                   {/* HR Tier 3 Phase 5 — appraisals (everyone: own + reviewing; runners/readers: the cycle) */}
                   <Route path="appraisals" element={<Appraisals />} />
                   <Route path="appraisals/:id" element={<AppraisalForm />} />

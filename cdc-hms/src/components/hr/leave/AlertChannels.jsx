@@ -37,6 +37,8 @@ const EVENTS = [
   { key: 'appraisal_review',      label: 'An appraisal waits for your review',       group: 'Appraisals' },
   { key: 'appraisal_sent',        label: 'Your appraisal is ready to read',          group: 'Appraisals' },
   { key: 'appraisal_acknowledged', label: 'Someone acknowledges the appraisal you wrote', group: 'Appraisals' },
+  { key: 'attendance_star',       label: 'A gold or red star on arrival (that day)',  group: 'Attendance' },
+  { key: 'attendance_weekly',     label: 'Your week — every Saturday at 2 pm',        group: 'Attendance' },
 ];
 
 const Check = ({ checked, onChange, disabled, label }) => (

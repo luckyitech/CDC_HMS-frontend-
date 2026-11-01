@@ -7,7 +7,6 @@ import hrService from '../../../services/hrService';
 import Spinner from '../../shared/Spinner';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
 import { notify } from '../../../utils/notify';
-import WorkHours from '../WorkHours';
 import { Pill, hhmmOf, dayLabel } from '../hrFormat';
 import { Field, Section, SwitchRow as Toggle, inputCls } from '../hrUi';
 
@@ -19,7 +18,7 @@ import { Field, Section, SwitchRow as Toggle, inputCls } from '../hrUi';
  * the sub-tab changes, so an unsaved Rules form survives a look at another tab.
  *
  * Entrance tags (register with a write-once key, retire, test a tap URL),
- * check-in rules and clinic-wide hours, working hours per person, and the
+ * check-in rules (the clinic's hours are fixed, 1 Nov 2026), and the
  * recent-changes audit (SettingChangeLogs, area "HR Suite" — which carries
  * every HR Suite setting except the leave policy, which has its own trail).
  *
@@ -33,35 +32,6 @@ import { Field, Section, SwitchRow as Toggle, inputCls } from '../hrUi';
  * settings — components/hr/hrUi.jsx.
  */
 
-/** hoursDefault JSON ⇄ the three-line form (Mon–Fri · Sat · Sun). */
-const defaultsToForm = (def = {}) => {
-  const pick = (keys) => { for (const k of keys) if (def[k] !== undefined) return def[k]; return undefined; };
-  const asRow = (v) => (v === 'off' || v === undefined ? { off: true, start: '08:00', end: '17:00' } : { off: false, start: v[0], end: v[1] });
-  return { weekdays: asRow(pick(['1-5', '1'])), sat: asRow(pick(['6'])), sun: asRow(pick(['0'])) };
-};
-const formToDefaults = (f) => ({
-  '1-5': f.weekdays.off ? 'off' : [f.weekdays.start, f.weekdays.end],
-  6: f.sat.off ? 'off' : [f.sat.start, f.sat.end],
-  0: f.sun.off ? 'off' : [f.sun.start, f.sun.end],
-});
-
-const HoursRow = ({ label, row, onChange, disabled }) => (
-  <div className="grid grid-cols-[80px_1fr] items-center gap-2 text-sm">
-    <span className="text-gray-700">{label}</span>
-    <span className="inline-flex items-center gap-2 flex-wrap">
-      <select value={row.off ? 'off' : 'hours'} onChange={(e) => onChange({ ...row, off: e.target.value === 'off' })} disabled={disabled} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
-        <option value="hours">Hours</option><option value="off">Off</option>
-      </select>
-      {!row.off && (
-        <>
-          <input type="time" value={row.start} onChange={(e) => onChange({ ...row, start: e.target.value })} disabled={disabled} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" /> –
-          <input type="time" value={row.end} onChange={(e) => onChange({ ...row, end: e.target.value })} disabled={disabled} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
-        </>
-      )}
-    </span>
-  </div>
-);
-
 const AttendanceSettings = ({ tab }) => {
   const { currentUser } = useUserContext();
   const { settings, loadSettings, setSettings, invalidate } = useHrContext();
@@ -73,7 +43,6 @@ const AttendanceSettings = ({ tab }) => {
   const canReadSettings = canView || canConfig;
 
   const [form, setForm] = useState(null);
-  const [hoursForm, setHoursForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [tags, setTags] = useState(null);
   const [tagForm, setTagForm] = useState({ label: '', location: '', uid: '', key: '' });
@@ -97,7 +66,6 @@ const AttendanceSettings = ({ tab }) => {
       debounceSeconds: settings.debounceSeconds, minSessionMinutes: settings.minSessionMinutes, graceMinutes: settings.graceMinutes,
       geo: settings.geo, deviceDays: settings.deviceDays,
     });
-    setHoursForm(defaultsToForm(settings.hoursDefault));
   }, [settings]);
 
   // The Settings page only shows this panel's sub-tabs to whoever could open
@@ -107,16 +75,12 @@ const AttendanceSettings = ({ tab }) => {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const saveRules = async () => {
-    for (const k of ['weekdays', 'sat', 'sun']) {
-      const r = hoursForm[k];
-      if (!r.off && r.start >= r.end) { notify('error', 'Clinic hours: end must be after start.'); return; }
-    }
     setSaving(true);
     try {
-      const res = await hrService.saveSettings({ ...form, hoursDefault: formToDefaults(hoursForm) });
+      const res = await hrService.saveSettings(form);
       if (res?.success) {
         notify('success', 'HR settings saved.');
-        invalidate();                       // cached months depend on the default hours
+        invalidate();
         const fresh = await hrService.settings();
         if (fresh?.success) setSettings(fresh.data);
       } else notify('error', res?.message || 'Could not save.');
@@ -231,7 +195,7 @@ const AttendanceSettings = ({ tab }) => {
 
           {tab === 'rules' && canReadSettings && (
           <Section title="Rules">
-            {!form || !hoursForm ? <Spinner /> : (
+            {!form ? <Spinner /> : (
               <div className="space-y-3">
                 {!canConfig && <p className="text-xs text-amber-700">Changing rules needs the "HR Suite settings" permission — an administrator can do this.</p>}
                 {/* Full page width (11 Oct 2026): switches in two columns, numbers in four. */}
@@ -252,23 +216,13 @@ const AttendanceSettings = ({ tab }) => {
                   </select>
                 </Field>
                 <div>
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Clinic-wide default hours</span>
-                  <div className="space-y-1.5">
-                    <HoursRow label="Mon – Fri" row={hoursForm.weekdays} onChange={(r) => setHoursForm((h) => ({ ...h, weekdays: r }))} disabled={!canConfig} />
-                    <HoursRow label="Saturday" row={hoursForm.sat} onChange={(r) => setHoursForm((h) => ({ ...h, sat: r }))} disabled={!canConfig} />
-                    <HoursRow label="Sunday" row={hoursForm.sun} onChange={(r) => setHoursForm((h) => ({ ...h, sun: r }))} disabled={!canConfig} />
-                  </div>
-                  <span className="block text-[11px] text-gray-400 mt-1">Applies to anyone without their own hours below. Missed check-outs are closed at clinic midnight and flagged.</span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Clinic hours</span>
+                  <p className="text-sm text-gray-800">Monday – Friday 08:00 – 17:00 · Saturday 08:00 – 13:00 · closed Sundays and public holidays</p>
+                  <span className="block text-[11px] text-gray-400 mt-1">Everyone is measured against these; nothing to set up. Missed check-outs are closed at clinic midnight and flagged.</span>
                 </div>
                 <button type="button" onClick={saveRules} disabled={!canConfig || saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Saving…' : 'Save rules'}</button>
               </div>
             )}
-          </Section>
-          )}
-
-          {tab === 'hours' && (canView || canHours) && (
-          <Section title="Working hours per person">
-            <WorkHours canEdit={canHours} />
           </Section>
           )}
 
