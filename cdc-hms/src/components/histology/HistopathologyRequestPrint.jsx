@@ -33,7 +33,10 @@ const HistopathologyRequestPrint = ({ request, patient, onClose }) => {
   const [waOpen, setWaOpen] = useState(false);
   if (!request) return null;
 
-  const specimens = request.specimens || [];
+  // A cancelled specimen is not asked of the lab: it is left off the form.
+  const all = request.specimens || [];
+  const specimens = all.filter((s) => s.status !== 'cancelled');
+  const allCancelled = all.length > 0 && specimens.length === 0;
   const urgent = request.priority && request.priority !== 'Routine';
   const columns = [
     { header: 'No.', cell: (_, i) => i + 1, className: 'w-8' },
@@ -85,9 +88,20 @@ const HistopathologyRequestPrint = ({ request, patient, onClose }) => {
             <p className="mb-3 text-sm text-gray-700"><b className="font-semibold">Send to:</b> {request.sendTo}</p>
           )}
 
-          <PrintSection title={specimens.length === 1 ? 'Specimen' : `Specimens (${specimens.length})`}>
-            <PrintTable columns={columns} rows={specimens} />
-          </PrintSection>
+          {allCancelled ? (
+            <p className="my-4 rounded border-2 border-red-300 px-3 py-2 text-center text-base font-bold uppercase tracking-wide text-red-700">
+              Cancelled — this request is not to be processed
+            </p>
+          ) : (
+            <PrintSection title={specimens.length === 1 ? 'Specimen' : `Specimens (${specimens.length})`}>
+              <PrintTable columns={columns} rows={specimens} />
+              {specimens.length < all.length && (
+                <p className="mt-1 text-xs text-gray-600">
+                  {all.length - specimens.length} cancelled specimen{all.length - specimens.length === 1 ? '' : 's'} not shown ({all.filter((s) => s.status === 'cancelled').map((s) => s.specimenNumber).join(', ')}).
+                </p>
+              )}
+            </PrintSection>
+          )}
 
           <PrintSection title="Clinical Details & Question">
             <p className="text-sm text-gray-800 whitespace-pre-wrap">{request.clinicalDetails}</p>

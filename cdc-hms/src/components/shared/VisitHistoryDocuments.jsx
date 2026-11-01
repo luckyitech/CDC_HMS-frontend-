@@ -90,7 +90,10 @@ export const LabRequestsHistory = ({ patient }) => {
         {state.rows.map((req) => {
           const live = req.tests.filter((t) => t.status !== "Cancelled");
           const allCancelled = live.length === 0;
-          const h = req.requisitionNumber ? histo.get(req.requisitionNumber) : null;
+          // A histopathology requisition: every line on it is Histopathology /
+          // Cytology (two requests saved at the same moment could share a number).
+          const histoLines = req.tests.length > 0 && req.tests.every((t) => t.testType === "Histopathology" || t.testType === "Cytology");
+          const h = histoLines && req.requisitionNumber ? histo.get(req.requisitionNumber) : null;
           if (h) {
             return (
               <Row

@@ -6,6 +6,7 @@ import { useUserContext } from '../../contexts/UserContext';
 import { canRecordDerm } from '../../utils/permissions';
 import { dermService } from '../../services/dermService';
 import { histologyService } from '../../services/histologyService';
+import patientService from '../../services/patientService';
 import {
   KINDS, SITE_TYPES, TISSUE_TYPES, CYTO_TYPES, SKIN_BIOPSY_TYPES, FIXATIVES, LOBES, TIRADS, labelOf,
 } from '../../constants/histology';
@@ -60,10 +61,12 @@ const blank = (presetFindingId) => ({
 /** A draft saved before 1 Nov 2026 held one specimen and its request fields flat. */
 const fromDraft = (p, presetFindingId) => {
   if (!p) return blank(presetFindingId);
-  if (Array.isArray(p.specimens) && p.specimens.length) {
-    return { ...blank(presetFindingId), ...p, current: Math.min(Number(p.current) || 0, p.specimens.length - 1) };
+  if (Array.isArray(p.specimens)) {
+    if (!p.specimens.length) return { ...blank(presetFindingId), ...p, specimens: blank(presetFindingId).specimens, current: 0 };
+    const specimens = p.specimens.map((s) => ({ ...blankSpecimen(presetFindingId), ...(s || {}) }));
+    return { ...blank(presetFindingId), ...p, specimens, current: Math.min(Number(p.current) || 0, specimens.length - 1) };
   }
-  const { clinicalDetails = '', sendTo = '', ...rest } = p;
+  const { clinicalDetails = '', sendTo = '', specimens: _ignored, ...rest } = p;
   return { ...blank(presetFindingId), clinicalDetails, sendTo, specimens: [{ ...blankSpecimen(presetFindingId), ...rest }] };
 };
 
@@ -135,6 +138,7 @@ const HistologyRequestForm = ({ uhid, patient = null, presetFindingId = null, on
   const [saving, setSaving] = useState(false);
   const [fieldError, setFieldError] = useState(null);
   const [printed, setPrinted] = useState(null);     // the request just made, for its printed form
+  const [printPatient, setPrintPatient] = useState(null);
   const setTop = (patch) => { setForm((f) => ({ ...f, ...patch })); setFieldError(null); };
   const spec = form.specimens[form.current] || form.specimens[0];
   const set = (patch) => {
@@ -215,7 +219,13 @@ const HistologyRequestForm = ({ uhid, patient = null, presetFindingId = null, on
       draft.markSaved();
       setForm(blank(presetFindingId));
       notify('success', `Histopathology requested — ${rows.map((r) => r.specimenNumber).join(', ')}`);
-      if (patient?.uhid) setPrinted(groupHistologyRequests(rows)[0]);
+      // The printed form opens at once; from a skin finding (no patient
+      // passed) the patient is looked up for its header.
+      let who = patient?.uhid ? patient : null;
+      if (!who) {
+        try { const r = await patientService.getByUHID(uhid); who = r?.data?.patient || r?.data || null; } catch { who = null; }
+      }
+      if (who?.uhid) { setPrintPatient(who); setPrinted(groupHistologyRequests(rows)[0]); }
       onCreated?.(rows[0], rows);
     } catch (err) {
       const field = err?.data?.field || null;
@@ -383,7 +393,7 @@ const HistologyRequestForm = ({ uhid, patient = null, presetFindingId = null, on
           <div className="mt-auto flex flex-wrap items-center gap-3">
             <button type="button" onClick={submit} disabled={saving}
               className="min-h-[44px] rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60">
-              {saving ? 'Saving…' : patient?.uhid ? 'Request histopathology & print' : 'Request histopathology'}
+              {saving ? 'Saving…' : 'Request histopathology & print'}
             </button>
             <span className="text-xs text-gray-500">
               One request{many ? ` · ${form.specimens.length} specimens` : ''}. Each specimen is numbered and goes to the lab as a Pending line; nothing is billed here — bill at Complete consultation.
@@ -392,7 +402,7 @@ const HistologyRequestForm = ({ uhid, patient = null, presetFindingId = null, on
         </div>
       </div>
 
-      {printed && <HistopathologyRequestPrint request={printed} patient={patient} onClose={() => setPrinted(null)} />}
+      {printed && <HistopathologyRequestPrint request={printed} patient={printPatient} onClose={() => setPrinted(null)} />}
     </div>
   );
 };
