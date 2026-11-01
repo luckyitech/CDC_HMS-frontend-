@@ -167,7 +167,7 @@ const MyAttendance = () => {
               ))}
             </dl>
           ) : <Spinner />}
-          <p className="text-xs text-gray-500 mt-3">The clinic's hours — the same for everyone. Closed Sundays and public holidays.</p>
+          <p className="text-xs text-gray-500 mt-3">The clinic's hours — the same for everyone, set by HR. Closed on public holidays.</p>
         </Card>
       </div>
 
