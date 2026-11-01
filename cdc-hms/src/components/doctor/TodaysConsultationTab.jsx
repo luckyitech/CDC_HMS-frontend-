@@ -771,7 +771,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
                     </span>
                   )}
                   {tool.id === 'orders' && !isOpen && (
-                    <span className="hidden sm:inline text-xs text-gray-500">Prescriptions · Laboratory{modules.histology ? ' · Histology' : ''}</span>
+                    <span className="hidden sm:inline text-xs text-gray-500">Prescriptions · Laboratory{modules.histology ? ' · Histopathology' : ''}</span>
                   )}
                   {/* The nurse wrote something today — said on the closed header. */}
                   {tool.id === 'glp1' && notesToday > 0 && (
@@ -837,7 +837,7 @@ const TodaysConsultationTab = ({ patient, onRefresh = () => {}, overviewOpen = f
                           tabs={[
                             { id: 'prescriptions', label: 'Prescriptions', Icon: Pill },
                             { id: 'labs',          label: 'Laboratory',    Icon: FlaskConical },
-                            ...(modules.histology ? [{ id: 'histology', label: 'Histology', Icon: Microscope }] : []),
+                            ...(modules.histology ? [{ id: 'histology', label: 'Histopathology', Icon: Microscope }] : []),
                           ]}
                         />
                       </div>

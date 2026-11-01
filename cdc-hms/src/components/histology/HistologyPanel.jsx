@@ -19,10 +19,10 @@ const HistologyPanel = ({ patient }) => {
   const canWrite = canRecordHistology(currentUser) && !patient?.mergedIntoUhid;
   return (
     <div className="flex flex-col gap-5">
-      {canWrite && <HistologyRequestForm uhid={uhid} onCreated={() => setReloadKey((k) => k + 1)} />}
+      {canWrite && <HistologyRequestForm uhid={uhid} patient={patient} onCreated={() => setReloadKey((k) => k + 1)} />}
       <div className="flex flex-col gap-2">
         <h3 className="ui-box-title">This patient's requests</h3>
-        <HistologyRequestList uhid={uhid} canWrite={canWrite} reloadKey={reloadKey} />
+        <HistologyRequestList uhid={uhid} patient={patient} canWrite={canWrite} reloadKey={reloadKey} />
       </div>
     </div>
   );

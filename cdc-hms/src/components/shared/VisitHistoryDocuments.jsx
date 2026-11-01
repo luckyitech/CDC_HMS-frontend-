@@ -5,12 +5,16 @@
 // Print · Email · Send via WhatsApp — so a lost copy can be reissued without
 // filling the patient's Documents with regenerable printouts.
 import { useEffect, useState } from "react";
-import { FlaskConical, Share2, BedDouble, Loader2 } from "lucide-react";
+import { FlaskConical, Share2, BedDouble, Loader2, Microscope } from "lucide-react";
 import labService from "../../services/labService";
 import queueService from "../../services/queueService";
 import inpatientService from "../../services/inpatientService";
 import { groupLabRequests, labRequestForPrint, LAB_HISTORY_LIMIT } from "../../utils/labRequests";
 import LabRequestPrint from "./LabRequestPrint";
+import HistopathologyRequestPrint from "../histology/HistopathologyRequestPrint";
+import { histologyService } from "../../services/histologyService";
+import { groupHistologyRequests, specimenLine } from "../../utils/histologyRequests";
+import useClinicModules from "../../hooks/useClinicModules";
 import LetterPrint from "./LetterPrint";
 import Tag from "./Tag";
 import { referralLetter, admissionLetter } from "../../utils/letters";
@@ -42,11 +46,30 @@ const Row = ({ Icon, iconCls, date, title, sub, tags, onOpen }) => (
   </button>
 );
 
-/** Visit History → Lab requests: every requisition, one row each. */
+/**
+ * Visit History → Lab requests: every requisition, one row each. A
+ * histopathology request (1 Nov 2026) opens its own form, with its specimens.
+ */
 export const LabRequestsHistory = ({ patient }) => {
   const uhid = patient?.uhid;
+  const { modules } = useClinicModules();
   const [state, setState] = useState({ loading: true, rows: [], problem: null });
   const [open, setOpen] = useState(null);
+  const [openHisto, setOpenHisto] = useState(null);
+  const [histo, setHisto] = useState(new Map());      // requisition number → histopathology request
+
+  useEffect(() => {
+    if (!uhid || !modules.histology) { setHisto(new Map()); return undefined; }
+    let live = true;
+    histologyService.list(uhid)
+      .then((res) => {
+        if (!live) return;
+        const groups = groupHistologyRequests(res?.data?.requests || []).filter((g) => g.requisitionNumber);
+        setHisto(new Map(groups.map((g) => [g.requisitionNumber, g])));
+      })
+      .catch(() => live && setHisto(new Map()));
+    return () => { live = false; };
+  }, [uhid, modules.histology]);
 
   useEffect(() => {
     let live = true;
@@ -67,6 +90,24 @@ export const LabRequestsHistory = ({ patient }) => {
         {state.rows.map((req) => {
           const live = req.tests.filter((t) => t.status !== "Cancelled");
           const allCancelled = live.length === 0;
+          const h = req.requisitionNumber ? histo.get(req.requisitionNumber) : null;
+          if (h) {
+            return (
+              <Row
+                key={req.id}
+                Icon={Microscope} iconCls="bg-purple-50 text-purple-700"
+                date={fmtDay(h.visitDate || req.orderedDate)}
+                title={req.requisitionNumber}
+                tags={<>
+                  <Tag className="bg-purple-50 text-purple-800">Histopathology</Tag>
+                  {h.priority && h.priority !== "Routine" && <Tag className="border border-red-200 bg-red-50 text-red-700">{h.priority}</Tag>}
+                  {allCancelled && <Tag className="bg-gray-100 text-gray-600">Cancelled</Tag>}
+                </>}
+                sub={[h.specimens.map((s) => `${s.specimenNumber} ${specimenLine(s)}`).join(" · "), h.requestedByName && `by ${h.requestedByName}`].filter(Boolean).join(" · ")}
+                onOpen={() => setOpenHisto(h)}
+              />
+            );
+          }
           return (
             <Row
               key={req.id}
@@ -87,6 +128,7 @@ export const LabRequestsHistory = ({ patient }) => {
         })}
       </Shell>
       {open && <LabRequestPrint request={labRequestForPrint(open)} patient={whoOf(patient)} onClose={() => setOpen(null)} />}
+      {openHisto && <HistopathologyRequestPrint request={openHisto} patient={whoOf(patient)} onClose={() => setOpenHisto(null)} />}
     </>
   );
 };

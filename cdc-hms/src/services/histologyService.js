@@ -8,7 +8,8 @@ import documentService from './documentService';
  * - GET  /histology/worklist                  - awaiting results, clinic-wide (?mine=true), overdue first
  * - GET  /histology/patients/:uhid            - every request (?findingId=)
  * - GET  /histology/patients/:uhid/documents  - documents a report can be chosen from
- * - POST /histology/patients/:uhid            - new request (+ Pending lab request, + optional biopsy procedure)
+ * - POST /histology/patients/:uhid            - a request of one specimen (+ Pending lab line, + optional biopsy procedure)
+ * - POST /histology/patients/:uhid/requests   - one histopathology request with several specimens
  * - GET  /histology/:id                       - one request + its trail
  * - PUT  /histology/:id/result                - record / correct the result ({ reason } after its day)
  * - POST /histology/:id/cancel                - { reason }
@@ -21,6 +22,8 @@ export const histologyService = {
     api.get(`/histology/patients/${encodeURIComponent(uhid)}`, { params: findingId ? { findingId } : {} }),
   reportCandidates: (uhid) => api.get(`/histology/patients/${encodeURIComponent(uhid)}/documents`),
   create: (uhid, payload) => api.post(`/histology/patients/${encodeURIComponent(uhid)}`, payload),
+  // One histopathology request, several specimens (1 Nov 2026): { clinicalDetails, sendTo, priority, relevantHistory, specimens: [...] }
+  createRequest: (uhid, payload) => api.post(`/histology/patients/${encodeURIComponent(uhid)}/requests`, payload),
   get: (id) => api.get(`/histology/${id}`),
   saveResult: (id, payload) => api.put(`/histology/${id}/result`, payload),
   cancel: (id, reason) => api.post(`/histology/${id}/cancel`, { reason }),

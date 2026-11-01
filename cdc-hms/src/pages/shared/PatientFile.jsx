@@ -164,7 +164,7 @@ const DiagnosticsTab = ({ patient, initialSub = "documents", onEmailDocument = n
             { id: "neuropathy", label: "Neuropathy" },
             { id: "charts", label: "Sugars" },
           ] : []),
-          ...(showHistology ? [{ id: "histology", label: "Histology / cytology" }] : []),
+          ...(showHistology ? [{ id: "histology", label: "Histopathology" }] : []),
         ]}
       />
       {current === "documents" && <MedicalDocumentsTab patient={patient} onEmailDocument={onEmailDocument} />}
@@ -174,6 +174,7 @@ const DiagnosticsTab = ({ patient, initialSub = "documents", onEmailDocument = n
       {current === "histology" && showHistology && (
         <HistologyRequestList
           uhid={patient?.uhid}
+          patient={patient}
           canWrite={canRecordHistology(currentUser) && !patient?.mergedIntoUhid}
         />
       )}

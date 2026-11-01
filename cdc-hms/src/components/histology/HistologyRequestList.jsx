@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FileText, Clock } from 'lucide-react';
+import { FileText, Clock, Printer } from 'lucide-react';
 import ReasonModal from '../shared/ReasonModal';
 import HistologyResultForm from './HistologyResultForm';
 import { histologyService } from '../../services/histologyService';
 import documentService from '../../services/documentService';
 import { RESULT_FIELD_NAMES } from '../../constants/histology';
 import { notify } from '../../utils/notify';
+import { groupHistologyRequests } from '../../utils/histologyRequests';
+import HistopathologyRequestPrint from './HistopathologyRequestPrint';
 
 /**
  * HistologyRequestList — a patient's histology / cytology requests, newest
@@ -17,8 +19,12 @@ import { notify } from '../../utils/notify';
  * Used in Orders tab 3 (under the request form), in Diagnostics →
  * Histology / cytology, and on a skin finding (findingId).
  *
- * Props: uhid, canWrite, findingId?, reloadKey (bump to reload), onChanged(),
- *        emptyText
+ * Specimens are grouped by their request (1 Nov 2026): one histopathology
+ * request may hold several, each histology or cytology; with `patient` the
+ * request's header offers its printed form.
+ *
+ * Props: uhid, canWrite, patient?, findingId?, reloadKey (bump to reload),
+ *        onChanged(), emptyText
  */
 const fmtDay = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const shown = (v) => (v === null || v === undefined || v === '' ? '—' : String(v).replace(/_/g, ' '));
@@ -158,8 +164,9 @@ const RequestCard = ({ r, uhid, canWrite, onChanged }) => {
   );
 };
 
-const HistologyRequestList = ({ uhid, canWrite, findingId = null, reloadKey = 0, onChanged, emptyText = 'No histology or cytology requests yet.' }) => {
+const HistologyRequestList = ({ uhid, canWrite, patient = null, findingId = null, reloadKey = 0, onChanged, emptyText = 'No histopathology requests yet.' }) => {
   const [data, setData] = useState(null);
+  const [printing, setPrinting] = useState(null);
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
@@ -188,9 +195,28 @@ const HistologyRequestList = ({ uhid, canWrite, findingId = null, reloadKey = 0,
           {data.counts.awaiting} awaiting a result{data.counts.overdue > 0 && <span className="font-semibold text-red-700"> · {data.counts.overdue} overdue (more than {data.overdueDays} days)</span>}
         </p>
       )}
-      <ul className="flex flex-col gap-2">
-        {data.requests.map((r) => <RequestCard key={r.id} r={r} uhid={uhid} canWrite={canWrite} onChanged={changed} />)}
-      </ul>
+      <div className="flex flex-col gap-3">
+        {groupHistologyRequests(data.requests).map((g) => (
+          <section key={g.key} className="flex flex-col gap-2" aria-label={`Request ${g.requisitionNumber || ''}`}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1">
+              <span className="text-sm font-bold text-gray-800">{g.requisitionNumber || 'Request'}</span>
+              <span className="text-xs text-gray-500">
+                {fmtDay(g.visitDate)}{g.requestedByName ? ` · ${g.requestedByName}` : ''} · {g.specimens.length} specimen{g.specimens.length === 1 ? '' : 's'}
+                {g.priority && g.priority !== 'Routine' ? ` · ${g.priority}` : ''}
+              </span>
+              {patient?.uhid && (
+                <button type="button" onClick={() => setPrinting(g)} className="ml-auto inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 ui-hover">
+                  <Printer className="h-3.5 w-3.5" aria-hidden="true" /> Print form
+                </button>
+              )}
+            </div>
+            <ul className="flex flex-col gap-2">
+              {g.specimens.map((r) => <RequestCard key={r.id} r={r} uhid={uhid} canWrite={canWrite} onChanged={changed} />)}
+            </ul>
+          </section>
+        ))}
+      </div>
+      {printing && <HistopathologyRequestPrint request={printing} patient={patient} onClose={() => setPrinting(null)} />}
     </div>
   );
 };

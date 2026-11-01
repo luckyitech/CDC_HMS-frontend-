@@ -558,7 +558,7 @@ const DayTabSelect = ({ value, onChange, options }) => (
   />
 );
 
-const VisitDocument = ({ records, fullExamCache, print = false }) => {
+const VisitDocument = ({ records, fullExamCache, print = false, patient = null }) => {
   const encounters = splitEncounters(records);
   const skinDays = [...(records.skinDays || [])].sort((a, b) => a.date.localeCompare(b.date));
 
@@ -604,7 +604,7 @@ const VisitDocument = ({ records, fullExamCache, print = false }) => {
       {/* Skin review (Dermatology) and histology / cytology — under the
           consultation note, the same document and the same print (D13, V3). */}
       {skinDays.map((d) => <DermVisitReview key={d.date} day={d} print={print} />)}
-      {(records.histology || []).length > 0 && <HistologyDayEvents events={records.histology} />}
+      {(records.histology || []).length > 0 && <HistologyDayEvents events={records.histology} patient={print ? null : patient} />}
 
       {/* Document footer — once per day document */}
       <div>
@@ -955,7 +955,7 @@ const DoctorNotesView = ({ records, patient, fullExamCache }) => {
       <div className="flex justify-end mb-2">
         <button onClick={handlePrint} className="px-3 py-1.5 rounded text-sm bg-primary text-white flex items-center gap-1.5"><Printer className="w-4 h-4" /> Print</button>
       </div>
-      <VisitDocument records={records} fullExamCache={fullExamCache} />
+      <VisitDocument records={records} fullExamCache={fullExamCache} patient={patient} />
       <PrintRoot printRef={printRef}>
         <ArtifactMeta patient={patient} sub="Visit notes" />
         <VisitDocument records={records} fullExamCache={fullExamCache} print />
