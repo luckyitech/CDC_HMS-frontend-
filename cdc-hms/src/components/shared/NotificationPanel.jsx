@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, FileText, CalendarDays, X } from 'lucide-react';
+import { Bell, FileText, CalendarDays, ShieldAlert, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotificationContext } from '../../contexts/NotificationContext';
 
@@ -100,7 +100,9 @@ const NotificationPanel = ({ userRole = 'doctor', onClose }) => {
               </div>
             ) : (
               notifications.map((n) => {
-                const Icon = n.category && n.category !== 'document' ? CalendarDays : FileText;
+                // Sign-in alerts (16 Oct 2026) carry the security icon.
+                const Icon = n.category === 'security' ? ShieldAlert
+                  : n.category && n.category !== 'document' ? CalendarDays : FileText;
                 return (
                   <button
                     key={n.id}

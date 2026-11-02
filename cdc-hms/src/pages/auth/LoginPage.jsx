@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUserContext } from '../../contexts/UserContext';
@@ -13,7 +13,11 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useUserContext();
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [error, setError]       = useState('');
+  // A session the network lock ended (services/api.js) leaves its reason here.
+  const [error, setError]       = useState(() => {
+    try { return sessionStorage.getItem('signoutReason') || ''; } catch { return ''; }
+  });
+  useEffect(() => { try { sessionStorage.removeItem('signoutReason'); } catch { /* private mode */ } }, []);
   const [loading, setLoading]   = useState(false);
 
   const handleSubmit = async (e) => {

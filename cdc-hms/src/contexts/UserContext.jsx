@@ -3,6 +3,7 @@ import { mockUsers } from '../data/mockData';
 import { mockPatients } from '../data/mockData';
 import authService from '../services/authService';
 import api from '../services/api';
+import { askLocation } from '../utils/geo';
 
 // Create Context
 const UserContext = createContext();
@@ -158,6 +159,15 @@ export const UserProvider = ({ children }) => {
 
       if (response.success) {
         setCurrentUser(response.data.user);
+        // The clinic may ask for the device's location at sign-in (Settings →
+        // Sign-in security, off unless switched on). Never awaited: the person
+        // is already in, and a refusal is simply recorded as declined.
+        if (response.data.signinGeo === 'ask') {
+          // A minute: the wait includes the person reading the browser's prompt.
+          askLocation(60000)
+            .then((where) => authService.signinLocation(where))
+            .catch(() => {});
+        }
         return { success: true, user: response.data.user };
       } else {
         return { success: false, message: response.message || 'Login failed' };

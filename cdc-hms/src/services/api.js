@@ -18,8 +18,11 @@ const api = axios.create({
 // ============================================
 api.interceptors.request.use(
   (config) => {
-    // Get token from sessionStorage
-    const token = sessionStorage.getItem('token');
+    // Get token from sessionStorage — or, on the entrance-tag page, the
+    // phone's check-in-only pass (17 Oct 2026). The pass is sent with that one
+    // request and never stored as the HMS session: it can only check in.
+    // The tag page never falls back to a password session sitting in this tab.
+    const token = config.tapPage ? config.passToken : sessionStorage.getItem('token');
 
     if (token) {
       // If token exists, add it to the request header
@@ -58,11 +61,22 @@ api.interceptors.response.use(
     // kept and only the bare fallback is replaced below.
     const permissionMessage = error.response?.data?.message;
 
+    // The entrance-tag page answers every refusal itself, on its own screen. It
+    // has no HMS session to clear and must not be sent to the sign-in page.
+    if (error.config?.tapPage) {
+      return Promise.reject({ message, status, data: error.response?.data });
+    }
+
     // Handle 401 Unauthorized - token expired or invalid
     if (status === 401) {
       // Clear stored auth data
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('currentUser');
+      // The network lock (16 Oct 2026): the session left the clinic network.
+      // The sign-in page shows this once, so the person knows why they are out.
+      if (error.response?.data?.code === 'OUTSIDE_CLINIC') {
+        try { sessionStorage.setItem('signoutReason', error.response.data.message); } catch { /* private mode */ }
+      }
 
       // Redirect to portal selection (only if not already there)
       // The main login/portal page is at "/" not "/login"

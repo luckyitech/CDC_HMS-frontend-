@@ -19,13 +19,16 @@ import { landingFor } from '../../utils/landing';
  *   permission   — shown only when GRANTED (or admin.access)
  *   withdrawnBy  — shown by role default, hidden once an admin WITHDRAWS it
  *   portal       — follows the portal grant (the Inpatient workspace)
+ *   allow        — a check of its own, for a capability admin.access does NOT
+ *                  carry (sign-in records: canViewSignins, 16 Oct 2026)
  */
-const PageGate = ({ permission, withdrawnBy, portal, children }) => {
+const PageGate = ({ permission, withdrawnBy, portal, allow, children }) => {
   const { currentUser } = useUserContext();
   const allowed = !!currentUser
     && (!permission || passesAdminGate(currentUser, permission))
     && (!withdrawnBy || !isWithdrawn(currentUser, withdrawnBy))
-    && (!portal || canOpenPortal(currentUser, portal));
+    && (!portal || canOpenPortal(currentUser, portal))
+    && (!allow || allow(currentUser));
   if (allowed) return children;
 
   const home = landingFor(currentUser);

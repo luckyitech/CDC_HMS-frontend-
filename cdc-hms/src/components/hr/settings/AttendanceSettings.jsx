@@ -242,7 +242,7 @@ const AttendanceSettings = ({ tab }) => {
                   <Field label="Ignore repeat taps within (seconds)"><input type="number" min="0" max="3600" value={form.debounceSeconds} onChange={(e) => set('debounceSeconds', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
                   <Field label="Shortest session counted (minutes)"><input type="number" min="0" max="720" value={form.minSessionMinutes} onChange={(e) => set('minSessionMinutes', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
                   <Field label="Grace (minutes)" hint="Late / early counted after this."><input type="number" min="0" max="240" value={form.graceMinutes} onChange={(e) => set('graceMinutes', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
-                  <Field label="Remembered phones expire after (days)" hint="Unused for this long → sign in again."><input type="number" min="1" max="3650" value={form.deviceDays} onChange={(e) => set('deviceDays', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
+                  <Field label="Check-in phones expire after (days)" hint="Unused for this long → HR registers it again."><input type="number" min="1" max="3650" value={form.deviceDays} onChange={(e) => set('deviceDays', e.target.value)} className={inputCls} disabled={!canConfig} /></Field>
                 </div>
                 <Field label="Phone location" className="lg:w-1/2">
                   <select value={form.geo} onChange={(e) => set('geo', e.target.value)} className={inputCls} disabled={!canConfig}>

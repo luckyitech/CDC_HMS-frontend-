@@ -37,6 +37,8 @@ const EVENTS = [
   { key: 'appraisal_acknowledged', label: 'Someone acknowledges the appraisal you wrote', group: 'Appraisals' },
   { key: 'attendance_star',       label: 'A gold or red star on arrival (that day)',  group: 'Attendance' },
   { key: 'attendance_weekly',     label: 'Your week — every Saturday at 2 pm',        group: 'Attendance' },
+  // 17 Oct 2026
+  { key: 'phone_registered',      label: 'A check-in phone is registered',           group: 'Check-in', hint: 'to the person and HR' },
 ];
 
 const Check = ({ checked, onChange, disabled, label }) => (

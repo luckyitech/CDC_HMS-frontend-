@@ -27,7 +27,7 @@ import { HrProvider } from './contexts/HrContext';
 import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import PageGate from "./components/shared/PageGate";
-import { PERMISSIONS } from "./utils/permissions";
+import { PERMISSIONS, canViewSignins, canOpenSystemSettings } from "./utils/permissions";
 import Spinner from "./components/shared/Spinner";
 
 // Auth pages (small, visited immediately — keep eager)
@@ -97,6 +97,7 @@ const StaffFile = lazy(() => import("./pages/admin/StaffFile"));
 const PatientFile = lazy(() => import("./pages/shared/PatientFile"));
 const DuplicatePatients = lazy(() => import("./pages/admin/DuplicatePatients"));
 const ActivityLog = lazy(() => import("./pages/admin/ActivityLog"));
+const SignIns = lazy(() => import("./pages/admin/SignIns"));
 const SystemSettings = lazy(() => import("./pages/admin/SystemSettings"));
 const AnalyticsOverview      = lazy(() => import("./pages/admin/analytics/AnalyticsOverview"));
 const DoctorAnalytics        = lazy(() => import("./pages/admin/analytics/DoctorAnalytics"));
@@ -327,12 +328,13 @@ function App() {
                   <Route path="duplicate-patients" element={<PageGate permission={PERMISSIONS.PATIENTS_MERGE}><DuplicatePatients /></PageGate>} />
                   <Route path="unassigned-ultrasound" element={<PageGate permission={PERMISSIONS.ADMIN_ACCESS}><UnassignedUltrasound /></PageGate>} />
                   <Route path="activity-log" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><ActivityLog /></PageGate>} />
+                  <Route path="sign-ins" element={<PageGate allow={canViewSignins}><SignIns /></PageGate>} />
                   <Route path="analytics" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><AnalyticsOverview /></PageGate>} />
                   <Route path="analytics/doctors" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><DoctorAnalytics /></PageGate>} />
                   <Route path="analytics/staff" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><StaffAnalytics /></PageGate>} />
                   <Route path="analytics/consultations" element={<PageGate permission={PERMISSIONS.MONITORING_VIEW}><ConsultationAnalytics /></PageGate>} />
                   <Route path="reports" element={<Reports />} />
-                  <Route path="settings" element={<PageGate permission={PERMISSIONS.CONFIG_WRITE}><SystemSettings /></PageGate>} />
+                  <Route path="settings" element={<PageGate allow={canOpenSystemSettings}><SystemSettings /></PageGate>} />
                   <Route path="ward-config" element={<PageGate permission={PERMISSIONS.CONFIG_WRITE}><WardConfig /></PageGate>} />
                   <Route path="change-password" element={<ChangePasswordPage />} />
                 </Route>

@@ -3,8 +3,7 @@ import toast from 'react-hot-toast';
 import {
   Loader, ShieldCheck, Archive, ArchiveRestore, KeyRound,
   LayoutGrid, Users, Package, Stethoscope, Briefcase,
-  Clock, CalendarDays, GraduationCap, UserRound, Mail, Boxes,
-} from 'lucide-react';
+  Clock, CalendarDays, GraduationCap, UserRound, Mail, Boxes, Fingerprint } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import api from '../../../services/api';
 import ConfirmActionModal from '../../shared/ConfirmActionModal';
@@ -12,7 +11,7 @@ import AccordionPanel from '../../shared/AccordionPanel';
 import { formatDateTime, scopeLabel } from './staffFormat';
 import ScopePicker from './ScopePicker';
 import {
-  STAFF_TYPES, canManageTags, canGrantPermissions, canGrantHrPermissions, canChangeStaffStatus, passesAdminGate,
+  STAFF_TYPES, canManageTags, canRegisterPhones, canGrantPermissions, canGrantHrPermissions, canChangeStaffStatus, passesAdminGate,
 } from '../../../utils/permissions';
 import RememberedPhones from '../../hr/RememberedPhones';
 import ApplyPreset from './ApplyPreset';
@@ -33,6 +32,8 @@ const GROUP_ICONS = {
   'hr-leave': CalendarDays,
   'hr-development': GraduationCap,
   'hr-admin': KeyRound,
+  // IT and security (16 Oct 2026).
+  'it-security': Fingerprint,
 };
 
 /**
@@ -669,10 +670,11 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
         </div>
       </div>
 
-      {/* Remembered phones (HR Suite, B21) — listed only for people who may
-          revoke them (hr.tags since HR Tier 3); the API refuses the list otherwise. */}
-      {canManageTags(currentUser) && staff.userId && (
-        <RememberedPhones userId={staff.userId} canRevoke />
+      {/* Check-in phone (HR Suite, B21) — listed for people who may revoke
+          (hr.tags) or register (hr.devices.register, 17 Oct 2026) one; the API
+          refuses the list otherwise. Only the latter may register. */}
+      {(canManageTags(currentUser) || canRegisterPhones(currentUser)) && staff.userId && (
+        <RememberedPhones userId={staff.userId} firstName={staff.firstName} canRevoke canRegister={canRegisterPhones(currentUser)} />
       )}
 
       {/* Clinical or non-clinical.

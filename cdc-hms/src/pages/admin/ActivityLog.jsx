@@ -39,6 +39,7 @@ const ACTION_TYPES = [
   { value: 'initial_assessment',   label: 'Recorded Initial Assessment' },
   { value: 'account_created',      label: 'Created Account' },
   { value: 'user_login',           label: 'Logged In' },
+  { value: 'user_login_failed',    label: 'Failed Sign-in' },
   { value: 'appointment_booked',    label: 'Booked Appointment' },
   { value: 'appointment_cancelled', label: 'Cancelled Appointment' },
   { value: 'slot_blocked',          label: 'Blocked Slot' },

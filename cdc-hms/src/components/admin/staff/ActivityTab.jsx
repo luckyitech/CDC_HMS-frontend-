@@ -20,6 +20,7 @@ import { formatDateTime } from './staffFormat';
 // Tag colour per event type; grey fallback for anything not listed.
 const TAG = {
   user_login:              'bg-lime-100 text-lime-700',
+  user_login_failed:       'bg-red-100 text-red-700',
   permissions_changed:     'bg-amber-100 text-amber-800',
   profile_updated:         'bg-gray-100 text-gray-600',
   registered:              'bg-blue-100 text-blue-700',

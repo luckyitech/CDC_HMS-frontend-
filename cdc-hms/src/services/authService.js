@@ -26,6 +26,14 @@ export const authService = {
   },
 
   /**
+   * The device's own location for this sign-in (Settings → Sign-in security,
+   * 16 Oct 2026). The server writes it onto the sign-in named in this
+   * session's token — never one the browser chooses.
+   * @param {{ status: 'given'|'declined'|'unavailable', lat?, lng?, accuracy? }} body
+   */
+  signinLocation: (body) => api.post('/auth/signin-location', body),
+
+  /**
    * Logout user
    * Calls backend to invalidate token, then clears local storage
    */

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { KeyRound, Check, Inbox, MessageCircle, Layers, Mail, Puzzle } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { KeyRound, Check, Inbox, MessageCircle, Layers, Mail, Puzzle, ShieldCheck } from 'lucide-react';
 import Card from '../../components/shared/Card';
 import PageHeader from '../../components/shared/PageHeader';
 import Spinner from '../../components/shared/Spinner';
@@ -11,17 +12,24 @@ import WhatsAppSettingsTab from '../../components/admin/settings/WhatsAppSetting
 import PermissionPresetsTab from '../../components/admin/settings/PermissionPresetsTab';
 import EmailSettingsTab from '../../components/admin/settings/EmailSettingsTab';
 import SpecialistModulesTab from '../../components/admin/settings/SpecialistModulesTab';
+import SigninSecurityTab from '../../components/admin/settings/SigninSecurityTab';
 import { useUserContext } from '../../contexts/UserContext';
+import { passesAdminGate, canEditSigninSecurity, PERMISSIONS } from '../../utils/permissions';
 
 // The settings page is tabbed — one tab per settings area. Add an entry here
 // (and a component) to grow it; the password policy stays the first tab.
+// `gate` decides who sees the tab: most need config.write (or admin.access);
+// Sign-in security needs its own IT and security grant (16 Oct 2026), so
+// someone holding only that sees only that tab.
+const configGate = (u) => passesAdminGate(u, PERMISSIONS.CONFIG_WRITE);
 const SETTINGS_TABS = [
-  { id: 'password', label: 'Password policy', Icon: KeyRound },
-  { id: 'labInbox', label: 'Lab Inbox',       Icon: Inbox },
-  { id: 'whatsapp', label: 'WhatsApp',        Icon: MessageCircle },
-  { id: 'email',    label: 'Email',           Icon: Mail },
-  { id: 'presets',  label: 'Permission presets', Icon: Layers },
-  { id: 'modules',  label: 'Specialist modules', Icon: Puzzle },
+  { id: 'password', label: 'Password policy', Icon: KeyRound, gate: configGate },
+  { id: 'labInbox', label: 'Lab Inbox',       Icon: Inbox, gate: configGate },
+  { id: 'whatsapp', label: 'WhatsApp',        Icon: MessageCircle, gate: configGate },
+  { id: 'email',    label: 'Email',           Icon: Mail, gate: configGate },
+  { id: 'presets',  label: 'Permission presets', Icon: Layers, gate: configGate },
+  { id: 'modules',  label: 'Specialist modules', Icon: Puzzle, gate: configGate },
+  { id: 'signin',   label: 'Sign-in security', Icon: ShieldCheck, gate: canEditSigninSecurity },
 ];
 import settingsService from '../../services/settingsService';
 import { notify } from '../../utils/notify';
@@ -30,13 +38,22 @@ const ROLE_LABELS = { doctor: 'Doctors', staff: 'Staff', lab: 'Lab technicians',
 
 const SystemSettings = () => {
   const { currentUser } = useUserContext();
-  const [tab, setTab] = useState('password');
+  const tabs = SETTINGS_TABS.filter((t) => t.gate(currentUser));
+  const canConfig = configGate(currentUser);
+  // ?tab=signin opens a tab directly (the Sign-ins page links to Sign-in security).
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => {
+    const wanted = searchParams.get('tab');
+    return tabs.find((t) => t.id === wanted)?.id || tabs[0]?.id || 'password';
+  });
   const [rotation, setRotation] = useState(null);  // null = loading
   const [saving, setSaving] = useState(false);
   const [confirmingEnable, setConfirmingEnable] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    // Someone who holds only Sign-in security never reads the password policy.
+    if (!canConfig) { setRotation({}); return undefined; }
     settingsService.getPasswordRotation()
       .then((res) => { if (!cancelled && res.success) setRotation(res.data); })
       .catch((err) => {
@@ -46,7 +63,7 @@ const SystemSettings = () => {
         }
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [canConfig]);
 
   const save = async (changes, onSuccess) => {
     setSaving(true);
@@ -102,13 +119,14 @@ const SystemSettings = () => {
     <div>
       <PageHeader title="System Settings" subtitle="Clinic-wide policies and access controls" />
 
-      <SwitcherTabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} className="mb-4" />
+      <SwitcherTabs tabs={tabs} active={tab} onChange={setTab} className="mb-4" />
 
       {tab === 'labInbox' && <LabInboxSettingsTab />}
       {tab === 'whatsapp' && <WhatsAppSettingsTab />}
       {tab === 'email'    && <EmailSettingsTab />}
       {tab === 'presets'  && <PermissionPresetsTab currentUser={currentUser} />}
       {tab === 'modules'  && <SpecialistModulesTab />}
+      {tab === 'signin'   && <SigninSecurityTab />}
 
       {/* Card is used without its `title` prop so the switch can sit on the
           header row itself, which is where a settings toggle belongs. */}

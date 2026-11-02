@@ -1,4 +1,4 @@
-import { ClipboardList, UserPlus, Activity, UserCheck, UserX, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Inbox, Trash2, SlidersHorizontal, MessageCircle, Link2, CheckCircle, AlertTriangle, Paperclip, Mail, MailX, Send, KeyRound, FileUp, FileDown, Package, PackagePlus, PackageMinus, ArrowLeftRight, Undo2, ClipboardCheck, Ban, Boxes, Truck } from 'lucide-react';
+import { ClipboardList, UserPlus, Activity, UserCheck, UserX, FileText, FileCheck, Cpu, RefreshCcw, Settings, Pill, FlaskConical, BookOpen, Stethoscope, UserCog, Pencil, Share2, LogIn, CalendarPlus, Lock, ScanLine, QrCode, Inbox, Trash2, SlidersHorizontal, MessageCircle, Link2, CheckCircle, AlertTriangle, Paperclip, Mail, MailX, Send, KeyRound, FileUp, FileDown, Package, PackagePlus, PackageMinus, ArrowLeftRight, Undo2, ClipboardCheck, Ban, Boxes, Truck, ShieldAlert } from 'lucide-react';
 
 // Shared by ActivityLog and its drilldown modal, so an event tagged "Triaged"
 // looks identical whether it's a row in the main table or in the popup
@@ -28,6 +28,7 @@ export const ACTION_STYLE = {
   initial_assessment:    { color: 'bg-amber-100 text-amber-700',   icon: ClipboardList },
   account_created:       { color: 'bg-purple-100 text-purple-700', icon: UserCog },
   user_login:            { color: 'bg-lime-100 text-lime-700',     icon: LogIn },
+  user_login_failed:     { color: 'bg-red-100 text-red-700',       icon: ShieldAlert },
   appointment_booked:    { color: 'bg-sky-100 text-sky-700',       icon: CalendarPlus },
   appointment_cancelled: { color: 'bg-orange-100 text-orange-700', icon: UserX },
   slot_blocked:          { color: 'bg-red-100 text-red-700',       icon: Lock },

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import SwitcherTabs from '../../shared/SwitcherTabs';
 import MyAttendance from '../MyAttendance';
+import MySignins from './MySignins';
 
 /**
  * My profile — Activity (mockup 4): Attendance, the same cards as the HR
@@ -11,8 +12,10 @@ const SelfActivity = () => {
   const [tab, setTab] = useState('attendance');
   return (
     <div>
-      <SwitcherTabs size="sm" className="mb-3" ariaLabel="My activity" tabs={[{ id: 'attendance', label: 'Attendance' }, { id: 'work', label: 'My work' }]} active={tab} onChange={setTab} />
-      {tab === 'attendance' ? <MyAttendance /> : (
+      <SwitcherTabs size="sm" className="mb-3" ariaLabel="My activity" tabs={[{ id: 'attendance', label: 'Attendance' }, { id: 'signins', label: 'My sign-ins' }, { id: 'work', label: 'My work' }]} active={tab} onChange={setTab} />
+      {tab === 'attendance' && <MyAttendance />}
+      {tab === 'signins' && <MySignins />}
+      {tab === 'work' && (
         <div className="ui-surface p-6 text-sm text-gray-600">
           A view of your own clinical work — patients seen, notes written, results reviewed — is coming later.
         </div>

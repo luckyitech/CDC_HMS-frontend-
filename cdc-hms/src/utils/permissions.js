@@ -110,10 +110,19 @@ export const PERMISSIONS = {
   HR_ATTENDANCE_AMEND: 'hr.attendance.amend',
   HR_WORKHOURS:     'hr.workhours',
   HR_TAGS:          'hr.tags',
+  // 17 Oct 2026: registering a check-in phone. Explicit grant or the true
+  // admin — NOT admin.access (backend canRegisterPhones).
+  HR_DEVICES_REGISTER: 'hr.devices.register',
   // The confidential drawer of a staff file (contracts, appraisals,
   // disciplinary letters, archived files). Like permissions.grant it is NOT
   // covered by admin.access and held by nobody by role.
   HR_CONFIDENTIAL:  'hr.confidential',
+  // IT and security (16 Oct 2026): where and how staff sign in. Explicit grant
+  // or the true admin — NOT admin.access (backend canViewSignins & co).
+  SIGNINS_VIEW:    'it.signins.view',
+  SIGNINS_ALERTS:  'it.signins.alerts',
+  SIGNIN_SETTINGS: 'it.security.settings',
+  SIGNIN_REMOTE:   'it.remote.signin',   // the network lock: may sign in from outside the clinic
   // HR Suite phase 2 — leave (B27, D8). All default to the admin role and are
   // covered by admin.access. LEAVE_APPROVE = be an approver on a colleague's
   // request; LEAVE_MANAGE = see, record and cancel everyone's leave;
@@ -419,6 +428,29 @@ export const canReadAppraisals = (user) =>
   isTrueAdmin(user) || hasPermission(user, PERMISSIONS.HR_APPRAISALS);
 
 /**
+ * IT and security (16 Oct 2026): sign-in records, alerts and settings. An
+ * explicit grant or the true admin — NOT admin.access, like hr.confidential.
+ * Alerts and settings carry the view (the session list arrives resolved).
+ * Mirrors backend canViewSignins / canReceiveSigninAlerts / canEditSigninSecurity.
+ */
+export const canViewSignins = (user) =>
+  isTrueAdmin(user) || hasPermission(user, PERMISSIONS.SIGNINS_VIEW);
+export const canEditSigninSecurity = (user) =>
+  isTrueAdmin(user) || hasPermission(user, PERMISSIONS.SIGNIN_SETTINGS);
+/** Registering someone's check-in phone (17 Oct 2026). Mirrors backend canRegisterPhones. */
+export const canRegisterPhones = (user) =>
+  !isWithdrawn(user, PERMISSIONS.HR_DEVICES_REGISTER)
+  && (isTrueAdmin(user) || hasPermission(user, PERMISSIONS.HR_DEVICES_REGISTER));
+
+/** System Settings opens with config.write (or admin.access) OR Sign-in security alone. */
+export const canOpenSystemSettings = (user) =>
+  passesAdminGate(user, PERMISSIONS.CONFIG_WRITE) || canEditSigninSecurity(user);
+
+/** Monitoring opens with monitoring.view (or admin.access) OR sign-in records alone. */
+export const canOpenMonitoring = (user) =>
+  passesAdminGate(user, PERMISSIONS.MONITORING_VIEW) || canViewSignins(user);
+
+/**
  * HR staff (HR Suite → Manual, 5 Oct 2026): whoever holds at least ONE HR
  * Suite control beyond Self-service. Mirrors the backend's HR_STAFF_CONTROLS
  * (derived there from the Permissions tab's HR groups minus "My profile and My
@@ -433,7 +465,7 @@ export const HR_STAFF_CONTROLS = [
   PERMISSIONS.STAFF_DOCUMENTS, PERMISSIONS.HR_CONFIDENTIAL, PERMISSIONS.HR_LISTS, PERMISSIONS.HR_ONBOARDING,
   PERMISSIONS.HR_ONBOARDING_TEMPLATES, PERMISSIONS.HR_PROFILE_APPROVE,
   PERMISSIONS.HR_VIEW, PERMISSIONS.HR_ATTENDANCE_AMEND, PERMISSIONS.HR_WORKHOURS, PERMISSIONS.HR_ROSTER,
-  PERMISSIONS.HR_ROSTER_SHIFTS, PERMISSIONS.HR_TAGS,
+  PERMISSIONS.HR_ROSTER_SHIFTS, PERMISSIONS.HR_TAGS, PERMISSIONS.HR_DEVICES_REGISTER,
   PERMISSIONS.LEAVE_APPROVE, PERMISSIONS.LEAVE_VIEW, PERMISSIONS.LEAVE_SICK, PERMISSIONS.LEAVE_MANAGE,
   PERMISSIONS.LEAVE_REQUIRED, PERMISSIONS.LEAVE_REGISTER, PERMISSIONS.LEAVE_POLICY, PERMISSIONS.LEAVE_HOLIDAYS,
   PERMISSIONS.LEAVE_ENTITLEMENTS,

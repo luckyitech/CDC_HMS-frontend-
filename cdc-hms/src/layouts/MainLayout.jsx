@@ -6,7 +6,7 @@ import SessionTimeoutWarning from "../components/shared/SessionTimeoutWarning";
 // import appointmentService from "../services/appointmentService"; // TODO: restore for notification badge
 import { useUserContext } from "../contexts/UserContext";
 import { canOpenHrSettings } from "../components/hr/settings/settingsTabs";
-import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canUseSelfService, canApproveLeave, canViewAllLeave, canApproveProfileChanges, canVerifyCpd, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canRunAppraisals, canReadAppraisals, isHrStaff, passesAdminGate, isWithdrawn, PERMISSIONS } from "../utils/permissions";
+import { canOpenPortal, canViewComms, canViewLabInbox, canUseMail, canUseSelfService, canApproveLeave, canViewAllLeave, canApproveProfileChanges, canVerifyCpd, canViewHrReports, canRunOnboarding, canEditOnboardingTemplates, canRunAppraisals, canReadAppraisals, isHrStaff, passesAdminGate, isWithdrawn, canViewSignins, canOpenSystemSettings, canOpenMonitoring, PERMISSIONS } from "../utils/permissions";
 import PageTabs from "../components/shared/PageTabs";
 import "./sidebar.css";
 import ProfileMenu from "../components/shared/ProfileMenu";
@@ -65,6 +65,7 @@ import {
   ListChecks,
   Award,
   BookOpen,
+  Fingerprint,
 } from "lucide-react";
 import logo from "../assets/cdc_web_logo1.svg";
 import commsService from "../services/commsService";
@@ -403,12 +404,13 @@ const MainLayout = ({ userRole = "Staff" }) => {
         { label: 'Analytics', path: '/admin/analytics', Icon: TrendingUp, permission: PERMISSIONS.MONITORING_VIEW },
         { label: 'Patient Visits', path: '/admin/patient-visits', Icon: ClipboardList, permission: PERMISSIONS.MONITORING_VIEW },
         { label: 'Attendance', path: '/admin/attendance', Icon: CalendarDays, permission: PERMISSIONS.MONITORING_VIEW },
+        { label: 'Sign-ins', path: '/admin/sign-ins', Icon: Fingerprint, show: canViewSignins(currentUser) },
       ],
     },
     {
       show: homeRole === 'admin',
       tabs: [
-        { label: 'System Settings', path: '/admin/settings', Icon: Settings, permission: PERMISSIONS.CONFIG_WRITE },
+        { label: 'System Settings', path: '/admin/settings', Icon: Settings, show: canOpenSystemSettings(currentUser) },
         { label: 'Change Password', path: '/admin/change-password', Icon: KeyRound },
       ],
     },
@@ -729,15 +731,16 @@ const MainLayout = ({ userRole = "Staff" }) => {
       { name: "Ward Config", path: "/admin/ward-config", icon: BedDouble, permission: PERMISSIONS.CONFIG_WRITE },
       {
         name: "Monitoring",
-        path: "/admin/activity-log",
+        // Someone granted sign-in records alone lands on Sign-ins (16 Oct 2026).
+        path: passesAdminGate(currentUser, PERMISSIONS.MONITORING_VIEW) ? "/admin/activity-log" : "/admin/sign-ins",
         icon: Activity,
-        permission: PERMISSIONS.MONITORING_VIEW,
+        show: canOpenMonitoring(currentUser),
       },
       {
         name: "Settings",
         path: "/admin/settings",
         icon: Settings,
-        permission: PERMISSIONS.CONFIG_WRITE,
+        show: canOpenSystemSettings(currentUser),
       },
     ],
   };

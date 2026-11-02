@@ -231,17 +231,17 @@ const MyAttendance = () => {
       <div className="grid md:grid-cols-2 gap-3 mt-3">
         <Card title="My phones">
           {devices === null ? <Spinner /> : devices.length === 0 ? (
-            <p className="text-sm text-gray-500">No phone is remembered yet. The first time you tap the entrance tag, sign in once and tick "remember this phone".</p>
+            <p className="text-sm text-gray-500">No phone is registered for your check-in yet. Ask HR for a registration code, then tap the entrance tag and enter it.</p>
           ) : devices.map((d) => (
             <div key={d.id} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
               <div className="w-7 h-7 rounded-full bg-blue-50 text-primary flex items-center justify-center flex-none"><Smartphone className="w-4 h-4" /></div>
               <div className="flex-1 min-w-0 text-sm text-gray-800">{d.label}
-                <div className="text-[11px] text-gray-500">Remembered {dayLabel(String(d.createdAt).slice(0, 10), true)} · last used {dayLabel(String(d.lastSeenAt).slice(0, 10))} {hhmmOf(d.lastSeenAt)}</div>
+                <div className="text-[11px] text-gray-500">{d.registeredBy ? `Registered by ${d.registeredBy}` : 'Remembered'} {dayLabel(String(d.createdAt).slice(0, 10), true)} · last used {dayLabel(String(d.lastSeenAt).slice(0, 10))} {hhmmOf(d.lastSeenAt)}</div>
               </div>
               <button type="button" onClick={() => setConfirmDevice(d)} className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 border border-gray-300 rounded-lg px-2 py-1 hover:bg-gray-50"><Trash2 className="w-3.5 h-3.5" /> Remove</button>
             </div>
           ))}
-          <p className="text-xs text-gray-500 mt-3">A remembered phone checks you in without signing in. Remove it if the phone is lost or replaced. HR can also remove it from your staff file.</p>
+          <p className="text-xs text-gray-500 mt-3">Your registered phone checks you in at the entrance tag — nothing else; the HMS always needs your password. Remove it if the phone is lost or replaced, and ask HR to register the new one.</p>
         </Card>
         <Card title="Last 7 days">
           {!mine ? <Spinner /> : (mine.rows || []).filter((r) => r.status !== 'refused').length === 0 ? <p className="text-sm text-gray-500">No sessions in the last 7 days.</p> : (

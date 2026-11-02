@@ -7,13 +7,16 @@ import { saveTextFile } from '../utils/exportCsv';
  * { success, data } body like the other services.
  */
 const hrService = {
-  // --- Time & Attendance: tap (the tap page only) ---
-  tap:            (body)          => api.post('/hr/attendance/tap', body),
+  // --- Time & Attendance: the entrance-tag page only ---
+  // Since 17 Oct 2026 the phone's token buys a check-in-only pass (15 min),
+  // sent with these calls and never stored as the HMS session. tapPage: the
+  // page shows every refusal itself (services/api.js).
+  tap:            (body, passToken)  => api.post('/hr/attendance/tap', body, { passToken, tapPage: true }),
   // { geo: 'off' | 'log' } — with Off the tap page never asks for the location.
-  checkinConfig:  ()              => api.get('/hr/attendance/checkin-config'),
-  deviceSession:  (deviceToken)   => api.post('/auth/device-session', { deviceToken }),
-  loginRemember:  (email, password, rememberDevice) =>
-    api.post('/auth/login', { email, password, rememberDevice: !!rememberDevice, context: 'hr-tap' }),
+  checkinConfig:  (passToken)        => api.get('/hr/attendance/checkin-config', { passToken, tapPage: true }),
+  deviceSession:  (deviceToken)      => api.post('/auth/device-session', { deviceToken }, { tapPage: true }),
+  // The one-time code HR gave the person → this phone's token.
+  registerPhone:  (code)             => api.post('/auth/device-register', { code }, { tapPage: true }),
 
   // --- own record ---
   mine:           (params)        => api.get('/hr/attendance/me', { params }),
@@ -29,6 +32,8 @@ const hrService = {
   amend:          (id, body)      => api.patch(`/hr/attendance/${id}`, body),
   devicesOf:      (userId)        => api.get('/hr/devices/me', { params: { userId } }),
   revokeDevice:   (id)            => api.delete(`/hr/devices/${id}`),
+  // hr.devices.register: a one-time code for that person's phone.
+  phoneCode:      (userId)        => api.post('/hr/devices/registration', { userId }),
   workHoursAll:   ()              => api.get('/hr/work-hours'),
   setWorkHours:   (userId, body)  => api.put(`/hr/work-hours/${userId}`, body),
   tags:           ()              => api.get('/hr/tags'),
