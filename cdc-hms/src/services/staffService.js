@@ -70,8 +70,9 @@ export const staffService = {
    */
   // `scopes` (HR Tier 3 Phase 1): { capability: { kind: 'all'|'own'|'departments', departmentIds } }
   // for the controls whose department limit changes; omitted ones keep theirs.
-  updatePermissions: (employeeId, permissions, deniedPermissions, staffType, scopes) => {
-    const body = { permissions };
+  // `extra`: other fields saved with the ticks — { checkinExemptUntil } (2 Nov 2026).
+  updatePermissions: (employeeId, permissions, deniedPermissions, staffType, scopes, extra = {}) => {
+    const body = { permissions, ...extra };
     if (deniedPermissions !== undefined) body.deniedPermissions = deniedPermissions;
     if (staffType !== undefined) body.staffType = staffType;
     if (scopes && Object.keys(scopes).length) body.scopes = scopes;

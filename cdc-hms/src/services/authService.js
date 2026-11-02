@@ -5,6 +5,15 @@ import api from './api';
  * Handles all auth-related API calls: login, logout, password management
  */
 
+// A successful sign-in's token and user go into sessionStorage.
+const storeSession = (response) => {
+  if (response.success && response.data.token) {
+    sessionStorage.setItem('token', response.data.token);
+    sessionStorage.setItem('currentUser', JSON.stringify(response.data.user));
+  }
+  return response;
+};
+
 export const authService = {
   /**
    * Login user
@@ -13,17 +22,14 @@ export const authService = {
    * @param {string} role - User role (doctor, staff, lab, patient, admin)
    * @returns {Promise} - { success: true, data: { token, user } }
    */
-  login: async (email, password) => {
-    const response = await api.post('/auth/login', { email, password });
+  login: async (email, password) => storeSession(await api.post('/auth/login', { email, password })),
 
-    // If login successful, store token and user in sessionStorage
-    if (response.success && response.data.token) {
-      sessionStorage.setItem('token', response.data.token);
-      sessionStorage.setItem('currentUser', JSON.stringify(response.data.user));
-    }
-
-    return response;
-  },
+  /**
+   * The check-in gate's "check again" (2 Nov 2026): the gate ticket the 423
+   * carried, never the password. Signs in the same way once let through.
+   * @param {string} ticket
+   */
+  gateCheck: async (ticket) => storeSession(await api.post('/auth/gate-check', { ticket })),
 
   /**
    * The device's own location for this sign-in (Settings → Sign-in security,

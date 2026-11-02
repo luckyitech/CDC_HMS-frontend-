@@ -39,6 +39,8 @@ const EVENTS = [
   { key: 'attendance_weekly',     label: 'Your week — every Saturday at 2 pm',        group: 'Attendance' },
   // 17 Oct 2026
   { key: 'phone_registered',      label: 'A check-in phone is registered',           group: 'Check-in', hint: 'to the person and HR' },
+  // 2 Nov 2026: the check-in gate let someone in while the scanner was offline.
+  { key: 'checkin_gate_offline',  label: 'Signed in while the scanner was offline',  group: 'Check-in', hint: 'to whoever sees attendance' },
 ];
 
 const Check = ({ checked, onChange, disabled, label }) => (

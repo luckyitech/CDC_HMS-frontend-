@@ -11,10 +11,11 @@ import AccordionPanel from '../../shared/AccordionPanel';
 import { formatDateTime, scopeLabel } from './staffFormat';
 import ScopePicker from './ScopePicker';
 import {
-  STAFF_TYPES, canManageTags, canRegisterPhones, canGrantPermissions, canGrantHrPermissions, canChangeStaffStatus, passesAdminGate,
+  STAFF_TYPES, PERMISSIONS, canManageTags, canRegisterPhones, canGrantPermissions, canGrantHrPermissions, canChangeStaffStatus, passesAdminGate,
 } from '../../../utils/permissions';
 import RememberedPhones from '../../hr/RememberedPhones';
 import ApplyPreset from './ApplyPreset';
+import CheckinExemptUntil from './CheckinExemptUntil';
 
 // Keyed off the server's group keys. An unknown group still renders, with the
 // generic shield — a group added on the server is never invisible here.
@@ -401,6 +402,20 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
     await save();
   };
 
+  /** The check-in gate's end date (2 Nov 2026), saved with the ticks as they stand. */
+  const saveExemptUntil = async (date) => {
+    setSaving(PERMISSIONS.HR_CHECKIN_EXEMPT);
+    try {
+      const res = await staffService.updatePermissions(staff.employeeId, granted, denied, undefined, undefined, { checkinExemptUntil: date });
+      onChanged(res.data);
+      toast.success(date ? 'End date saved' : 'End date removed');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save the end date');
+    } finally {
+      setSaving(null);
+    }
+  };
+
   /** Save a new department scope for one directly ticked control. */
   const saveScope = async (capability, spec) => {
     setSaving(capability);
@@ -577,6 +592,14 @@ const AccessTab = ({ staff, currentUser, onChanged, onArchive, onRestore, onStat
           </button>
         )}
       </div>
+      {capability === PERMISSIONS.HR_CHECKIN_EXEMPT && effective.includes(capability) && (
+        <CheckinExemptUntil
+          value={staff.checkinExemptUntil}
+          disabled={!editable(capability)}
+          saving={saving === capability}
+          onSave={saveExemptUntil}
+        />
+      )}
       {scopeOpen === capability && (
         <ScopePicker
           capabilityLabel={area.name}

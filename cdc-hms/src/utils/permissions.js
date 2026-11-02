@@ -113,6 +113,9 @@ export const PERMISSIONS = {
   // 17 Oct 2026: registering a check-in phone. Explicit grant or the true
   // admin — NOT admin.access (backend canRegisterPhones).
   HR_DEVICES_REGISTER: 'hr.devices.register',
+  // The check-in gate (2 Nov 2026): may sign in without checking in at the
+  // scanner (an optional end date). Explicit grant only, like the IT controls.
+  HR_CHECKIN_EXEMPT: 'hr.checkin.exempt',
   // The confidential drawer of a staff file (contracts, appraisals,
   // disciplinary letters, archived files). Like permissions.grant it is NOT
   // covered by admin.access and held by nobody by role.

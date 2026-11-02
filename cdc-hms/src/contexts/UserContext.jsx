@@ -146,16 +146,13 @@ export const UserProvider = ({ children }) => {
     }
   };
 
-  // Login function - NOW USES REAL API
-  const login = async (email, password) => {
-    if (!email || !password) {
-      return { success: false, message: 'Email and password are required' };
-    }
-
+  // One sign-in, however it is asked for: the password (login) or the
+  // check-in gate's ticket (gateCheck, 2 Nov 2026).
+  const signIn = async (request) => {
     setLoading(true);
 
     try {
-      const response = await authService.login(email, password);
+      const response = await request();
 
       if (response.success) {
         setCurrentUser(response.data.user);
@@ -174,11 +171,22 @@ export const UserProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, message: error.message || 'Login failed. Please try again.' };
+      // `code` and `data` let the sign-in page branch: CHECKIN_REQUIRED shows
+      // the check-in gate card with what the 423 carries (2 Nov 2026).
+      return { success: false, message: error.message || 'Login failed. Please try again.', code: error.data?.code, data: error.data };
     } finally {
       setLoading(false);
     }
   };
+
+  const login = async (email, password) => {
+    if (!email || !password) {
+      return { success: false, message: 'Email and password are required' };
+    }
+    return signIn(() => authService.login(email, password));
+  };
+
+  const gateCheck = (ticket) => signIn(() => authService.gateCheck(ticket));
 
   // Logout function - NOW USES REAL API
   const logout = async () => {
@@ -263,6 +271,7 @@ export const UserProvider = ({ children }) => {
 
     // Authentication Functions
     login,
+    gateCheck,
     logout,
     isAuthenticated,
     hasRole,

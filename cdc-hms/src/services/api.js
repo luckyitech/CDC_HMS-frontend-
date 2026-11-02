@@ -74,7 +74,9 @@ api.interceptors.response.use(
       sessionStorage.removeItem('currentUser');
       // The network lock (16 Oct 2026): the session left the clinic network.
       // The sign-in page shows this once, so the person knows why they are out.
-      if (error.response?.data?.code === 'OUTSIDE_CLINIC') {
+      // The check-in gate (2 Nov 2026): yesterday's session, and no check-in
+      // today — the same: signed out, and told why.
+      if (['OUTSIDE_CLINIC', 'CHECKIN_REQUIRED'].includes(error.response?.data?.code)) {
         try { sessionStorage.setItem('signoutReason', error.response.data.message); } catch { /* private mode */ }
       }
 
